@@ -138,7 +138,7 @@ Máximo tres entregas evaluadas por problema. Si siguen fallando: registrar evid
 - Vite/React, API Node/TypeScript con Fastify, PostgreSQL y archivos en el Contabo existente. Panel con AG Grid Community.
 - Inspección del 13 oct: SSH operativo, Ubuntu 24.04.3 LTS, Docker/Nginx existentes; aproximadamente 3,3 GB de RAM disponibles y 373 GB de disco libres en ese momento.
 - Proyecto Compose, DB/usuario, volúmenes y copias propios de FiestaPay; PostgreSQL privado y recursos acotados.
-- El dominio responde vía Cloudflare, pero aún sirve otra aplicación y carece de vhost FiestaPay. Añadir ruta específica al proxy existente; verificar HTTPS, WebSocket, micrófono y políticas PayPal sin reemplazar configuración global.
+- Estado inicial del 13 oct: el dominio servía otra aplicación. El 14 oct se activó el vhost exclusivo de FiestaPay con HTTPS, API y PostgreSQL aislados; sitios vecinos verificados. La voz WebSocket funciona en prueba técnica; micrófono humano y captura PayPal siguen pendientes. Ver ESTADO.md para evidencia actual.
 
 ## 4. Integridad y pruebas
 

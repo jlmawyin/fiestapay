@@ -4,7 +4,7 @@ An AI host for shared gatherings: understand the invitation, confirm attendance,
 
 **Work in progress.** This repository implements the approved hackathon P1. A deployed page, passing fake-provider tests, or an OAuth token do not prove a completed sandbox payment. See [implementation evidence](docs/ESTADO.md) for verified results and remaining work.
 
-- Intended demo: https://fiestapay.somospanas.com
+- Running demo: https://fiestapay.somospanas.com
 - No Google sign-in or real personal information. Use a fictional alias and a sandbox buyer.
 - Four fixed-cover templates: Meal, House party, Shared trip, Event.
 - Attendance and payment are separate states. A confirmed guest can still be unpaid.

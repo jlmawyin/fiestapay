@@ -17,7 +17,7 @@ AssemblyAI uses a direct browser WebSocket; the reverse proxy preserves upgrade 
 
 ## TLS
 
-The dedicated certificate is managed with Certbot HTTP-01. Its webroot is `/root/nginx-core/certs/fiestapay-acme`, visible inside the shared proxy through its existing certificates mount. `renew-certificate.sh` renews only the FiestaPay certificate and validates Nginx before reload. Check renewal scheduling on the host; a checked-in script alone is not proof of an active timer.
+The dedicated certificate is managed with Certbot HTTP-01. Its webroot is `/root/nginx-core/certs/fiestapay-acme`, visible inside the shared proxy through its existing certificates mount. `renew-certificate.sh` renews only the FiestaPay certificate and validates Nginx before reload. The dedicated fiestapay-renew.timer was enabled on 14 October; it checks daily at 08:00 UTC with a randomized delay. Verify it with systemctl list-timers fiestapay-renew.timer. A checked-in script alone is not proof of an active timer or successful future renewal.
 
 ## Backup/restore drill
 
