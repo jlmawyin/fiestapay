@@ -586,7 +586,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
           aria-expanded={isOpen}
         >
           <span style={{ fontSize: '1.2rem' }}>🎙️</span>
-          <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Voz AssemblyAI</span>
+          <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Hablar</span>
           {isOpen ? '✕' : ''}
         </button>
       </div>
@@ -600,7 +600,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
             right: '1.5rem',
             width: '380px',
             maxWidth: 'calc(100vw - 3rem)',
-            maxHeight: '520px',
+            maxHeight: 'min(520px, calc(100dvh - 6.2rem))',
             backgroundColor: '#FFFFFF',
             borderRadius: 'var(--radius-xl)',
             border: '1.5px solid var(--color-border)',
@@ -670,7 +670,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
               >
                 <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>Únete primero</div>
                 <p style={{ color: 'var(--color-ink-muted)' }}>
-                  Para identificarte con tu alias en la conversación por voz, ingresa tu nombre en la invitación principal.
+                  Para comenzar la conversación por voz, ingresa un alias ficticio en la invitación principal.
                 </p>
               </div>
             ) : !voiceAvailable ? (

@@ -4,7 +4,7 @@ Actualizado el 14 octubre 2026. El calendario no equivale a progreso real; **P1 
 
 ## Evidencia verificada
 
-- Repo público MIT: https://github.com/jlmawyin/fiestapay. Rama `chore/bootstrap`; PR/CI de GitHub pendientes de publicación al cierre de esta integración.
+- Repo público MIT: https://github.com/jlmawyin/fiestapay. Rama `chore/bootstrap`; [PR #1 en borrador](https://github.com/jlmawyin/fiestapay/pull/1), CI GitHub aprobada para `727b26c`.
 - **Demo pública:** https://fiestapay.somospanas.com, HTTP 200, título FiestaPay y `/api/health` correcto. API y PostgreSQL dedicados en Contabo, sin puertos públicos del contenedor/DB. Vhost HTTPS exclusivo; certificado hasta 12 enero 2027 y timer `fiestapay-renew.timer` activo. `nginx -t` aprobado antes de recargar.
 - Regresión tras activar el vhost: `somospanas.com` (WordPress), `ac.visitaremota.com` y `sparring.visitaremota.com` respondieron 200 con sus títulos originales. No se cambió su configuración.
 - `npm run check` remoto con PostgreSQL de pruebas: **132 tests / 13 archivos**, lint, tipos y build aprobados. Incluye carreras de creación/captura, reembolsos, cupo, autorización, reset, confirmación ligada a cotización y cancelación asíncrona de voz. Revalidado también después del ajuste de correlación Gemini.
@@ -25,11 +25,10 @@ Actualizado el 14 octubre 2026. El calendario no equivale a progreso real; **P1 
 
 ## Pendientes y siguiente paso
 
-1. Cerrar esta integración: CI/PR en GitHub, versión identificada y evidencia de reinicio/persistencia.
+1. Validar en móvil el ajuste de botones Chat/Hablar. Evento, dos asistentes y recaudado cero persistieron al recrear el contenedor; la revisión desplegada se registra en `/opt/fiestapay/RELEASE_COMMIT`. PR en borrador hasta verificar integraciones externas.
 2. Jorge indica ruta privada de comprador Personal sandbox o aprueba el checkout. Preparar 3–5 compradores ficticios y completar el primer pago; todavía no hay credenciales de compradores confirmadas.
 3. Cuando Gemini recupere disponibilidad, verificar herramientas y cotización de principio a fin. Se preservan firmas del modelo y se correlaciona el ID de cada respuesta de herramienta.
 4. Hito 16 oct: micrófono real desde móvil, latencia/créditos y tres intentos consecutivos. La prueba WebSocket automática no sustituye este hito.
 5. Jorge convoca probadores; no hay confirmaciones recibidas. Ensayo humano, PWA, accesibilidad completa, rollback probado, freeze, video y Devpost siguen pendientes del calendario.
 
 P2 tiene cero horas comprometidas. No ampliar alcance ni consumir los días 3–4 noviembre con mejoras. Demo y cuentas disponibles hasta 15 diciembre.
-

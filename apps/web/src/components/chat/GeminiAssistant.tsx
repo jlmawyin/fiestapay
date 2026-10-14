@@ -113,7 +113,7 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
           aria-expanded={isOpen}
         >
           <span style={{ fontSize: '1.2rem' }}>✨</span>
-          <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Asistente Fiesta</span>
+          <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Chat</span>
           {isOpen ? '✕' : ''}
         </button>
       </div>
@@ -128,6 +128,7 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
             width: '360px',
             maxWidth: 'calc(100vw - 3rem)',
             height: '480px',
+            maxHeight: 'calc(100dvh - 6.2rem)',
             backgroundColor: '#FFFFFF',
             borderRadius: 'var(--radius-xl)',
             border: '1.5px solid var(--color-border)',
@@ -156,7 +157,7 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
               <div>
                 <strong style={{ fontSize: '0.9rem', display: 'block' }}>Asistente Gemini</strong>
                 <span style={{ fontSize: '0.72rem', color: 'var(--color-yellow)' }}>
-                  {geminiAvailable ? 'En línea' : 'Servicio IA deshabilitado'}
+                  {geminiAvailable ? 'Consulta sobre tu fiesta' : 'Chat no disponible'}
                 </span>
               </div>
             </div>
@@ -183,7 +184,7 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
             }}
           >
             <span>🎙️</span>
-            <span>Voz (AssemblyAI): En preparación por backend. Entrada por texto activa.</span>
+            <span>Revisa tu cuota antes de abrir PayPal. Asistencia y pago se confirman por separado.</span>
           </div>
 
           {/* Chat Messages */}

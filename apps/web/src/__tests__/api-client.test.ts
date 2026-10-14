@@ -126,4 +126,3 @@ describe('API Client Specification Compliance (docs/API.md)', () => {
     );
   });
 });
-

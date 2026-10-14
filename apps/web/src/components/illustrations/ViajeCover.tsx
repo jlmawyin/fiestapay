@@ -25,7 +25,7 @@ export const ViajeCover: React.FC<CoverProps> = ({ className = '', height = '180
       {/* Distant peaks */}
       <polygon points="50,150 140,80 230,150" fill="#1E3A5F" />
       <polygon points="120,95 140,80 160,95 150,95 140,88 130,95" fill="#F7FAFC" fillOpacity="0.8" />
-      
+
       <polygon points="180,150 280,65 380,150" fill="#1B4D7E" />
       <polygon points="260,82 280,65 300,82 290,82 280,73 270,82" fill="#F7FAFC" stroke="#F7FAFC" strokeWidth="1" />
 
