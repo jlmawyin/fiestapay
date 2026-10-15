@@ -1,10 +1,10 @@
 # Estado de implementación
 
-Actualizado el 14 octubre 2026. El calendario no equivale a progreso real; **P1 todavía no está aceptado**. No marcar una prueba externa por tests con proveedores simulados.
+Actualizado el 15 octubre 2026. El calendario no equivale a progreso real; **P1 todavía no está aceptado**. No marcar una prueba externa por tests con proveedores simulados.
 
 ## Evidencia verificada
 
-- Repo público MIT: https://github.com/jlmawyin/fiestapay. Rama `chore/bootstrap`; [PR #1 en borrador](https://github.com/jlmawyin/fiestapay/pull/1), CI GitHub aprobada para `a32856a` (132 tests).
+- Repo público MIT: https://github.com/jlmawyin/fiestapay. Rama `chore/bootstrap`; [PR #1 en borrador](https://github.com/jlmawyin/fiestapay/pull/1), CI GitHub aprobada para `3b5984e` (132 tests); código desplegado `a32856a`.
 - **Demo pública:** https://fiestapay.somospanas.com, HTTP 200, título FiestaPay y `/api/health` correcto. API y PostgreSQL dedicados en Contabo, sin puertos públicos del contenedor/DB. Vhost HTTPS exclusivo; certificado hasta 12 enero 2027 y timer `fiestapay-renew.timer` activo. `nginx -t` aprobado antes de recargar.
 - Regresión tras activar el vhost: `somospanas.com` (WordPress), `ac.visitaremota.com` y `sparring.visitaremota.com` respondieron 200 con sus títulos originales. No se cambió su configuración.
 - `npm run check` remoto con PostgreSQL de pruebas: **132 tests / 13 archivos**, lint, tipos y build aprobados. Incluye carreras de creación/captura, reembolsos, cupo, autorización, reset, confirmación ligada a cotización y cancelación asíncrona de voz. Revalidado también después del ajuste de correlación Gemini.
@@ -28,7 +28,13 @@ Actualizado el 14 octubre 2026. El calendario no equivale a progreso real; **P1 
 1. Versión `a32856a` desplegada y controles Chat/Hablar verificados sin superposición a 390×844. Evento, dos asistentes y recaudado cero persistieron al recrear el contenedor; revisión registrada en `/opt/fiestapay/RELEASE_COMMIT`. PR en borrador hasta verificar integraciones externas.
 2. Jorge indica ruta privada de comprador Personal sandbox o aprueba el checkout. Preparar 3–5 compradores ficticios y completar el primer pago; todavía no hay credenciales de compradores confirmadas.
 3. Cuando Gemini recupere disponibilidad, verificar herramientas y cotización de principio a fin. Se preservan firmas del modelo y se correlaciona el ID de cada respuesta de herramienta.
-4. Hito 16 oct: micrófono real desde móvil, latencia/créditos y tres intentos consecutivos. La prueba WebSocket automática no sustituye este hito.
+4. Hito 16 oct: micrófono real desde móvil, latencia/créditos y tres intentos consecutivos. [Protocolo preparado](VOICE_ACCEPTANCE.md), todavía sin resultados humanos. La prueba WebSocket automática no sustituye este hito.
 5. Jorge convoca probadores; no hay confirmaciones recibidas. Ensayo humano, PWA, accesibilidad completa, rollback probado, freeze, video y Devpost siguen pendientes del calendario.
 
 P2 tiene cero horas comprometidas. No ampliar alcance ni consumir los días 3–4 noviembre con mejoras. Demo y cuentas disponibles hasta 15 diciembre.
+
+## Seguimiento 15 octubre
+
+- Infraestructura del hito de hoy ya desplegada: API y DB saludables tras 23 horas; los cuatro dominios comprobados responden 200. No repetir despliegue ni pruebas financieras sin cambios.
+- Un único reintento público Gemini devolvió timeout del proveedor; la cotización por formulario sigue siendo 5000 centavos. Sin nuevas credenciales de comprador ni resultado humano; bloqueos sin cambios.
+- Preparado el protocolo de voz del 16 oct. No se consumieron créditos de voz en este seguimiento ni se creó otra orden PayPal.
