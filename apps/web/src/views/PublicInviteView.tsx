@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useLayoutEffect, useRef } from 'react';
 import type { FiestaEvent, Guest, Quote, OrderResult, Capabilities, RsvpStatus, AgendaItem } from '../types';
 import { api } from '../api/client';
 import { usd } from '../types';
@@ -36,32 +36,89 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const [isJoining, setIsJoining] = useState(false);
   const [isSavingRsvp, setIsSavingRsvp] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
-
-  // Reconcile / restore persisted order from sessionStorage scoped to slug
-  useEffect(() => {
-    try {
-      const saved = sessionStorage.getItem(`fiestapay_order_${slug}`);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed.orderId === 'string') {
-          setActiveOrder(parsed);
-        }
-      }
-    } catch {
-      // ignore
-    }
+  const scopeVersion = useRef(0);
+  useLayoutEffect(() => {
+    scopeVersion.current += 1;
+    return () => { scopeVersion.current += 1; };
   }, [slug]);
 
+  // URL and sessionStorage identify a candidate only. The authenticated server must
+  // verify its state and its guest must belong to this invitation before it is actionable.
+  useEffect(() => {
+    let active = true;
+    setActiveOrder(null);
+    let savedOrder: OrderResult | null = null;
+    try {
+      const parsed = JSON.parse(sessionStorage.getItem(`fiestapay_order_${slug}`) || 'null');
+      if (parsed && typeof parsed.orderId === 'string') savedOrder = parsed;
+    } catch { /* Storage is optional. */ }
+
+    const url = new URL(window.location.href);
+    const returned = url.searchParams.get('paypal');
+    const token = url.searchParams.get('token');
+    const isReturn = returned === 'approved' || returned === 'cancelled';
+    const candidateId = (isReturn && token) || savedOrder?.orderId;
+    if (isReturn) {
+      onShowToast('info', returned === 'cancelled'
+        ? 'El enlace indica cancelación. Consultaremos el estado real de la orden.'
+        : 'Has regresado de PayPal. Consultaremos el estado antes de continuar.', 'Regreso de PayPal');
+    }
+    if (isReturn || token) {
+      url.searchParams.delete('paypal');
+      url.searchParams.delete('token');
+      url.searchParams.delete('PayerID');
+      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+    }
+    if (!candidateId) return () => { active = false; };
+
+    void (async () => {
+      try {
+        const result = await api.getOrder(candidateId);
+        // Read invitation after reconciliation, because getOrder may apply a verified capture.
+        const details = await api.getEventBySlug(slug);
+        if (!active) return;
+        if (!details.guest || result.guest?.id !== details.guest.id) {
+          throw new Error('La orden no corresponde a tu invitación.');
+        }
+        setEvent(details.event);
+        setGuest(details.guest);
+        if (result.status === 'paid') {
+          try { sessionStorage.removeItem(`fiestapay_order_${slug}`); } catch { /* Optional. */ }
+          onShowToast('success', 'El servidor verificó que esta orden ya está pagada.', 'Pago confirmado');
+          return;
+        }
+        if (!['created', 'approved', 'capturing'].includes(result.status)) {
+          try { sessionStorage.removeItem(`fiestapay_order_${slug}`); } catch { /* Optional. */ }
+          onShowToast('warning', 'Esta orden ya no admite pagos. Revisa una nueva cotización.', 'Orden cerrada');
+          return;
+        }
+        const recovered: OrderResult = {
+          orderId: candidateId,
+          status: result.status,
+          ...(savedOrder?.orderId === candidateId && savedOrder.approveUrl ? {approveUrl: savedOrder.approveUrl} : {}),
+        };
+        setActiveOrder(recovered);
+        try { sessionStorage.setItem(`fiestapay_order_${slug}`, JSON.stringify(recovered)); } catch { /* Optional. */ }
+      } catch {
+        if (active) onShowToast('warning', 'No pudimos verificar esta orden para tu invitación. No se confirmó ningún estado de pago.', 'Orden sin verificar');
+      }
+    })();
+    return () => { active = false; };
+  }, [slug, onShowToast]);
+
   const loadEvent = useCallback(async () => {
+    const scope = scopeVersion.current;
     setIsLoading(true);
     try {
       const data = await api.getEventBySlug(slug);
+      if (scope !== scopeVersion.current) return;
       setEvent(data.event);
       setGuest(data.guest);
     } catch (err: any) {
+      if (scope !== scopeVersion.current) return;
       onShowToast('error', err.message || 'No se pudo cargar la fiesta', 'Error de carga');
     } finally {
-      setIsLoading(false);
+      if (scope === scopeVersion.current) setIsLoading(false);
     }
   }, [slug, onShowToast]);
 
@@ -72,14 +129,17 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   // Load quote when guest is attending and owes money
   const fetchQuote = useCallback(async () => {
     if (!guest || guest.status !== 'yes') return;
+    const scope = scopeVersion.current;
     setIsLoadingQuote(true);
     try {
       const data = await api.getQuote(slug);
+      if (scope !== scopeVersion.current) return;
       setQuote(data.quote);
     } catch (err: any) {
+      if (scope !== scopeVersion.current) return;
       onShowToast('error', err.message || 'No se pudo calcular la cotización', 'Cotización');
     } finally {
-      setIsLoadingQuote(false);
+      if (scope === scopeVersion.current) setIsLoadingQuote(false);
     }
   }, [slug, guest, onShowToast]);
 
@@ -142,9 +202,11 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
     }
   };
 
-  const handleCaptureSuccess = async (orderId: string) => {
+  const handleCaptureSuccess = async (orderId: string): Promise<boolean> => {
+    const scope = scopeVersion.current;
     try {
       const res = await api.captureOrder(orderId);
+      if (scope !== scopeVersion.current) return false;
       // Capture success only if server status is paid and guest is evaluated
       if (res.status === 'paid' && res.guest) {
         setGuest(res.guest);
@@ -156,7 +218,9 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         }
         // Reload event to get updated collectedCents
         await loadEvent();
+        if (scope !== scopeVersion.current) return false;
         onShowToast('success', '¡Tu pago fue verificado y capturado correctamente por el servidor!', '¡Pago confirmado!');
+        return true;
       } else {
         if (res.guest) {
           setGuest(res.guest);
@@ -166,8 +230,10 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
           `El servidor reporta el estado de la orden como "${res.status}". Si realizaste la transacción, verifica su conciliación nuevamente.`,
           'Verificación de Pago'
         );
+        return false;
       }
     } catch (err: any) {
+      if (scope !== scopeVersion.current) return false;
       onShowToast(
         'error',
         `No se pudo comprobar la captura con el servidor: ${err.message || 'Error de red'}. Puedes consultar el estado de tu orden para verificar si fue recibida.`,
@@ -179,9 +245,11 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
 
   const handleReconcileOrder = async () => {
     if (!activeOrder) return;
+    const scope = scopeVersion.current;
     setIsReconcilingOrder(true);
     try {
       const res = await api.getOrder(activeOrder.orderId);
+      if (scope !== scopeVersion.current) return;
       if (res.status === 'paid' && res.guest) {
         setGuest(res.guest);
         setActiveOrder(null);
@@ -191,15 +259,17 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
           // Storage can be unavailable; the verified server state still applies.
         }
         await loadEvent();
+        if (scope !== scopeVersion.current) return;
         onShowToast('success', '¡La orden fue confirmada como pagada por el servidor!', 'Pago confirmado');
       } else {
         if (res.guest) setGuest(res.guest);
         onShowToast('info', `Estado actual de la orden en el servidor: "${res.status}".`, 'Consulta de Orden');
       }
     } catch (err: any) {
+      if (scope !== scopeVersion.current) return;
       onShowToast('error', err.message || 'No se pudo consultar el estado de la orden', 'Error al verificar');
     } finally {
-      setIsReconcilingOrder(false);
+      if (scope === scopeVersion.current) setIsReconcilingOrder(false);
     }
   };
 

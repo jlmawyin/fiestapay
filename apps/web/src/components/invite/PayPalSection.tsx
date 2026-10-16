@@ -5,7 +5,7 @@ import type { Capabilities, OrderResult } from '../../types';
 interface PayPalSectionProps {
   order: OrderResult;
   capabilities: Capabilities | null;
-  onCaptureSuccess: (capturedStatus: string) => Promise<void>;
+  onCaptureSuccess: (orderId: string) => Promise<boolean>;
   onCancelOrError: (msg: string) => void;
 }
 
@@ -52,8 +52,12 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
               setIsCapturing(true);
               setStatusMessage('Verificando captura con el servidor...');
               try {
-                await onCaptureSuccess(order.orderId);
-                setStatusMessage('¡Pago capturado y confirmado con éxito!');
+                const paid = await onCaptureSuccess(order.orderId);
+                if (paid) {
+                  setStatusMessage('¡Pago capturado y confirmado con éxito!');
+                } else {
+                  setStatusMessage(null);
+                }
               } catch (err: any) {
                 setStatusMessage(null);
                 onCancelOrError(err.message || 'Error al capturar la orden en el servidor');
@@ -107,6 +111,51 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
         <h4 style={{ fontSize: '1rem', color: 'var(--color-ink)' }}>Completar Pago Seguro</h4>
         <span className="badge badge-yellow">Orden #{order.orderId.slice(0, 8)}</span>
       </div>
+
+      {order.status === 'approved' && (
+        <div
+          style={{
+            backgroundColor: 'var(--color-teal-tint)',
+            border: '1.5px solid var(--color-teal)',
+            borderRadius: 'var(--radius-md)',
+            padding: '0.85rem 1rem',
+            marginBottom: '1rem',
+            fontSize: '0.875rem',
+          }}
+        >
+          <div style={{ fontWeight: 700, color: 'var(--color-teal)', marginBottom: '0.25rem' }}>
+            ✓ Autorización recibida en PayPal
+          </div>
+          <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.825rem', color: 'var(--color-ink)' }}>
+            Tu orden está autorizada en PayPal. Confirma la captura final para que el servidor verifique la transacción y acredite tu cuota.
+          </p>
+          <button
+            type="button"
+            onClick={async () => {
+              setIsCapturing(true);
+              setStatusMessage('Verificando captura con el servidor...');
+              try {
+                const paid = await onCaptureSuccess(order.orderId);
+                if (paid) {
+                  setStatusMessage('¡Pago capturado y confirmado con éxito!');
+                } else {
+                  setStatusMessage(null);
+                }
+              } catch (err: any) {
+                setStatusMessage(null);
+                onCancelOrError(err.message || 'Error al capturar la orden en el servidor');
+              } finally {
+                setIsCapturing(false);
+              }
+            }}
+            disabled={isCapturing}
+            className="btn btn-teal"
+            style={{ fontSize: '0.85rem', padding: '0.4rem 0.85rem', fontWeight: 600 }}
+          >
+            {isCapturing ? 'Verificando y Capturando...' : 'Confirmar y Completar Captura de Pago'}
+          </button>
+        </div>
+      )}
 
       {!paypalAvailable ? (
         <div
@@ -228,7 +277,12 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
                   setIsCapturing(true);
                   setStatusMessage('Consultando conciliación con el servidor...');
                   try {
-                    await onCaptureSuccess(order.orderId);
+                    const paid = await onCaptureSuccess(order.orderId);
+                    if (paid) {
+                      setStatusMessage('¡Pago capturado y confirmado con éxito!');
+                    } else {
+                      setStatusMessage(null);
+                    }
                   } catch (err: any) {
                     setStatusMessage(null);
                     onCancelOrError(err.message || 'No se pudo confirmar la captura en este momento');
