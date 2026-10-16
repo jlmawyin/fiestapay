@@ -1,0 +1,16 @@
+.git
+node_modules
+**/node_modules
+**/dist
+.env*
+.local
+.secrets
+coverage
+test-results
+playwright-report
+*.log
+backups
+certbot
+*.tgz
+output
+.playwright-cli
