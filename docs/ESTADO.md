@@ -4,7 +4,7 @@ Actualizado el 16 octubre 2026. El calendario no equivale a progreso real; **P1 
 
 ## Evidencia verificada
 
-- Repo público MIT: https://github.com/jlmawyin/fiestapay. Rama `chore/bootstrap`; [PR #1 en borrador](https://github.com/jlmawyin/fiestapay/pull/1), CI GitHub aprobada para `3b5984e` (132 tests); código desplegado `a32856a`.
+- Repo público MIT: https://github.com/jlmawyin/fiestapay. Rama `chore/bootstrap`; [PR #1 en borrador](https://github.com/jlmawyin/fiestapay/pull/1), [CI GitHub aprobada para `a9c61c6`](https://github.com/jlmawyin/fiestapay/actions/runs/38895742935) (143 tests / 14 archivos); código desplegado `a9c61c6`.
 - **Demo pública:** https://fiestapay.somospanas.com, HTTP 200, título FiestaPay y `/api/health` correcto. API y PostgreSQL dedicados en Contabo, sin puertos públicos del contenedor/DB. Vhost HTTPS exclusivo; certificado hasta 12 enero 2027 y timer `fiestapay-renew.timer` activo. `nginx -t` aprobado antes de recargar.
 - Regresión tras activar el vhost: `somospanas.com` (WordPress), `ac.visitaremota.com` y `sparring.visitaremota.com` respondieron 200 con sus títulos originales. No se cambió su configuración.
 - `npm run check` remoto con PostgreSQL de pruebas: **132 tests / 13 archivos**, lint, tipos y build aprobados. Incluye carreras de creación/captura, reembolsos, cupo, autorización, reset, confirmación ligada a cotización y cancelación asíncrona de voz. Revalidado también después del ajuste de correlación Gemini.
@@ -26,7 +26,7 @@ Actualizado el 16 octubre 2026. El calendario no equivale a progreso real; **P1 
 
 ## Pendientes y siguiente paso
 
-1. Versión `a32856a` desplegada y controles Chat/Hablar verificados sin superposición a 390×844. Evento, dos asistentes y recaudado cero persistieron al recrear el contenedor; revisión registrada en `/opt/fiestapay/RELEASE_COMMIT`. PR en borrador hasta verificar integraciones externas.
+1. Versión `a9c61c6` desplegada, API saludable y referencia en `/opt/fiestapay/RELEASE_COMMIT`. Retorno en nueva pestaña probado contra el dominio: URL `paypal=approved` manipulada, pero orden recuperada como `created` según servidor, recaudado/pagado 0 y saldo 5000, sin captura automática ni aviso de aprobación. Parámetros retirados. Evidencia local `output/playwright/paypal-return-verified-20261016.png`. El ajuste móvil Chat/Hablar de la versión anterior se conserva. PR en borrador hasta verificar integraciones externas.
 2. La captura de Jorge acredita **dos compradores Personal y un receptor Business sandbox** creados. Falta localizar las credenciales de comprador guardadas: el `.env` legible en este checkout aún tiene fecha 13 oct y solo contiene la cuenta Business. Se pidió guardar/confirmar la ruta, sin solicitar secretos por chat. Completar aprobación y captura de USD 50 cuando esté disponible. Dos compradores no completan todavía el objetivo de 3–5.
 3. Chat con herramienta y tarjeta verificado el 16 oct. Sigue pendiente completar el recorrido externo con comprador sandbox y acreditar la captura.
 4. Hito 16 oct: micrófono real desde móvil, latencia/créditos y tres intentos consecutivos. [Protocolo preparado](VOICE_ACCEPTANCE.md), todavía sin resultados humanos. La prueba WebSocket automática no sustituye este hito.
