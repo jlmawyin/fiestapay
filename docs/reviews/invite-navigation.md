@@ -19,3 +19,7 @@ El nuevo archivo `invite-navigation.test.tsx` usa `App` y eventos `popstate` rea
 Codex ejecutó el mismo archivo sobre una copia aislada de `c6e62d8`, sin modificar el checkout: **6 fallos y 2 aprobados**. Los seis fallos muestran avisos o título de la invitación anterior; no son errores de importación ni fixtures. Con la corrección: **8/8 aprobados; 50 pruebas frontend totales, tipos y lint aprobados**. Proveedores simulados; no acredita checkout externo ni experiencia humana.
 
 Grafo Tier 2, generación `2026-10-15T12:05:02Z`: `App` y `PublicInviteView` con metadatos cambiados; tests excluidos del índice. Verificación por fuente exacta y diff. Las relaciones JSX incompletas del grafo no se interpretaron como ausencia de llamadas.
+
+## Integración
+
+`654eaaf` desplegado en Contabo al inicio del 18 oct (America/Guayaquil), API pública `ok:true`. [CI GitHub](https://github.com/jlmawyin/fiestapay/actions/runs/39099031638) aprobada: **151 pruebas / 15 archivos**, lint, tipos y build. No se modificó el proxy ni las otras aplicaciones. La aceptación de comprador sandbox y micrófono humano continúa pendiente.
