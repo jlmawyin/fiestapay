@@ -150,22 +150,29 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   }, [guest?.status, guest?.companions, fetchQuote]);
 
   const handleJoin = async (name: string) => {
+    const scope = scopeVersion.current;
     setIsJoining(true);
     try {
       const data = await api.joinEvent(slug, name);
+      if (scope !== scopeVersion.current) return;
       setGuest(data.guest);
       onShowToast('success', `¡Bienvenido/a, ${name}! Tu sesión está lista.`, 'Unido con éxito');
     } catch (err: any) {
+      if (scope !== scopeVersion.current) return;
       onShowToast('error', err.message || 'Error al unirte', 'Error');
     } finally {
-      setIsJoining(false);
+      if (scope === scopeVersion.current) {
+        setIsJoining(false);
+      }
     }
   };
 
   const handleSaveRsvp = async (status: RsvpStatus, companions: number) => {
+    const scope = scopeVersion.current;
     setIsSavingRsvp(true);
     try {
       const data = await api.rsvp(slug, status, companions);
+      if (scope !== scopeVersion.current) return;
       setGuest(data.guest);
       setEvent(data.event);
       setQuote(null);
@@ -177,17 +184,22 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
       }
       onShowToast('success', 'Tu respuesta de asistencia fue actualizada en el servidor.', 'Asistencia guardada');
     } catch (err: any) {
+      if (scope !== scopeVersion.current) return;
       onShowToast('error', err.message || 'Error al guardar asistencia', 'Error de cupo');
       throw err;
     } finally {
-      setIsSavingRsvp(false);
+      if (scope === scopeVersion.current) {
+        setIsSavingRsvp(false);
+      }
     }
   };
 
   const handleCreateOrder = async (quoteId: string) => {
+    const scope = scopeVersion.current;
     setIsCreatingOrder(true);
     try {
       const orderRes = await api.createOrder(slug, quoteId);
+      if (scope !== scopeVersion.current) return;
       setActiveOrder(orderRes);
       try {
         sessionStorage.setItem(`fiestapay_order_${slug}`, JSON.stringify(orderRes));
@@ -196,9 +208,12 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
       }
       onShowToast('info', 'Orden de pago generada. Procede a pagar con PayPal.', 'Orden Lista');
     } catch (err: any) {
+      if (scope !== scopeVersion.current) return;
       onShowToast('error', err.message || 'No se pudo generar la orden de pago', 'Error de orden');
     } finally {
-      setIsCreatingOrder(false);
+      if (scope === scopeVersion.current) {
+        setIsCreatingOrder(false);
+      }
     }
   };
 

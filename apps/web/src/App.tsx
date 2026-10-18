@@ -193,6 +193,7 @@ export const App: React.FC = () => {
 
         {currentView.mode === 'invite' && (
           <PublicInviteView
+            key={currentView.slug}
             slug={currentView.slug}
             capabilities={capabilities}
             onShowToast={showToast}

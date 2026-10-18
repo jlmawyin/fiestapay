@@ -1,6 +1,6 @@
 # Estado de implementación
 
-Actualizado el 16 octubre 2026. El calendario no equivale a progreso real; **P1 todavía no está aceptado**. No marcar una prueba externa por tests con proveedores simulados.
+Actualizado el 17 octubre 2026 (America/Guayaquil). El calendario no equivale a progreso real; **P1 todavía no está aceptado**. No marcar una prueba externa por tests con proveedores simulados.
 
 ## Evidencia verificada
 
@@ -39,3 +39,11 @@ P2 tiene cero horas comprometidas. No ampliar alcance ni consumir los días 3–
 - Infraestructura del hito de hoy ya desplegada: API y DB saludables tras 23 horas; los cuatro dominios comprobados responden 200. No repetir despliegue ni pruebas financieras sin cambios.
 - Un único reintento público Gemini devolvió timeout del proveedor; la cotización por formulario sigue siendo 5000 centavos. Sin nuevas credenciales de comprador ni resultado humano; bloqueos sin cambios.
 - Preparado el protocolo de voz del 16 oct. No se consumieron créditos de voz en este seguimiento ni se creó otra orden PayPal.
+
+## Seguimiento 17 octubre
+
+- Comprobación local: `.env` sigue con 845 bytes y modificación del 13 oct, sin campos de compradores; `.env.buyers` todavía no existe. La ruta ya fue confirmada por Jorge y se ofreció guardar una copia privada. No repetir la misma petición mientras no haya cambios.
+- Consulta agregada de la DB dedicada en Contabo: **3 órdenes `created`, 0 movimientos financieros y 0 webhooks registrados**. La ausencia de registros no demuestra que PayPal nunca intentó entregar una notificación. No se crearon órdenes ni se invocaron Gemini/AssemblyAI desde FiestaPay en este seguimiento.
+- El hito de primer pago del 17 oct **no está cumplido**; el de micrófono humano del 16 oct también sigue pendiente. No consumir ni reasignar por anticipado los márgenes del 3–4 nov. Siguiente prueba externa: aprobación de comprador y captura verificada de USD 50, con consultas antes/después del reintento según el protocolo.
+- Trabajo independiente sobre un defecto pendiente: AGY Gemini corrigió respuestas tardías de entrada/RSVP/creación de orden al navegar entre fiestas. Codex reprodujo seis fallos en la versión anterior y verificó ocho nuevas regresiones aprobadas: 50 tests frontend, tipos y lint. [Evidencia](reviews/invite-navigation.md).
+- Claude no pudo iniciar la revisión del nuevo cambio por OAuth caducado. No se reiteró el intento ni se atribuyó una revisión inexistente. `review_navigation` revisó independientemente y comprobó 8/8 tests; Codex reforzó la aserción de propagación RSVP señalada por el revisor, con 8/8 de nuevo. La sesión Claude deberá renovarse antes de volver a delegar en esa CLI.
