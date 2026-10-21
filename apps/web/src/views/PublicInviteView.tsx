@@ -459,9 +459,16 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {event.agenda.map((ag: AgendaItem, i: number) => (
-                  <div key={i} style={{ display: 'flex', gap: '0.75rem', fontSize: '0.85rem' }}>
+                  <div key={i} style={{ display: 'flex', gap: '0.75rem', fontSize: '0.85rem', alignItems: 'baseline' }}>
                     <span style={{ fontWeight: 800, color: 'var(--color-blue)', minWidth: '50px' }}>{ag.time}</span>
-                    <span style={{ color: 'var(--color-ink)' }}>{ag.title}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                      <span style={{ color: 'var(--color-ink)' }}>{ag.title}</span>
+                      {ag.speaker && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-ink-muted)' }}>
+                          Expositor: {ag.speaker}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

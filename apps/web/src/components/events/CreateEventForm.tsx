@@ -48,7 +48,7 @@ const TEMPLATE_PRESETS: Record<
     goalDollars: '180.00',
     minimumDollars: '90.00',
     capacity: '12',
-    includes: 'Masa madre, ingredientes gourmet para pizzas, cervezas artesanales y selección de cócteles',
+    includes: 'Comida e ingredientes gourmet para pizzas, cervezas artesanales, cócteles y servicio de limpieza',
     agenda: [
       { time: '20:00', title: 'Recepción y sesión de vinilos' },
       { time: '21:00', title: 'Taller de armado y horneado de pizzas' },
@@ -64,7 +64,7 @@ const TEMPLATE_PRESETS: Record<
     goalDollars: '520.00',
     minimumDollars: '390.00',
     capacity: '10',
-    includes: 'Alojamiento en cabaña rústica, compras comunitarias de comida, leña para fogata y entradas al parque',
+    includes: 'Hospedaje en cabaña rústica, transporte en caravana, compras comunitarias de comida, leña y entradas',
     agenda: [
       { time: '08:00', title: 'Punto de encuentro y salida en ruta' },
       { time: '11:30', title: 'Check-in en cabañas y caminata a la cascada' },
@@ -98,7 +98,13 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
     const d = new Date();
     d.setDate(d.getDate() + 5);
     d.setHours(14, 0, 0, 0);
-    return d.toISOString().slice(0, 16);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const year = d.getFullYear();
+    const month = pad(d.getMonth() + 1);
+    const day = pad(d.getDate());
+    const hours = pad(d.getHours());
+    const minutes = pad(d.getMinutes());
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   });
   const [location, setLocation] = useState(TEMPLATE_PRESETS.comida.location);
   const [priceDollars, setPriceDollars] = useState(TEMPLATE_PRESETS.comida.priceDollars);
@@ -184,7 +190,18 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
       capacity: parsedCapacity,
       goalCents,
       minimumCents,
-      agenda: agenda.filter((a) => a.title.trim()),
+      agenda: agenda
+        .filter((a) => a.title.trim())
+        .map((a) => {
+          const item: AgendaItem = {
+            time: a.time.trim(),
+            title: a.title.trim(),
+          };
+          if (a.speaker && a.speaker.trim()) {
+            item.speaker = a.speaker.trim().slice(0, 80);
+          }
+          return item;
+        }),
     };
 
     try {
@@ -340,7 +357,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
           rows={2}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Cuéntales qué harán y qué deben traer..."
+          placeholder="Cuéntales qué harán en la fiesta..."
         />
       </div>
 
@@ -475,9 +492,17 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {agenda.map((item, idx) => (
-            <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div
+              key={idx}
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+                alignItems: 'center',
+              }}
+            >
               <input
-                style={{ width: '80px' }}
+                style={{ width: '80px', flexShrink: 0 }}
                 className="form-input"
                 value={item.time}
                 onChange={(e) => handleUpdateAgendaItem(idx, 'time', e.target.value)}
@@ -485,12 +510,21 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
                 aria-label={`Hora actividad ${idx + 1}`}
               />
               <input
-                style={{ flex: 1 }}
+                style={{ flex: '1 1 180px' }}
                 className="form-input"
                 value={item.title}
                 onChange={(e) => handleUpdateAgendaItem(idx, 'title', e.target.value)}
                 placeholder="Descripción de la actividad"
                 aria-label={`Título actividad ${idx + 1}`}
+              />
+              <input
+                style={{ flex: '1 1 140px' }}
+                className="form-input"
+                value={item.speaker || ''}
+                maxLength={80}
+                onChange={(e) => handleUpdateAgendaItem(idx, 'speaker', e.target.value)}
+                placeholder="Expositor (opcional)"
+                aria-label={`Expositor actividad ${idx + 1}`}
               />
               <button
                 type="button"

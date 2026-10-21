@@ -20,6 +20,8 @@ jobs:
     env:
       DATABASE_URL: postgres://fiestapay:ci-only-password@localhost:5432/fiestapay_test
       NODE_ENV: test
+      # Exercise datetime-local conversions outside UTC, as used by the demo organizer.
+      TZ: America/Guayaquil
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
