@@ -124,4 +124,76 @@ describe('Voice session cancellation and isolation', () => {
     expect(onApplyQuote).not.toHaveBeenCalled();
     expect(socket.send.mock.calls.map(([message]) => JSON.parse(message).type)).not.toContain('tool.result');
   });
+
+  it('falls back to form/chat on NotAllowedError with zero tokens or sockets and retries cleanly to session.ready', async () => {
+    const notAllowedError = new Error('Permission denied');
+    notAllowedError.name = 'NotAllowedError';
+    getUserMedia.mockRejectedValueOnce(notAllowedError);
+
+    startVoice();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Permiso de micrófono denegado. Puedes usar el formulario o chat escrito.')
+      ).toBeInTheDocument();
+    });
+    expect(api.getVoiceToken).not.toHaveBeenCalled();
+    expect(MockSocket.instances).toHaveLength(0);
+
+    const retryButton = screen.getByRole('button', { name: /Iniciar Conversación/ });
+    expect(retryButton).toBeEnabled();
+    fireEvent.click(retryButton);
+
+    const socket = await readySocket();
+    expect(socket.readyState).toBe(MockSocket.OPEN);
+    expect(screen.getByText('Escuchando tu voz...')).toBeInTheDocument();
+    expect(screen.queryByText('Conectando con AssemblyAI...')).not.toBeInTheDocument();
+    expect(MockSocket.instances).toHaveLength(1);
+    expect(api.getVoiceToken).toHaveBeenCalledOnce();
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('button', { name: /Detener y Cerrar/ })).toBeInTheDocument();
+    expect(screen.queryByText('Permiso de micrófono denegado. Puedes usar el formulario o chat escrito.')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Detener y Cerrar/ }));
+    expect(stopTrack).toHaveBeenCalledOnce();
+  });
+
+  it('stops microphone track on getVoiceToken rejection with visible message and retries with a new track to session.ready', async () => {
+    const firstStop = vi.fn();
+    const firstStream = { getTracks: () => [{ stop: firstStop }] } as unknown as MediaStream;
+    const secondStop = vi.fn();
+    const secondStream = { getTracks: () => [{ stop: secondStop }] } as unknown as MediaStream;
+
+    getUserMedia.mockResolvedValueOnce(firstStream).mockResolvedValueOnce(secondStream);
+    vi.mocked(api.getVoiceToken).mockRejectedValueOnce(new Error('Token generation failed'));
+
+    startVoice();
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Token generation failed');
+    });
+    expect(firstStop).toHaveBeenCalledOnce();
+    expect(MockSocket.instances).toHaveLength(0);
+    expect(api.getVoiceToken).toHaveBeenCalledOnce();
+
+    const retryButton = screen.getByRole('button', { name: /Iniciar Conversación/ });
+    expect(retryButton).toBeEnabled();
+    fireEvent.click(retryButton);
+
+    const socket = await readySocket();
+    expect(socket.readyState).toBe(MockSocket.OPEN);
+    expect(screen.getByText('Escuchando tu voz...')).toBeInTheDocument();
+    expect(screen.queryByText('Conectando con AssemblyAI...')).not.toBeInTheDocument();
+    expect(MockSocket.instances).toHaveLength(1);
+    expect(api.getVoiceToken).toHaveBeenCalledTimes(2);
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+    expect(firstStop).toHaveBeenCalledOnce();
+    expect(secondStop).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /Detener y Cerrar/ })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Detener y Cerrar/ }));
+    expect(secondStop).toHaveBeenCalledOnce();
+    expect(firstStop).toHaveBeenCalledOnce();
+  });
 });
