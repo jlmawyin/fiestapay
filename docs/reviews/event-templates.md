@@ -13,4 +13,7 @@ Grafo no disponible en esta revisión: `index_status`, `search_graph` y `check_i
 ## Verificación
 
 - Pruebas locales: cuatro aprobadas, incluyendo envío de las cuatro plantillas, edición/eliminación de agenda, expositor visible y conservación de las 14:00 locales. Typecheck, lint y escaneo de secretos aprobados.
-- Pendiente: CI completa y creación de las cuatro invitaciones contra el despliegue público. Registrar por separado los resultados observados. No afirmar checkout sandbox ni respuesta hablada por esta comprobación.
+- [CI completa](https://github.com/jlmawyin/fiestapay/actions/runs/39574617903): 155 pruebas en 16 archivos, lint, tipos y build. `6d203e2` desplegado el 21 oct en el servicio aislado de FiestaPay, saludable, API `ok:true`.
+- Cuatro creaciones reales mediante formulario público, con lectura posterior de persistencia y vista de invitación. RSVP/cotización por API autenticada, dos asistentes: Comida USD 50, Casa USD 36, Viaje USD 130, Evento USD 80. Pagado/recaudado cero; no se creó orden ni se solicitó captura. Se conservó el mismo motor financiero.
+- Casa sin cupo ni agenda, Evento con actividad/expositor añadido y visible; desayuno/almuerzo/cena seleccionables. Fecha elegida 31 oct 14:00 ECT persistida como 19:00 UTC. Lectura privada `.local/templates-readback-20261021.log`; capturas `output/playwright/template-*-20261021.png`. A 390 px no hubo desbordamiento horizontal en formulario/invitación; fila de expositor inspeccionada visualmente. No es prueba humana ni auditoría completa móvil.
+- Consulta real sobre el expositor mediante chat Gemini: **503 del proveedor**, un intento; no se acredita esa respuesta. Evidencia `.local/templates-chat-20261021.log`. Sin prueba de checkout, webhook externo ni voz humana en este hito.
