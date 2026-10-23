@@ -3,11 +3,13 @@ import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { Capabilities, Dashboard, FiestaEvent, Guest, OrderResult, Quote } from '@fiestapay/shared';
+import { usd, type Capabilities, type Dashboard, type FiestaEvent, type Guest, type OrderResult, type Quote } from '@fiestapay/shared';
 import type { FastifyInstance } from 'fastify';
+import { runTool } from '../src/ai/tools.js';
 import { buildApp } from '../src/app.js';
 import { migrate } from '../src/db/migrate.js';
 import { createPool, type Pool } from '../src/db/pool.js';
+import { findGuestBySession, getEventBySlug } from '../src/domain/read.js';
 import { FakePayPal } from './fake-paypal.js';
 import {
   announceSkipWithoutDatabase,
@@ -660,26 +662,147 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
       expect(body<{ event: FiestaEvent }>(res).event.confirmed).toBe(true);
     });
 
-    it('49,99 no alcanza un minimo de 50 y 50 si', async () => {
+    it('49,99 no alcanza un minimo de 50 y 50 si: frontera exacta 4999/5000 centavos', async () => {
+      // Demo event: USD 25 per person, goal USD 100, minimum USD 50. Every amount below comes
+      // from the public API flow and FakePayPal; nothing is written to the ledger by hand.
       const { client: org, event } = await organizer();
-      const guest = await guestOn(event.slug, 'Zoe', 0);
+      expect(event.minimumCents).toBe(5000);
+      expect(event.goalCents).toBe(10000);
+      const guest = await guestOn(event.slug, 'Zoe', 1); // 2 personas: debe exactamente 5000
 
-      // Two single-person payments of USD 25 reach exactly the USD 50 minimum.
-      const primero = await quoteAndOrder(guest, event.slug);
-      await guest.post(`/api/orders/${primero.orderId}/capture`);
-      let dash = body<Dashboard>(await org.get(`/api/events/${event.slug}/dashboard`));
-      expect(dash.event.collectedCents).toBe(2500);
-      expect(dash.event.minimumReached).toBe(false);
+      // Read only: the guest session the chat/voice routes would resolve from the cookie.
+      const { rows: sesion } = await pool.query<{ session_id: string }>(
+        `SELECT g.session_id FROM guests g JOIN events e ON e.id = g.event_id
+          WHERE e.slug = $1 AND g.name = 'Zoe'`,
+        [event.slug],
+      );
+      const guestSessionId = sesion[0]!.session_id;
+
+      /**
+       * Recaudado must agree, to the cent, across the organizer dashboard, the public invitation
+       * and the shared tool handler behind chat and voice. The tool runs first so the confirmed
+       * flag read afterwards also proves the assistant never confirms the event.
+       */
+      async function progreso(expectedCents: number, minimumReached: boolean, confirmed: boolean) {
+        const row = await getEventBySlug(pool, event.slug);
+        const toolGuest = await findGuestBySession(pool, row.id, guestSessionId);
+        expect(toolGuest).not.toBeNull();
+        const tool = await runTool(
+          { pool, sessionId: guestSessionId, event: row, guest: toolGuest, quoteTtlSeconds: testConfig().quoteTtlSeconds },
+          'get_collection_progress',
+          {},
+        );
+        // A read: no quote card and no proposed action, let alone a payment or a confirmation.
+        expect(tool.quote).toBeUndefined();
+        expect(tool.actions).toBeUndefined();
+        expect(tool.response.recaudado_bruto_centavos).toBe(expectedCents);
+        expect(tool.response.recaudado_bruto).toBe(usd(expectedCents));
+        expect(tool.response.minimo_alcanzado).toBe(minimumReached);
+        expect(tool.response.minimo).toBe(usd(5000));
+        expect(tool.response.meta).toBe(usd(10000));
+        expect(String(tool.response.nota)).toContain('antes de comisiones');
+
+        const dash = body<Dashboard>(await org.get(`/api/events/${event.slug}/dashboard`));
+        const publico = body<{ event: FiestaEvent; guest: Guest | null }>(
+          await new Client(app).get(`/api/events/${event.slug}`),
+        );
+        for (const view of [dash.event, publico.event]) {
+          expect(view.collectedCents).toBe(expectedCents);
+          expect(view.minimumReached).toBe(minimumReached);
+          expect(view.minimumCents).toBe(5000);
+          expect(view.goalCents).toBe(10000);
+          expect(view.confirmed).toBe(confirmed);
+        }
+        return dash;
+      }
+
+      async function refundWebhook(webhookId: string, refund: { id?: string; amount?: unknown }) {
+        return guest.post('/api/paypal/webhook', {
+          id: webhookId,
+          event_type: 'PAYMENT.CAPTURE.REFUNDED',
+          resource: { id: refund.id, amount: refund.amount },
+        });
+      }
+
+      // Estado 0: nada recaudado, no se puede confirmar.
+      await progreso(0, false, false);
       expect((await org.post(`/api/events/${event.slug}/confirm`)).statusCode).toBe(409);
 
-      const otro = await guestOn(event.slug, 'Zulema', 0);
-      const segundo = await quoteAndOrder(otro, event.slug);
-      await otro.post(`/api/orders/${segundo.orderId}/capture`);
+      // Estado 5000: captura verificada de 2 personas. Alcanza el minimo, pero sin confirmacion
+      // humana del organizador el evento sigue sin confirmar.
+      const primero = await quoteAndOrder(guest, event.slug);
+      expect(fake.createCalls.at(-1)!.amountCents).toBe(5000);
+      const capturado = await guest.post(`/api/orders/${primero.orderId}/capture`);
+      expect(capturado.statusCode).toBe(200);
+      expect(body<{ status: string; guest: Guest }>(capturado).guest.paidCents).toBe(5000);
+      await progreso(5000, true, false);
 
-      dash = body<Dashboard>(await org.get(`/api/events/${event.slug}/dashboard`));
-      expect(dash.event.collectedCents).toBe(5000);
-      expect(dash.event.minimumReached).toBe(true);
-      expect((await org.post(`/api/events/${event.slug}/confirm`)).statusCode).toBe(200);
+      // Estado 4999: PayPal reembolsa 1 centavo; el webhook firmado lo aplica una sola vez.
+      const refund = fake.addRefund(fake.captureIdOf(primero.orderId), 1);
+      const refundHookId = nextWebhookId();
+      expect((await refundWebhook(refundHookId, refund)).statusCode).toBe(200);
+      // Redelivery with the same webhook id, and the same refund under a new webhook id.
+      expect((await refundWebhook(refundHookId, refund)).statusCode).toBe(200);
+      expect((await refundWebhook(nextWebhookId(), refund)).statusCode).toBe(200);
+      expect(await ledgerCount('refund', primero.orderId)).toBe(1);
+
+      const dash4999 = await progreso(4999, false, false);
+      const zoe = dash4999.guests.find((g) => g.name === 'Zoe')!;
+      expect(zoe.paidCents).toBe(4999);
+      expect(zoe.dueCents).toBe(1);
+
+      const rechazo = await org.post(`/api/events/${event.slug}/confirm`);
+      expect(rechazo.statusCode).toBe(409);
+      expect(Object.keys(body<Record<string, unknown>>(rechazo))).toEqual(['error']);
+
+      // Nueva cotizacion por el saldo exacto de 1 centavo, calculada en el servidor.
+      const quoteRes = await guest.post(`/api/events/${event.slug}/quote`);
+      expect(quoteRes.statusCode).toBe(200);
+      const { quote } = body<{ quote: Quote }>(quoteRes);
+      expect(quote.totalCents).toBe(5000);
+      expect(quote.paidCents).toBe(4999);
+      expect(quote.amountCents).toBe(1);
+      const orderRes = await guest.post(`/api/events/${event.slug}/orders`, { quoteId: quote.id, confirmed: true });
+      expect(orderRes.statusCode).toBe(200);
+      const saldo = body<OrderResult>(orderRes);
+      expect(saldo.orderId).not.toBe(primero.orderId);
+      expect(fake.createCalls.at(-1)!.amountCents).toBe(1);
+
+      // APPROVED sin captura no cuenta: seguimos en 4999 y sin poder confirmar.
+      const aprobado = await guest.post('/api/paypal/webhook', {
+        id: nextWebhookId(),
+        event_type: 'CHECKOUT.ORDER.APPROVED',
+        resource: { id: saldo.orderId },
+      });
+      expect(aprobado.statusCode).toBe(200);
+      const estado = body<{ status: string; guest: Guest }>(await guest.get(`/api/orders/${saldo.orderId}`));
+      expect(estado.status).toBe('approved');
+      expect(estado.guest.paidCents).toBe(4999);
+      expect(await ledgerCount('capture', saldo.orderId)).toBe(0);
+      await progreso(4999, false, false);
+      expect((await org.post(`/api/events/${event.slug}/confirm`)).statusCode).toBe(409);
+
+      // Estado 5000 otra vez: la captura simulada de 1 centavo alcanza el minimo exacto.
+      const saldado = await guest.post(`/api/orders/${saldo.orderId}/capture`);
+      expect(saldado.statusCode).toBe(200);
+      const pagado = body<{ status: string; guest: Guest }>(saldado);
+      expect(pagado.status).toBe('paid');
+      expect(pagado.guest.paidCents).toBe(5000);
+      expect(pagado.guest.dueCents).toBe(0);
+      expect(await ledgerCount('capture', saldo.orderId)).toBe(1);
+      expect(await ledgerCount('refund', primero.orderId)).toBe(1);
+      await progreso(5000, true, false);
+
+      // Solo la accion humana del organizador confirma; la meta de 10000 no la impide.
+      const confirmado = await org.post(`/api/events/${event.slug}/confirm`);
+      expect(confirmado.statusCode).toBe(200);
+      const confirmedEvent = body<{ event: FiestaEvent }>(confirmado).event;
+      expect(confirmedEvent.confirmed).toBe(true);
+      expect(confirmedEvent.collectedCents).toBe(5000);
+      expect(confirmedEvent.minimumReached).toBe(true);
+      expect(confirmedEvent.goalCents).toBe(10000);
+      const final = await progreso(5000, true, true);
+      expect(final.audit.map((a) => a.action)).toContain('event_confirmed');
     });
   });
 
