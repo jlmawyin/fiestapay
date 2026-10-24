@@ -1,0 +1,385 @@
+/* ==========================================================================
+   FiestaPay — Design System & Base Styles
+   Palette: cloudwhite (#F7FAFC), ink (#12263A), blue (#125FE6),
+            teal (#0B8075), yellow (#FFC85A), coral (#E85D4A)
+   Typography: Nunito Sans (display), Manrope (body)
+   ========================================================================== */
+
+:root {
+  --color-cloudwhite: #F7FAFC;
+  --color-ink: #12263A;
+  --color-ink-muted: #4A5D73;
+  --color-ink-light: #7E90A3;
+  --color-blue: #125FE6;
+  --color-blue-hover: #0E4DBB;
+  --color-blue-tint: #EEF4FD;
+  --color-teal: #0B8075;
+  --color-teal-hover: #08665E;
+  --color-teal-tint: #E8F6F4;
+  --color-yellow: #FFC85A;
+  --color-yellow-dark: #C28D05;
+  --color-yellow-tint: #FFF9EB;
+  --color-coral: #E85D4A;
+  --color-coral-hover: #D04836;
+  --color-coral-tint: #FDEDEA;
+
+  --color-border: #E2E8F0;
+  --color-border-dark: #CBD5E1;
+  --color-surface: #FFFFFF;
+  --color-surface-subtle: #F1F5F9;
+
+  --font-display: 'Nunito Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  --shadow-sm: 0 1px 2px 0 rgba(18, 38, 58, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(18, 38, 58, 0.08), 0 2px 4px -2px rgba(18, 38, 58, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(18, 38, 58, 0.1), 0 4px 6px -4px rgba(18, 38, 58, 0.05);
+  --shadow-ticket: 0 12px 28px -4px rgba(18, 38, 58, 0.12), 0 4px 10px -2px rgba(18, 38, 58, 0.06);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Base resets */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-cloudwhite);
+  color: var(--color-ink);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+/* Accessible focus styling */
+:focus-visible {
+  outline: 3px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  color: var(--color-ink);
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+h1 { font-size: 2rem; }
+h2 { font-size: 1.6rem; }
+h3 { font-size: 1.25rem; }
+h4 { font-size: 1.1rem; }
+
+p, span, li, input, textarea, select, button {
+  font-family: var(--font-body);
+}
+
+/* Layout container */
+.app-container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .app-container {
+    padding: 0 1.5rem 4rem 1.5rem;
+  }
+}
+
+/* Demo sandbox ribbon */
+.demo-ribbon {
+  background: linear-gradient(90deg, #12263A 0%, #173652 100%);
+  color: #FFFFFF;
+  padding: 0.5rem 1rem;
+  font-size: 0.825rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--color-yellow);
+}
+
+.demo-ribbon-badge {
+  background-color: var(--color-yellow);
+  color: var(--color-ink);
+  font-weight: 800;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: 0.5rem;
+}
+
+/* Signature Ticket Motif */
+.ticket-card {
+  position: relative;
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  border: 1.5px solid var(--color-border);
+  box-shadow: var(--shadow-ticket);
+  overflow: hidden;
+}
+
+.ticket-divider-wrapper {
+  position: relative;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  margin: 0.5rem 0;
+}
+
+.ticket-notch-left,
+.ticket-notch-right {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  background-color: var(--color-cloudwhite);
+  border-radius: 50%;
+  top: 1px;
+  z-index: 2;
+}
+
+.ticket-notch-left {
+  left: -11px;
+  box-shadow: inset -2px 0 0 var(--color-border);
+}
+
+.ticket-notch-right {
+  right: -11px;
+  box-shadow: inset 2px 0 0 var(--color-border);
+}
+
+.ticket-perforation {
+  width: 100%;
+  border-top: 2px dashed var(--color-border);
+  margin: 0 16px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  line-height: 1.2;
+}
+
+.btn-primary {
+  background-color: var(--color-blue);
+  color: #FFFFFF;
+}
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--color-blue-hover);
+}
+
+.btn-teal {
+  background-color: var(--color-teal);
+  color: #FFFFFF;
+}
+.btn-teal:hover:not(:disabled) {
+  background-color: var(--color-teal-hover);
+}
+
+.btn-secondary {
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  border-color: var(--color-border);
+}
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-surface-subtle);
+  border-color: var(--color-border-dark);
+}
+
+.btn-coral {
+  background-color: var(--color-coral);
+  color: #FFFFFF;
+}
+.btn-coral:hover:not(:disabled) {
+  background-color: var(--color-coral-hover);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: grayscale(0.2);
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.775rem;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  line-height: 1;
+}
+
+.badge-teal {
+  background-color: var(--color-teal-tint);
+  color: var(--color-teal);
+  border: 1px solid rgba(11, 128, 117, 0.2);
+}
+
+.badge-blue {
+  background-color: var(--color-blue-tint);
+  color: var(--color-blue);
+  border: 1px solid rgba(18, 95, 230, 0.2);
+}
+
+.badge-yellow {
+  background-color: var(--color-yellow-tint);
+  color: var(--color-yellow-dark);
+  border: 1px solid rgba(255, 200, 90, 0.4);
+}
+
+.badge-coral {
+  background-color: var(--color-coral-tint);
+  color: var(--color-coral);
+  border: 1px solid rgba(232, 93, 74, 0.25);
+}
+
+.badge-ink {
+  background-color: #EAEEF3;
+  color: var(--color-ink);
+}
+
+/* Inputs & Forms */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-bottom: 1.15rem;
+}
+
+.form-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.form-label-desc {
+  font-size: 0.775rem;
+  color: var(--color-ink-muted);
+  font-weight: normal;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.95rem;
+  color: var(--color-ink);
+  background-color: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-fast);
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: var(--color-blue);
+  outline: none;
+}
+
+/* Cards & Panels */
+.panel {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+}
+
+/* AG-Grid Theme integration */
+.ag-theme-fiestapay {
+  --ag-font-family: var(--font-body);
+  --ag-font-size: 14px;
+  --ag-background-color: #FFFFFF;
+  --ag-foreground-color: var(--color-ink);
+  --ag-header-background-color: #F8FAFC;
+  --ag-header-foreground-color: var(--color-ink);
+  --ag-border-color: var(--color-border);
+  --ag-row-hover-color: var(--color-blue-tint);
+  --ag-selected-row-background-color: var(--color-blue-tint);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+/* Modal overlay */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(18, 38, 58, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  max-width: 560px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border);
+}
+
+/* Toast container */
+.toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 400px;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,5 +1,7 @@
 # FiestaPay: alcance y plan para el hackathon
 
+> **Implementación aprobada:** [PLAN_DIARIO.md](PLAN_DIARIO.md) prevalece sobre el backlog: P1 hasta 2 nov, voz real de prueba el 16 oct, portadas fijas y una cifra «Recaudado» antes de comisiones. P2 no tiene horas comprometidas; sus secciones describen evolución futura.
+
 > Decisiones de Jorge Mawyín consolidadas el 13 oct 2026.
 > Entrega prevista: 11 nov. Cierre oficial: 12 nov 2026, 15:00 ECT.
 > Referencia del alcance vigente: sustituye propuestas anteriores incompatibles. Es un plan; no acredita una demo ya construida.
@@ -28,11 +30,9 @@ La demo organiza encuentros y cobra cuotas con PayPal sandbox, asistida por voz 
 - El agente responde sobre menú, viaje, horarios, agenda, actividades y expositores únicamente con la información del organizador. Agregar una actividad es editar la agenda; no crea una entrada o cobro adicional.
 - No cambiar modo ni tarifa una vez iniciadas las órdenes. Los pagos de la demo van al receptor sandbox común; no acreditan reserva o pago a restaurantes, agencias, hoteles o recintos externos.
 
-### Imágenes de referencia y reemplazo (P1)
+### Portadas fijas (P1)
 
-Cada plantilla incluye una portada de referencia coherente con su tema, con permiso de uso documentado o creada para el proyecto. Se identifica como ilustrativa; no se presenta como foto del lugar real. El organizador puede sustituirla por una foto propia y volver a la portada predeterminada. La imagen aparece en la invitación y el panel con texto alternativo.
-
-Las subidas se validan en servidor (JPEG, PNG o WebP, contenido y tamaño permitido), se procesan quitando metadatos y se guardan en el volumen de archivos de FiestaPay en Contabo. Solo el organizador de esa sesión puede reemplazarlas. La demo ofrece material ficticio y nunca exige fotos personales al juez.
+Cuatro ilustraciones originales locales, una por plantilla, con texto alternativo y procedencia documentada. Sin fotos personales, subidas, reemplazo ni almacenamiento de archivos por sesión. Las portadas reemplazables quedan en P2. Las horas liberadas se destinan a validar voz y recuperación.
 
 ### Meta y mínimo para confirmar el evento
 
@@ -45,9 +45,9 @@ El organizador puede activar una meta y un mínimo de recaudación en cualquiera
 | Anticipo individual (P2) | 50% de una cuota de USD 25 = USD 12,50 por persona | Primer pago a cuenta de su cuota; el resto se paga con otra aprobación |
 | Política de inasistencia (P2) | Conservar el anticipo pagado | Debe estar activada y aceptada antes del pago; se destina a financiar el evento |
 
-El servidor valida meta positiva y mínimo mayor que cero y no superior a la meta; un porcentaje se convierte a centavos redondeando hacia arriba. La demo asume participantes puntuales en sus plazos de pago. El mínimo se calcula sobre capturas verificadas menos reembolsos, **antes de comisiones**, y se etiqueta como recaudación bruta. El panel presenta también comisiones y neto disponible; si aún no se conocen, indica que están pendientes de conciliación. No contar órdenes creadas/aprobadas, saldos pendientes ni promesas de aporte. Una captura no se duplica al cruzar el umbral.
+El servidor valida meta positiva y mínimo mayor que cero y no superior a la meta; un porcentaje se convierte a centavos redondeando hacia arriba. La demo asume participantes puntuales en sus plazos de pago. El mínimo se calcula sobre capturas verificadas menos reembolsos, **antes de comisiones**, y se etiqueta como recaudación bruta. En P1 el panel presenta únicamente «Recaudado», con nota «antes de comisiones»; el desglose de comisiones y neto queda en P2. No contar órdenes creadas/aprobadas, saldos pendientes ni promesas de aporte. Una captura no se duplica al cruzar el umbral.
 
-Estados separados: «Recaudando» → «Mínimo alcanzado» → «Evento confirmado» por el organizador. Asistencia y pago de cada invitado conservan sus propios estados. El dinero se captura con cada pago; el umbral no lo retiene ni lo libera, no garantiza fondos netos ni realiza una reserva externa. El organizador revisa el neto para financiar o adaptar el evento. Si un reembolso reduce lo recaudado, actualizar el progreso y avisar al organizador, sin cancelar automáticamente el evento.
+Estados separados: «Recaudando» → «Mínimo alcanzado» → «Evento confirmado» por el organizador. Asistencia y pago de cada invitado conservan sus propios estados. El dinero se captura con cada pago; el umbral no lo retiene ni lo libera, no garantiza fondos netos ni realiza una reserva externa. El organizador decide confirmar el evento; «Recaudado» no se presenta como saldo neto disponible. Si un reembolso reduce lo recaudado, actualizar el progreso y avisar al organizador, sin cancelar automáticamente el evento.
 
 P1 incorpora meta, mínimo y progreso con pago único. El anticipo, saldo y política de inasistencia siguen en P2, como ya se acordó. Cambiar la meta o el presupuesto deja historial y nunca modifica una cuota, un anticipo o una condición ya aceptados.
 
@@ -96,12 +96,12 @@ Mostrar «Entrega verificada» solo tras comprobar el ítem de Payouts en `SUCCE
 ### Recorrido principal
 
 1. «Probar como organizador»: sesión propia, sin Google ni datos personales.
-2. Elegir Comida → almuerzo, con portada de referencia sustituible. Abrir «Almuerzo buffet de cumpleaños» precargado o crear el evento. Ejemplo: USD 25 por persona.
+2. Elegir Comida → almuerzo, con portada de referencia fija. Abrir «Almuerzo buffet de cumpleaños» precargado o crear el evento. Ejemplo: USD 25 por persona.
 3. Abrir invitación mediante enlace/QR como invitado. Sin registro obligatorio; nombre ficticio sugerido y contacto opcional.
 4. Preguntar por voz/chat qué incluye, dónde queda y a qué hora empieza. Responder con datos del evento.
 5. «Voy con mi pareja»: asistencia confirmada, pago pendiente. El agente pregunta antes de crear la orden: «2 personas por $25, total $50. ¿Confirmo?».
 6. Aprobar la tarjeta de pago y pagar con el comprador sandbox proporcionado.
-7. Después de verificar la captura, el panel muestra dos asistentes, USD 50 pagados y la referencia. Con meta USD 100 y mínimo 50%, aparece «Mínimo alcanzado»; el organizador revisa el neto y confirma el evento. Cancelar el checkout conserva el saldo pendiente.
+7. Después de verificar la captura, el panel muestra dos asistentes, USD 50 pagados y la referencia. Con meta USD 100 y mínimo 50%, aparece «Mínimo alcanzado»; el organizador revisa «Recaudado» antes de comisiones y confirma el evento. Cancelar el checkout conserva el saldo pendiente.
 8. Consultar el estado por voz/chat y volver al panel. La presentación guía este mismo flujo funcional.
 
 ## 2. Un receptor sandbox y acceso para jueces
@@ -138,7 +138,7 @@ Máximo tres entregas evaluadas por problema. Si siguen fallando: registrar evid
 - Vite/React, API Node/TypeScript con Fastify, PostgreSQL y archivos en el Contabo existente. Panel con AG Grid Community.
 - Inspección del 13 oct: SSH operativo, Ubuntu 24.04.3 LTS, Docker/Nginx existentes; aproximadamente 3,3 GB de RAM disponibles y 373 GB de disco libres en ese momento.
 - Proyecto Compose, DB/usuario, volúmenes y copias propios de FiestaPay; PostgreSQL privado y recursos acotados.
-- El dominio responde vía Cloudflare, pero aún sirve otra aplicación y carece de vhost FiestaPay. Añadir ruta específica al proxy existente; verificar HTTPS, WebSocket, micrófono y políticas PayPal sin reemplazar configuración global.
+- Estado inicial del 13 oct: el dominio servía otra aplicación. El 14 oct se activó el vhost exclusivo de FiestaPay con HTTPS, API y PostgreSQL aislados; sitios vecinos verificados. La voz WebSocket funciona en prueba técnica; micrófono humano y captura PayPal siguen pendientes. Ver ESTADO.md para evidencia actual.
 
 ## 4. Integridad y pruebas
 
@@ -160,26 +160,22 @@ Pruebas mínimas:
 9. Gemini: autenticar y ejecutar una llamada breve y una herramienta de lectura con la clave del proyecto; comprobar consumo y manejar límites sin inventar confirmaciones.
 10. «Confirmado, sin pagar» visible y recordatorio por wa.me con envío humano. P2: vaca/reparto sin mezclar obligaciones; fondo abierto muestra «sin aporte», no deuda.
 11. Contabo: persistencia, restauración de copia de prueba, DB privada, HTTPS/voz/PayPal y servicios existentes operativos.
-12. Cuatro portadas predeterminadas, reemplazo/restauración autorizado, texto alternativo y rechazo de archivos inválidos; ninguna imagen se modifica desde otra sesión.
+12. Cuatro portadas fijas, accesibles y con procedencia registrada; sin controles de subida o reemplazo.
 13. Evento: agenda/actividades y respuestas sobre expositores se basan en datos guardados; dos RSVPs por la última plaza no exceden cupo y un grupo con acompañantes entra completo o no entra.
 14. P2 gasto total: cero confirmados no permite cobrar, acompañantes cuentan, USD 100/3 suma exactamente USD 100; estimación sin publicar no permite órdenes. Publicar conserva el cálculo reproducible y admite RSVP sin recalcular pagos. Un cambio concurrente de personas exige nueva revisión antes de publicar.
 15. P2 fondo abierto: meta USD 100, importe elegido por invitado y validado por servidor, sin multiplicar por acompañantes, deudas ni duplicación con vaca. Voz consulta progreso real, pide confirmación y acepta no aportar.
 16. P2 anticipo: dos personas a USD 100, anticipo USD 30 por persona → primera orden USD 60 y saldo USD 140. Repetir callback/webhook no duplica el anticipo; no crear saldo antes de verificarlo. Saldo y anticipo nunca aparecen como dos pagos completos de USD 200.
 
-17. Meta USD 100 y mínimo 50%: USD 49,99 no alcanza; USD 50 sí. Probar mínimo expresado en porcentaje e importe, validación de límites, redondeo a centavos hacia arriba del umbral y reembolso que baja el progreso. Duplicar webhook no duplica progreso ni confirma/reserva automáticamente. Mostrar bruto y neto por separado.
+17. Meta USD 100 y mínimo 50%: USD 49,99 no alcanza; USD 50 sí. Probar mínimo expresado en porcentaje e importe, validación de límites, redondeo a centavos hacia arriba del umbral y reembolso que baja el progreso. Duplicar webhook no duplica progreso ni confirma/reserva automáticamente. Mostrar solo «Recaudado» con nota «antes de comisiones».
 18. P2 ejemplo de inasistencia: cuatro anticipos de USD 12,50 y dos saldos de USD 12,50 suman USD 75. Dos ausentes conservan anticipos que ya están incluidos; sus saldos quedan no exigibles, sin recordatorios ni cargo extra. Condiciones aceptadas antes de pagar e importes históricos inmutables.
 19. P2 ayuda social: entrega al beneficiario de prueba con aprobación del organizador; no permitir usar fondos de otra campaña. Doble clic/reintento no duplica; PENDING/UNCLAIMED reservan saldo y no cuentan como entregados; solo ítem SUCCESS verificado cambia el estado. Fallo real conserva entrega pendiente y no inventa recibo.
 20. Tarjeta/Pay Later: renderizar solo opciones elegibles; voz no promete diferir, no solicita tarjeta ni inventa términos financieros. El recorrido funciona con comprador sandbox aunque esas opciones no aparezcan.
 
 ## 5. Pasos y entrega
 
-1. **13–17 oct:** contratos, repo/CI, acceso demo, ruta Contabo, claves/saldos; primera prueba humana de voz/chat → cuota → PayPal sandbox → panel. Los mocks no sustituyen esta prueba.
-2. **18–24 oct — P1:** Comida completa y Casa/Viaje/Evento sobre el mismo motor; portadas sustituibles, agenda/actividades y cupo opcionales, acompañantes, meta/mínimo, captura/webhook/conciliación, panel, wa.me y reinicio aislado.
-3. **25 oct–4 nov — P2, después de estabilizar P1:** gasto total/fondo abierto y anticipos en las plantillas aplicables, política de inasistencia y ayuda social. Validar Payouts sandbox antes de prometer entrega al beneficiario. Vaca/gastos adicionales solo después; pruebas móviles y presentación. No poner P1 en riesgo ni mostrar como funcional una opción P2 incompleta.
-4. **5 nov:** congelar funciones. **6–10 nov:** corregir fallos, instrucciones/README en inglés y video público menor de tres minutos con subtítulos en inglés; objetivo 170 segundos.
-5. **11 nov:** entrega revisada. Mantener demo gratuita y presupuesto operativo hasta el fin de evaluación, **15 dic**. Comprobar disponibilidad; sandbox no la garantiza por sí solo.
+El calendario aprobado completo está en [PLAN_DIARIO.md](PLAN_DIARIO.md): 145 horas, 100 de construcción P1, 35 de entrega P1 y 10 de contingencia. P2 y extras: cero horas comprometidas. Pago sandbox el 17 oct, P1 el 2 nov, buffers 3–4 nov, freeze 5 nov, video 8 nov y envío 11 nov antes de 15:00 ECT.
 
-Fuera de esta entrega: aportes físicos, descuentos, PayPal propio por organizador, cobros live y Google. Invitaciones imprimibles y ficha A4 continúan como material de presentación posterior al recorrido funcional.
+Jorge convoca tres probadores y dos suplentes antes del 16 oct. El video muestra únicamente funciones verificadas tras el freeze. La prueba de voz del 16 oct usa Sparring, audio real y una herramienta de lectura. Estado y evidencia en [ESTADO.md](ESTADO.md).
 
 ## Fuentes verificadas el 13 oct 2026
 
