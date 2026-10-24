@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { Dashboard, Capabilities } from '../types';
 import { api } from '../api/client';
 import { usd } from '../types';
@@ -28,34 +28,41 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
-
-  const loadDashboard = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await api.getDashboard(slug);
-      setDashboard(data);
-    } catch (err: any) {
-      onShowToast('error', err.message || 'Error al cargar el panel de control', 'Panel');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [slug, onShowToast]);
+  const requestVersion = useRef(0);
 
   useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
+    const version = ++requestVersion.current;
+    setDashboard(null);
+    setIsLoading(true);
+    setShowConfirmModal(false);
+    setShowQrModal(false);
+    setIsConfirming(false);
+    void api.getDashboard(slug).then(data => {
+      if (requestVersion.current === version) setDashboard(data);
+    }).catch((err: Error) => {
+      if (requestVersion.current === version) {
+        onShowToast('error', err.message || 'Error al cargar el panel de control', 'Panel');
+      }
+    }).finally(() => {
+      if (requestVersion.current === version) setIsLoading(false);
+    });
+    return () => { requestVersion.current += 1; };
+  }, [slug, onShowToast]);
 
   const handleConfirmEvent = async () => {
+    const version = requestVersion.current;
     setIsConfirming(true);
     try {
       const res = await api.confirmEvent(slug);
+      if (requestVersion.current !== version) return;
       setDashboard((prev: Dashboard | null) => (prev ? { ...prev, event: res.event } : null));
       setShowConfirmModal(false);
       onShowToast('success', '¡La fiesta ha sido formalmente confirmada!', 'Fiesta Confirmada');
     } catch (err: any) {
+      if (requestVersion.current !== version) return;
       onShowToast('error', err.message || 'No se pudo confirmar la fiesta', 'Error');
     } finally {
-      setIsConfirming(false);
+      if (requestVersion.current === version) setIsConfirming(false);
     }
   };
 
@@ -87,7 +94,7 @@ ${inviteUrl}`;
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
-  if (isLoading) {
+  if (isLoading || (dashboard && dashboard.event.slug !== slug)) {
     return (
       <div className="panel" style={{ textAlign: 'center', padding: '4rem 1rem' }}>
         <p style={{ color: 'var(--color-ink-muted)' }}>Cargando panel de control del organizador...</p>
@@ -113,7 +120,7 @@ ${inviteUrl}`;
   const canConfirm = !event.minimumCents || event.minimumReached;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem', minWidth: 0, maxWidth: 'calc(100vw - 3rem)' }}>
       {/* Top Header Card */}
       <div
         style={{
@@ -130,7 +137,7 @@ ${inviteUrl}`;
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.35rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.65rem', marginBottom: '0.35rem' }}>
             <span className="badge badge-ink">Panel del Organizador</span>
             {event.confirmed ? (
               <span className="badge badge-teal">Fiesta Confirmada ✓</span>
@@ -251,8 +258,8 @@ ${inviteUrl}`;
             <h3 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>Confirmar Realización de la Fiesta</h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--color-ink-muted)' }}>
               {canConfirm
-                ? 'El umbral mínimo de recaudación ha sido alcanzado. Puedes formalizar la fiesta para todos los asistentes.'
-                : `Se requiere recaudar al menos ${usd(event.minimumCents || 0)} antes de poder confirmar formalmente la fiesta.`}
+                ? 'Puedes confirmar que la fiesta se realizará. La asistencia y los pagos de cada invitado se gestionan por separado.'
+                : `Se requiere recaudar al menos ${usd(event.minimumCents || 0)} antes de poder confirmar formalmente la realización de la fiesta.`}
             </p>
           </div>
           <div>
@@ -270,12 +277,12 @@ ${inviteUrl}`;
       )}
 
       {/* Guests Management AG Grid Table */}
-      <section aria-label="Lista de invitados y pagos">
+      <section aria-label="Lista de invitados y pagos" style={{ width: '100%', overflowX: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
           <div>
             <h2 style={{ fontSize: '1.25rem' }}>Lista de Invitados y Pagos</h2>
             <p style={{ fontSize: '0.825rem', color: 'var(--color-ink-muted)' }}>
-              Tabla interactiva AG Grid Community con estados y montos abonados.
+              Revisa la asistencia y los pagos de tus invitados. Desliza la tabla para ver los importes y preparar recordatorios.
             </p>
           </div>
           <span style={{ fontSize: '0.85rem', color: 'var(--color-ink-muted)' }}>
@@ -283,7 +290,14 @@ ${inviteUrl}`;
           </span>
         </div>
 
-        <GuestGrid guests={guests} />
+        <GuestGrid
+          guests={guests}
+          eventTitle={event.title}
+          inviteUrl={inviteUrl}
+        />
+        <p style={{ fontSize: '0.775rem', color: 'var(--color-ink-light)', marginTop: '0.5rem' }}>
+          Revisa el mensaje y elige a quién enviarlo en WhatsApp.
+        </p>
       </section>
 
       {/* Audit Trail */}
@@ -323,19 +337,19 @@ ${inviteUrl}`;
       <Modal
         isOpen={showConfirmModal}
         onClose={() => setShowConfirmModal(false)}
-        title="¿Confirmar formalmente la fiesta?"
-        description="Esta acción marcará el evento como realizado y definitivo para todos los asistentes."
+        title="¿Confirmar realización de la fiesta?"
+        description="Esta acción marca la fiesta como confirmada para su realización."
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-ink-muted)', lineHeight: 1.5 }}>
-            Al confirmar la fiesta, se formaliza la asistencia y el compromiso para todos los invitados con cuota pagada. ¿Deseas confirmar la realización de "{event.title}"?
+            Confirmas que "{event.title}" se llevará a cabo. La asistencia y los pagos de cada invitado se gestionan por separado.
           </p>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
             <button onClick={() => setShowConfirmModal(false)} className="btn btn-secondary" disabled={isConfirming}>
               Cancelar
             </button>
             <button onClick={handleConfirmEvent} className="btn btn-teal" disabled={isConfirming}>
-              {isConfirming ? 'Confirmando...' : 'Sí, Confirmar Fiesta'}
+              {isConfirming ? 'Confirmando...' : 'Sí, Confirmar Celebración'}
             </button>
           </div>
         </div>
