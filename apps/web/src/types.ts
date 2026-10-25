@@ -10,6 +10,7 @@ import {
   Capabilities,
   ChatResult,
   Dashboard,
+  CreatedEvent,
   TEMPLATE_LABELS,
   usd,
   fixedQuote,
@@ -27,6 +28,7 @@ export type {
   Capabilities,
   ChatResult,
   Dashboard,
+  CreatedEvent,
 };
 
 export { TEMPLATE_LABELS, usd, fixedQuote };

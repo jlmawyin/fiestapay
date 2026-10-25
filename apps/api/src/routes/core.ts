@@ -1,11 +1,25 @@
-import type { Capabilities, Dashboard, FiestaEvent, Guest, Quote } from '@fiestapay/shared';
+import type { Capabilities, CreatedEvent, Dashboard, FiestaEvent, Guest, Quote } from '@fiestapay/shared';
 import type { FastifyInstance } from 'fastify';
+import { assertPrivateAccess, presentedAdminKey } from '../domain/access.js';
 import { dashboardFor } from '../domain/dashboard.js';
-import { confirmEvent, createEvent, listOwnedEvents, resetDemo, startDemo } from '../domain/events.js';
+import {
+  assertActive,
+  bootstrapAdminKey,
+  closeEvent,
+  confirmEvent,
+  createEvent,
+  deleteEvent,
+  listOwnedEvents,
+  resetDemo,
+  startDemo,
+  unlockEvent,
+  updateEvent,
+} from '../domain/events.js';
 import { createQuoteForSession } from '../domain/quotes.js';
 import { findGuestBySession, getEventBySlug, loadFiestaEvent, loadGuest } from '../domain/read.js';
+import { concealExpired } from '../domain/retention.js';
 import { joinEvent, setRsvp } from '../domain/rsvp.js';
-import { eventInputSchema, joinSchema, parseOr400, rsvpSchema, slugParamSchema } from '../lib/schemas.js';
+import { eventInputSchema, joinSchema, parseOr400, rsvpSchema, slugParamSchema, unlockSchema } from '../lib/schemas.js';
 import { ensureSession, readSession, requireSession } from '../lib/session.js';
 import type { RouteDeps } from './deps.js';
 
@@ -30,18 +44,18 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
   app.post(
     '/demo',
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
-    async (req, reply): Promise<{ event: FiestaEvent }> => {
+    async (req, reply): Promise<CreatedEvent> => {
       const session = await ensureSession(pool, config, req, reply);
-      return { event: await startDemo(pool, session.id) };
+      return startDemo(pool, session.id);
     },
   );
 
   app.post(
     '/demo/reset',
     { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
-    async (req): Promise<{ event: FiestaEvent }> => {
+    async (req): Promise<CreatedEvent> => {
       const session = await requireSession(pool, config, req);
-      return { event: await resetDemo(pool, session.id) };
+      return resetDemo(pool, session.id);
     },
   );
 
@@ -54,19 +68,21 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
   app.post(
     '/events',
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
-    async (req, reply): Promise<{ event: FiestaEvent }> => {
+    async (req, reply): Promise<CreatedEvent> => {
       const session = await ensureSession(pool, config, req, reply);
       const input = parseOr400(eventInputSchema, req.body);
-      return { event: await createEvent(pool, session.id, input) };
+      return createEvent(pool, session.id, input);
     },
   );
 
-  // Public invitation: event data plus this session's own guest, never anyone else's and never
-  // anything identifying the organizer.
+  // Public invitation. A private code or a past-retention event yields no body.
   app.get('/events/:slug', async (req): Promise<{ event: FiestaEvent; guest: Guest | null }> => {
     const { slug } = parseOr400(slugParamSchema, req.params);
     const event = await getEventBySlug(pool, slug);
+    await concealExpired(pool, event);
+    assertActive(event);
     const session = await readSession(pool, config, req);
+    await assertPrivateAccess(pool, event, session?.id ?? null, presentedAdminKey(req));
     const guestRow = session ? await findGuestBySession(pool, event.id, session.id) : null;
     return {
       event: await loadFiestaEvent(pool, event),
@@ -75,13 +91,64 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
   });
 
   app.post(
+    '/events/:slug/unlock',
+    { config: { rateLimit: { max: 8, timeWindow: '1 minute' } } },
+    async (req, reply): Promise<{ ok: true }> => {
+      const { slug } = parseOr400(slugParamSchema, req.params);
+      const { code } = parseOr400(unlockSchema, req.body);
+      const session = await ensureSession(pool, config, req, reply);
+      await unlockEvent(pool, session.id, slug, code);
+      return { ok: true };
+    },
+  );
+
+  app.post(
+    '/events/:slug/admin/key',
+    { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } },
+    async (req): Promise<{ adminKey: string }> => {
+      const { slug } = parseOr400(slugParamSchema, req.params);
+      const session = await requireSession(pool, config, req);
+      return { adminKey: await bootstrapAdminKey(pool, session.id, slug) };
+    },
+  );
+
+  app.put(
+    '/events/:slug',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (req): Promise<{ event: FiestaEvent }> => {
+      const { slug } = parseOr400(slugParamSchema, req.params);
+      const input = parseOr400(eventInputSchema, req.body);
+      return { event: await updateEvent(pool, slug, presentedAdminKey(req), input) };
+    },
+  );
+
+  app.post(
+    '/events/:slug/close',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (req): Promise<{ event: FiestaEvent }> => {
+      const { slug } = parseOr400(slugParamSchema, req.params);
+      return { event: await closeEvent(pool, slug, presentedAdminKey(req)) };
+    },
+  );
+
+  app.delete(
+    '/events/:slug',
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (req): Promise<{ ok: true }> => {
+      const { slug } = parseOr400(slugParamSchema, req.params);
+      await deleteEvent(pool, slug, presentedAdminKey(req));
+      return { ok: true };
+    },
+  );
+
+  app.post(
     '/events/:slug/join',
     { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (req, reply): Promise<{ guest: Guest }> => {
       const { slug } = parseOr400(slugParamSchema, req.params);
       const { name } = parseOr400(joinSchema, req.body);
       const session = await ensureSession(pool, config, req, reply);
-      return { guest: await joinEvent(pool, session.id, slug, name) };
+      return { guest: await joinEvent(pool, session.id, slug, name, presentedAdminKey(req)) };
     },
   );
 
@@ -92,7 +159,7 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
       const { slug } = parseOr400(slugParamSchema, req.params);
       const change = parseOr400(rsvpSchema, req.body);
       const session = await requireSession(pool, config, req);
-      return setRsvp(pool, session.id, slug, change);
+      return setRsvp(pool, session.id, slug, change, presentedAdminKey(req));
     },
   );
 
@@ -102,14 +169,13 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
     async (req): Promise<{ quote: Quote }> => {
       const { slug } = parseOr400(slugParamSchema, req.params);
       const session = await requireSession(pool, config, req);
-      return { quote: await createQuoteForSession(pool, session.id, slug, config.quoteTtlSeconds) };
+      return { quote: await createQuoteForSession(pool, session.id, slug, config.quoteTtlSeconds, presentedAdminKey(req)) };
     },
   );
 
   app.get('/events/:slug/dashboard', async (req): Promise<Dashboard> => {
     const { slug } = parseOr400(slugParamSchema, req.params);
-    const session = await requireSession(pool, config, req);
-    return dashboardFor(pool, session.id, slug);
+    return dashboardFor(pool, slug, presentedAdminKey(req));
   });
 
   app.post(
@@ -117,8 +183,7 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
     async (req): Promise<{ event: FiestaEvent }> => {
       const { slug } = parseOr400(slugParamSchema, req.params);
-      const session = await requireSession(pool, config, req);
-      return { event: await confirmEvent(pool, session.id, slug) };
+      return { event: await confirmEvent(pool, slug, presentedAdminKey(req)) };
     },
   );
 }

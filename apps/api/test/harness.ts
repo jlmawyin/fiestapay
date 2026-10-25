@@ -42,29 +42,57 @@ export interface InjectResponse {
 /** Browser-like client: keeps its own session cookie and sends an Origin on mutations. */
 export class Client {
   cookie: string | undefined;
+  private readonly adminKeys = new Map<string, string>();
 
   constructor(private readonly app: FastifyInstance) {}
 
-  private headers(origin: string | null | undefined): Record<string, string> {
+  /** Sends X-Fiesta-Admin-Key on later calls for this slug. No session cookie is required. */
+  authorize(slug: string, key: string): void {
+    this.adminKeys.set(slug, key);
+  }
+
+  private headers(origin: string | null | undefined, url: string): Record<string, string> {
     const headers: Record<string, string> = {};
     if (origin !== null) headers.origin = origin ?? ORIGIN;
     if (this.cookie) headers.cookie = this.cookie;
+    const match = url.split('?')[0]?.match(/\/api\/events\/([^/]+)/);
+    const slug = match?.[1] ? decodeURIComponent(match[1]) : null;
+    const key = slug ? this.adminKeys.get(slug) : undefined;
+    if (key) headers['x-fiesta-admin-key'] = key;
     return headers;
   }
 
   private absorb(res: InjectResponse): InjectResponse {
     const set = res.cookies.find((c) => c.name === 'fp_session');
     if (set && typeof set.value === 'string' && set.value.length > 0) this.cookie = `fp_session=${set.value}`;
+    try {
+      const data = JSON.parse(res.body) as { event?: { slug?: string }; adminKey?: unknown };
+      if (data.event?.slug && typeof data.adminKey === 'string' && data.adminKey.length > 0) {
+        this.adminKeys.set(data.event.slug, data.adminKey);
+      }
+    } catch {
+      // Not every response is a minted event.
+    }
     return res;
   }
 
   async post(url: string, payload: Record<string, unknown> = {}, origin?: string | null): Promise<InjectResponse> {
-    const res = await this.app.inject({ method: 'POST', url, payload, headers: this.headers(origin) });
+    const res = await this.app.inject({ method: 'POST', url, payload, headers: this.headers(origin, url) });
+    return this.absorb(res as unknown as InjectResponse);
+  }
+
+  async put(url: string, payload: Record<string, unknown> = {}): Promise<InjectResponse> {
+    const res = await this.app.inject({ method: 'PUT', url, payload, headers: this.headers(ORIGIN, url) });
+    return this.absorb(res as unknown as InjectResponse);
+  }
+
+  async delete(url: string): Promise<InjectResponse> {
+    const res = await this.app.inject({ method: 'DELETE', url, headers: this.headers(ORIGIN, url) });
     return this.absorb(res as unknown as InjectResponse);
   }
 
   async get(url: string): Promise<InjectResponse> {
-    const res = await this.app.inject({ method: 'GET', url, headers: this.headers(null) });
+    const res = await this.app.inject({ method: 'GET', url, headers: this.headers(null, url) });
     return this.absorb(res as unknown as InjectResponse);
   }
 }

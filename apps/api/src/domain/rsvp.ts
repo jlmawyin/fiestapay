@@ -2,13 +2,16 @@ import type { FiestaEvent, Guest, RsvpStatus } from '@fiestapay/shared';
 import { sumToCents, withTransaction, type Pool, type PoolClient } from '../db/pool.js';
 import { conflict, notFound } from '../errors.js';
 import { newId } from '../lib/ids.js';
+import { assertPrivateAccess } from './access.js';
 import { audit } from './audit.js';
-import { assertActive } from './events.js';
+import { assertAcceptingGuests } from './events.js';
+import { concealExpired } from './retention.js';
 import {
   GUEST_COLUMNS,
   OPEN_ORDER_SQL,
   eventTotals,
   findCapturingOrder,
+  findEventBySlug,
   findGuestBySession,
   lockEvent,
   lockGuest,
@@ -25,10 +28,20 @@ async function eventIdBySlug(client: PoolClient, slug: string): Promise<string> 
 }
 
 /** Joining a public invitation grants guest capability only, bound to this session. */
-export async function joinEvent(pool: Pool, sessionId: string, slug: string, name: string): Promise<Guest> {
+export async function joinEvent(
+  pool: Pool,
+  sessionId: string,
+  slug: string,
+  name: string,
+  presentedKey: string | null = null,
+): Promise<Guest> {
+  const visible = await findEventBySlug(pool, slug);
+  if (!visible) throw notFound('Evento no encontrado');
+  await concealExpired(pool, visible);
   return withTransaction(pool, async (client) => {
     const event = await lockEvent(client, await eventIdBySlug(client, slug));
-    assertActive(event);
+    assertAcceptingGuests(event);
+    await assertPrivateAccess(client, event, sessionId, presentedKey);
 
     const existing = await findGuestBySession(client, event.id, sessionId);
     if (existing) return loadGuest(client, existing, event);
@@ -79,10 +92,15 @@ export async function setRsvp(
   sessionId: string,
   slug: string,
   change: RsvpChange,
+  presentedKey: string | null = null,
 ): Promise<RsvpResult> {
+  const visible = await findEventBySlug(pool, slug);
+  if (!visible) throw notFound('Evento no encontrado');
+  await concealExpired(pool, visible);
   return withTransaction(pool, async (client) => {
     const event = await lockEvent(client, await eventIdBySlug(client, slug));
-    assertActive(event);
+    assertAcceptingGuests(event);
+    await assertPrivateAccess(client, event, sessionId, presentedKey);
 
     const found = await findGuestBySession(client, event.id, sessionId);
     if (!found) throw notFound('Primero unete a la invitacion');

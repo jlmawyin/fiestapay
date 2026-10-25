@@ -1,137 +1,87 @@
 import React, { useState } from 'react';
-import type { EventInput, TemplateKind, AgendaItem } from '../../types';
+import type { EventInput, FiestaEvent, TemplateKind, AgendaItem } from '../../types';
 import { TemplateCover } from '../illustrations/TemplateCover';
 
 interface CreateEventFormProps {
   onSubmit: (input: EventInput) => Promise<void>;
   onCancel: () => void;
   isLoading: boolean;
+  initial?: FiestaEvent | null;
+  submitLabel?: string;
 }
 
-const TEMPLATE_PRESETS: Record<
-  TemplateKind,
-  {
-    title: string;
-    description: string;
-    meal: 'desayuno' | 'almuerzo' | 'cena';
-    location: string;
-    priceDollars: string;
-    goalDollars: string;
-    minimumDollars: string;
-    capacity: string;
-    includes: string;
-    agenda: AgendaItem[];
-  }
-> = {
-  comida: {
-    title: 'Gran Asado entre Amigos',
-    description: 'Nos juntamos a compartir carnes a la parrilla, ensaladas frescas, bebidas y buena sobremesa.',
-    meal: 'almuerzo',
-    location: 'Quinta Los Laureles, Jardín Principal',
-    priceDollars: '25.00',
-    goalDollars: '250.00',
-    minimumDollars: '125.00',
-    capacity: '15',
-    includes: 'Cortes premium, guarniciones, carbón, barra de bebidas y postre casero',
-    agenda: [
-      { time: '13:00', title: 'Llegada y aperitivos de bienvenida' },
-      { time: '14:30', title: 'Servicio de asado y almuerzo comunitario' },
-      { time: '16:30', title: 'Sobremesa, café y juegos de mesa' },
-    ],
-  },
-  casa: {
-    title: 'Noche de Pizzas Caseras & Vinilos',
-    description: 'Armamos pizzas artesanales al horno, abrimos buena música en vinilo y compartimos cócteles.',
-    meal: 'cena',
-    location: 'Casa de Nico — Sala y Terraza',
-    priceDollars: '18.00',
-    goalDollars: '180.00',
-    minimumDollars: '90.00',
-    capacity: '12',
-    includes: 'Comida e ingredientes gourmet para pizzas, cervezas artesanales, cócteles y servicio de limpieza',
-    agenda: [
-      { time: '20:00', title: 'Recepción y sesión de vinilos' },
-      { time: '21:00', title: 'Taller de armado y horneado de pizzas' },
-      { time: '23:00', title: 'Karaoke y brindis' },
-    ],
-  },
-  viaje: {
-    title: 'Escapada de Fin de Semana a la Montaña',
-    description: 'Viaje en caravana hacia las cabañas del bosque con caminata, fogata nocturna y asado.',
-    meal: 'almuerzo',
-    location: 'Cabañas El Refugio, Valle Andino',
-    priceDollars: '65.00',
-    goalDollars: '520.00',
-    minimumDollars: '390.00',
-    capacity: '10',
-    includes: 'Hospedaje en cabaña rústica, transporte en caravana, compras comunitarias de comida, leña y entradas',
-    agenda: [
-      { time: '08:00', title: 'Punto de encuentro y salida en ruta' },
-      { time: '11:30', title: 'Check-in en cabañas y caminata a la cascada' },
-      { time: '19:30', title: 'Fogata nocturna y cena campestre' },
-    ],
-  },
-  evento: {
-    title: 'Fiesta de Celebración & Cóctel Festivo',
-    description: 'Fiesta con música en vivo, barra libre y aperitivos para celebrar por todo lo alto.',
-    meal: 'cena',
-    location: 'Salón Terraza Central',
-    priceDollars: '40.00',
-    goalDollars: '800.00',
-    minimumDollars: '400.00',
-    capacity: '25',
-    includes: 'Acceso exclusivo al salón, catering de bocadillos finos, barra libre 4 horas y DJ',
-    agenda: [
-      { time: '21:00', title: 'Apertura de puertas y alfombra de fotos' },
-      { time: '22:30', title: 'Brindis oficial de los organizadores' },
-      { time: '00:00', title: 'Pista de baile y sorpresas' },
-    ],
-  },
+const pad = (n: number): string => String(n).padStart(2, '0');
+
+const toLocalInput = (d: Date): string =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+const defaultStart = (): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + 5);
+  d.setHours(14, 0, 0, 0);
+  return toLocalInput(d);
 };
 
-export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCancel, isLoading }) => {
-  const [template, setTemplate] = useState<TemplateKind>('comida');
-  const [title, setTitle] = useState(TEMPLATE_PRESETS.comida.title);
-  const [description, setDescription] = useState(TEMPLATE_PRESETS.comida.description);
-  const [meal, setMeal] = useState<'desayuno' | 'almuerzo' | 'cena'>(TEMPLATE_PRESETS.comida.meal);
-  const [startsAt, setStartsAt] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 5);
-    d.setHours(14, 0, 0, 0);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const year = d.getFullYear();
-    const month = pad(d.getMonth() + 1);
-    const day = pad(d.getDate());
-    const hours = pad(d.getHours());
-    const minutes = pad(d.getMinutes());
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
+const plusHours = (local: string, hours: number): string => {
+  const d = new Date(local);
+  if (Number.isNaN(d.getTime())) return '';
+  d.setHours(d.getHours() + hours);
+  return toLocalInput(d);
+};
+
+const mealForHour = (hour: number): 'desayuno' | 'almuerzo' | 'cena' => {
+  if (hour < 11) return 'desayuno';
+  if (hour < 17) return 'almuerzo';
+  return 'cena';
+};
+
+const dollars = (cents: number | null): string => (cents === null ? '' : (cents / 100).toFixed(2));
+
+export const CreateEventForm: React.FC<CreateEventFormProps> = ({
+  onSubmit,
+  onCancel,
+  isLoading,
+  initial = null,
+  submitLabel = 'Crear y Obtener Enlace de Invitación',
+}) => {
+  const [template, setTemplate] = useState<TemplateKind>(initial?.template ?? 'comida');
+  const [title, setTitle] = useState(initial?.title ?? '');
+  const [description, setDescription] = useState(initial?.description ?? '');
+  const [mealTouched, setMealTouched] = useState(Boolean(initial));
+  const [meal, setMeal] = useState<'desayuno' | 'almuerzo' | 'cena'>(initial?.meal ?? 'almuerzo');
+  const [startsAt, setStartsAt] = useState(() => (initial ? toLocalInput(new Date(initial.startsAt)) : defaultStart()));
+  const [endsTouched, setEndsTouched] = useState(Boolean(initial?.endsAt));
+  const [endsAt, setEndsAt] = useState(() => {
+    if (initial?.endsAt) return toLocalInput(new Date(initial.endsAt));
+    const start = initial ? toLocalInput(new Date(initial.startsAt)) : defaultStart();
+    return plusHours(start, 4);
   });
-  const [location, setLocation] = useState(TEMPLATE_PRESETS.comida.location);
-  const [priceDollars, setPriceDollars] = useState(TEMPLATE_PRESETS.comida.priceDollars);
-  const [capacity, setCapacity] = useState(TEMPLATE_PRESETS.comida.capacity);
-  const [goalDollars, setGoalDollars] = useState(TEMPLATE_PRESETS.comida.goalDollars);
-  const [minimumDollars, setMinimumDollars] = useState(TEMPLATE_PRESETS.comida.minimumDollars);
-  const [includesText, setIncludesText] = useState(TEMPLATE_PRESETS.comida.includes);
-  const [agenda, setAgenda] = useState<AgendaItem[]>(TEMPLATE_PRESETS.comida.agenda);
+  const [location, setLocation] = useState(initial?.location ?? '');
+  const [priceDollars, setPriceDollars] = useState(initial ? dollars(initial.priceCents) : '');
+  const [capacity, setCapacity] = useState(initial?.capacity ? String(initial.capacity) : '');
+  const [goalDollars, setGoalDollars] = useState(initial ? dollars(initial.goalCents) : '');
+  const [minimumDollars, setMinimumDollars] = useState(initial ? dollars(initial.minimumCents) : '');
+  const [includesText, setIncludesText] = useState(initial?.includes.join(', ') ?? '');
+  const [agenda, setAgenda] = useState<AgendaItem[]>(initial?.agenda ?? []);
+  const [accessCode, setAccessCode] = useState('');
+  const [accessTouched, setAccessTouched] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSelectTemplate = (t: TemplateKind) => {
     setTemplate(t);
-    const preset = TEMPLATE_PRESETS[t];
-    setTitle(preset.title);
-    setDescription(preset.description);
-    setMeal(preset.meal);
-    setLocation(preset.location);
-    setPriceDollars(preset.priceDollars);
-    setGoalDollars(preset.goalDollars);
-    setMinimumDollars(preset.minimumDollars);
-    setCapacity(preset.capacity);
-    setIncludesText(preset.includes);
-    setAgenda(preset.agenda);
+  };
+
+  const handleStartChange = (value: string) => {
+    setStartsAt(value);
+    if (!endsTouched) setEndsAt(plusHours(value, 4));
+    if (!mealTouched) {
+      const hour = new Date(value).getHours();
+      if (!Number.isNaN(hour)) setMeal(mealForHour(hour));
+    }
   };
 
   const handleAddAgendaItem = () => {
-    setAgenda([...agenda, { time: '18:00', title: 'Nueva actividad' }]);
+    setAgenda([...agenda, { time: '', title: '' }]);
   };
 
   const handleUpdateAgendaItem = (index: number, field: keyof AgendaItem, val: string) => {
@@ -148,29 +98,63 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
     e.preventDefault();
     setValidationError(null);
 
+    if (!title.trim()) {
+      setValidationError('Escribe un titulo.');
+      return;
+    }
+    if (!location.trim()) {
+      setValidationError('Escribe el lugar.');
+      return;
+    }
+    const startMs = new Date(startsAt).getTime();
+    const endMs = new Date(endsAt).getTime();
+    if (!Number.isFinite(startMs) || startMs <= Date.now() - 60_000) {
+      setValidationError('El inicio debe ser en el futuro.');
+      return;
+    }
+    if (!Number.isFinite(endMs) || endMs <= startMs) {
+      setValidationError('La hora de fin debe ser posterior al inicio.');
+      return;
+    }
     const priceNum = parseFloat(priceDollars);
-    if (isNaN(priceNum) || priceNum <= 0) {
-      setValidationError('Por favor ingresa un precio por persona válido mayor a 0.');
+    if (!Number.isFinite(priceNum) || priceNum <= 0) {
+      setValidationError('La cuota por persona debe ser mayor a 0.');
       return;
     }
     const priceCents = Math.round(priceNum * 100);
+    const parsedCapacity = Number.parseInt(capacity, 10);
+    if (!Number.isInteger(parsedCapacity) || parsedCapacity < 1) {
+      setValidationError('Indica un cupo mayor a 0.');
+      return;
+    }
 
     let goalCents: number | null = null;
     if (goalDollars.trim()) {
       const g = parseFloat(goalDollars);
-      if (!isNaN(g) && g > 0) goalCents = Math.round(g * 100);
+      if (!Number.isFinite(g) || g <= 0) {
+        setValidationError('La meta debe ser un monto mayor a 0.');
+        return;
+      }
+      goalCents = Math.round(g * 100);
     }
 
     let minimumCents: number | null = null;
     if (minimumDollars.trim()) {
       const m = parseFloat(minimumDollars);
-      if (!isNaN(m) && m > 0) minimumCents = Math.round(m * 100);
+      if (!Number.isFinite(m) || m <= 0) {
+        setValidationError('El minimo debe ser un monto mayor a 0.');
+        return;
+      }
+      minimumCents = Math.round(m * 100);
     }
-
-    let parsedCapacity: number | null = null;
-    if (capacity.trim()) {
-      const cap = parseInt(capacity, 10);
-      if (!isNaN(cap) && cap > 0) parsedCapacity = cap;
+    if (minimumCents !== null && goalCents !== null && minimumCents > goalCents) {
+      setValidationError('El minimo no puede superar la meta.');
+      return;
+    }
+    const ceiling = priceCents * parsedCapacity;
+    if ((goalCents !== null && ceiling < goalCents) || (minimumCents !== null && ceiling < minimumCents)) {
+      setValidationError('La cuota por el cupo debe cubrir la meta y el minimo.');
+      return;
     }
 
     const includes = includesText
@@ -184,6 +168,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
       meal,
       description: description.trim(),
       startsAt: new Date(startsAt).toISOString(),
+      endsAt: new Date(endsAt).toISOString(),
       location: location.trim(),
       includes,
       priceCents,
@@ -191,7 +176,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
       goalCents,
       minimumCents,
       agenda: agenda
-        .filter((a) => a.title.trim())
+        .filter((a) => a.title.trim() && a.time.trim())
         .map((a) => {
           const item: AgendaItem = {
             time: a.time.trim(),
@@ -203,6 +188,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
           return item;
         }),
     };
+    if (accessTouched) payload.accessCode = accessCode.trim() ? accessCode.trim() : null;
 
     try {
       await onSubmit(payload);
@@ -212,7 +198,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+    <form noValidate onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       {/* Template Selection Tabs */}
       <div>
         <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
@@ -257,7 +243,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
               >
                 <span>{labels[t]}</span>
                 <span style={{ fontSize: '0.7rem', color: 'var(--color-ink-muted)', fontWeight: 500 }}>
-                  Preconfigurado
+                  Tipo
                 </span>
               </button>
             );
@@ -270,21 +256,21 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
         <TemplateCover template={template} height="130px" />
       </div>
 
-      {validationError && (
-        <div
-          style={{
-            backgroundColor: 'var(--color-coral-tint)',
-            color: 'var(--color-coral)',
-            border: '1px solid var(--color-coral)',
-            padding: '0.75rem',
-            borderRadius: 'var(--radius-md)',
-            fontSize: '0.875rem',
-          }}
-          role="alert"
-        >
-          {validationError}
-        </div>
-      )}
+      <div
+        style={{
+          backgroundColor: validationError ? 'var(--color-coral-tint)' : 'transparent',
+          color: 'var(--color-coral)',
+          border: validationError ? '1px solid var(--color-coral)' : '1px solid transparent',
+          padding: validationError ? '0.75rem' : '0',
+          borderRadius: 'var(--radius-md)',
+          fontSize: '0.875rem',
+          minHeight: validationError ? undefined : 0,
+        }}
+        role="alert"
+        aria-live="polite"
+      >
+        {validationError ?? ''}
+      </div>
 
       {/* Basic Info */}
       <div className="form-group">
@@ -297,7 +283,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
-          placeholder="Ej. Asado dominical de bienvenida"
+          placeholder="Nombre de la fiesta"
         />
       </div>
 
@@ -310,7 +296,10 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
             id="event-meal"
             className="form-select"
             value={meal}
-            onChange={(e) => setMeal(e.target.value as any)}
+            onChange={(e) => {
+              setMealTouched(true);
+              setMeal(e.target.value as 'desayuno' | 'almuerzo' | 'cena');
+            }}
           >
             <option value="desayuno">Desayuno</option>
             <option value="almuerzo">Almuerzo</option>
@@ -327,10 +316,27 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
             type="datetime-local"
             className="form-input"
             value={startsAt}
-            onChange={(e) => setStartsAt(e.target.value)}
+            onChange={(e) => handleStartChange(e.target.value)}
             required
           />
         </div>
+      </div>
+
+      <div className="form-group">
+        <label className="form-label" htmlFor="event-end">
+          Hora de fin *
+        </label>
+        <input
+          id="event-end"
+          type="datetime-local"
+          className="form-input"
+          value={endsAt}
+          onChange={(e) => {
+            setEndsTouched(true);
+            setEndsAt(e.target.value);
+          }}
+          required
+        />
       </div>
 
       <div className="form-group">
@@ -343,7 +349,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
           value={location}
           onChange={(e) => setLocation(e.target.value)}
           required
-          placeholder="Ej. Terraza de Nico o Parque Central"
+          placeholder="Lugar o direccion"
         />
       </div>
 
@@ -357,7 +363,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
           rows={2}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Cuéntales qué harán en la fiesta..."
+          placeholder="Que van a hacer"
         />
       </div>
 
@@ -392,6 +398,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
                 style={{ paddingLeft: '1.75rem' }}
                 value={priceDollars}
                 onChange={(e) => setPriceDollars(e.target.value)}
+                placeholder="0.00"
                 required
               />
             </div>
@@ -444,17 +451,18 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
 
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label" htmlFor="event-capacity">
-              Capacidad máx.
+              Capacidad máxima *
             </label>
             <input
               id="event-capacity"
               type="number"
               min="1"
-              max="100"
+              max="1000"
               className="form-input"
               value={capacity}
               onChange={(e) => setCapacity(e.target.value)}
-              placeholder="Ej. 20"
+              placeholder="Cupo"
+              required
             />
             <span className="form-label-desc">Cupos disponibles</span>
           </div>
@@ -471,7 +479,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
           className="form-input"
           value={includesText}
           onChange={(e) => setIncludesText(e.target.value)}
-          placeholder="Carne, carbón, bebidas, postre..."
+          placeholder="Separa con comas"
         />
       </div>
 
@@ -489,6 +497,22 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
           >
             + Añadir horario
           </button>
+        </div>
+        <div className="form-group">
+          <label className="form-label" htmlFor="event-access">
+            Codigo de acceso (opcional)
+          </label>
+          <input
+            id="event-access"
+            className="form-input"
+            value={accessCode}
+            onChange={(e) => {
+              setAccessTouched(true);
+              setAccessCode(e.target.value);
+            }}
+            placeholder={initial ? 'Vacio quita el codigo' : 'Solo si la fiesta es privada'}
+            autoComplete="off"
+          />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {agenda.map((item, idx) => (
@@ -555,7 +579,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({ onSubmit, onCa
           Cancelar
         </button>
         <button type="submit" className="btn btn-primary" disabled={isLoading}>
-          {isLoading ? 'Creando fiesta...' : 'Crear y Obtener Enlace de Invitación'}
+          {isLoading ? 'Guardando...' : submitLabel}
         </button>
       </div>
     </form>

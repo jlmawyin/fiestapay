@@ -1,6 +1,7 @@
 import type { Guest, OrderResult } from '@fiestapay/shared';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { badRequest, unavailable } from '../errors.js';
+import { presentedAdminKey } from '../domain/access.js';
 import { audit } from '../domain/audit.js';
 import { captureOwnOrder, createOrderForSession, markOrderApproved, readOwnOrder, requirePayPal } from '../domain/orders.js';
 import { convergeCapture, convergeRefund, isApplied } from '../domain/payments.js';
@@ -67,7 +68,7 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
       const { quoteId } = parseOr400(orderSchema, req.body);
       const session = await requireSession(pool, config, req);
       const paypal = requirePayPal(config, deps.paypal);
-      return createOrderForSession(pool, paypal, session.id, slug, quoteId);
+      return createOrderForSession(pool, paypal, session.id, slug, quoteId, presentedAdminKey(req));
     },
   );
 
@@ -78,7 +79,7 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
       const { orderId } = parseOr400(orderIdParamSchema, req.params);
       const session = await requireSession(pool, config, req);
       const paypal = requirePayPal(config, deps.paypal);
-      return captureOwnOrder(pool, paypal, session.id, orderId);
+      return captureOwnOrder(pool, paypal, session.id, orderId, presentedAdminKey(req));
     },
   );
 
@@ -91,7 +92,7 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
       const { orderId } = parseOr400(orderIdParamSchema, req.params);
       const session = await requireSession(pool, config, req);
       const paypal = config.paypal && deps.paypal ? requirePayPal(config, deps.paypal) : null;
-      return readOwnOrder(pool, paypal, session.id, orderId);
+      return readOwnOrder(pool, paypal, session.id, orderId, presentedAdminKey(req));
     },
   );
 

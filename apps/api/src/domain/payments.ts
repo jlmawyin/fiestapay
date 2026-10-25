@@ -4,7 +4,7 @@ import { newId } from '../lib/ids.js';
 import type { PayPalAdapter, PayPalOrder } from '../paypal/types.js';
 import { captureIdFromRefund, verifyCapturedOrder, verifyRefund } from '../paypal/verify.js';
 import { audit } from './audit.js';
-import { findGuestById, lockEvent, lockOrder, type OrderRow } from './read.js';
+import { findGuestById, lockEvent, lockGuest, lockOrder, type OrderRow } from './read.js';
 
 export interface CaptureApplication {
   applied: boolean;
@@ -86,6 +86,7 @@ export async function convergeCapture(
 
   return withTransaction(pool, async (client) => {
     const event = await lockEvent(client, order.event_id);
+    await lockGuest(client, order.guest_id);
     const current = await lockOrder(client, order.id);
 
     if (current.capture_id !== null && current.capture_id !== captureId) {

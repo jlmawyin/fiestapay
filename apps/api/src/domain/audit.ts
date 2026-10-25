@@ -27,6 +27,13 @@ export type AuditAction =
   // A stale capture claim released after PayPal confirmed no capture exists.
   | 'payment_claim_released'
   | 'event_confirmed'
+  | 'event_updated'
+  | 'event_closed'
+  | 'event_deleted'
+  | 'retention_purged'
+  | 'admin_key_bootstrapped'
+  | 'access_code_set'
+  | 'access_code_cleared'
   | 'chat_message';
 
 export async function audit(db: Queryable, eventId: string | null, action: AuditAction): Promise<void> {

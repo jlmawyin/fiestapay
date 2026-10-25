@@ -1,9 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { Dashboard, Capabilities } from '../types';
-import { api } from '../api/client';
+import type { Dashboard, Capabilities, EventInput } from '../types';
+import { api, ApiError } from '../api/client';
+import { adminKeyFor, rememberAdminKey } from '../api/admin-key';
 import { usd } from '../types';
 import { GuestGrid } from '../components/dashboard/GuestGrid';
+import { OrganizerLinkCard } from '../components/dashboard/OrganizerLinkCard';
 import { QrShareModal } from '../components/dashboard/QrShareModal';
+import { CreateEventForm } from '../components/events/CreateEventForm';
 import { Modal } from '../components/common/Modal';
 import { GeminiAssistant } from '../components/chat/GeminiAssistant';
 
@@ -28,7 +31,13 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [showClose, setShowClose] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [busyLifecycle, setBusyLifecycle] = useState(false);
   const requestVersion = useRef(0);
+  const storedKey = adminKeyFor(slug);
 
   useEffect(() => {
     const version = ++requestVersion.current;
@@ -37,7 +46,19 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
     setShowConfirmModal(false);
     setShowQrModal(false);
     setIsConfirming(false);
-    void api.getDashboard(slug).then(data => {
+    const load = async () => {
+      try {
+        return await api.getDashboard(slug);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 403 && !adminKeyFor(slug)) {
+          const minted = await api.bootstrapAdminKey(slug);
+          rememberAdminKey(slug, minted.adminKey);
+          return api.getDashboard(slug);
+        }
+        throw err;
+      }
+    };
+    void load().then(data => {
       if (requestVersion.current === version) setDashboard(data);
     }).catch((err: Error) => {
       if (requestVersion.current === version) {
@@ -116,7 +137,46 @@ ${inviteUrl}`;
     );
   }
 
-  const { event, guests, audit } = dashboard;
+  const handleSaveEdit = async (input: EventInput) => {
+    setSavingEdit(true);
+    try {
+      const res = await api.updateEvent(slug, input);
+      setDashboard((prev) => (prev ? { ...prev, event: res.event } : prev));
+      setEditing(false);
+      onShowToast('success', 'Los cambios quedaron guardados.', 'Fiesta actualizada');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleClose = async () => {
+    setBusyLifecycle(true);
+    try {
+      const res = await api.closeEvent(slug);
+      setDashboard((prev) => (prev ? { ...prev, event: res.event } : prev));
+      setShowClose(false);
+      onShowToast('info', 'Ya no entran asistencias ni pagos nuevos.', 'Fiesta cerrada');
+    } catch (err: unknown) {
+      onShowToast('error', err instanceof Error ? err.message : 'No se pudo cerrar', 'Error');
+    } finally {
+      setBusyLifecycle(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setBusyLifecycle(true);
+    try {
+      await api.deleteEvent(slug);
+      setShowDelete(false);
+      onShowToast('info', 'La fiesta dejo de ser publica. Los pagos registrados se conservan.', 'Fiesta eliminada');
+      onNavigateHome();
+    } catch (err: unknown) {
+      onShowToast('error', err instanceof Error ? err.message : 'No se pudo eliminar', 'Error');
+      setBusyLifecycle(false);
+    }
+  };
+
+  const { event, guests, audit, payments } = dashboard;
   const canConfirm = !event.minimumCents || event.minimumReached;
 
   return (
@@ -165,8 +225,46 @@ ${inviteUrl}`;
           <button onClick={handleCopyLink} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
             {copiedLink ? '¡Copiado! ✓' : '🔗 Copiar Link'}
           </button>
+          <button type="button" onClick={() => setEditing((v) => !v)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
+            {editing ? 'Cerrar edicion' : 'Editar fiesta'}
+          </button>
+          <button type="button" onClick={() => setShowClose(true)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }} disabled={event.closed}>
+            Cerrar inscripciones
+          </button>
+          <button type="button" onClick={() => setShowDelete(true)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
+            Eliminar fiesta
+          </button>
         </div>
       </div>
+
+      {storedKey ? <OrganizerLinkCard slug={slug} adminKey={storedKey} /> : null}
+
+      {editing ? (
+        <div className="panel">
+          <CreateEventForm
+            initial={event}
+            onSubmit={handleSaveEdit}
+            onCancel={() => setEditing(false)}
+            isLoading={savingEdit}
+            submitLabel="Guardar cambios"
+          />
+        </div>
+      ) : null}
+
+      <section className="panel" aria-label="Pagos">
+        <h2 style={{ fontSize: '1.15rem', marginBottom: '0.5rem' }}>Pagos</h2>
+        {(payments ?? []).length === 0 ? (
+          <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.875rem' }}>Sin pagos registrados.</p>
+        ) : (
+          <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.875rem' }}>
+            {(payments ?? []).map((payment) => (
+              <li key={payment.orderId}>
+                {payment.guestName || 'Invitado'} · {usd(payment.amountCents)} · {payment.status}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {/* Financial Metrics Cards */}
       <div
@@ -352,6 +450,19 @@ ${inviteUrl}`;
               {isConfirming ? 'Confirmando...' : 'Sí, Confirmar Celebración'}
             </button>
           </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={showClose} onClose={() => setShowClose(false)} title="Cerrar inscripciones" description="Las asistencias y los pagos nuevos se detienen. El historial sigue visible.">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+          <button type="button" className="btn btn-secondary" onClick={() => setShowClose(false)} disabled={busyLifecycle}>Cancelar</button>
+          <button type="button" className="btn btn-primary" onClick={() => void handleClose()} disabled={busyLifecycle}>Si, cerrar inscripciones</button>
+        </div>
+      </Modal>
+      <Modal isOpen={showDelete} onClose={() => setShowDelete(false)} title="Eliminar esta fiesta" description="El acceso publico y el contenido personal se borran. Los registros de pago se conservan.">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+          <button type="button" className="btn btn-secondary" onClick={() => setShowDelete(false)} disabled={busyLifecycle}>Cancelar</button>
+          <button type="button" className="btn btn-primary" onClick={() => void handleDelete()} disabled={busyLifecycle}>Si, eliminar la fiesta</button>
         </div>
       </Modal>
 

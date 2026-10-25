@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fixedQuote } from '@fiestapay/shared';
 import { centsToUsd, usdToCents } from '../src/lib/money.js';
 import { isAllowedOrigin, originFromReferer } from '../src/lib/origin.js';
+import { redactRequest } from '../src/lib/redact.js';
 import { eventInputSchema, orderSchema, rsvpSchema } from '../src/lib/schemas.js';
 import { approveUrlOf, captureIdFromRefund, verifyCapturedOrder, verifyRefund } from '../src/paypal/verify.js';
 import { quoteSummary } from '../src/domain/quotes.js';
@@ -87,17 +88,30 @@ describe('validacion de origen en mutaciones', () => {
   });
 });
 
+describe('registros sin secretos', () => {
+  it('omite la query y no copia encabezados', () => {
+    const logged = redactRequest({
+      method: 'GET',
+      url: '/api/events/comida-abc/admin?k=secreto',
+      headers: { 'x-fiesta-admin-key': 'secreto', authorization: 'Bearer x' },
+    });
+    expect(logged).toEqual({ method: 'GET', url: '/api/events/comida-abc/admin' });
+    expect(JSON.stringify(logged)).not.toContain('secreto');
+  });
+});
+
 describe('validacion de entradas', () => {
   const base = {
     title: 'Almuerzo',
     template: 'comida',
     meal: 'almuerzo',
     description: 'Demo',
-    startsAt: '2026-11-01T18:00:00.000Z',
+    startsAt: '2026-12-01T18:00:00.000Z',
+    endsAt: '2026-12-01T22:00:00.000Z',
     location: 'Guayaquil',
     includes: ['Buffet'],
     priceCents: 2500,
-    capacity: null,
+    capacity: 20,
     goalCents: 10000,
     minimumCents: 5000,
     agenda: [],
@@ -115,6 +129,14 @@ describe('validacion de entradas', () => {
   it('rechaza un minimo mayor que la meta', () => {
     expect(eventInputSchema.safeParse({ ...base, minimumCents: 20000 }).success).toBe(false);
     expect(eventInputSchema.safeParse({ ...base, goalCents: null, minimumCents: 5000 }).success).toBe(true);
+  });
+
+  it('exige fin posterior, inicio futuro, cupo y cobertura de la meta', () => {
+    expect(eventInputSchema.safeParse({ ...base, endsAt: '2026-12-01T18:00:00.000Z' }).success).toBe(false);
+    expect(eventInputSchema.safeParse({ ...base, startsAt: '2020-01-01T18:00:00.000Z' }).success).toBe(false);
+    expect(eventInputSchema.safeParse({ ...base, capacity: null }).success).toBe(false);
+    expect(eventInputSchema.safeParse({ ...base, capacity: 2, goalCents: 10000 }).success).toBe(false);
+    expect(eventInputSchema.safeParse({ ...base, endsAt: undefined }).success).toBe(false);
   });
 
   it('acota textos, listas y acompanantes', () => {

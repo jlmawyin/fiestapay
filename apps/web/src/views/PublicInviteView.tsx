@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useLayoutEffect, useRef } from 'react';
 import type { FiestaEvent, Guest, Quote, OrderResult, Capabilities, RsvpStatus, AgendaItem } from '../types';
-import { api } from '../api/client';
+import { api, ApiError } from '../api/client';
 import { usd } from '../types';
 import { TemplateCover } from '../components/illustrations/TemplateCover';
 import { TicketCutout } from '../components/common/TicketCutout';
@@ -34,6 +34,9 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [isReconcilingOrder, setIsReconcilingOrder] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const [needsCode, setNeedsCode] = useState(false);
+  const [accessCode, setAccessCode] = useState('');
+  const [unlocking, setUnlocking] = useState(false);
   const [isSavingRsvp, setIsSavingRsvp] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const scopeVersion = useRef(0);
@@ -112,10 +115,16 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
     try {
       const data = await api.getEventBySlug(slug);
       if (scope !== scopeVersion.current) return;
+      setNeedsCode(false);
       setEvent(data.event);
       setGuest(data.guest);
     } catch (err: any) {
       if (scope !== scopeVersion.current) return;
+      if (err instanceof ApiError && err.status === 403) {
+        setNeedsCode(true);
+        setEvent(null);
+        return;
+      }
       onShowToast('error', err.message || 'No se pudo cargar la fiesta', 'Error de carga');
     } finally {
       if (scope === scopeVersion.current) setIsLoading(false);
@@ -308,6 +317,34 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
       <div className="panel" style={{ textAlign: 'center', padding: '4rem 1rem' }}>
         <p style={{ color: 'var(--color-ink-muted)' }}>Cargando detalles de la fiesta...</p>
       </div>
+    );
+  }
+
+  const submitCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUnlocking(true);
+    try {
+      await api.unlockEvent(slug, accessCode);
+      setNeedsCode(false);
+      await loadEvent();
+    } catch (err: unknown) {
+      onShowToast('error', err instanceof Error ? err.message : 'Codigo incorrecto', 'Acceso');
+    } finally {
+      setUnlocking(false);
+    }
+  };
+
+  if (needsCode && !event) {
+    return (
+      <form className="panel" onSubmit={(e) => void submitCode(e)} style={{ maxWidth: '420px', margin: '2rem auto' }}>
+        <h2>Esta fiesta es privada</h2>
+        <p style={{ color: 'var(--color-ink-muted)', margin: '0.5rem 0 1rem' }}>Escribe el codigo que te dio quien organiza.</p>
+        <label className="form-label" htmlFor="private-code">Codigo de acceso</label>
+        <input id="private-code" className="form-input" value={accessCode} onChange={(e) => setAccessCode(e.target.value)} autoComplete="off" />
+        <button type="submit" className="btn btn-primary" style={{ marginTop: '0.75rem' }} disabled={unlocking}>
+          {unlocking ? 'Comprobando...' : 'Entrar'}
+        </button>
+      </form>
     );
   }
 

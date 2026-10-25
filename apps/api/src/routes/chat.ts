@@ -1,6 +1,7 @@
 import type { ChatResult } from '@fiestapay/shared';
 import type { FastifyInstance } from 'fastify';
 import { chatWithAssistant } from '../ai/chat.js';
+import { presentedAdminKey } from '../domain/access.js';
 import { chatSchema, parseOr400, slugParamSchema } from '../lib/schemas.js';
 import { ensureSession } from '../lib/session.js';
 import type { RouteDeps } from './deps.js';
@@ -21,7 +22,7 @@ export async function registerChatRoutes(app: FastifyInstance, deps: RouteDeps):
       return chatWithAssistant(pool, config, session.id, slug, message, {
         generate: deps.generate,
         respond: deps.respond,
-      });
+      }, presentedAdminKey(req));
     },
   );
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { api, ApiError } from '../api/client';
+import { adminKeyFor, captureAdminKeyFromLocation, rememberAdminKey } from '../api/admin-key';
 
 describe('API Client Specification Compliance (docs/API.md)', () => {
   beforeEach(() => {
@@ -72,6 +73,35 @@ describe('API Client Specification Compliance (docs/API.md)', () => {
 
     await api.getEventBySlug('fiesta/123');
     expect(fetchSpy).toHaveBeenCalledWith('/api/events/fiesta%2F123', expect.anything());
+  });
+
+  it('stores the admin key and removes it from the address bar', () => {
+    window.history.replaceState({}, '', '/e/comida-abc/admin?k=sekreto&paypal=approved');
+    captureAdminKeyFromLocation();
+    expect(adminKeyFor('comida-abc')).toBe('sekreto');
+    expect(window.location.pathname).toBe('/e/comida-abc/admin');
+    expect(window.location.search).not.toContain('k=');
+    expect(window.location.search).toContain('paypal=approved');
+  });
+
+  it('sends the admin key only on organizer calls for that slug', async () => {
+    localStorage.clear();
+    rememberAdminKey('comida-abc', 'clave-organizador');
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ event: { slug: 'comida-abc' }, guests: [], audit: [] }),
+    } as Response);
+
+    await api.getDashboard('comida-abc');
+    await api.getEventBySlug('comida-abc');
+    await api.joinEvent('comida-abc', 'Ana');
+
+    const dashboardHeaders = new Headers((fetchSpy.mock.calls[0]?.[1] as RequestInit).headers);
+    const publicHeaders = new Headers((fetchSpy.mock.calls[1]?.[1] as RequestInit).headers);
+    const joinHeaders = new Headers((fetchSpy.mock.calls[2]?.[1] as RequestInit).headers);
+    expect(dashboardHeaders.get('X-Fiesta-Admin-Key')).toBe('clave-organizador');
+    expect(publicHeaders.get('X-Fiesta-Admin-Key')).toBeNull();
+    expect(joinHeaders.get('X-Fiesta-Admin-Key')).toBeNull();
   });
 
   it('requests voice token with consent: true contract', async () => {

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import type { EventInput } from '../types';
 import { api } from '../api/client';
+import { rememberAdminKey } from '../api/admin-key';
+import { OrganizerLinkCard } from '../components/dashboard/OrganizerLinkCard';
 import { CreateEventForm } from '../components/events/CreateEventForm';
 
 interface CreateEventViewProps {
@@ -15,13 +17,16 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
   onShowToast,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [created, setCreated] = useState<{ slug: string; adminKey: string } | null>(null);
 
   const handleSubmit = async (input: EventInput) => {
     setIsLoading(true);
     try {
       const res = await api.createEvent(input);
+      if (res.adminKey) rememberAdminKey(res.event.slug, res.adminKey);
       onShowToast('success', `¡Fiesta "${res.event.title}" creada con éxito!`, 'Fiesta Creada');
-      onEventCreated(res.event.slug);
+      if (res.adminKey) setCreated({ slug: res.event.slug, adminKey: res.adminKey });
+      else onEventCreated(res.event.slug);
     } catch (err: any) {
       onShowToast('error', err.message || 'No se pudo crear la fiesta', 'Error al crear');
       throw err;
@@ -43,7 +48,16 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
           </p>
         </div>
 
-        <CreateEventForm onSubmit={handleSubmit} onCancel={onCancel} isLoading={isLoading} />
+        {created ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <OrganizerLinkCard slug={created.slug} adminKey={created.adminKey} />
+            <button type="button" className="btn btn-primary" onClick={() => onEventCreated(created.slug)}>
+              Ir al panel
+            </button>
+          </div>
+        ) : (
+          <CreateEventForm onSubmit={handleSubmit} onCancel={onCancel} isLoading={isLoading} />
+        )}
       </div>
     </div>
   );

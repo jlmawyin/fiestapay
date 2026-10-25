@@ -1,5 +1,21 @@
 # Shared implementation contract
 
+## October 25 local implementation, awaiting independent acceptance
+
+The current P0–P6 request supersedes incompatible historic P1 rules below. The public invitation is `/e/:slug`; the organizer entry is `/e/:slug/admin?k=:adminKey`. The browser captures the key into localStorage and removes it from the query. The server stores only its SHA-256 digest and compares fixed-length digests with `timingSafeEqual`. Keyed organizer operations require `X-Fiesta-Admin-Key`; the creator cookie alone does not authorize these operations.
+
+- Create/demo/reset return `CreatedEvent` (`{event, adminKey}`); a newly minted key contains 32 random bytes. An existing demo can return a null key. Never put an organizer key into the public invitation or a guest API request.
+- `PUT /api/events/:slug` validates the complete event input and requires the organizer key.
+- `POST /api/events/:slug/close`, `DELETE /api/events/:slug`, dashboard and confirmation require the organizer key. Closed events remain readable, with new RSVP/quotes/orders rejected.
+- `POST /api/events/:slug/admin/key` is a one-time migration path for legacy rows with no key hash, restricted to the original creator session. It cannot rotate or recover a keyed event.
+- `POST /api/events/:slug/unlock` accepts `{code}` and establishes private-event access for the browser session. Missing/wrong proof returns 403 on protected public routes. Changing/clearing the code revokes existing unlocks. A valid admin key can authorize private organizer operations.
+- `endsAt` and positive capacity are required. Expired events return 410 immediately at `endsAt + 72 hours`, including before the periodic sweep. Startup and a 15-minute loop remove public/personal content through a tombstone, preserving financial references for reconciliation. An organizer delete uses the same tombstone policy.
+- Request logs omit query strings and credential headers. API responses use `Cache-Control: no-store`; pages use `Referrer-Policy: no-referrer`.
+
+These routes exist locally; this section does not claim production deployment or completed browser/restart acceptance. Recovery email, automatic funding refunds and moderation are subsequent packages. The product must use only OpenAI `gpt-6-luna` after the pending P5 cleanup; the historic Gemini option described below is transitional code scheduled for removal.
+
+## Historic baseline and unchanged payment contracts
+
 P1 only: one USD sandbox merchant, fixed-price full payment, four templates, fixed local illustrations. No uploads, Payouts, deposits, open fund, Google or live payments. All amounts integer cents. The UI labels captured minus refunded amount `Recaudado` with `antes de comisiones`.
 
 Same-origin JSON API under `/api`. Errors `{error: string}` with proper HTTP status. Browser uses HttpOnly SameSite=Lax cookie. Server checks Origin on mutations, fixes merchant server-side, never trusts browser amounts. Demo identities contain no required email/phone. Public invitation is slug; organizer and guest permissions are separate. No secrets in response except short-lived voice token intentionally issued to browser.

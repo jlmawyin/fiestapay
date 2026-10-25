@@ -10,60 +10,62 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('Event Templates & Agenda', () => {
-  it('four templates submit expected kind and cents via the same onSubmit (25/18/65/40 USD)', async () => {
-    const onSubmit = vi.fn().mockImplementation(async (_input: EventInput) => undefined);
-    render(
-      <CreateEventForm onSubmit={onSubmit} onCancel={vi.fn()} isLoading={false} />
-    );
+function fillBasics(price = '25.00', capacity = '10') {
+  fireEvent.change(screen.getByLabelText(/Título del Evento/i), { target: { value: 'Fiesta de prueba' } });
+  fireEvent.change(screen.getByLabelText(/Lugar o Dirección/i), { target: { value: 'Parque' } });
+  fireEvent.change(screen.getByLabelText(/Cuota por persona/i), { target: { value: price } });
+  fireEvent.change(screen.getByLabelText(/Capacidad máxima/i), { target: { value: capacity } });
+}
 
-    // 1. Comida (default preset: $25.00 -> 2500 cents)
+describe('Event Templates & Agenda', () => {
+  it('starts empty, validates inline, and submits cents for 25/18/65/40 USD', async () => {
+    const onSubmit = vi.fn().mockImplementation(async (_input: EventInput) => undefined);
+    render(<CreateEventForm onSubmit={onSubmit} onCancel={vi.fn()} isLoading={false} />);
+
+    expect((screen.getByLabelText(/Título del Evento/i) as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText(/Lugar o Dirección/i) as HTMLInputElement).placeholder).toBe('Lugar o direccion');
+    fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Escribe un titulo.');
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    fillBasics('25.00', '8');
     fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
-    expect(onSubmit).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        template: 'comida',
-        priceCents: 2500,
-      })
-    );
+    const comida = onSubmit.mock.calls[0][0] as EventInput;
+    expect(comida.template).toBe('comida');
+    expect(comida.priceCents).toBe(2500);
+    expect(comida.capacity).toBe(8);
+    expect(comida.endsAt > comida.startsAt).toBe(true);
 
-    // 2. Casa (preset: $18.00 -> 1800 cents, explicitly includes limpieza alongside comida)
     onSubmit.mockClear();
     fireEvent.click(screen.getByRole('radio', { name: /En Casa/i }));
+    fireEvent.change(screen.getByLabelText(/Cuota por persona/i), { target: { value: '18.00' } });
     fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
-    const casaCall = onSubmit.mock.calls[0][0] as EventInput;
-    expect(casaCall.template).toBe('casa');
-    expect(casaCall.priceCents).toBe(1800);
-    const casaIncludesJoined = casaCall.includes.join(' ').toLowerCase();
-    expect(casaIncludesJoined).toMatch(/limpieza/);
-    expect(casaIncludesJoined).toMatch(/comida/);
+    expect((onSubmit.mock.calls[0][0] as EventInput).template).toBe('casa');
+    expect((onSubmit.mock.calls[0][0] as EventInput).priceCents).toBe(1800);
+    expect((screen.getByLabelText(/Título del Evento/i) as HTMLInputElement).value).toBe('Fiesta de prueba');
 
-    // 3. Viaje (preset: $65.00 -> 6500 cents, explicitly includes transporte alongside hospedaje)
     onSubmit.mockClear();
     fireEvent.click(screen.getByRole('radio', { name: /Viaje/i }));
+    fireEvent.change(screen.getByLabelText(/Cuota por persona/i), { target: { value: '65.00' } });
     fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
-    const viajeCall = onSubmit.mock.calls[0][0] as EventInput;
-    expect(viajeCall.template).toBe('viaje');
-    expect(viajeCall.priceCents).toBe(6500);
-    const viajeIncludesJoined = viajeCall.includes.join(' ').toLowerCase();
-    expect(viajeIncludesJoined).toMatch(/transporte/);
-    expect(viajeIncludesJoined).toMatch(/hospedaje/);
+    expect((onSubmit.mock.calls[0][0] as EventInput).priceCents).toBe(6500);
 
-    // 4. Evento (preset: $40.00 -> 4000 cents)
     onSubmit.mockClear();
     fireEvent.click(screen.getByRole('radio', { name: /Evento/i }));
+    fireEvent.change(screen.getByLabelText(/Cuota por persona/i), { target: { value: '40.00' } });
     fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
-    const eventoCall = onSubmit.mock.calls[0][0] as EventInput;
-    expect(eventoCall.template).toBe('evento');
-    expect(eventoCall.priceCents).toBe(4000);
+    expect((onSubmit.mock.calls[0][0] as EventInput).template).toBe('evento');
+    expect((onSubmit.mock.calls[0][0] as EventInput).priceCents).toBe(4000);
   });
 
   it('agenda allows adding, editing (with optional maxLength 80 speaker), deleting, and empty agenda', async () => {
     const onSubmit = vi.fn().mockImplementation(async (_input: EventInput) => undefined);
     render(<CreateEventForm onSubmit={onSubmit} onCancel={vi.fn()} isLoading={false} />);
+    fillBasics();
 
     // Add a new agenda item
     fireEvent.click(screen.getByRole('button', { name: /\+ Añadir horario/i }));
@@ -113,6 +115,7 @@ describe('Event Templates & Agenda', () => {
   it('initializes datetime-local with local 14:00 components and submits preserving expected instant in non-UTC', async () => {
     const onSubmit = vi.fn().mockImplementation(async (_input: EventInput) => undefined);
     render(<CreateEventForm onSubmit={onSubmit} onCancel={vi.fn()} isLoading={false} />);
+    fillBasics();
 
     const dateInput = screen.getByLabelText(/Fecha y Hora \*/i) as HTMLInputElement;
 
@@ -133,6 +136,8 @@ describe('Event Templates & Agenda', () => {
     const instant = new Date(submitted.startsAt);
     expect(instant.getHours()).toBe(14);
     expect(instant.getMinutes()).toBe(0);
+    const end = new Date(submitted.endsAt);
+    expect(end.getTime() - instant.getTime()).toBe(4 * 60 * 60 * 1000);
 
     // If running in America/Guayaquil (-05:00 offset = 300 minutes), 14:00 local translates to 19:00 UTC
     if (new Date().getTimezoneOffset() === 300) {

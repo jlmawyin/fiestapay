@@ -9,6 +9,7 @@ import { loadConfig, type Config } from './config.js';
 import type { Pool } from './db/pool.js';
 import { HttpError } from './errors.js';
 import { isAllowedOrigin } from './lib/origin.js';
+import { requestLogger } from './lib/redact.js';
 import { PayPalSandboxClient } from './paypal/client.js';
 import type { PayPalAdapter } from './paypal/types.js';
 import { registerChatRoutes } from './routes/chat.js';
@@ -46,8 +47,9 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   const paypal =
     options.paypal !== undefined ? options.paypal : config.paypal ? new PayPalSandboxClient(config.paypal) : null;
 
+  const logging = options.logger === false || (options.logger === undefined && config.env === 'test') ? false : requestLogger;
   const app = Fastify({
-    logger: options.logger ?? config.env !== 'test',
+    logger: logging,
     bodyLimit: config.bodyLimitBytes,
     trustProxy: config.env === 'production',
   });
@@ -85,6 +87,9 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
    * because it is server-to-server and authenticated by its signature instead.
    */
   app.addHook('onRequest', async (req, reply) => {
+    reply.header('Referrer-Policy', 'no-referrer');
+    const pathOnly = req.url.split('?')[0] ?? req.url;
+    if (pathOnly === '/api' || pathOnly.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
     const method = req.method.toUpperCase();
     if (method === 'GET' || method === 'HEAD') return;
     const path = req.url.split('?')[0] ?? req.url;

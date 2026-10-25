@@ -3,7 +3,9 @@ import type { Config, GeminiConfig, OpenAIConfig } from '../config.js';
 import type { Pool } from '../db/pool.js';
 import { HttpError, unavailable } from '../errors.js';
 import { audit } from '../domain/audit.js';
+import { assertPrivateAccess } from '../domain/access.js';
 import { assertActive } from '../domain/events.js';
+import { concealExpired } from '../domain/retention.js';
 import { reserveAiRequest } from './budget.js';
 import { findGuestBySession, getEventBySlug, loadGuest, type EventRow, type GuestRow } from '../domain/read.js';
 import { callsOf, generateContent, textOf, toGeminiHistory, type GenerateFn, type HistoryRole } from './gemini.js';
@@ -253,11 +255,13 @@ export async function chatWithAssistant(
   slug: string,
   message: string,
   providers: ChatProviders = {},
+  presentedKey: string | null = null,
 ): Promise<ChatResult> {
-  const provider = selectProvider(config, providers);
-
   const event = await getEventBySlug(pool, slug);
+  await concealExpired(pool, event);
   assertActive(event);
+  await assertPrivateAccess(pool, event, sessionId, presentedKey);
+  const provider = selectProvider(config, providers);
   const guest = await findGuestBySession(pool, event.id, sessionId);
 
   if ((await scopeMessageCount(pool, event.id, sessionId)) >= MAX_MESSAGES_PER_SCOPE) {
