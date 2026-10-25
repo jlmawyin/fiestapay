@@ -3,18 +3,21 @@ import type { EventInput } from '../types';
 import { api } from '../api/client';
 import { rememberAdminKey } from '../api/admin-key';
 import { OrganizerLinkCard } from '../components/dashboard/OrganizerLinkCard';
+import { RecoveryEmailCard } from '../components/dashboard/RecoveryEmailCard';
 import { CreateEventForm } from '../components/events/CreateEventForm';
 
 interface CreateEventViewProps {
   onEventCreated: (slug: string) => void;
   onCancel: () => void;
   onShowToast: (type: 'success' | 'error' | 'info' | 'warning', message: string, title?: string) => void;
+  recoveryAvailable?: boolean;
 }
 
 export const CreateEventView: React.FC<CreateEventViewProps> = ({
   onEventCreated,
   onCancel,
   onShowToast,
+  recoveryAvailable = false,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [created, setCreated] = useState<{ slug: string; adminKey: string } | null>(null);
@@ -50,7 +53,8 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
 
         {created ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <OrganizerLinkCard slug={created.slug} adminKey={created.adminKey} />
+            <OrganizerLinkCard slug={created.slug} adminKey={created.adminKey} recoveryAvailable={recoveryAvailable} />
+            <RecoveryEmailCard slug={created.slug} available={recoveryAvailable} />
             <button type="button" className="btn btn-primary" onClick={() => onEventCreated(created.slug)}>
               Ir al panel
             </button>

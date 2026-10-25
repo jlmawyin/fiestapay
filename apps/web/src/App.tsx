@@ -9,12 +9,14 @@ import { OrganizerHomeView } from './views/OrganizerHomeView';
 import { CreateEventView } from './views/CreateEventView';
 import { PublicInviteView } from './views/PublicInviteView';
 import { OrganizerDashboardView } from './views/OrganizerDashboardView';
+import { OrganizerRecoveryView } from './views/OrganizerRecoveryView';
 
 type ViewMode =
   | { mode: 'home' }
   | { mode: 'create' }
   | { mode: 'invite'; slug: string }
-  | { mode: 'dashboard'; slug: string };
+  | { mode: 'dashboard'; slug: string }
+  | { mode: 'recover' };
 
 export const App: React.FC = () => {
   captureAdminKeyFromLocation();
@@ -46,6 +48,7 @@ export const App: React.FC = () => {
     setCurrentView(view);
     let path = '/';
     if (view.mode === 'create') path = '/create';
+    else if (view.mode === 'recover') path = '/recover';
     else if (view.mode === 'invite') path = `/e/${view.slug}`;
     else if (view.mode === 'dashboard') path = `/e/${view.slug}/admin`;
 
@@ -57,6 +60,10 @@ export const App: React.FC = () => {
   // Parse path on initial load & popstate
   const handleLocationChange = useCallback(() => {
     const path = window.location.pathname;
+    if (path === '/recover' || path === '/recover/') {
+      setCurrentView({ mode: 'recover' });
+      return;
+    }
     const dashboardMatch = path.match(/^\/e\/([^/]+)\/(?:admin|dashboard)\/?$/);
     if (dashboardMatch && dashboardMatch[1]) {
       setCurrentView({ mode: 'dashboard', slug: decodeURIComponent(dashboardMatch[1]) });
@@ -191,6 +198,7 @@ export const App: React.FC = () => {
 
         {currentView.mode === 'create' && (
           <CreateEventView
+            recoveryAvailable={capabilities?.email === true}
             onEventCreated={(slug) => {
               initApp();
               navigate({ mode: 'invite', slug });
@@ -208,6 +216,14 @@ export const App: React.FC = () => {
             onShowToast={showToast}
             onNavigateHome={() => navigate({ mode: 'home' })}
           />
+        )}
+
+        {currentView.mode === 'recover' && <OrganizerRecoveryView available={capabilities?.email === true} />}
+
+        {currentView.mode === 'home' && capabilities?.email === true && (
+          <p style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>
+            <a href="/recover" referrerPolicy="no-referrer">Perdi el enlace de organizador</a>
+          </p>
         )}
 
         {currentView.mode === 'dashboard' && (

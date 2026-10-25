@@ -36,7 +36,9 @@ export function adminHeaderFor(path: string, method: string): string | null {
     (rest === '/dashboard' && verb === 'GET') ||
     (rest === '/confirm' && verb === 'POST') ||
     (rest === '/close' && verb === 'POST') ||
-    (rest === '' && (verb === 'PUT' || verb === 'DELETE'));
+    (rest === '' && (verb === 'PUT' || verb === 'DELETE')) ||
+    (rest === '/recovery' && verb === 'GET') ||
+    (rest === '/recovery/contact' && (verb === 'PUT' || verb === 'DELETE'));
   if (!organizer) return null;
   return adminKeyFor(slug);
 }

@@ -9,6 +9,10 @@ import type {
   Dashboard,
   ChatResult,
   CreatedEvent,
+  RecoveryStatus,
+  RecoveryContactUpdate,
+  RecoveryRequestResult,
+  RecoveryConsumeResult,
 } from '../types';
 import { adminHeaderFor } from './admin-key';
 
@@ -162,6 +166,37 @@ export const api = {
 
   async getDashboard(slug: string): Promise<Dashboard> {
     return request<Dashboard>(`/api/events/${encodeURIComponent(slug)}/dashboard`);
+  },
+
+  async getRecoveryStatus(slug: string): Promise<RecoveryStatus> {
+    return request<RecoveryStatus>(`/api/events/${encodeURIComponent(slug)}/recovery`);
+  },
+
+  async setRecoveryContact(slug: string, email: string): Promise<RecoveryContactUpdate> {
+    return request<RecoveryContactUpdate>(`/api/events/${encodeURIComponent(slug)}/recovery/contact`, {
+      method: 'PUT',
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  async removeRecoveryContact(slug: string): Promise<RecoveryStatus> {
+    return request<RecoveryStatus>(`/api/events/${encodeURIComponent(slug)}/recovery/contact`, {
+      method: 'DELETE',
+    });
+  },
+
+  async requestRecovery(slug: string, email: string): Promise<RecoveryRequestResult> {
+    return request<RecoveryRequestResult>('/api/recovery/request', {
+      method: 'POST',
+      body: JSON.stringify({ slug, email }),
+    });
+  },
+
+  async consumeRecovery(token: string): Promise<RecoveryConsumeResult> {
+    return request<RecoveryConsumeResult>('/api/recovery/consume', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    });
   },
 
   async confirmEvent(slug: string): Promise<{ event: FiestaEvent }> {

@@ -4,6 +4,10 @@ Actualizado: 25 octubre 2026, America/Guayaquil. Resumen de esta entrega; el his
 
 ## Prioridades vigentes y ejecución
 
+**P0 desplegado, 25 oct 12:28; ruta pública bloqueada:** `97048c1` activo y saludable en Contabo, migración0005 y copia previa conservadas; la captura existente sigue contabilizada una vez. HTTPS directo al origen devuelve200. El DNS público devuelve otra IP y delega en ParkLogic; se pidió revisión a Jorge respetando su prohibición de cambiar DNS/MX. No se declara el sitio públicamente disponible. [Diagnóstico](docs/reviews/domain-routing-20261025.md).
+
+**SMTP implementado localmente:** GROK entregó el mismo intento1/3 adaptado a Banahosting, 253 pruebas/26 archivos, tipos y build aprobados. AGY revisa seguridad, SMTP simulado y recuperación en navegador local. El archivo del servicio aún no tiene las cinco variables (solo se comprobó presencia); no hay destinatario autorizado ni correo enviado. La reparación de voz sigue pendiente de la excepción de una línea solicitada.
+
 **Cambio de correo aprobado por Jorge, 25 oct:** SMTP Banahosting/cPanel sustituye la propuesta anterior. Se detuvo solo el constructor de recuperación, se preservó su trabajo y continúa el mismo intento 1/3 con Nodemailer. Variables reales solo en `/opt/fiestapay/.env.production`; sin cambios MX/DNS ni envío. Guía y viabilidad WhatsApp actualizadas. Pendientes: cuenta/variables y dirección única autorizada por Jorge para acreditar llegada y recuperación real.
 
 **25 oct, 11:40:** persistencia/admin aprobados por AGY y [PR #2](https://github.com/jlmawyin/fiestapay/pull/2) creado en borrador. CI aprobada para `d0bfd00`; 39 fuentes revisadas coinciden con el commit. Antes de desplegar se está preparando compatibilidad de la migración con la imagen anterior para permitir una reversión sin restaurar la base financiera. Recuperación por correo P1 en construcción, sin envío real. Audio aprobado funcionalmente con 22 pruebas, pendiente una línea de lint y respuesta a la excepción puntual solicitada. Producción aún en `1bf3434`.

@@ -4,9 +4,10 @@ import { QRCodeSVG } from 'qrcode.react';
 interface OrganizerLinkCardProps {
   slug: string;
   adminKey: string;
+  recoveryAvailable?: boolean;
 }
 
-export const OrganizerLinkCard: React.FC<OrganizerLinkCardProps> = ({ slug, adminKey }) => {
+export const OrganizerLinkCard: React.FC<OrganizerLinkCardProps> = ({ slug, adminKey, recoveryAvailable = false }) => {
   const origin = window.location.origin;
   const adminUrl = `${origin}/e/${encodeURIComponent(slug)}/admin?k=${encodeURIComponent(adminKey)}`;
   const publicUrl = `${origin}/e/${encodeURIComponent(slug)}`;
@@ -27,6 +28,15 @@ export const OrganizerLinkCard: React.FC<OrganizerLinkCardProps> = ({ slug, admi
       <h2 style={{ fontSize: '1.15rem', marginBottom: '0.35rem' }}>Guarda el enlace de organizador</h2>
       <p style={{ fontSize: '0.875rem', color: 'var(--color-ink-muted)', marginBottom: '1rem' }}>
         Este enlace abre el panel en otro navegador. No lo compartas con invitados. El enlace publico es otro.
+        El correo es opcional y no reemplaza este enlace.
+        {recoveryAvailable ? (
+          <>
+            {' '}
+            <a href="/recover" referrerPolicy="no-referrer">Si lo pierdes, pide recuperacion por correo</a>.
+          </>
+        ) : (
+          ' La recuperacion por correo no esta disponible en este servidor.'
+        )}
       </p>
       <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '8px' }}>

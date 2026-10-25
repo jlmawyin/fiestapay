@@ -11,6 +11,11 @@ import {
   ChatResult,
   Dashboard,
   CreatedEvent,
+  RecoveryStatus,
+  RecoveryContactStatus,
+  RecoveryContactUpdate,
+  RecoveryRequestResult,
+  RecoveryConsumeResult,
   TEMPLATE_LABELS,
   usd,
   fixedQuote,
@@ -29,6 +34,11 @@ export type {
   ChatResult,
   Dashboard,
   CreatedEvent,
+  RecoveryStatus,
+  RecoveryContactStatus,
+  RecoveryContactUpdate,
+  RecoveryRequestResult,
+  RecoveryConsumeResult,
 };
 
 export { TEMPLATE_LABELS, usd, fixedQuote };

@@ -5,6 +5,7 @@ import { adminKeyFor, rememberAdminKey } from '../api/admin-key';
 import { usd } from '../types';
 import { GuestGrid } from '../components/dashboard/GuestGrid';
 import { OrganizerLinkCard } from '../components/dashboard/OrganizerLinkCard';
+import { RecoveryEmailCard } from '../components/dashboard/RecoveryEmailCard';
 import { QrShareModal } from '../components/dashboard/QrShareModal';
 import { CreateEventForm } from '../components/events/CreateEventForm';
 import { Modal } from '../components/common/Modal';
@@ -237,7 +238,12 @@ ${inviteUrl}`;
         </div>
       </div>
 
-      {storedKey ? <OrganizerLinkCard slug={slug} adminKey={storedKey} /> : null}
+      {storedKey ? (
+        <>
+          <OrganizerLinkCard slug={slug} adminKey={storedKey} recoveryAvailable={capabilities?.email === true} />
+          <RecoveryEmailCard slug={slug} available={capabilities?.email === true} />
+        </>
+      ) : null}
 
       {editing ? (
         <div className="panel">

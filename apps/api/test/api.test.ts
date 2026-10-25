@@ -114,6 +114,7 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
       expect(caps.chat).toBe(false);
       expect(caps.llmProvider).toBe('openai');
       expect(caps.voice).toBe(false);
+      expect(caps.email).toBe(false);
     });
 
     it('devuelve 404 JSON para rutas de API inexistentes', async () => {

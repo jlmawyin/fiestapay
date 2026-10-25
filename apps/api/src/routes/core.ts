@@ -39,6 +39,7 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
     voice: config.voice.enabled,
     paypalClientId: config.paypal?.clientId ?? null,
     sandbox: true,
+    email: deps.email !== null,
   }));
 
   app.post(

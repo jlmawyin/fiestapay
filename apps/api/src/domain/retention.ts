@@ -49,6 +49,8 @@ export async function tombstoneEvent(db: Queryable, eventId: string, action: Aud
      RETURNING id`,
     [eventId],
   );
+  await db.query('DELETE FROM recovery_tokens WHERE event_id = $1', [eventId]);
+  await db.query('DELETE FROM organizer_contacts WHERE event_id = $1', [eventId]);
   if ((updated.rowCount ?? 0) === 0) return false;
   await db.query('UPDATE guests SET name = \'\' WHERE event_id = $1', [eventId]);
   await db.query('DELETE FROM chat_messages WHERE event_id = $1', [eventId]);

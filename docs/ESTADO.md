@@ -4,6 +4,12 @@ Actualizado el 25 octubre 2026 (America/Guayaquil). El calendario no equivale a 
 
 ## Etapa vigente: entrega 31 octubre
 
+**Estado operativo posterior, 25 oct:** `97048c1` desplegado a las17:27UTC y saludable; copia y rollback conservados, migración0005 aplicada sin restaurar la DB. La primera activación había parado por usar el archivo de interpolación incorrecto; se corrigió y AGY3/3 aprobó el ayudante antes del segundo intento exitoso. Credenciales de Compose en `.env`; credenciales de la API en `.env.production`.
+
+**Bloqueo externo de dominio:** DNS públicos/VPS resuelven162.4.84.247 y NS ParkLogic; el VPS198.7.114.73 devuelve200 con HTTPS/certificado correcto. Registro declara vencimiento2027, último cambio09:02UTC. No cambios DNS/MX por Codex; Jorge debe revisar la delegación. Primer seed público falló antes de HTTP y SQL confirmó cero fixtures, ledger1 intacto. [Evidencia](reviews/domain-routing-20261025.md).
+
+SMTP local entregado1/3: 253 pruebas, tipos/build correctos; AGY1/3 en curso, sesión54215. No credenciales SMTP en el archivo de servicio ni destinatario autorizado, no envío real. Arnés directo al origen en preparación AGY2/3, sesión99684; sus resultados deben etiquetarse como prueba del origen, sin afirmar DNS público resuelto. Voz22tests sin integrar por lint/autorización pendiente.
+
 **Decisión SMTP vigente, 25 oct:** se usa Banahosting/cPanel. Constructor de recuperación reorientado, mismo intento 1/3, sesión 5244; cuatro procesos anteriores propios detenidos sin tocar el constructor de compatibilidad. Nodemailer 10.2.1 instalado, tipos incluidos; sin llamada SMTP real. Cinco variables solo en el servicio VPS y destinatario autorizado pendientes. EMAIL_SETUP y decisión escrita de WhatsApp actualizados; no cambios MX/DNS.
 
 **25 oct 11:40:** AGY aprobó persistencia/API/privacidad y navegador local; PR #2 creado y adjuntado, CI `d0bfd00` correcta. Compatibilidad con la versión anterior en migración 0005 se completa antes de publicar. P1 correo en construcción sin credenciales ni envío. Voz: 22 pruebas independientes y tipos correctos, queda lint de una línea y autorización puntual pendiente. Aún no hay nuevo despliegue.

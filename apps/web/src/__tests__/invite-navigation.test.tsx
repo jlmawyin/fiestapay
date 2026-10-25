@@ -20,6 +20,7 @@ const mockCapabilities: Capabilities = {
   gemini: false,
   voice: false,
   sandbox: true,
+  email: false,
 };
 
 const mockEvent1: FiestaEvent = {

@@ -1,6 +1,6 @@
 # Shared implementation contract
 
-## October 25 local implementation, awaiting independent acceptance
+## October 25 current contracts
 
 The current P0–P6 request supersedes incompatible historic P1 rules below. The public invitation is `/e/:slug`; the organizer entry is `/e/:slug/admin?k=:adminKey`. The browser captures the key into localStorage and removes it from the query. The server stores only its SHA-256 digest and compares fixed-length digests with `timingSafeEqual`. Keyed organizer operations require `X-Fiesta-Admin-Key`; the creator cookie alone does not authorize these operations.
 
@@ -12,13 +12,24 @@ The current P0–P6 request supersedes incompatible historic P1 rules below. The
 - `endsAt` and positive capacity are required. Expired events return 410 immediately at `endsAt + 72 hours`, including before the periodic sweep. Startup and a 15-minute loop remove public/personal content through a tombstone, preserving financial references for reconciliation. An organizer delete uses the same tombstone policy.
 - Request logs omit query strings and credential headers. API responses use `Cache-Control: no-store`; pages use `Referrer-Policy: no-referrer`.
 
-These routes exist locally; this section does not claim production deployment or completed browser/restart acceptance. Recovery email, automatic funding refunds and moderation are subsequent packages. The product must use only OpenAI `gpt-6-luna` after the pending P5 cleanup; the historic Gemini option described below is transitional code scheduled for removal.
+The access/retention routes are deployed in `97048c1` and passed restart/permission checks through the HTTPS origin. Public DNS is externally blocked; see [routing evidence](reviews/domain-routing-20261025.md). The SMTP recovery implementation below has passed independent local review and awaits deployment/real-mail acceptance. Automatic funding refunds and moderation remain subsequent packages. The product must use only OpenAI `gpt-6-luna` after the pending P5 cleanup; the historic Gemini option below is transitional code scheduled for removal.
+
+## Verified optional email recovery
+
+- `GET /api/events/:slug/recovery` requires the organizer key and returns availability and masked contact status.
+- `PUT /api/events/:slug/recovery/contact` requires that key and `{email}`. It sends a verification message through the configured Banahosting SMTP adapter. It does not block event creation. A new/replaced mailbox is unverified until proof is consumed.
+- `DELETE /api/events/:slug/recovery/contact` requires that key and removes the contact and existing proof tokens.
+- `POST /api/recovery/request` accepts `{slug,email}` without an admin header. Valid requests return the same `{status:'accepted'}` for unknown, mismatched, unverified and matching contacts. This means the request was accepted; it does not prove SMTP or inbox delivery. An unavailable mail service returns the same503 across contacts.
+- `POST /api/recovery/consume` accepts `{token}`. Tokens have distinct verify/recover purposes, are random32bytes, stored only as hashes, expire within15minutes and allow one transactional consumer. Recovery returns the new key once; the previous key immediately loses authority.
+- `/recover#t=...` strips the fragment into memory and requires a confirmation click. It supports a new fragment in the same tab and ignores outdated async results. Query tokens are discarded. Public recovery requests never attach the organizer header.
+- Shared PostgreSQL counters constrain IP/event windows and daily send attempts across instances and cookies. Changing/removing contact or tombstoning the event invalidates tokens and clears contact data. Financial references remain intact.
+- SMTP configuration is server-only: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`. Port465 uses TLS;587 requires STARTTLS; certificate validation remains enabled. Acceptance by the outbound server is distinct from receipt/spam. No real mail acceptance is claimed before the [operator protocol](EMAIL_SETUP.md).
 
 ## Historic baseline and unchanged payment contracts
 
 P1 only: one USD sandbox merchant, fixed-price full payment, four templates, fixed local illustrations. No uploads, Payouts, deposits, open fund, Google or live payments. All amounts integer cents. The UI labels captured minus refunded amount `Recaudado` with `antes de comisiones`.
 
-Same-origin JSON API under `/api`. Errors `{error: string}` with proper HTTP status. Browser uses HttpOnly SameSite=Lax cookie. Server checks Origin on mutations, fixes merchant server-side, never trusts browser amounts. Demo identities contain no required email/phone. Public invitation is slug; organizer and guest permissions are separate. No secrets in response except short-lived voice token intentionally issued to browser.
+Same-origin JSON API under `/api`. Errors `{error: string}` with proper HTTP status. Browser uses HttpOnly SameSite=Lax cookie. Server checks Origin on mutations, fixes merchant server-side, never trusts browser amounts. Demo identities contain no required email/phone. Public invitation is slug; organizer and guest permissions are separate. Provider credentials never enter responses. One-time minted organizer keys and short-lived voice tokens are intentional browser capabilities.
 
 - `GET /api/health` -> `{ok:true}`.
 - `GET /api/capabilities` -> Capabilities, providers false unless configured; never fake successful payment/audio/AI.

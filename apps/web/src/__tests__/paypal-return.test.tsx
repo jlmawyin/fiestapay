@@ -48,6 +48,7 @@ const mockCapabilities = {
   gemini: false,
   voice: false,
   sandbox: true as const,
+  email: false,
 };
 
 describe('PayPal Return Flow, URL Order Recovery and Capture Safety', () => {

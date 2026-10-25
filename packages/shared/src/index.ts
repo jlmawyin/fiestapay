@@ -24,7 +24,19 @@ export type LlmProvider = 'openai' | 'gemini';
 export interface Capabilities {
   paypal: boolean; voice: boolean; paypalClientId: string | null; sandbox: true;
   chat?: boolean; gemini?: boolean; llmProvider?: LlmProvider;
+  /** True only when the server has SMTP configured. Never implies a message was accepted or delivered. */
+  email: boolean;
 }
+export type RecoveryContactState = 'none' | 'pending' | 'verified';
+export interface RecoveryContactStatus { state: RecoveryContactState; masked: string | null }
+export interface RecoveryStatus { email: boolean; contact: RecoveryContactStatus }
+/** `accepted` means the outbound SMTP server accepted the message, not that it reached an inbox. `unchanged` means the verified mailbox was already this one. */
+export interface RecoveryContactUpdate { contact: RecoveryContactStatus; delivery: 'accepted' | 'unchanged' }
+/** Same body for every public request. This is not an SMTP acceptance and not inbox delivery. */
+export interface RecoveryRequestResult { status: 'accepted' }
+export interface RecoveryConsumeVerified { purpose: 'verify'; slug: string; verified: true }
+export interface RecoveryConsumeRecovered { purpose: 'recover'; slug: string; adminKey: string }
+export type RecoveryConsumeResult = RecoveryConsumeVerified | RecoveryConsumeRecovered;
 /** adminKey is returned once, on create. Later reads omit it. */
 export interface CreatedEvent { event: FiestaEvent; adminKey: string | null }
 export interface ChatResult { text: string; quote?: Quote; guest?: Guest; actions?: string[] }

@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import type { LlmProvider } from '@fiestapay/shared';
+import { normalizeMailbox } from './email/address.js';
 
 export function voiceConfig(env: NodeJS.ProcessEnv = process.env) {
   const bounded = (v: string | undefined, fallback: number, cap: number) => Math.min(cap, Math.max(1, Number(v) || fallback));
@@ -39,6 +40,22 @@ export interface OpenAIConfig {
   reasoningEffort: 'low';
 }
 
+export interface EmailConfig {
+  /** cPanel outgoing hostname from SMTP_HOST. Never a default invented here. */
+  host: string;
+  port: 465 | 587;
+  user: string;
+  pass: string;
+  from: string;
+  timeoutMs: number;
+  dailyCap: number;
+  ipLimit: number;
+  ipWindowSeconds: number;
+  eventLimit: number;
+  eventWindowSeconds: number;
+  tokenTtlSeconds: number;
+}
+
 export interface Config {
   env: 'development' | 'test' | 'production';
   port: number;
@@ -63,8 +80,10 @@ export interface Config {
   openai: OpenAIConfig | null;
   gemini: GeminiConfig | null;
   voice: ReturnType<typeof voiceConfig>;
+  email: EmailConfig | null;
   /** Reason PayPal is unavailable, for honest 503 bodies. */
   paypalDisabledReason: string | null;
+  emailDisabledReason: string | null;
   openaiDisabledReason: string | null;
   geminiDisabledReason: string | null;
 }
@@ -120,6 +139,74 @@ function readPayPal(env: NodeJS.ProcessEnv): { config: PayPalConfig | null; reas
       webhookId: str(env.PAYPAL_WEBHOOK_ID),
       timeoutMs: num(env.PAYPAL_TIMEOUT_MS, 12000),
       brandName: str(env.PAYPAL_BRAND_NAME) ?? 'FiestaPay (demo sandbox)',
+    },
+    reason: null,
+  };
+}
+
+/** DNS hostname only. IP literals, URLs and a single label are rejected. No default host. */
+function readSmtpHost(raw: string | null): string | null {
+  if (!raw) return null;
+  const host = raw.toLowerCase();
+  if (host.length > 253 || host.includes('..') || host.endsWith('.')) return null;
+  if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(host)) return null;
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) return null;
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) return null;
+  return host;
+}
+
+function hasControl(value: string): boolean {
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if (code <= 0x1f || code === 0x7f) return true;
+  }
+  return false;
+}
+
+/** Password is kept verbatim. Empty, padded, control, or oversized values disable mail. */
+function readSmtpPass(raw: string | undefined): string | null {
+  if (typeof raw !== 'string' || raw.length === 0 || raw.length > 1024) return null;
+  if (raw !== raw.trim()) return null;
+  if (hasControl(raw)) return null;
+  return raw;
+}
+
+function readEmail(env: NodeJS.ProcessEnv, publicOrigin: string | null): { config: EmailConfig | null; reason: string | null } {
+  const hostRaw = str(env.SMTP_HOST);
+  const portRaw = (env.SMTP_PORT ?? '').trim();
+  const userRaw = str(env.SMTP_USER);
+  const fromRaw = str(env.EMAIL_FROM);
+  const missing: string[] = [];
+  if (!hostRaw) missing.push('SMTP_HOST');
+  if (!portRaw) missing.push('SMTP_PORT');
+  if (!userRaw) missing.push('SMTP_USER');
+  if (readSmtpPass(env.SMTP_PASS) === null && (env.SMTP_PASS ?? '').trim() === '') missing.push('SMTP_PASS');
+  if (!fromRaw) missing.push('EMAIL_FROM');
+  if (missing.length > 0) return { config: null, reason: `Falta configuracion de correo: ${missing.join(', ')}` };
+  if (!publicOrigin) return { config: null, reason: 'Falta PUBLIC_ORIGIN para los enlaces de recuperacion' };
+  if (portRaw !== '465' && portRaw !== '587') return { config: null, reason: 'SMTP_PORT invalido' };
+  const host = readSmtpHost(hostRaw);
+  if (!host) return { config: null, reason: 'SMTP_HOST invalido' };
+  const user = normalizeMailbox(userRaw!);
+  if (!user) return { config: null, reason: 'SMTP_USER invalido' };
+  const pass = readSmtpPass(env.SMTP_PASS);
+  if (!pass) return { config: null, reason: 'SMTP_PASS invalido' };
+  const from = normalizeMailbox(fromRaw!);
+  if (!from) return { config: null, reason: 'EMAIL_FROM invalido' };
+  return {
+    config: {
+      host,
+      port: portRaw === '465' ? 465 : 587,
+      user,
+      pass,
+      from,
+      timeoutMs: Math.min(20_000, Math.max(1_000, num(env.EMAIL_TIMEOUT_MS, 8000))),
+      dailyCap: Math.min(100, num(env.EMAIL_DAILY_CAP, 20)),
+      ipLimit: Math.min(20, num(env.EMAIL_IP_LIMIT, 5)),
+      ipWindowSeconds: Math.min(86_400, num(env.EMAIL_IP_WINDOW_SECONDS, 3600)),
+      eventLimit: Math.min(20, num(env.EMAIL_EVENT_LIMIT, 5)),
+      eventWindowSeconds: Math.min(86_400, num(env.EMAIL_EVENT_WINDOW_SECONDS, 3600)),
+      tokenTtlSeconds: Math.min(900, num(env.EMAIL_TOKEN_TTL_SECONDS, 900)),
     },
     reason: null,
   };
@@ -183,6 +270,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     }
   }
   const paypal = readPayPal(env);
+  const email = readEmail(env, publicOrigin === null ? null : publicOrigin.replace(/\/+$/, ''));
   // Only the selected provider is read, so there is no configured client to fall back to.
   const llmProvider = readLlmProvider(env);
   const openai = llmProvider === 'openai' ? readOpenAI(env) : { config: null, reason: 'Proveedor de chat seleccionado: gemini' };
@@ -212,6 +300,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     openaiDisabledReason: openai.reason,
     gemini: gemini.config,
     voice: voiceConfig(env),
+    email: email.config,
+    emailDisabledReason: email.reason,
     geminiDisabledReason: gemini.reason,
   };
 }

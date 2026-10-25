@@ -17,7 +17,9 @@ FiestaPay se conecta al servidor SMTP existente desde Contabo. No instala otro s
    | `SMTP_PASS` | Contraseña privada de esa cuenta. |
    | `EMAIL_FROM` | Dirección remitente autorizada para esa cuenta. |
 
-3. Indicar la única dirección destinataria autorizada para la primera prueba. Verificar conexión cifrada y enviar solo a esa dirección. La aceptación por el servidor SMTP se registra aparte de la recepción: Jorge confirma bandeja de entrada o spam. No se envían invitaciones a contactos ni marketing.
+   Guardar los valores con el formato `.env` de Compose. Las comillas simples conservan literalmente caracteres como `$`; si el valor contiene comillas, usar los escapes documentados. No pegar contraseñas en comandos ni imprimir la configuración resuelta. [Reglas oficiales de formato e interpolación](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/).
+
+3. Indicar la única dirección destinataria autorizada para la primera prueba y avisar cuando estén cargadas las variables. Codex aplica esa configuración recreando exclusivamente el servicio API de FiestaPay: editar el archivo por sí solo no actualiza el entorno del contenedor existente. Verificar conexión cifrada y enviar solo a esa dirección. La aceptación SMTP se registra aparte de la recepción: Jorge confirma bandeja de entrada o spam. No se envían invitaciones a contactos ni marketing.
 4. Si aparece spam, Jorge revisa en Banahosting/cPanel el estado de SPF y DKIM y las instrucciones de su proveedor. Codex documenta el resultado; no cambia esos registros ni los MX. No se contrata ningún servicio ni plan adicional.
 
 El adaptador usa Nodemailer con TLS y validación de certificado, sin trazas de autenticación ni contenido. En el puerto 587 se exige STARTTLS; un fallo de TLS no permite continuar sin cifrado. [Opciones oficiales de SMTP/TLS](https://nodemailer.com/smtp). El envío está sujeto a los límites de la cuenta de Banahosting; no se promete capacidad ilimitada. El enlace de organizador sigue siendo el acceso principal.
@@ -33,6 +35,8 @@ El adaptador usa Nodemailer con TLS y validación de certificado, sin trazas de 
 - WhatsApp permite compartir manualmente; la [decisión de viabilidad](WHATSAPP_VIABILIDAD.md) evalúa además recuperación automática, costos y plazo.
 
 ## Aceptación real pendiente
+
+La [ruta pública del dominio requiere revisión del dueño](reviews/domain-routing-20261025.md). El correo con enlace de recuperación se prueba de punta a punta después de recuperar acceso HTTPS al dominio correcto; la respuesta directa del VPS no acredita que ese enlace pueda abrirse desde el correo.
 
 1. Con las variables cargadas, enviar un único correo a la dirección autorizada. Registrar hora, aceptación SMTP y confirmación de entrada/spam, sin credenciales ni token.
 2. Registrar/verificar el correo opcional; solicitar recuperación; recibir y abrir su enlace; obtener la nueva clave. Comprobar nueva clave válida y anterior 403, con salida solo booleana.
