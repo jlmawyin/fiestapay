@@ -8,6 +8,8 @@ test-results/
 !.env.example
 .secrets/
 .local/
+.playwright-cli/
+output/
 *.log
 *.pem
 *.key

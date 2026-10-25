@@ -20,8 +20,10 @@ Same-origin JSON API under `/api`. Errors `{error: string}` with proper HTTP sta
 - `GET /api/events/:slug/dashboard` -> Dashboard; organizer only.
 - `POST /api/events/:slug/confirm` -> `{event}` organizer only, minimum reached required when configured.
 - `POST /api/demo/reset` -> `{event}` new generation only for organizer, archived invitations cannot create new payments; preserve old refs and reconcile late captures to old generation.
-- `POST /api/events/:slug/chat` body `{message:string}` -> ChatResult. Text + quote card, never executes payment from LLM. Native Gemini tools call same authorized backend services; every write must be reviewed/confirmed by human UI. If provider unconfigured return503, UI keeps forms and explains availability.
-- Voice endpoints owned by Codex follow separately. UI initially receives capability false and exposes honest text alternative.
+- `POST /api/events/:slug/chat` body `{message:string}` -> ChatResult. Text + quote card, never executes payment from LLM. The selected `LLM_PROVIDER` (`openai` by default, or explicitly `gemini`) uses the same authorized backend tools; OpenAI uses Responses API with `gpt-6-luna` and `reasoning.effort=low`; every write must be reviewed/confirmed by human UI. If provider unconfigured return503, UI keeps forms and explains availability.
+- `POST /api/events/:slug/voice/token` body `{consent:true}` -> short-lived `{token,sessionConfig,maxSeconds,leaseId}`. Requires a joined guest. Reserves the full maximum duration against a shared PostgreSQL daily allowance before contacting AssemblyAI; failed requests still consume the reservation.
+- `POST /api/events/:slug/voice/tool` body `{leaseId,name,arguments}` -> authorized read/proposal tool result. The lease must belong to this session and event and remain unexpired. No tool captures money or saves RSVP without human confirmation.
+- Chat has a shared daily request budget and a per-session cap. New cookies and demo reset do not reset global voice/chat allowances. Provider configuration is not proof of availability; forms remain usable when a provider fails.
 
 Shared TypeScript shapes in packages/shared. UI and server may NOT independently rename routes/shapes; propose changes to Codex. Backend serves apps/web/dist in production with SPA fallback excluding API. Development Vite proxies /api to localhost:3000.
 

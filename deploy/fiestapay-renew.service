@@ -1,0 +1,8 @@
+[Unit]
+Description=Renew FiestaPay TLS certificate only
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh /opt/fiestapay/deploy/renew-certificate.sh
