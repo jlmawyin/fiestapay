@@ -70,3 +70,23 @@ Ninguna consulta selecciona nombres, `session_id`, `token_hash`, cookies ni chat
 - **Neto vs bruto:** B/C restan reembolsos, mientras `verifyCapturedOrder` compara el importe bruto (verify.ts:75). Con un reembolso parcial, `recaudado_cents` baja y el saldo reaparece aunque la captura de 5000 siga siendo válida.
 - **`filas_captura=1` no está garantizado por una restricción de BD** sobre `order_id`: la unicidad es por `capture_id`. Si A devolviera 2, es defecto real, no ruido.
 - Ejecuta A–E **antes y después** del reintento y compara; una sola foto no prueba idempotencia.
+
+
+## Ejecución externa — 24 octubre 2026
+
+Codex ejecutó el protocolo contra el dominio público y PostgreSQL de FiestaPay. Comprador Personal de `.env.buyers`; credenciales no copiadas al repositorio ni al VPS. Checkout y aprobación en `www.sandbox.paypal.com`, sin dinero real.
+
+- Fiesta `comida-6g5qdpfd`; cuota calculada por servidor: dos asistentes × USD 25 = USD 50. Confirmación del desglose en la interfaz antes de crear la orden.
+- Orden PayPal `45D94071LC923231F`, estado final `paid`; orden local `7e02faf5-0569-48b8-b531-59daf182695b`. Aprobación mediante checkout y captura posterior mediante «Verificar / Continuar Captura».
+- Consultas A–E después de capturar y después del reintento autenticado: una fila de captura, un ID de captura distinto, 5000 centavos capturados, 0 reembolsados; dos asistentes, obligación 5000, pagado 5000, saldo 0.
+- Recaudado 5000, mínimo 5000 alcanzado; evento no archivado y sin confirmar automáticamente. Una sola acción `payment_captured`; sin acciones financieras de rechazo o captura sin verificar.
+- Repetición de `POST /api/orders/45D94071LC923231F/capture`: HTTP 200, estado `paid`, mismo saldo. Las consultas A–E no cambiaron.
+- Webhooks: todavía 0 filas aceptadas desde el inicio del checkout. **La captura está probada; la entrega/correlación de un webhook externo continúa pendiente.** No atribuir un webhook al pago por proximidad temporal.
+- Evidencia privada: `.local/payment24-before-retry.log`, `.local/payment24-retry.log`, `.local/payment24-after-retry.log`, `.local/payment24-final-evidence.log`, `output/playwright/payment-captured-20261024.png`. Los archivos privados no se publican con cuentas/cookies.
+
+### Diagnóstico del webhook durante la integración
+
+- La API de PayPal identificó la captura `33J98639UB477180H` y el evento `WH-3DR597333T5489832-9YV22745D26080450`, `PAYMENT.CAPTURE.COMPLETED`, con referencia explícita a la orden `45D94071LC923231F`. Esta correlación viene de PayPal, no solo de la hora.
+- Los logs filtrados del servicio muestran nueve solicitudes al webhook con respuesta 400. Solo se conservaron método, hora, ID de solicitud y estado HTTP. No se imprimieron firmas ni cuerpos.
+- La ruta aplica un máximo genérico de 200 caracteres a `paypal-transmission-sig`. El [ejemplo oficial de PayPal](https://developer.paypal.com/api/rest/webhooks/rest/) contiene una firma de 344 caracteres; la [referencia de verificación](https://developer.paypal.com/api/webhooks/v1/verify-webhook-signature-post) permite hasta 500. La reparación mantiene la verificación criptográfica remota; no acepta firmas solo por su longitud.
+- Estado de esta reparación: pendiente de revisión, pruebas y entrega externa. No confundir el evento disponible en PayPal con su aceptación por FiestaPay.

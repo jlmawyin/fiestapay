@@ -111,6 +111,8 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
       expect(caps.sandbox).toBe(true);
       // No AI key and no voice routes in this server: both must report false.
       expect(caps.gemini).toBe(false);
+      expect(caps.chat).toBe(false);
+      expect(caps.llmProvider).toBe('openai');
       expect(caps.voice).toBe(false);
     });
 

@@ -26,7 +26,8 @@ if (process.env.MIGRATE_ON_BOOT !== '0') {
 const app = await buildApp({ pool, config });
 
 if (!config.paypal) app.log.warn(`PayPal deshabilitado: ${config.paypalDisabledReason}`);
-if (!config.gemini) app.log.warn(`Gemini deshabilitado: ${config.geminiDisabledReason}`);
+if (config.llmProvider === 'openai' && !config.openai) app.log.warn(`Chat OpenAI deshabilitado: ${config.openaiDisabledReason}`);
+if (config.llmProvider === 'gemini' && !config.gemini) app.log.warn(`Chat Gemini deshabilitado: ${config.geminiDisabledReason}`);
 
 const shutdown = async (signal: string): Promise<void> => {
   app.log.info(`cerrando por ${signal}`);

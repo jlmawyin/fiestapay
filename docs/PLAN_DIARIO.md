@@ -23,7 +23,7 @@ Voz real de prueba16oct; primer pago17oct; P1aceptado2nov; buffers3–4nov; free
 | 22 oct | P1 | 5 | `feat/demo-sessions-covers` | Portadas fijas 1h, sesiones 3h y recuperación de voz 1h. |
 | 23 oct | P1 | 5 | `feat/funding-minimum` | Recaudado/meta/mínimo 3h; voz y herramientas compartidas 2h. |
 | 24 oct | P1 | 5 | `feat/organizer-dashboard` | AG Grid consulta, pendiente visible y wa.me humano. |
-| 25 oct | P1 | 5 | `feat/chat-agent` | Gemini herramientas, cotización y confirmación antes de orden. |
+| 25 oct | P1 | 5 | `feat/chat-agent` | OpenAI gpt-6-luna (cambio solicitado 24 oct), herramientas, cotización y confirmación antes de orden. |
 | 26 oct | P1 | 5 | `feat/voice-agent` | Voz conectada al flujo completo y checkout real sandbox. |
 | 27 oct | P1 | 5 | `fix/voice-recovery` | Interrupciones, denegación micrófono y fallback sin duplicados. |
 | 28 oct | P1 | 5 | `feat/demo-reset-audit` | Reinicio aislado, límites, auditoría y webhook antiguo. |

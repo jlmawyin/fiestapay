@@ -18,7 +18,10 @@ export async function registerChatRoutes(app: FastifyInstance, deps: RouteDeps):
       const { slug } = parseOr400(slugParamSchema, req.params);
       const { message } = parseOr400(chatSchema, req.body);
       const session = await ensureSession(pool, config, req, reply);
-      return chatWithAssistant(pool, config, session.id, slug, message, deps.generate);
+      return chatWithAssistant(pool, config, session.id, slug, message, {
+        generate: deps.generate,
+        respond: deps.respond,
+      });
     },
   );
 }

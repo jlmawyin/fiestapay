@@ -10,7 +10,7 @@ An AI host for shared gatherings: understand the invitation, confirm attendance,
 - Attendance and payment are separate states. A confirmed guest can still be unpaid.
 - Example: two attendees at USD 25 each → USD 50. The human reviews the quote and approves PayPal checkout.
 - Organizer dashboard uses AG Grid Community, collected amount before fees, a funding minimum, and a manually sent WhatsApp reminder.
-- Gemini chat and AssemblyAI voice share server tools. Tools propose attendance and prepare quotes; they cannot approve a payment.
+- OpenAI chat (`gpt-6-luna`, Responses API, low reasoning) and AssemblyAI voice share server tools. Gemini remains an explicit optional provider. Tools propose attendance and prepare quotes; they cannot approve a payment.
 
 ## Run locally
 
@@ -25,7 +25,7 @@ npm run dev
 
 Open http://localhost:5173. The API runs on port 3000 and applies versioned migrations on startup. For a production build: `npm run build`, then `npm start`.
 
-Keep all keys server-side. `.env` is ignored. Gemini API access/billing is separate from a consumer Gemini subscription. Missing providers are reported as unavailable; the manual invitation flow still works.
+Keep all keys server-side. `.env` and `.env.buyers` are ignored. Set `LLM_PROVIDER=openai` (default), `OPENAI_API_KEY`, and optionally `OPENAI_MODEL=gpt-6-luna`. `LLM_PROVIDER=gemini` explicitly selects the retained Gemini adapter. There is no automatic provider fallback: missing keys or API failures leave the manual invitation flow available. Consumer chat subscriptions do not configure API access.
 
 PayPal must use one **sandbox Business merchant** and sandbox client ID/secret. Set `PAYPAL_MERCHANT_ID` to that merchant's ID and `PAYPAL_WEBHOOK_ID` to the registered webhook ID, not its URL. Register:
 

@@ -4,6 +4,7 @@ import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import type { GenerateFn } from './ai/gemini.js';
+import type { RespondFn } from './ai/openai.js';
 import { loadConfig, type Config } from './config.js';
 import type { Pool } from './db/pool.js';
 import { HttpError } from './errors.js';
@@ -24,8 +25,9 @@ export interface BuildAppOptions {
    * browser input can switch the server onto a mock.
    */
   paypal?: PayPalAdapter | null;
-  /** Scripted model for tests; omitted in production so the real Gemini REST call is used. */
+  /** Scripted models for tests; omitted in production so the selected provider's REST call is used. */
   generate?: GenerateFn;
+  respond?: RespondFn;
   logger?: boolean;
 }
 
@@ -124,7 +126,13 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     return reply.code(404).send({ error: 'Ruta no encontrada' });
   });
 
-  const deps: RouteDeps = { pool, config, paypal, ...(options.generate ? { generate: options.generate } : {}) };
+  const deps: RouteDeps = {
+    pool,
+    config,
+    paypal,
+    ...(options.generate ? { generate: options.generate } : {}),
+    ...(options.respond ? { respond: options.respond } : {}),
+  };
   await app.register(
     async (api) => {
       await registerCoreRoutes(api, deps);

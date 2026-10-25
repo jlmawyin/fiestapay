@@ -14,7 +14,9 @@ export interface FiestaEvent extends EventInput {
 export interface Guest { id: string; name: string; status: RsvpStatus; companions: number; paidCents: number; dueCents: number }
 export interface Quote { id: string; guestId: string; people: number; unitCents: number; totalCents: number; paidCents: number; amountCents: number; summary: string; expiresAt: string }
 export interface OrderResult { orderId: string; status: string; approveUrl?: string }
-export interface Capabilities { paypal: boolean; gemini: boolean; voice: boolean; paypalClientId: string | null; sandbox: true }
+export type LlmProvider = 'openai' | 'gemini';
+/** `gemini` is kept for older clients and is true only when Gemini is the selected, configured provider. */
+export interface Capabilities { paypal: boolean; gemini: boolean; voice: boolean; paypalClientId: string | null; sandbox: true; chat?: boolean; llmProvider?: LlmProvider }
 export interface ChatResult { text: string; quote?: Quote; guest?: Guest; actions?: string[] }
 export interface Dashboard { event: FiestaEvent; guests: Guest[]; audit: { action: string; createdAt: string }[] }
 export const TEMPLATE_LABELS: Record<TemplateKind,string> = {comida:'Comida',casa:'Fiesta en casa',viaje:'Viaje conjunto',evento:'Evento'};

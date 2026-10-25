@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import type { LlmProvider } from '@fiestapay/shared';
 
 export function voiceConfig(env: NodeJS.ProcessEnv = process.env) {
   const bounded = (v: string | undefined, fallback: number, cap: number) => Math.min(cap, Math.max(1, Number(v) || fallback));
@@ -26,6 +27,18 @@ export interface GeminiConfig {
   maxHistoryMessages: number;
 }
 
+export interface OpenAIConfig {
+  apiKey: string;
+  model: string;
+  baseUrl: string;
+  timeoutMs: number;
+  maxToolRounds: number;
+  maxHistoryMessages: number;
+  maxOutputTokens: number;
+  /** Fixed for the approved model; not configurable from the environment. */
+  reasoningEffort: 'low';
+}
+
 export interface Config {
   env: 'development' | 'test' | 'production';
   port: number;
@@ -45,10 +58,14 @@ export interface Config {
   webDir: string;
   serveWeb: boolean;
   paypal: PayPalConfig | null;
+  /** Chat provider chosen by LLM_PROVIDER. Only the selected one is ever configured. */
+  llmProvider: LlmProvider;
+  openai: OpenAIConfig | null;
   gemini: GeminiConfig | null;
   voice: ReturnType<typeof voiceConfig>;
   /** Reason PayPal is unavailable, for honest 503 bodies. */
   paypalDisabledReason: string | null;
+  openaiDisabledReason: string | null;
   geminiDisabledReason: string | null;
 }
 
@@ -62,7 +79,9 @@ const num = (v: string | undefined, fallback: number): number => {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 };
 
-const originList = (raw: string | null): string[] => {
+const capped = (v: string | undefined, fallback: number, cap: number): number => Math.min(cap, num(v, fallback));
+
+const originList =(raw: string | null): string[] => {
   if (!raw) return [];
   return raw
     .split(',')
@@ -122,6 +141,37 @@ function readGemini(env: NodeJS.ProcessEnv): { config: GeminiConfig | null; reas
   };
 }
 
+/** Throws on an unknown value: a typo must not silently switch, or disable, the chat provider. */
+function readLlmProvider(env: NodeJS.ProcessEnv): LlmProvider {
+  const raw = (str(env.LLM_PROVIDER) ?? 'openai').toLowerCase();
+  if (raw === 'openai' || raw === 'gemini') return raw;
+  throw new Error('LLM_PROVIDER invalido: use openai o gemini');
+}
+
+function readOpenAI(env: NodeJS.ProcessEnv): { config: OpenAIConfig | null; reason: string | null } {
+  const apiKey = str(env.OPENAI_API_KEY);
+  if (!apiKey) return { config: null, reason: 'El asistente no esta configurado: falta OPENAI_API_KEY' };
+  const baseUrl = (str(env.OPENAI_BASE_URL) ?? 'https://api.openai.com/v1').replace(/\/+$/, '');
+  try {
+    if (new URL(baseUrl).protocol !== 'https:') return { config: null, reason: 'OPENAI_BASE_URL debe usar https' };
+  } catch {
+    return { config: null, reason: 'OPENAI_BASE_URL invalida' };
+  }
+  return {
+    config: {
+      apiKey,
+      model: str(env.OPENAI_MODEL) ?? 'gpt-6-luna',
+      baseUrl,
+      timeoutMs: capped(env.OPENAI_TIMEOUT_MS, 20000, 60000),
+      maxToolRounds: capped(env.OPENAI_MAX_TOOL_ROUNDS, 4, 6),
+      maxHistoryMessages: capped(env.OPENAI_MAX_HISTORY, 24, 60),
+      maxOutputTokens: capped(env.OPENAI_MAX_OUTPUT_TOKENS, 2000, 4000),
+      reasoningEffort: 'low',
+    },
+    reason: null,
+  };
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const nodeEnv = str(env.NODE_ENV);
   const resolvedEnv: Config['env'] = nodeEnv === 'production' ? 'production' : nodeEnv === 'test' ? 'test' : 'development';
@@ -133,7 +183,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     }
   }
   const paypal = readPayPal(env);
-  const gemini = readGemini(env);
+  // Only the selected provider is read, so there is no configured client to fall back to.
+  const llmProvider = readLlmProvider(env);
+  const openai = llmProvider === 'openai' ? readOpenAI(env) : { config: null, reason: 'Proveedor de chat seleccionado: gemini' };
+  const gemini = llmProvider === 'gemini' ? readGemini(env) : { config: null, reason: 'Proveedor de chat seleccionado: openai' };
   const webDir = str(env.WEB_DIST_DIR) ?? join(import.meta.dirname, '..', '..', 'web', 'dist');
 
   return {
@@ -154,6 +207,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     serveWeb: str(env.SERVE_WEB) !== '0',
     paypal: paypal.config,
     paypalDisabledReason: paypal.reason,
+    llmProvider,
+    openai: openai.config,
+    openaiDisabledReason: openai.reason,
     gemini: gemini.config,
     voice: voiceConfig(env),
     geminiDisabledReason: gemini.reason,

@@ -1,7 +1,7 @@
 # @fiestapay/api
 
 Fastify (Node 24, TypeScript, ESM) API for FiestaPay P1: fixed per-person fee, one USD PayPal
-**sandbox** receiver, PostgreSQL persistence, hashed cookie sessions, and a Gemini text
+**sandbox** receiver, PostgreSQL persistence, hashed cookie sessions, and an OpenAI (or explicitly selected Gemini) text
 assistant whose tools can read state and quote but can never move money.
 
 Routes follow `docs/API.md` exactly; shapes come from `packages/shared/src/index.ts`.
@@ -15,7 +15,7 @@ npm run start -w @fiestapay/api      # node dist/index.js
 npm run migrate -w @fiestapay/api    # apply SQL migrations only
 ```
 
-`src/index.ts` is the process entry point; `buildApp({ pool, config?, paypal?, generate? })`
+`src/index.ts` is the process entry point; `buildApp({ pool, config?, paypal?, generate?, respond? })`
 from `src/app.ts` is the testable factory. Migrations run on boot unless `MIGRATE_ON_BOOT=0`.
 
 ## Configuration
@@ -32,8 +32,13 @@ from `src/app.ts` is the testable factory. Migrations run on boot unless `MIGRAT
 | `PAYPAL_WEBHOOK_ID` | no | — | Required for `/api/paypal/webhook`; without it the route answers 503. |
 | `PAYPAL_BASE_URL` | no | `https://api-m.sandbox.paypal.com` | Rejected unless it is a PayPal sandbox host. |
 | `PAYPAL_TIMEOUT_MS` | no | `12000` | |
-| `GEMINI_API_KEY` | no | — | Server only; absent means `/chat` answers 503. |
-| `GEMINI_MODEL` | no | `gemini-2.5-flash` | Pin after verifying access and function calling. |
+| `LLM_PROVIDER` | no | `openai` | Select `openai` or `gemini`; no automatic provider fallback. |
+| `OPENAI_API_KEY` | no | — | Server only; required when OpenAI is selected. |
+| `OPENAI_MODEL` | no | `gpt-6-luna` | Responses API with fixed low reasoning. |
+| `OPENAI_TIMEOUT_MS` / `OPENAI_MAX_TOOL_ROUNDS` / `OPENAI_MAX_HISTORY` | no | `20000` / `4` / `24` | Capped at 60000 / 6 / 60. |
+| `OPENAI_MAX_OUTPUT_TOKENS` | no | `2000` | Capped at 4000; includes reasoning output. |
+| `GEMINI_API_KEY` | no | — | Server only; used exclusively with `LLM_PROVIDER=gemini`. |
+| `GEMINI_MODEL` | no | `gemini-3.8-flash` | Pin after verifying access and function calling. |
 | `GEMINI_TIMEOUT_MS` / `GEMINI_MAX_TOOL_ROUNDS` / `GEMINI_MAX_HISTORY` | no | `20000` / `4` / `24` | |
 | `QUOTE_TTL_SECONDS` | no | `900` | Quote lifetime. |
 | `SESSION_COOKIE_NAME` / `SESSION_TTL_SECONDS` | no | `fp_session` / 30 days | |
@@ -67,7 +72,8 @@ dependent route answers `503` with the reason. Nothing is ever faked as a succes
 
 ## Assistant boundary
 
-`POST /api/events/:slug/chat` runs Gemini `generateContent` with native function calling. Tools
+`POST /api/events/:slug/chat` runs the selected provider with native function calling: OpenAI Responses API
+(`gpt-6-luna`, low reasoning, `store:false`) or Gemini `generateContent`. Tools
 are read-only or produce a server-computed quote; `propose_rsvp` writes nothing and only returns
 a proposal. The UI confirmation is the payment boundary: the assistant can present a quote, and
 the person approves it in the interface and then in PayPal.

@@ -5,7 +5,7 @@ import { usd } from '../../types';
 
 interface GeminiAssistantProps {
   slug: string;
-  capabilities: Capabilities | null;
+  capabilities: (Capabilities & { chat?: boolean; llmProvider?: 'openai' | 'gemini' }) | null;
   onApplyQuote?: (quote: Quote) => void;
   onConfirmRsvp?: (status: RsvpStatus, companions: number) => Promise<void>;
 }
@@ -50,11 +50,11 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
   ]);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
 
-  const geminiAvailable = Boolean(capabilities?.gemini);
+  const chatAvailable = Boolean(capabilities?.chat ?? capabilities?.gemini);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim() || isLoading) return;
+    if (!inputMessage.trim() || isLoading || !chatAvailable) return;
 
     const userText = inputMessage.trim();
     const userMsg: ChatMessage = {
@@ -83,7 +83,7 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
     } catch (err: any) {
       if (err.status === 503) {
         setErrorNotice(
-          'El proveedor de Gemini no está disponible en este momento (503). Todas las acciones manuales de la fiesta siguen totalmente funcionales.'
+          'El proveedor de chat no está disponible en este momento (503). Todas las acciones manuales de la fiesta siguen totalmente funcionales.'
         );
       } else {
         setErrorNotice(err.message || 'No se pudo obtener respuesta del asistente.');
@@ -139,7 +139,7 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
             overflow: 'hidden',
           }}
           role="complementary"
-          aria-label="Panel del Asistente Gemini AI"
+          aria-label="Panel del Asistente FiestaPay"
         >
           {/* Header */}
           <div
@@ -155,9 +155,9 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontSize: '1.1rem' }}>✨</span>
               <div>
-                <strong style={{ fontSize: '0.9rem', display: 'block' }}>Asistente Gemini</strong>
+                <strong style={{ fontSize: '0.9rem', display: 'block' }}>Asistente FiestaPay</strong>
                 <span style={{ fontSize: '0.72rem', color: 'var(--color-yellow)' }}>
-                  {geminiAvailable ? 'Consulta sobre tu fiesta' : 'Chat no disponible'}
+                  {chatAvailable ? 'Consulta sobre tu fiesta' : 'Chat no disponible'}
                 </span>
               </div>
             </div>
@@ -199,7 +199,7 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
               backgroundColor: 'var(--color-cloudwhite)',
             }}
           >
-            {!geminiAvailable && (
+            {!chatAvailable && (
               <div
                 style={{
                   backgroundColor: 'var(--color-yellow-tint)',
@@ -210,7 +210,7 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
                   color: 'var(--color-ink)',
                 }}
               >
-                ⚠️ Gemini API no está habilitado en este servidor. Puedes consultar la conversación previa pero las nuevas consultas están pausadas.
+                ⚠️ El servicio de chat no está habilitado en este servidor. Puedes consultar la conversación previa pero las nuevas consultas están pausadas.
               </div>
             )}
 
@@ -237,7 +237,7 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
                   >
                     <div style={{ whiteSpace: 'pre-wrap' }}>{m.text}</div>
 
-                    {/* Quote Action Card returned by Gemini */}
+                    {/* Quote Action Card returned by assistant */}
                     {m.quote && (
                       <div
                         style={{
@@ -273,7 +273,7 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
                       </div>
                     )}
 
-                    {/* Action Proposals returned by Gemini (e.g. rsvp:yes:1) */}
+                    {/* Action Proposals returned by assistant (e.g. rsvp:yes:1) */}
                     {m.actions && m.actions.length > 0 && (
                       <div style={{ marginTop: '0.65rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                         {m.actions.map((act, actIdx) => {
@@ -362,7 +362,7 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
                   border: '1px solid var(--color-border)',
                 }}
               >
-                Gemini está escribiendo...
+                Asistente FiestaPay está escribiendo...
               </div>
             )}
 
@@ -398,14 +398,14 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               placeholder="Escribe un mensaje o pregunta..."
-              disabled={isLoading || !geminiAvailable}
+              disabled={isLoading || !chatAvailable}
               aria-label="Mensaje para el asistente"
             />
             <button
               type="submit"
               className="btn btn-primary"
               style={{ padding: '0.5rem 0.85rem', fontSize: '0.85rem' }}
-              disabled={isLoading || !inputMessage.trim() || !geminiAvailable}
+              disabled={isLoading || !inputMessage.trim() || !chatAvailable}
             >
               Enviar
             </button>

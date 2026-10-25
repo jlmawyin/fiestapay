@@ -1,5 +1,7 @@
 import type { GeminiConfig } from '../config.js';
 import { unavailable } from '../errors.js';
+import { isOpenAITurn, type StoredTurn } from './history.js';
+import { openaiTextOf } from './openai.js';
 import type { FunctionDeclaration } from './tools.js';
 
 export interface GeminiFunctionCall {
@@ -52,6 +54,30 @@ export const textOf = (parts: GeminiPart[]): string =>
 
 export const callsOf = (parts: GeminiPart[]): GeminiFunctionCall[] =>
   parts.flatMap((p) => (p.functionCall && typeof p.functionCall.name === 'string' ? [p.functionCall] : []));
+
+/**
+ * Stored turns to Gemini contents. Own turns pass verbatim (signatures included); OpenAI model
+ * turns keep only their visible text and OpenAI tool outputs are dropped. A function turn is kept
+ * only right after the model turn that called it, so a truncated window cannot open with one.
+ */
+export function toGeminiHistory(turns: StoredTurn[]): HistoryTurn[] {
+  const out: HistoryTurn[] = [];
+  for (const turn of turns) {
+    if (isOpenAITurn(turn)) {
+      if (turn.role !== 'model') continue;
+      const text = openaiTextOf(turn.parts.flatMap((p) => (p.openai ? [p.openai] : [])));
+      if (text.length > 0) out.push({ role: 'model', parts: [{ text }] });
+      continue;
+    }
+    if (turn.parts.length === 0) continue;
+    if (turn.role === 'function') {
+      const previous = out[out.length - 1];
+      if (previous?.role !== 'model' || callsOf(previous.parts).length === 0) continue;
+    }
+    out.push({ role: turn.role, parts: turn.parts });
+  }
+  return out;
+}
 
 /**
  * One `generateContent` round against the Gemini REST API with native function calling. The key

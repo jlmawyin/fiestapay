@@ -18,8 +18,28 @@ interface WebhookBody {
   };
 }
 
-const asString = (value: unknown): string | null =>
-  typeof value === 'string' && value.trim().length > 0 && value.length <= 200 ? value : null;
+/**
+ * PayPal verify-webhook-signature schema (docs.paypal.ai): `transmission_sig` and `cert_url`
+ * are 500 characters. An RSA-2048 signature is 344 characters of base64, so the old shared
+ * 200 cap rejected every real notification before verification. Other headers keep that 200
+ * cap (above the official id maxima: auth_algo 100, transmission_id 50, transmission_time 100).
+ * The original string is returned unchanged — never trimmed — because PayPal signs those bytes.
+ */
+const WEBHOOK_HEADER_LIMITS = {
+  authAlgo: 200,
+  certUrl: 500,
+  transmissionId: 200,
+  transmissionSig: 500,
+  transmissionTime: 200,
+} as const;
+
+const boundedText = (value: unknown, max: number): string | null =>
+  typeof value === 'string' && value.trim().length > 0 && value.length <= max ? value : null;
+
+/** Body ids (webhook id, event type, resource ids). Unrelated to signature length. */
+const asString = (value: unknown): string | null => boundedText(value, 200);
+
+const headerText = (value: unknown, max: number): string | undefined => boundedText(value, max) ?? undefined;
 
 /**
  * What to do with a signed notification once we tried to apply it.
@@ -93,11 +113,11 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
       if (typeof rawBody !== 'string' || rawBody.length === 0) throw badRequest('Cuerpo vacio');
 
       const verified = await deps.paypal.verifyWebhookSignature({
-        authAlgo: asString(req.headers['paypal-auth-algo']) ?? undefined,
-        certUrl: asString(req.headers['paypal-cert-url']) ?? undefined,
-        transmissionId: asString(req.headers['paypal-transmission-id']) ?? undefined,
-        transmissionSig: asString(req.headers['paypal-transmission-sig']) ?? undefined,
-        transmissionTime: asString(req.headers['paypal-transmission-time']) ?? undefined,
+        authAlgo: headerText(req.headers['paypal-auth-algo'], WEBHOOK_HEADER_LIMITS.authAlgo),
+        certUrl: headerText(req.headers['paypal-cert-url'], WEBHOOK_HEADER_LIMITS.certUrl),
+        transmissionId: headerText(req.headers['paypal-transmission-id'], WEBHOOK_HEADER_LIMITS.transmissionId),
+        transmissionSig: headerText(req.headers['paypal-transmission-sig'], WEBHOOK_HEADER_LIMITS.transmissionSig),
+        transmissionTime: headerText(req.headers['paypal-transmission-time'], WEBHOOK_HEADER_LIMITS.transmissionTime),
         rawBody,
       });
       if (!verified) {

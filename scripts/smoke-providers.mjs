@@ -12,7 +12,7 @@ async function request(path, body) {
 }
 try {
   const caps = await request('/capabilities');
-  evidence.checks.push({name:'configuration',paypal:caps.paypal,gemini:caps.gemini,voice:caps.voice});
+  evidence.checks.push({name:'configuration',paypal:caps.paypal,chat:Boolean(caps.chat ?? caps.gemini),llmProvider:caps.llmProvider ?? null,voice:caps.voice});
   const {event} = await request('/demo',{});
   const path = '/events/'+event.slug;
   await request(path+'/join',{name:'Prueba técnica'});
@@ -23,8 +23,8 @@ try {
   if(process.argv.includes('--chat')) {
     try {
       const chat = await request(path+'/chat',{message:'Consulta prepare_quote para cotizar mi cuota. Repite la cuenta y pide confirmación; no crees ninguna orden.'});
-      evidence.checks.push({name:'gemini-tool',quoteFromTool:chat.quote?.amountCents===5000,text:chat.text});
-    } catch(e) { evidence.checks.push({name:'gemini-tool',error:e.message}); }
+      evidence.checks.push({name:'selected-chat',quoteFromTool:chat.quote?.amountCents===5000,text:chat.text});
+    } catch(e) { evidence.checks.push({name:'selected-chat',error:e.message}); }
   }
   if(process.argv.includes('--order')) {
     try {
