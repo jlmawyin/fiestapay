@@ -1,5 +1,23 @@
 # Checkpoint de cuota — 25 octubre 2026
 
+## Dirección humana posterior: SMTP Banahosting, 25 octubre
+
+Este bloque sustituye cualquier propuesta anterior de correo. Jorge exige SMTP de Banahosting/cPanel desde `fiestapay@somospanas.com`; crea la cuenta y carga o autoriza las credenciales solo en `/opt/fiestapay/.env.production` del VPS. Variables `SMTP_HOST`, `SMTP_PORT` (465 TLS / 587 STARTTLS), `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`. Ningún valor en local/Git/log/chat. No MX/DNS ni correo existente se modifican. EMAIL_SETUP y WHATSAPP_VIABILIDAD actualizados; se pidió solo destino de prueba y aviso de configuración, sin secretos.
+
+Recuperación GROK **mismo intento 1/3**, reorientado por cambio de alcance humano: proceso anterior y tres descendientes detenidos (4), parciales preservados; sesión actual 5244, prompt `.local/recovery-smtp-task.txt`, resultado `.local/recovery-smtp-result.json`. Nodemailer 10.2.1 instalado en runtime API, con tipos propios; package/lock todavía sin commit. El adaptador anterior se debe eliminar; no fallback de correo. Pruebas reales de correo/recuperación requieren destinatario autorizado y configuración, aún no acreditadas. No hubo envíos ni acceso a secretos de SMTP.
+
+Persistencia integrada en `4c7d9bc`, documentación/proxy en `d0bfd00`; [PR #2](https://github.com/jlmawyin/fiestapay/pull/2) creado/adjuntado, CI aprobada d0bfd00. Producción permanece `1bf3434`, imagen healthy y migraciones 0001–0004 comprobadas por SSH (ledger:1). GROK persistencia intento3 entregó compatibilidad de `ends_at` para rollback sin restaurar la DB: 14 pruebas PG y lint aprobados. AGY revisión2/3 en curso, sesión99650, resultado `.local/rollback-compat-review-result.json`, informe `.local/rollback-compat-review.md`. No publicar hasta aprobación y CI del cambio.
+
+AGY voz revisión2/3 ejecutó18tests+4delarnés UI, tipos bien; queda una línea de lint en playback.ts:121. Pregunta asíncrona pendiente: excepción puntual para que Codex integre esa línea tras3entregasGROK y sin puenteClaude. No aplicar sin respuesta. El arnés de despliegue AGY1/3 está listo en `.local/persistence-deploy-verify.mjs` (no ejecutado). Usa solo un evento ficticio; parentrevisa y ejecuta seed/reinicioAPI/check/cleanup después de desplegar, sin pagos/chat/voz/email. `.local/deploy-persistence.sh` preparado por Codex y en revisión AGY, no ejecutado. Preservar `.gitignore` previo y archivo24.
+
+Cuota Codex último control: 79 % disponible cinco horas / 65 % semanal. Se mantiene guarda20 %. Grok83 % general/89 %Build, AGYGemini95,7 %semana/95,5 %5h. No reseteos. Graph MCP continúa cerrado; exact-sourcefallback. No repetir capturaUSD50, webhook o chatOpenAI ya acreditados.
+
+## Reanudación de las 11:14 Guayaquil
+
+Helper autorizado: `stop=false`, `needs_refresh=false`, 99 % disponible en cinco horas y 69 % semanal. Se mantiene la pausa al 20 %. No había procesos anteriores activos. Hashes de los tres archivos de voz coinciden exactamente con el informe del intento 3; no se reinició GROK ni se gastó un cuarto intento.
+
+AGY retoma **FP-PERSIST-VERIFY-20261025, mismo intento 1/3**, sesión 99365, prompt `.local/persistence-review-resume.txt`, resultado `.local/persistence-review-resumed-result.json`. Segundo frente de verificación: **FP-VOICE-VERIFY-20261025, entrega 2/3**, sesión 1536, prompt `.local/voice-review-task-2.txt`, resultado `.local/voice-review-result-2.json`; debe probar aviso e indicador con audio real del arnés además de los 18 tests. Sin construcción simultánea ni cambios de producto por revisores. Gemini 98,3 % semanal / 95,9 % cinco horas al iniciar; 25,8 % agregado corresponde a Claude/GPT. Graph MCP sigue devolviendo `Transport closed`; lectura exacta de fuentes. Producción aún sin cambios nuevos.
+
 ## Última pausa: 25 octubre, aproximadamente 06:57 Guayaquil
 
 **Este bloque sustituye el estado operativo de las secciones históricas inferiores.** Jorge confirmó mantener la pausa al 20 % de cinco horas. Cuota consultada: 20 % disponible en cinco horas, 71 % semanal. Helper: `stop=true`, `needs_refresh=false`, motivo `5h`, `resume_at_utc=2026-10-25T16:13:26Z` (11:13:26 Guayaquil). Sin reseteos. Se detuvieron 8 procesos propios (raíces Python 34188 y 28432 y sus descendientes identificados por los encargos), sin tocar procesos ajenos. No hay agentes de estos encargos que deban seguir trabajando durante la pausa.
@@ -28,7 +46,7 @@ Codex: 12 % disponible en5h,86 % semanal. Exención semanal autorizada por Jorge
 
 ## Estado y alcance
 
-Raíz C:\Users\Jorge\OneDrive\hackathon\fiestapay. Rama actual `codex/persistence-admin`, creada desde `379b1a1` (documentación ya subida a chore/bootstrap/PR1). No hay todavía PR nuevo para esta rama. Producción aplicación `1bf34344c34503ed84f63ab9626587fc2797d2c3`; cambios parciales nuevos NO desplegados. Solo proxy dedicado fue actualizado y validado, ver docs/reviews/proxy-privacy-20261025.md. No tocarotrasapps/VPS/DNSapex/live/créditos/invitaciones. Meta31oct; corte interno5nov; planvigente P0–P6 enPLAN_DIARIO. ReceptorBusinessúnico mientras pendiente respuesta sobrepayout. Correo pendienteactivarCloudflare; Jorgeautorizópreparación, nogarantíaenvío.
+Raíz C:\Users\Jorge\OneDrive\hackathon\fiestapay. Rama actual `codex/persistence-admin`, creada desde `379b1a1` (documentación ya subida a chore/bootstrap/PR1). No hay todavía PR nuevo para esta rama. Producción aplicación `1bf34344c34503ed84f63ab9626587fc2797d2c3`; cambios parciales nuevos NO desplegados. Solo proxy dedicado fue actualizado y validado, ver docs/reviews/proxy-privacy-20261025.md. No tocarotrasapps/VPS/DNSapex/live/créditos/invitaciones. Meta31oct; corte interno5nov; planvigente P0–P6 enPLAN_DIARIO. ReceptorBusinessúnico mientras pendiente respuesta sobrepayout. Correo SMTP Banahosting pendiente de cuenta y configuración en el VPS; Jorgeautorizópreparación, nogarantíaenvío.
 
 ## Evidencia aprobada, no repetir
 
@@ -56,3 +74,4 @@ Dockerlocal `fiestapay-test-oct25`,PostgreSQL16,127.0.0.1:55439, datosdes echabl
 Preservar `.gitignore`modificadoantesdeestaetapa yarchivo24vacíoorigenincierto. No incluir .env/.env.buyers/.local/outputsecretos enGit. CambiosdeproductoWIPenworkingtree, nocommitdeproducto parcial. Documentación/opsfinalpendientescommitacotado. API/UIpuedennocompilarhastaqueconstructorcompletecontratos.
 
 Automatización diaria `fiestapay-ejecuci-n-diaria` actualizada al nuevo plan hasta5nov. Continuación de una ejecución creada con éxito por herramienta nativa: **fiestapay-reanudar-cuota-25-oct**,06:12Guayaquil del25oct, posterior al mínimo helper11:11:05UTC. Al retomar consultar cuotas/skill, preservar contadores, no repetir pago/chat ya acreditados. Si Jorge extiende exención5h, actualizar checkpoint y continuar según límites reales; retirar programación puntual si deja de ser necesaria.
+

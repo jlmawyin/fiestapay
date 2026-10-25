@@ -4,6 +4,12 @@ Actualizado: 25 octubre 2026, America/Guayaquil. Resumen de esta entrega; el his
 
 ## Prioridades vigentes y ejecución
 
+**Cambio de correo aprobado por Jorge, 25 oct:** SMTP Banahosting/cPanel sustituye la propuesta anterior. Se detuvo solo el constructor de recuperación, se preservó su trabajo y continúa el mismo intento 1/3 con Nodemailer. Variables reales solo en `/opt/fiestapay/.env.production`; sin cambios MX/DNS ni envío. Guía y viabilidad WhatsApp actualizadas. Pendientes: cuenta/variables y dirección única autorizada por Jorge para acreditar llegada y recuperación real.
+
+**25 oct, 11:40:** persistencia/admin aprobados por AGY y [PR #2](https://github.com/jlmawyin/fiestapay/pull/2) creado en borrador. CI aprobada para `d0bfd00`; 39 fuentes revisadas coinciden con el commit. Antes de desplegar se está preparando compatibilidad de la migración con la imagen anterior para permitir una reversión sin restaurar la base financiera. Recuperación por correo P1 en construcción, sin envío real. Audio aprobado funcionalmente con 22 pruebas, pendiente una línea de lint y respuesta a la excepción puntual solicitada. Producción aún en `1bf3434`.
+
+**Reanudado 25 oct 11:14:** cuota habilitada por helper (99 % cinco horas / 69 % semanal). AGY completa la revisión de persistencia con el mismo intento 1/3 y verifica la versión final de audio en entrega 2/3. Hashes de audio cotejados; no se repitió construcción, pago ni chat. Aceptación y despliegue pendientes.
+
 **Último estado: pausa al 20 %, 25 oct 06:57.** Se detuvieron los procesos propios respetando la respuesta de Jorge. Reanudación actualizada para **11:14 Guayaquil**, tras el mínimo verificado de 11:13:26. Persistencia/admin ya entregado localmente, revisión AGY 1/3 pausada. Audio dejó informe de intento 3 con 18 tests y tipos aprobados; falta verificación independiente de esa versión y lint completo. Sin nuevo despliegue. [Checkpoint vigente y contadores](docs/CHECKPOINT_2026-10-25.md).
 
 **Reanudación del 25 octubre, 06:20 Guayaquil:** Jorge confirmó mantener la pausa al llegar al 20 % de las cinco horas. El helper permitió continuar tras el reinicio de ventana: 97 % disponible al despertar; último control 77 % en cinco horas y 80 % semanal. La exención semanal anterior no se extiende a este despertar. GROK continúa los mismos intentos 2/3 de persistencia/admin y audio; AGY completa la revisión independiente del proxy. No son entregas aceptadas todavía. Aplicación pública mantiene la versión verificada `1bf3434`. [Checkpoint](docs/CHECKPOINT_2026-10-25.md).
@@ -22,7 +28,7 @@ Diagnóstico parcial P0: PostgreSQL y volumen persistente ya existen; el listado
 
 **Entrega local de persistencia/admin, 25 oct 06:49:** GROK completó el intento 2/3 con API e interfaz para enlaces separados, código privado y caducidad a las 72 horas del fin. Ejecutó 224 pruebas en 22 archivos, tipos y build correctamente. El check completo detectó un error de lint en voz, cuyo constructor aún trabaja. AGY revisa de forma independiente antes de aceptar o desplegar; navegador distinto/reinicio real siguen sin acreditar. En voz, AGY reprodujo 15 pruebas verdes, pero Codex pidió corregir el descarte silencioso de audio y el indicador prematuro de escucha: intento 3/3 en curso. Ninguno de estos cambios está todavía publicado.
 
-Correo: Jorge no tiene SMTP y autorizó preparar lo necesario; configurará Cloudflare después. Se preparará envío y recuperación de un solo uso, sin afirmar entrega real antes de tener dominio habilitado y credencial. [Guía de configuración](docs/EMAIL_SETUP.md). Automatización diaria actualizada al alcance nuevo, entrega31oct y corrección/presentación hasta5nov, con avisos solo ante cambios verificables.
+Correo: se usa SMTP de Banahosting/cPanel por decisión expresa de Jorge. Él crea la cuenta y carga las cinco variables solo en el entorno privado del servicio en el VPS. Recuperación opcional, verificada y de un solo uso; envío real pendiente de credenciales y destinatario autorizado. No hay cambios de MX/DNS. [Guía](docs/EMAIL_SETUP.md) y [viabilidad de WhatsApp](docs/WHATSAPP_VIABILIDAD.md). Se mantiene entrega31oct y corte interno5nov.
 
 ## Historial de la etapa anterior
 

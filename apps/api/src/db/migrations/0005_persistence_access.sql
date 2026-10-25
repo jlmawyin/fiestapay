@@ -30,21 +30,56 @@ CREATE TABLE event_unlocks (
   PRIMARY KEY (event_id, session_id)
 );
 
-CREATE OR REPLACE FUNCTION fiestapay_reject_event_delete()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $$
+-- Functions live in the schema that is current while this file runs (the isolated test
+-- schema, or the production schema). They are never created as public.<name>.
+-- The legacy production writer omits ends_at. Fill that only on INSERT, with the same
+-- four-hour span as the backfill above. An explicit end is kept, and UPDATE does not
+-- recompute starts_at or ends_at.
+DO $fp$
+DECLARE
+  sch text := current_schema();
 BEGIN
-  IF EXISTS (SELECT 1 FROM payment_ledger WHERE event_id = OLD.id)
-     OR EXISTS (SELECT 1 FROM orders WHERE event_id = OLD.id) THEN
-    RAISE EXCEPTION 'no se elimina un evento con registros de pago';
-  END IF;
-  RETURN OLD;
-END;
-$$;
+  EXECUTE format($fn$
+    CREATE OR REPLACE FUNCTION %1$I.fiestapay_reject_event_delete()
+    RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO %1$I, pg_catalog
+    AS $body$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM payment_ledger WHERE event_id = OLD.id)
+         OR EXISTS (SELECT 1 FROM orders WHERE event_id = OLD.id) THEN
+        RAISE EXCEPTION 'no se elimina un evento con registros de pago';
+      END IF;
+      RETURN OLD;
+    END;
+    $body$
+  $fn$, sch);
 
-DROP TRIGGER IF EXISTS events_reject_money_delete ON events;
-CREATE TRIGGER events_reject_money_delete
-  BEFORE DELETE ON events
-  FOR EACH ROW
-  EXECUTE FUNCTION fiestapay_reject_event_delete();
+  EXECUTE format('DROP TRIGGER IF EXISTS events_reject_money_delete ON %1$I.events', sch);
+  EXECUTE format(
+    'CREATE TRIGGER events_reject_money_delete BEFORE DELETE ON %1$I.events FOR EACH ROW EXECUTE FUNCTION %1$I.fiestapay_reject_event_delete()',
+    sch
+  );
+
+  EXECUTE format($fn$
+    CREATE OR REPLACE FUNCTION %1$I.fiestapay_fill_legacy_ends_at()
+    RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO pg_catalog
+    AS $body$
+    BEGIN
+      IF NEW.ends_at IS NULL THEN
+        NEW.ends_at := NEW.starts_at + interval '4 hours';
+      END IF;
+      RETURN NEW;
+    END;
+    $body$
+  $fn$, sch);
+
+  EXECUTE format('DROP TRIGGER IF EXISTS events_fill_legacy_ends_at ON %1$I.events', sch);
+  EXECUTE format(
+    'CREATE TRIGGER events_fill_legacy_ends_at BEFORE INSERT ON %1$I.events FOR EACH ROW EXECUTE FUNCTION %1$I.fiestapay_fill_legacy_ends_at()',
+    sch
+  );
+END
+$fp$;

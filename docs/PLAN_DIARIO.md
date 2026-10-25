@@ -9,7 +9,7 @@ Las etiquetas P0–P6 de esta etapa son prioridades nuevas; «P2 cero horas» de
 | Fecha | Bloque verificable | Pruebas y dependencia | Presupuesto humano |
 |---|---|---|---:|
 | 25 oct | P0 + P1: persistencia, fin del evento, enlaces público/organizador y autorización por clave | Reinicio sin pérdida, navegador distinto, API pública sin edición, clave incorrecta 403; CI con PostgreSQL | 5 h |
-| 26 oct | P1: privacidad y recuperación por correo; rotación de clave y borrado programado | Código privado sin rutas alternativas; recuperación caduca y se consume una sola vez; correo real depende de Cloudflare | 5 h |
+| 26 oct | P1: privacidad y recuperación por correo; rotación de clave y borrado programado | Código privado sin rutas alternativas; recuperación caduca y se consume una sola vez; SMTP Banahosting con cuenta/variables cargadas por Jorge | 5 h |
 | 27 oct | P2: cierre de recaudación y reembolso automático en sandbox | Carrera captura/cierre, reintento sin duplicados, reembolso completado verificado, importes/estados visibles | 5 h |
 | 28 oct | P3/P4: bloqueo/moderación, identidad, formulario y reglas del servidor | IP limitada, texto script literal, capacidad/meta válidas, nombres visibles solo a organizador | 5 h |
 | 29 oct | P5/P6: OpenAI únicamente, cola de audio, estados de carga | Timeout sin impedir crear, audio listo y secuencial, secretos ausentes del JS, prueba en celular | 5 h |
@@ -22,7 +22,7 @@ Orden técnico: (1) cerrar evidencia del pago/OpenAI ya construido, (2) persiste
 
 Puntos de diseño: asistencia («va») y pago («pagó» solo tras captura) separados; DB conserva referencias financieras mínimas aunque la fiesta y su contenido dejen de estar disponibles; clave de administración de 32 bytes, hash en DB y comparación constante; toda autorización del servidor; el enlace público jamás permite editar. No usar nombres reales de jueces obligatoriamente: la prueba usa identidades ficticias; el producto permite nombre del asistente/pagador.
 
-Dependencias por resolver: habilitar Email Sending y token de envío de Cloudflare (Jorge configura su cuenta/DNS); prueba humana de micrófono móvil; decidir si «payout» significa recepción en el Business único o una transferencia adicional, que requiere integración/acceso aparte. Las comisiones exactas no se inventan; mostrar política y estimación identificada, contrastada con datos del receptor. Pagos siempre sandbox.
+Dependencias por resolver: cuenta SMTP Banahosting y cinco variables privadas del servicio en VPS, cargadas por Jorge; primer destinatario autorizado y confirmación de entrada/spam; prueba humana de micrófono móvil; decidir si «payout» significa recepción en el Business único o una transferencia adicional, que requiere integración/acceso aparte. No se requieren cambios de MX/DNS. Las comisiones exactas no se inventan; mostrar política y estimación identificada, contrastada con datos del receptor. Pagos siempre sandbox.
 
 Excepción de cuota autorizada por Jorge: durante esta ejecución se ignora el umbral preventivo semanal de Codex. Se mantienen los límites efectivos del servicio, el umbral de cinco horas y las compuertas de los puentes. Codex no consume el reseteo del usuario.
 
