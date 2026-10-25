@@ -4,6 +4,10 @@ Actualizado el 25 octubre 2026 (America/Guayaquil). El calendario no equivale a 
 
 ## Etapa vigente: entrega 31 octubre
 
+**Estado vigente, 25 oct 13:38:** SMTP/recovery `2d7c542` activo yhealthy, CI40221509308 aprobada,0006 aplicada. AGY aprobó253pruebas de base y verificaciones adicionales UI/Chromium; no hubo envío real. Servidorcapabilities:emailfalse, sandboxtrue, chattrue; ledger1/5000 y recovery_tokens0. Fuente comprometida revisada, sin desplegar la reparación de voz pendiente.
+
+La ruta pública aún devuelve errorTLS; el origen con certificado correcto responde200. Jorge debe revisar DNS/NS en el registrador, manteniendo su prohibición de que Codex cambie DNS/MX. También faltan configuraciónSMTPválida enVPS y destinatario únicoautorizado. Revisión real de bandeja/spam y clave vieja403 queda pendiente de esos accesos. No repetir preguntas existentes ni afirmar producción completa. Seguimiento diario continúa; reanudación puntual por cuota ya cumplió su motivo.
+
 **Estado operativo posterior, 25 oct:** `97048c1` desplegado a las17:27UTC y saludable; copia y rollback conservados, migración0005 aplicada sin restaurar la DB. La primera activación había parado por usar el archivo de interpolación incorrecto; se corrigió y AGY3/3 aprobó el ayudante antes del segundo intento exitoso. Credenciales de Compose en `.env`; credenciales de la API en `.env.production`.
 
 **Bloqueo externo de dominio:** DNS públicos/VPS resuelven162.4.84.247 y NS ParkLogic; el VPS198.7.114.73 devuelve200 con HTTPS/certificado correcto. Registro declara vencimiento2027, último cambio09:02UTC. No cambios DNS/MX por Codex; Jorge debe revisar la delegación. Primer seed público falló antes de HTTP y SQL confirmó cero fixtures, ledger1 intacto. [Evidencia](reviews/domain-routing-20261025.md).

@@ -4,6 +4,10 @@ Actualizado: 25 octubre 2026, America/Guayaquil. Resumen de esta entrega; el his
 
 ## Prioridades vigentes y ejecución
 
+**Último estado, 25 oct 13:38:** `2d7c542f8fbea0792e9e066e7e49fd412efad3ad` desplegado y saludable; [CI aprobada](https://github.com/jlmawyin/fiestapay/actions/runs/40221509308), migración0006 aplicada. Recuperación SMTP Banahosting y navegación de enlaces aprobadas por AGY en dos entregas. Ledger sigue con una captura/5000centavos; cero tokens de recuperación en producción, cero correos enviados. La API declara `emailConfigured=false`, sandbox y chat configurados. No se afirma nueva llamada de chat ni disponibilidad de correo.
+
+**Bloqueos humanos:** revisar delegación del dominio (ruta pública sigue fallando TLS y apunta a ParkLogic), cargar configuración SMTP válida únicamente en el VPS y nombrar el destinatario autorizado para probar recepción y recuperación real. Esas preguntas ya están pendientes; no volver a pedir contraseñas ni repetir pagos/webhook/chat acreditados. Las guías SMTP y WhatsApp están actualizadas. Voz permanece sin integrar a la espera de la excepción puntual ya solicitada; P2–P6 restantes siguen según el plan.
+
 **P0 desplegado, 25 oct 12:28; ruta pública bloqueada:** `97048c1` activo y saludable en Contabo, migración0005 y copia previa conservadas; la captura existente sigue contabilizada una vez. HTTPS directo al origen devuelve200. El DNS público devuelve otra IP y delega en ParkLogic; se pidió revisión a Jorge respetando su prohibición de cambiar DNS/MX. No se declara el sitio públicamente disponible. [Diagnóstico](docs/reviews/domain-routing-20261025.md).
 
 **SMTP implementado localmente:** GROK entregó el mismo intento1/3 adaptado a Banahosting, 253 pruebas/26 archivos, tipos y build aprobados. AGY revisa seguridad, SMTP simulado y recuperación en navegador local. El archivo del servicio aún no tiene las cinco variables (solo se comprobó presencia); no hay destinatario autorizado ni correo enviado. La reparación de voz sigue pendiente de la excepción de una línea solicitada.

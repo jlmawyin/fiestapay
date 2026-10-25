@@ -13,3 +13,7 @@ Dependencias `fast-uri` actualizadas a3.1.9/4.2.3; auditoría del espacio de tra
 **Aceptación real pendiente:** configuración y buzón creados por Jorge, único destinatario autorizado, confirmación de entrada/spam, recuperación real y403 de la clave anterior. Además debe corregirse la [ruta pública del dominio](domain-routing-20261025.md) para abrir el enlace desde el correo. [Configuración y protocolo](../EMAIL_SETUP.md).
 
 Informes ignorados: `.local/recovery-review.md`, `.local/recovery-ui-review.md`; arneses `.local/recovery-verify.e2e.mjs` y `.local/recovery-verify-hashchange.mjs`. Revisión1:337146tokens entrada/39841salida; revisión2:208584entrada/30877salida. El25,8% agregado del puente corresponde aClaude/GPT, no aGemini usado por estos revisores.
+
+## Publicación del código
+
+Commit `2d7c542f8fbea0792e9e066e7e49fd412efad3ad`, [CI aprobada](https://github.com/jlmawyin/fiestapay/actions/runs/40221509308). Desplegado únicamente en el servicio FiestaPay, con copia previa, sin restaurar PostgreSQL ni alterar DNS/MX. La API quedóhealthy, migración0006 aplicada, ledger1/5000 intacto y recovery_tokens0. `emailConfigured=false` refleja falta de configuración válida: no se envió correo. La comprobación pública continúa con falloTLS; estos hechos no acreditan recepción ni recuperación real.

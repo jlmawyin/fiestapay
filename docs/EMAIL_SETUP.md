@@ -1,6 +1,6 @@
 # Recuperación del organizador por correo
 
-Método aprobado por Jorge el 25 octubre: SMTP de Banahosting/cPanel, con la cuenta `fiestapay@somospanas.com`. La implementación y las pruebas con servidor simulado están en curso; todavía no hay envío ni recuperación real acreditados.
+Método aprobado por Jorge el 25 octubre: SMTP de Banahosting/cPanel, con la cuenta `fiestapay@somospanas.com`. Implementación desplegada en Contabo en `2d7c542`, con revisión independiente, pruebas PostgreSQL y Chromium aprobadas. La API está saludable y el envío sigue deshabilitado hasta disponer de configuración válida. Todavía no hay correo recibido ni recuperación real acreditados.
 
 FiestaPay se conecta al servidor SMTP existente desde Contabo. No instala otro servidor de correo ni cambia MX, DNS, cuentas existentes o configuración del dominio. El hosting del correo permanece en Banahosting.
 

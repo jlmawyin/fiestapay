@@ -12,7 +12,7 @@ The current P0–P6 request supersedes incompatible historic P1 rules below. The
 - `endsAt` and positive capacity are required. Expired events return 410 immediately at `endsAt + 72 hours`, including before the periodic sweep. Startup and a 15-minute loop remove public/personal content through a tombstone, preserving financial references for reconciliation. An organizer delete uses the same tombstone policy.
 - Request logs omit query strings and credential headers. API responses use `Cache-Control: no-store`; pages use `Referrer-Policy: no-referrer`.
 
-The access/retention routes are deployed in `97048c1` and passed restart/permission checks through the HTTPS origin. Public DNS is externally blocked; see [routing evidence](reviews/domain-routing-20261025.md). The SMTP recovery implementation below has passed independent local review and awaits deployment/real-mail acceptance. Automatic funding refunds and moderation remain subsequent packages. The product must use only OpenAI `gpt-6-luna` after the pending P5 cleanup; the historic Gemini option below is transitional code scheduled for removal.
+The access/retention routes passed restart/permission checks through the HTTPS origin. Release `2d7c542` includes independently reviewed SMTP recovery and migration0006; the server is healthy, with email honestly disabled until configured. Public DNS is externally blocked; see [routing evidence](reviews/domain-routing-20261025.md). Real-mail acceptance remains pending. Automatic funding refunds and moderation are subsequent packages. The product must use only OpenAI `gpt-6-luna` after the pending P5 cleanup; the historic Gemini option below is transitional code scheduled for removal.
 
 ## Verified optional email recovery
 
