@@ -4,6 +4,8 @@ Actualizado: 25 octubre 2026, America/Guayaquil. Resumen de esta entrega; el his
 
 ## Prioridades vigentes y ejecución
 
+**Pausa de cuota del 25 octubre:** quedaron12%en cinco horas, por debajo del umbral20% de dirigir-agentes. Exención semanal respetada; pregunta para ampliar exención a5h pendiente. Procesos propios detenidos, dos encargos conservan intento2/3 pausado. Cambios parciales sin desplegar ni validar. [Checkpoint y siguiente acción](docs/CHECKPOINT_2026-10-25.md). Continuación nativa creada: `fiestapay-reanudar-cuota-25-oct`, para06:12Guayaquil tras hora mínima del helper11:11:05UTC; consultar cuota nuevamente al despertar. Aplicación pública mantiene la versión verificada1bf3434.
+
 Entrega máxima 31 octubre (sábado); [ruta de trabajo actualizada](docs/PLAN_DIARIO.md). P0 persistencia → P1 dos enlaces/recuperación → P2 dinero/reembolsos → P3/P4 abuso/formulario → P5/P6 audio/pulido. La nueva petición elimina Gemini de la aplicación, sin proveedor alternativo. El uso de AGY Gemini como agente de desarrollo es independiente de la IA del producto.
 
 `1bf3434` tiene [CI verde: 209 pruebas/20 archivos](https://github.com/jlmawyin/fiestapay/actions/runs/40147830699), revisión independiente AGY del servidor y webhook, y está activado en Contabo. Configuración OpenAI aplicada; claves Gemini retiradas del `.env` local y del entorno de producción sin mostrarlas. Código residual de compatibilidad se elimina en el paquete siguiente.
@@ -17,6 +19,8 @@ Diagnóstico parcial P0: PostgreSQL y volumen persistente ya existen; el listado
 Correo: Jorge no tiene SMTP y autorizó preparar lo necesario; configurará Cloudflare después. Se preparará envío y recuperación de un solo uso, sin afirmar entrega real antes de tener dominio habilitado y credencial. [Guía de configuración](docs/EMAIL_SETUP.md). Automatización diaria actualizada al alcance nuevo, entrega31oct y corrección/presentación hasta5nov, con avisos solo ante cambios verificables.
 
 ## Historial de la etapa anterior
+
+Control posterior de cuota: Codex volvió a76%cincohoras/96%semanal, sin que el agente consumiera ningún reseteo. Grok93%general/96%Build. Audio intento1/3 terminó por timeout1200s sin cambios; intento2/3 acotado en curso. Persistencia continúa intento1/3. No confundir investigación/archivos parciales con aceptación.
 
 ## Pago PayPal de prueba completado
 

@@ -12,7 +12,7 @@ Estado de referencia: 25 octubre 2026. Una prueba automatizada de proveedor simu
 | 6 | Sin secretos ni Gemini en JS | Build, búsqueda del nombre/proveedor y de valores secretos solo en memoria, salida con conteos. Inspeccionar `/api/capabilities`; revisar source maps y bundles. | Claves Gemini retiradas de entorno; código residual en eliminación. |
 | 7 | Persistencia y autoborrado | Crear, guardar enlaces, recargar, navegador distinto, reinicio exclusivo API, verificar misma fiesta. Reloj controlado de test: fin+71:59 vigente, fin+72h inaccesible; conservar conciliación financiera mínima. | PostgreSQL persistente existente; aceptación completa pendiente. |
 | 8 | Recuperación | Registrar/verificar correo opcional, perder enlace, solicitar, recibir email, consumir token, probar clave nueva y antigua; rechazar reutilización/caducidad y dos consumos simultáneos. | Depende de integración y activación Cloudflare; [configuración](EMAIL_SETUP.md). |
-| 9 | Audio móvil completo/sec uencial | Tres conversaciones desde celular, inicio intacto, dos respuestas juntas se encolan, denegar micrófono y reconectar sin repetición; registrar latencia. | Prueba WebSocket histórica real; micrófono humano/móvil pendiente. |
+| 9 | Audio móvil completo/secuencial | Tres conversaciones desde celular, inicio intacto, dos respuestas juntas se encolan, denegar micrófono y reconectar sin repetición; registrar latencia. | Prueba WebSocket histórica real; micrófono humano/móvil pendiente. |
 | 10 | Demo de90s | Crear, copiar/abrir WhatsApp sin enviar a terceros, abrir enlace público en otro navegador, pagar, ver meta y recepción Business; grabar recorrido real. | Pago y consulta OpenAI reales acreditados por separado; recorrido integrado y significado de payout pendientes. |
 
 ## Guardas de dinero
@@ -24,4 +24,5 @@ La [API PayPal](https://developer.paypal.com/api/payments/v2/captures-refund) pe
 ## Evidencia externa ya obtenida
 
 - Pago: orden `45D94071LC923231F`, captura `33J98639UB477180H`, USD50, una fila de captura y saldo0 después del reintento y webhook. [Detalle](reviews/sandbox-evidence.md).
+- Desglose obtenido directamente de esa captura el25oct06:19UTC: brutoUSD50, comisiónPayPalUSD3, netoUSD47. Es evidencia de esa operación concreta; no promete la misma comisión en toda transacción futura. Artefacto `.local/capture-fee-evidence.json`.
 - OpenAI público: fiesta `comida-5fp2zhn8`, HTTP200, herramientas `get_event_details`, `get_my_status`, `prepare_quote`; cuenta 2×25=50 con confirmación. SQL posterior: cero órdenes y cero movimientos financieros en esa fiesta. Esto demuestra que el asistente no cobró por su cuenta. Evidencia local ignorada `.local/openai25-evidence.log` y captura `output/playwright/openai-chat-20261024.png` (archivo producido el25oct; nombre histórico).

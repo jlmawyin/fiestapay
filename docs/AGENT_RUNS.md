@@ -8,8 +8,8 @@
 | Límite de firma webhook | GROK | 1/3 | Aprobado por AGY, CI y webhook real PayPal sin duplicar captura. |
 | Revisión OpenAI/webhook | AGY | 1/3 | Aprobada,35tests específicos; alcance acotado. |
 | FP-SCOPE-RESEARCH-20261025 | AGY | 1/3 | Investigación entregada; sin tests. Codex descartó propuestas fuera de alcance y afirmaciones no verificadas. |
-| FP-PERSIST-ACCESS-20261025 | GROK | 1/3 | En ejecución: persistencia/admin/ciclo de vida/formulario/OpenAI-only; aún no evaluado. |
-| FP-VOICE-QUEUE-20261025 | GROK | 1/3 | En ejecución: readiness/cola de voz y protección de logs del vhost exclusivo; aún no evaluado. |
+| FP-PERSIST-ACCESS-20261025 | GROK | 2/3 pausado | Intento1 agotó2400s con migración/dominio parciales; conservados. Intento2 detenido por cuota Codex, no consume un intento adicional. Completar administración/persistencia/privacidad/UI y pruebas PostgreSQL al retomar. Eliminación residual Gemini diferida a P5. |
+| FP-VOICE-QUEUE-20261025 | GROK | 2/3 pausado | Primer intento agotó1200s sin cambios. Segundo detenido por cuota Codex; sigue siendo2/3. Retomar playback/arranque y pruebas. Proxy resuelto en integración Codex. |
 
 Paquetes/prompts/reportes operativos en `.local/`, ignorados porGit. Codex controla integración, credenciales, despliegue y evidencias externas; agentes no acceden a secretos niVPS. No hay conectores MCP de los tres agentes en esta sesión: GROK/AGY usan sus puentes canónicos. Claude CLI autenticada el25oct, cuota desconocida, no se inició recuperación.
 
