@@ -1,6 +1,17 @@
 # Estado de implementación
 
-Actualizado el 24 octubre 2026 (America/Guayaquil). El calendario no equivale a progreso real; **P1 todavía no está aceptado**. No marcar una prueba externa por tests con proveedores simulados.
+Actualizado el 25 octubre 2026 (America/Guayaquil). El calendario no equivale a progreso real; **aceptación completa pendiente**. No marcar una prueba externa por tests con proveedores simulados.
+
+## Etapa vigente: entrega 31 octubre
+
+La petición nueva sustituye el calendario/alcance anterior incompatible. Ver [PLAN_DIARIO.md](PLAN_DIARIO.md) y [PROGRESO.md](../PROGRESO.md). Solo OpenAI en producto; eliminación de código residual en curso. Jorge autoriza preparar recuperación por correo y configurará Cloudflare. Esta ejecución ignora su umbral preventivo semanal de Codex, conserva el de cinco horas y los límites reales.
+
+- `1bf34344c34503ed84f63ab9626587fc2797d2c3` desplegado en el servicio exclusivo FiestaPay, saludable; imagen anterior conservada para reversión. [CI 209 pruebas/20 archivos](https://github.com/jlmawyin/fiestapay/actions/runs/40147830699). Revisión AGY API/webhook aprobada sobre fuentes y 35 pruebas específicas; no sustituye la evidencia externa.
+- **Webhook externo verificado 25 oct 05:51 UTC:** reenvío PayPal aceptado HTTP202; `PAYMENT.CAPTURE.COMPLETED` registrado a las 05:51:01.032819 UTC. Evento PayPal `WH-3DR597333T5489832-9YV22745D26080450`, captura `33J98639UB477180H`, orden `45D94071LC923231F`. Después del webhook: una captura de 5000 centavos, 0 devuelto, saldo0, una auditoría `payment_captured`. No duplicó el cobro. Evidencia `.local/payment24-after-webhook.log`.
+- Configuración OpenAI aplicada con clave ya suministrada por Jorge. Variables Gemini retiradas de `.env` local y `.env.production` sin mostrarlas. **Chat real OpenAI aprobado desde navegador público:** evento `comida-5fp2zhn8`, HTTP200, agenda y cotización 2×25=50 con confirmación. SQL: herramientas get_event_details/get_my_status/prepare_quote; cero órdenes y cero movimientos. Captura en `output/playwright/openai-chat-20261024.png`; nombre histórico, ejecución25oct. No se hizo una nueva llamada Gemini.
+- GROK trabaja paquete persistencia/admin/ciclo de vida/formulario/OpenAI-only, entrega1/3; AGY investiga riesgos y correo en paralelo, sin editar producto. Persistencia actual usa PostgreSQL; autoridad/listado dependen del cookie. Diagnóstico de pérdida de filas todavía no demostrado.
+
+El historial siguiente conserva fechas y resultados de etapas anteriores; sus pendientes de proveedor, webhook y calendario quedan sustituidos por este bloque cuando corresponda.
 
 ## Evidencia verificada
 

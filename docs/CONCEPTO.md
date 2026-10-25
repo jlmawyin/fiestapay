@@ -1,6 +1,6 @@
 # FiestaPay — Documento de concepto
 
-> **Implementación aprobada:** [PLAN_DIARIO.md](PLAN_DIARIO.md) prevalece sobre el backlog: P1 hasta 2 nov, voz real de prueba el 16 oct, portadas fijas y una cifra «Recaudado» antes de comisiones. P2 no tiene horas comprometidas; sus secciones describen evolución futura.
+> **Actualización 25 octubre:** [PLAN_DIARIO.md](PLAN_DIARIO.md) prevalece sobre el historial: entrega máxima 31 octubre, persistencia, dos enlaces con clave de organizador, recuperación por correo, cierre/reembolso sandbox, moderación y audio. Solo OpenAI gpt-6-luna en la aplicación. Las etiquetas P0–P6 nuevas sustituyen las prioridades antiguas; fondo abierto, anticipos, aportes físicos y descuentos siguen fuera. No se da una función por operativa sin evidencia en ESTADO.md.
 
 > Entrada para **PayPal AI Hackathon** (Devpost) · https://paypalaihackathon.devpost.com/
 > Autor: Jorge Mawyín (dev solo, Guayaquil, Ecuador)

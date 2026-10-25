@@ -1,6 +1,6 @@
 # FiestaPay: alcance y plan para el hackathon
 
-> **Implementación aprobada:** [PLAN_DIARIO.md](PLAN_DIARIO.md) prevalece sobre el backlog: P1 hasta 2 nov, voz real de prueba el 16 oct, portadas fijas y una cifra «Recaudado» antes de comisiones. P2 no tiene horas comprometidas; sus secciones describen evolución futura.
+> **Actualización 25 octubre:** [PLAN_DIARIO.md](PLAN_DIARIO.md) prevalece sobre el historial: entrega máxima 31 octubre. P0 persistencia; P1 administración por enlace/recuperación; P2 integridad y devolución al no alcanzar mínimo; P3 identidad/moderación; P4 formulario; P5 solo OpenAI y audio; P6 pulido. Portadas fijas, cuota íntegra y receptor sandbox único se mantienen mientras se resuelve el alcance de «payout». Fondo abierto y anticipos siguen fuera.
 
 > Decisiones de Jorge Mawyín consolidadas el 13 oct 2026.
 > Entrega prevista: 11 nov. Cierre oficial: 12 nov 2026, 15:00 ECT.

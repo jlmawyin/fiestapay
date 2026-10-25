@@ -90,3 +90,9 @@ Codex ejecutó el protocolo contra el dominio público y PostgreSQL de FiestaPay
 - Los logs filtrados del servicio muestran nueve solicitudes al webhook con respuesta 400. Solo se conservaron método, hora, ID de solicitud y estado HTTP. No se imprimieron firmas ni cuerpos.
 - La ruta aplica un máximo genérico de 200 caracteres a `paypal-transmission-sig`. El [ejemplo oficial de PayPal](https://developer.paypal.com/api/rest/webhooks/rest/) contiene una firma de 344 caracteres; la [referencia de verificación](https://developer.paypal.com/api/webhooks/v1/verify-webhook-signature-post) permite hasta 500. La reparación mantiene la verificación criptográfica remota; no acepta firmas solo por su longitud.
 - Estado de esta reparación: pendiente de revisión, pruebas y entrega externa. No confundir el evento disponible en PayPal con su aceptación por FiestaPay.
+# Actualización externa 25 octubre: webhook recibido
+
+Versión `1bf3434`, CI verde (209 pruebas) y revisión independiente de API/webhook. Corregido límite de cabecera que rechazaba firmas PayPal de 344 caracteres antes de verificarlas.
+
+Reenvío solicitado a PayPal para evento `WH-3DR597333T5489832-9YV22745D26080450`, correlacionado por API a orden `45D94071LC923231F` y captura `33J98639UB477180H`: HTTP202. Servidor registró `PAYMENT.CAPTURE.COMPLETED` el 25 oct 2026 05:51:01.032819 UTC tras verificar firma. SQL A–E posterior conserva una captura, 5000 centavos recaudados, 0 devuelto, saldo0 y una auditoría `payment_captured`. No duplicó el pago. Artefacto local ignorado `.local/payment24-after-webhook.log`.
+

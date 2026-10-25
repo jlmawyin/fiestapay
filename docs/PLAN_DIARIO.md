@@ -1,4 +1,32 @@
-# Plan aprobado — FiestaPay
+# Plan vigente — FiestaPay · entrega máxima 31 octubre 2026
+
+## Repriorización autorizada el 25 octubre
+
+La petición nueva de Jorge sustituye el alcance y los hitos incompatibles del calendario histórico que se conserva abajo. **Entrega funcional máxima: sábado 31 octubre**, preferiblemente antes para pulir. Jorge fija el 5 noviembre como corte de trabajo/envío. Las [reglas públicas consultadas el 25 octubre](https://paypalaihackathon.devpost.com/rules) todavía indican 12 noviembre, 15:00 ECT; esto no amplía nuestro plazo interno.
+
+Las etiquetas P0–P6 de esta etapa son prioridades nuevas; «P2 cero horas» del plan histórico se refería al fondo abierto/anticipos, que siguen fuera. Ahora P2 significa integridad financiera, fecha límite y reembolsos. No confundir ambas listas.
+
+| Fecha | Bloque verificable | Pruebas y dependencia | Presupuesto humano |
+|---|---|---|---:|
+| 25 oct | P0 + P1: persistencia, fin del evento, enlaces público/organizador y autorización por clave | Reinicio sin pérdida, navegador distinto, API pública sin edición, clave incorrecta 403; CI con PostgreSQL | 5 h |
+| 26 oct | P1: privacidad y recuperación por correo; rotación de clave y borrado programado | Código privado sin rutas alternativas; recuperación caduca y se consume una sola vez; correo real depende de Cloudflare | 5 h |
+| 27 oct | P2: cierre de recaudación y reembolso automático en sandbox | Carrera captura/cierre, reintento sin duplicados, reembolso completado verificado, importes/estados visibles | 5 h |
+| 28 oct | P3/P4: bloqueo/moderación, identidad, formulario y reglas del servidor | IP limitada, texto script literal, capacidad/meta válidas, nombres visibles solo a organizador | 5 h |
+| 29 oct | P5/P6: OpenAI únicamente, cola de audio, estados de carga | Timeout sin impedir crear, audio listo y secuencial, secretos ausentes del JS, prueba en celular | 5 h |
+| 30 oct | Integración final y demo de 90 s, guía de jueces | Recorrido completo con pago real de prueba, dos navegadores, reinicio/restauración, revisión independiente | 5 h |
+| 31 oct | Margen de corrección y entrega identificada | Solo bloqueantes y regresión; lista explícita de criterios acreditados y pendientes | 5 h |
+
+**35 horas humanas disponibles; no son una estimación garantizada del trabajo nuevo.** Recuperación, reembolsos automáticos y audio móvil concentran el riesgo. Los agentes ejecutan paquetes acotados; Codex integra. No prometemos compensar desviaciones con jornadas humanas más largas. El 31 queda para corrección, sin funciones nuevas. El recorrido de 90 segundos es una meta de presentación, no una garantía de duración de PayPal o de la red.
+
+Orden técnico: (1) cerrar evidencia del pago/OpenAI ya construido, (2) persistencia y autorización, (3) ciclo de vida y recuperación, (4) devolución y cierre financiero, (5) moderación/formulario/audio, (6) aceptación y presentación. Se puede investigar en paralelo, máximo dos frentes de construcción. GROK construye; AGY verifica independientemente; Claude interviene solo en recuperación conforme a `dirigir-agentes`. Tres entregas evaluadas por problema como máximo, contadores persistentes.
+
+Puntos de diseño: asistencia («va») y pago («pagó» solo tras captura) separados; DB conserva referencias financieras mínimas aunque la fiesta y su contenido dejen de estar disponibles; clave de administración de 32 bytes, hash en DB y comparación constante; toda autorización del servidor; el enlace público jamás permite editar. No usar nombres reales de jueces obligatoriamente: la prueba usa identidades ficticias; el producto permite nombre del asistente/pagador.
+
+Dependencias por resolver: habilitar Email Sending y token de envío de Cloudflare (Jorge configura su cuenta/DNS); prueba humana de micrófono móvil; decidir si «payout» significa recepción en el Business único o una transferencia adicional, que requiere integración/acceso aparte. Las comisiones exactas no se inventan; mostrar política y estimación identificada, contrastada con datos del receptor. Pagos siempre sandbox.
+
+Excepción de cuota autorizada por Jorge: durante esta ejecución se ignora el umbral preventivo semanal de Codex. Se mantienen los límites efectivos del servicio, el umbral de cinco horas y las compuertas de los puentes. Codex no consume el reseteo del usuario.
+
+## Calendario histórico (sustituido en lo incompatible)
 
 14 octubre–11 noviembre 2026. Zona horaria America/Guayaquil. Cinco horas útiles diarias, incluidos fines de semana; revisión e integración incluidas. Construcción/pruebas P1 100h + entrega P1 35h + contingencia 10h =145h. P2 y extras:0h comprometidas.
 
