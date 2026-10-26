@@ -10,10 +10,10 @@ El adaptador admite465 con TLS y587 con STARTTLS obligatorio, valida certificado
 
 Dependencias `fast-uri` actualizadas a3.1.9/4.2.3; auditoría del espacio de trabajo sin vulnerabilidades registradas. La revisión inspeccionó paquete/bundle y el flujo de datos; no recibió credenciales reales ni demuestra una comparación contra secretos todavía sin cargar.
 
-**Aceptación real pendiente:** configuración y buzón creados por Jorge, único destinatario autorizado, confirmación de entrada/spam, recuperación real y403 de la clave anterior. Además debe corregirse la [ruta pública del dominio](domain-routing-20261025.md) para abrir el enlace desde el correo. [Configuración y protocolo](../EMAIL_SETUP.md).
+**Aceptación real posterior:** [SMTP y recuperación verificados con Jorge](smtp-live-20261025.md): dos mensajes enentrada, contacto verificado, claveantigua403 ypanelnuevo200. Reutilización manual pendiente de respuesta; las pruebas de caducidad/concurrencia descritas arriba mantienen su alcance automatizado. [Configuración y protocolo](../EMAIL_SETUP.md).
 
 Informes ignorados: `.local/recovery-review.md`, `.local/recovery-ui-review.md`; arneses `.local/recovery-verify.e2e.mjs` y `.local/recovery-verify-hashchange.mjs`. Revisión1:337146tokens entrada/39841salida; revisión2:208584entrada/30877salida. El25,8% agregado del puente corresponde aClaude/GPT, no aGemini usado por estos revisores.
 
 ## Publicación del código
 
-Commit `2d7c542f8fbea0792e9e066e7e49fd412efad3ad`, [CI aprobada](https://github.com/jlmawyin/fiestapay/actions/runs/40221509308). Desplegado únicamente en el servicio FiestaPay, con copia previa, sin restaurar PostgreSQL ni alterar DNS/MX. La API quedóhealthy, migración0006 aplicada, ledger1/5000 intacto y recovery_tokens0. `emailConfigured=false` refleja falta de configuración válida: no se envió correo. La comprobación pública continúa con falloTLS; estos hechos no acreditan recepción ni recuperación real.
+Commit `2d7c542f8fbea0792e9e066e7e49fd412efad3ad`, [CI aprobada](https://github.com/jlmawyin/fiestapay/actions/runs/40221509308). En el despliegue inicial, únicamente FiestaPay, con copia previa y sin restaurar PostgreSQL ni modificar registrosDNS/MX: APIhealthy,0006 aplicada, ledger1/5000 y recovery_tokens0; correo deshabilitado y dominio con falloTLS. Esos hechos eran el estado inicial, no prueba de recepción. La aceptación posterior conserva la misma imagen y se documenta por separado con el ajuste de clienteDNS soloAPI, sin atribuirle revisión independiente nueva.

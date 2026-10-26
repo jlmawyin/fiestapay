@@ -12,7 +12,7 @@ Jorge informó que el dominio vencía hoy y fue renovado a las 18:02 ECT, con nu
 | HTTPS normal, `/` | HTTP200 y página FiestaPay. |
 | `/api/capabilities` | Correo deshabilitado, sandbox y chat configurados. No se invocaron esos proveedores. |
 
-El bloqueo público queda resuelto. Codex no modificó DNS, MX, SPF, DKIM ni otras aplicaciones. La recuperación por correo aún necesita contraseña SMTP, destinatario autorizado y aceptación real desde FiestaPay. No se repitieron pagos ni pruebas de persistencia ya acreditadas.
+El bloqueo público queda resuelto. Codex no modificó registrosDNS, MX, SPF, DKIM ni otras aplicaciones. Posteriormente se completó la [recuperación real por correo](smtp-live-20261025.md) con contraseña guardada por Jorge y destinatario autorizado. El clienteDNS de la API se aisló mediante un override de su propio servicio, sin cambiar el resolutor global del VPS ni registros del dominio. No se repitieron pagos ni pruebas de persistencia ya acreditadas.
 
 ## Incidencia anterior, conservada como historial
 

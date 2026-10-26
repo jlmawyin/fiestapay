@@ -1,5 +1,16 @@
 # Checkpoint de cuota — 25 octubre 2026
 
+## Cierre vigente: SMTP real verificado, 25oct después de19:37ECT
+
+Misma imagen/código2d7c542. Jorge guardóSMTP_PASSdirectamenteVPS; cinco campos presentes/formato válido,0600. Destinatario único recibido enchat, no publicarlo ni pedirlo otra vez. Aplicado soloAPI conCompose.envinterpolación+runtime.env.production y nuevo deploy/compose.smtp-runtime.yml (dns1.1.1.1/8.8.8.8 soloAPI). Diffnormalizado:soloapi.dns; imagen y otroscontenedores/arranques iguales; APIsana,emailtrue, SMTPDNS50.31.177.117/DBresoluble. No registrosDNS/MX/globalresolver/proxy modificados. Conservar -f deploy/compose.smtp-runtime.yml en futurasrecreaciones.
+
+Arnés revisado copiadoidéntico a.local/smtp-acceptance, sin sobrescribir pruebasP0anteriores. Seedpúblico creó única fiesta ficticia. PUTcontact19:31:03 aceptadoSMTP, Jorgeinbox+verificación. POSTrecovery19:33:02 uniforme; consultaSQLconfirma SMTPaceptado. Jorgerecibiósegundoinbox y obtuvoenlacenuevo. ClaveviejaGETdashboard403 a19:36:05, panelnuevoGET200 a19:37:26+captura humana. Sin rawkeys/token/recipient enGit. Artefactos mail-evidence/recovery-request-evidence/rotation-evidence en.directorioprivado. No secretoSMTP salióVPS ni agentes. Comparacióncuatroarchivosbundle ylogscontraSMTP/PayPal/OpenAI/AssemblyAIsincoincidencias; loggerURLssinadminkey.
+
+Pendiente humano ya preguntado: reabrir segundo enlace yconfirmar rechazo porreutilización. No volver a preguntar si ya llega respuesta. Caducidad/concurrencia automatizadas de código2d7c542 aprobadasAGY; no alegar15minrealnuevos. Mantener fiesta/antiguaclaveinvalidada hasta cerrar prueba, no borrar antes. No repetir proveedoresUSD50/webhook/LLM. Trasdocumentar, siguiente P2finanzas depende de agentes: GROKhelper2timeouts,AGYhelperreview1timeout, sin nuevointento/contadorreset ni Claude desconocido. VozGROK3/3+AGY2/3 sigueWIP, permiso de excepción puntual sinrespuesta. Preservar.gitignoredeJorge yarchivo24.
+
+Este cierre sustituye los bloqueosSMTP/DNS/contraseña antiguos que figuran abajo. Diario continúa; reanudación puntual de cuota yaeliminada, no recrear por datos humanos. No enviar correos adicionales sin necesidad/autorización; dos enviados hastaahora aldestinoúnico autorizado.
+
+
 ## Estado vigente — 25 octubre, después de las 18:40 Guayaquil
 
 **Actualización19:16ECT:** destinatario único de prueba/recuperación autorizado por Jorge en el chat; no publicar dirección en Git ni pedirla otra vez. VPS.env.production modo0600, cuatro ajustes presentes, SMTP_PASSvacío; DNSmail normal todavía162.4.84.247. No SMTPauth/envío/recreaciónAPI. Siguiente paso dependiente: Jorge guarda contraseña directamenteVPS segúnEMAIL_SETUP; luegoCodex revalida presencia/configuración/DNS, aplica soloAPI cuando proceda y prueba contra ese destinatario. Cuota82%5h/55%semanal, sin bloqueo de cuota ni nuevaautomatización. No repetir agentes fallidos ni pruebasdeproveedores yaacreditadas.
