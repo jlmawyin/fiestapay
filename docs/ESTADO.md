@@ -2,13 +2,17 @@
 
 Actualizado el 25 octubre 2026 (America/Guayaquil). El calendario no equivale a progreso real; **aceptación completa pendiente**. No marcar una prueba externa por tests con proveedores simulados.
 
-## Pausa vigente por cuota
+## Continuación vigente
 
-25oct20:55:20%5h disponible, stopdelhelper. GROK intento1/3PAUSADO, sin cambiosAPI/shared/test ni informe deentrega; procesos propios detenidos, incluidos el detached identificado porcwd. No evaluar esta pausa como fallo. Reanudar23:38ECTdehoy porautomatización nativa fiestapay-reanudar-cuota-25-oct, después delmínimo04:37:45Z; requiere PC/app disponibles. [Checkpoint completo](CHECKPOINT_2026-10-25.md). No hubo producto/proveedores durante cierre administrativo. Producción/correo aprobadossiguenoperativos.
+**PAUSA POR SOLICITUD DE JORGE —26oct00:05:** corte de energía/apagado. Agentes detenidos, diarioPAUSED y continuación puntualeliminada; no reanudar automáticamente hasta que Jorge lo pida. GROKBackendintento1/3 preservado, sin código entregado. Diseños/paquetes ycheckpoint guardados. Producción/correo delVPS intactos.
+
+
+
+25oct23:46:98%5h/44%semanal, helperstopfalse. GROK FP-FUNDING-BACKEND-20261025 intenta1/3reanudado, job40207. No P2entregado/aceptado todavía. Fallo dearranqueask-grokselfMCP verificado; deshabilitado solamenteen clienteGrok,codebaseMCPenabled. Grafoyaresponde(generación15oct,stale),sourcefallback. Regla20% siguevigente. One-shotcumpliódespertar, retirarla al finalizar si no nueva pausa. [Checkpoint](CHECKPOINT_2026-10-25.md).
 
 ## Construcción actual: P2 financiero, todavía sin entregar
 
-Worktree activo `C:/Users/Jorge/.codex/worktrees/funding-refunds/fiestapay`, rama `codex/funding-refunds`, base731df71. La copia primaria y sus cambios de voz/.gitignore/24 permanecen intactos. GROK FP-FUNDING-BACKEND-20261025 intento1/3PAUSADO, sesión19431terminada porcuota,80turns/2700s asignados, EOF, solo API/shared/tests; sin secretos, deploy ni proveedores reales. AGY diseño1/3 entregado244872tokens totales,404s; informe de propuestas, no aprobación. Codex impuso correcciones:422 no equivale a reembolso, fondos/tombstone conservados, reloj traslock y decisión previa a dinero tardío, sin activación retroactiva de legados. Bases locales constructor/revisor creadas, npmci terminado. Pendiente entrega, revisión financiera independiente y UI.
+Worktree activo `C:/Users/Jorge/.codex/worktrees/funding-refunds/fiestapay`, rama `codex/funding-refunds`, base731df71. La copia primaria y sus cambios de voz/.gitignore/24 permanecen intactos. GROK FP-FUNDING-BACKEND-20261025 intento1/3REANUDADO,job40207,80turns/2700s, EOF, solo API/shared/tests; sin secretos, deploy ni proveedores reales. AGY diseño1/3 entregado244872tokens totales,404s; informe de propuestas, no aprobación. Codex impuso correcciones:422 no equivale a reembolso, fondos/tombstone conservados, reloj traslock y decisión previa a dinero tardío, sin activación retroactiva de legados. Bases locales constructor/revisor creadas, npmci terminado. Pendiente entrega, revisión financiera independiente y UI.
 
 ## Etapa vigente: entrega31octubre
 

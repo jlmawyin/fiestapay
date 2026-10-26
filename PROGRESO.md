@@ -4,10 +4,13 @@ Actualizado: 25 octubre 2026, America/Guayaquil. Resumen de esta entrega; el his
 
 ## Prioridades vigentes y ejecución
 
-**PAUSA20%5h,25oct20:55:** GROK P2intento1/3 preservado comoPAUSADO, procesos propios detenidos; todavía sin código financiero ni informe entregado. Reanudación nativa confirmada para23:38Guayaquil dehoy, después del mínimo delhelper23:37:45. [Checkpoint](docs/CHECKPOINT_2026-10-25.md). SMTP real yrecuperación completos, CI731df71 aprobada. No nuevospagos/chat/proveedores. La regla20 sigue por decisión deJorge.
+**PAUSA POR SOLICITUD DE JORGE —26oct00:05:** corte de energía/apagado. Agentes detenidos, diarioPAUSED y continuación puntualeliminada; no reanudar automáticamente hasta que Jorge lo pida. GROKBackendintento1/3 preservado, sin código entregado. Diseños/paquetes ycheckpoint guardados. Producción/correo delVPS intactos.
 
 
-**P2 iniciado localmente, ahora pausado:** GROK FP-FUNDING-BACKEND-20261025 intento1/3 en el worktree `C:/Users/Jorge/.codex/worktrees/funding-refunds/fiestapay`, rama `codex/funding-refunds`, base731df71. Ownership API/shared/tests, sin UI ni proveedores reales. AGY terminó diseño1/3; Codex corrigió sus propuestas inseguras de422/tombstone/clock antes de construir. Revisión independiente y aceptación externa todavía pendientes. [Plan de pruebas](docs/reviews/funding-acceptance-plan.md). La producción sigue2d7c542; no se despliega este paquete sin revisión.
+
+**Reanudado25oct23:46:** helper permite continuar con98%5h/44%semanal. GROK P2retoma mismo intento1/3 (job40207), sin repetir pago/correo/chat. Se deshabilitó únicamente el MCPask-grok delpropioGrok tras verificar fallos dearranque; grafo vuelve a responder pero es antiguo, requiere lecturaexacta. Aún sinentrega financiera validada. [Checkpoint vigente](docs/CHECKPOINT_2026-10-25.md).
+
+**P2 en construcción local:** GROK FP-FUNDING-BACKEND-20261025 intento1/3 en el worktree `C:/Users/Jorge/.codex/worktrees/funding-refunds/fiestapay`, rama `codex/funding-refunds`, base731df71. Ownership API/shared/tests, sin UI ni proveedores reales. AGY terminó diseño1/3; Codex corrigió sus propuestas inseguras de422/tombstone/clock antes de construir. Revisión independiente y aceptación externa todavía pendientes. [Plan de pruebas](docs/reviews/funding-acceptance-plan.md). La producción sigue2d7c542; no se despliega este paquete sin revisión.
 
 
 **Último estado, 25 oct después de19:37ECT:** correo real desde FiestaPay validado con Jorge. Verificación y recuperación SMTP aceptadas y recibidas en bandeja de entrada; contacto verificado, clave antigua403 y panel con clave nueva200 registrado por el servidor y confirmado con captura. Aplicación2d7c542, misma imagen. [Evidencia completa](docs/reviews/smtp-live-20261025.md).
