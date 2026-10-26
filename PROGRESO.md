@@ -4,6 +4,12 @@ Actualizado: 25 octubre 2026, America/Guayaquil. Resumen de esta entrega; el his
 
 ## Prioridades vigentes y ejecución
 
+**PAUSA20%5h,25oct20:55:** GROK P2intento1/3 preservado comoPAUSADO, procesos propios detenidos; todavía sin código financiero ni informe entregado. Reanudación nativa confirmada para23:38Guayaquil dehoy, después del mínimo delhelper23:37:45. [Checkpoint](docs/CHECKPOINT_2026-10-25.md). SMTP real yrecuperación completos, CI731df71 aprobada. No nuevospagos/chat/proveedores. La regla20 sigue por decisión deJorge.
+
+
+**P2 iniciado localmente, ahora pausado:** GROK FP-FUNDING-BACKEND-20261025 intento1/3 en el worktree `C:/Users/Jorge/.codex/worktrees/funding-refunds/fiestapay`, rama `codex/funding-refunds`, base731df71. Ownership API/shared/tests, sin UI ni proveedores reales. AGY terminó diseño1/3; Codex corrigió sus propuestas inseguras de422/tombstone/clock antes de construir. Revisión independiente y aceptación externa todavía pendientes. [Plan de pruebas](docs/reviews/funding-acceptance-plan.md). La producción sigue2d7c542; no se despliega este paquete sin revisión.
+
+
 **Último estado, 25 oct después de19:37ECT:** correo real desde FiestaPay validado con Jorge. Verificación y recuperación SMTP aceptadas y recibidas en bandeja de entrada; contacto verificado, clave antigua403 y panel con clave nueva200 registrado por el servidor y confirmado con captura. Aplicación2d7c542, misma imagen. [Evidencia completa](docs/reviews/smtp-live-20261025.md).
 
 **Infraestructura:** cinco variables privadas cargadas solo enVPS, modo0600; comparación de formato/presencia sin valores ni advertencias. APIrecreada exclusivamente, todos los demás contenedores y sus arranques iguales. Resolver heredado mantenía parking: ajuste de clienteDNS soloAPI mediante deploy/compose.smtp-runtime.yml, ahora SMTP resuelve correctamente y emailConfigured=true. Sin cambios a registros del dominio, MX, resolutor global ni proxy. Bundle y logs sin coincidencias de los valores privados comprobados. No se repitieron pagos/webhook/IA.

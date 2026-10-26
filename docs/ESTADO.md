@@ -2,6 +2,14 @@
 
 Actualizado el 25 octubre 2026 (America/Guayaquil). El calendario no equivale a progreso real; **aceptación completa pendiente**. No marcar una prueba externa por tests con proveedores simulados.
 
+## Pausa vigente por cuota
+
+25oct20:55:20%5h disponible, stopdelhelper. GROK intento1/3PAUSADO, sin cambiosAPI/shared/test ni informe deentrega; procesos propios detenidos, incluidos el detached identificado porcwd. No evaluar esta pausa como fallo. Reanudar23:38ECTdehoy porautomatización nativa fiestapay-reanudar-cuota-25-oct, después delmínimo04:37:45Z; requiere PC/app disponibles. [Checkpoint completo](CHECKPOINT_2026-10-25.md). No hubo producto/proveedores durante cierre administrativo. Producción/correo aprobadossiguenoperativos.
+
+## Construcción actual: P2 financiero, todavía sin entregar
+
+Worktree activo `C:/Users/Jorge/.codex/worktrees/funding-refunds/fiestapay`, rama `codex/funding-refunds`, base731df71. La copia primaria y sus cambios de voz/.gitignore/24 permanecen intactos. GROK FP-FUNDING-BACKEND-20261025 intento1/3PAUSADO, sesión19431terminada porcuota,80turns/2700s asignados, EOF, solo API/shared/tests; sin secretos, deploy ni proveedores reales. AGY diseño1/3 entregado244872tokens totales,404s; informe de propuestas, no aprobación. Codex impuso correcciones:422 no equivale a reembolso, fondos/tombstone conservados, reloj traslock y decisión previa a dinero tardío, sin activación retroactiva de legados. Bases locales constructor/revisor creadas, npmci terminado. Pendiente entrega, revisión financiera independiente y UI.
+
 ## Etapa vigente: entrega31octubre
 
 **Estado vigente, 25oct después de19:37ECT:** recuperación real por SMTP completada conJorge en aplicación2d7c542. Primer correo de verificación y segundo de recuperación aceptados porBanahosting y confirmados en bandeja de entrada. Contacto verificado, clave antigua403 en petición directa y panel nuevo200 en logsAPI/captura deJorge. [Evidencia](reviews/smtp-live-20261025.md). Reutilización manual confirmada con rechazo400; expiración/concurrencia conservan aprobación PostgreSQL previa, no nueva espera real.

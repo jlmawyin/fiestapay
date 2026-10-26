@@ -1,5 +1,29 @@
 # Checkpoint de cuota — 25 octubre 2026
 
+## PAUSA VIGENTE — 25 octubre, 20:55–21:00 Guayaquil
+
+Codex alcanzó exactamente20% disponible5h; semanal45% sana. Helper confirmó stoptrue/needs_refreshfalse, reanudación mínima2026-10-26T04:37:45Z (25oct23:37:45ECT). Automatización nativa creada yactiva `fiestapay-reanudar-cuota-25-oct`, una ejecución a las23:38ECT dehoy, mismochat; configuración local inspeccionada sololectura ytarjeta nativa visualizada. El diario9AM sigueactivo. Retirar one-shot al cumplir motivo.
+
+FP-FUNDING-BACKEND-20261025 intento1/3 **PAUSADO**, no timeout/fallo ni contador reiniciado. Jobunified19431 terminó tras detención propia; sesiónGrok01a175d3-1864-77b2-b99c-2b4708d5c9ab. Se detuvo árbolGrok41944 ydescendientes propios, bridge42660 ya había terminado, yGrokdetached44304 verificado porcwd funding-refunds. No procesos ajenos detenidos. IndexadorMCP43656 de ese árbol fue cerrado antes, por CPUalto sin archivos; no se probó causa exclusiva. No cambios API/shared/test ni informe deentrega alpausar; solo docs yplan financiero enGitstatus. No P2entregado ni validado, no reembolso real ni nuevas llamadasproveedor.
+
+ROOTACTUAL C:/Users/Jorge/.codex/worktrees/funding-refunds/fiestapay, rama codex/funding-refunds, worktree adjunto. Paquete.local/funding-backend-task.txt y diseño.local/funding-design.md preservados; dependencias338instaladas/baseslocales constructor+revisor listas. Producción2d7c542+DNSoverride continúa estable ySMTP real aprobado. Primario C:/Users/Jorge/OneDrive/hackathon/fiestapay conserva vozWIP/.gitignore/24; no tocar ni copiar secretosaestecheckout.
+
+AL DESPERTAR: consultar cuota/helper, solo continuar si stopfalse. Revisar archivos/reportes/tareas antes de reanudar; mismaattempt1PAUSADA. Investigar porqué la tarea grande no entregó producto pese a probes mínimos; MCPchildCPUalto y graphTransportclosed, preferirlecturadirecta tras fallbackdocumentado; no bucles de indexación ni instalarMCPnuevo/alterar configuración global. Canonicalbridges constdin cerrado; no reejecutarprobes niSMTP/pagoUSD50/webhook/chat. ConstructorGROK, verificadorAGY; Opusquirúrgico para dinero cuando haya código estable. Máximo2frentes/3entregas. Usarfuentes/documentaciónreal; no marcar422/PENDING como refundcompleto. Guardas dinero/tombstone/reloj/legados enencargo. No producción ni proveedor antesderevisión. Si vuelvebloqueocuota, actualizar MISMAautomatización conhelper, no sondearpor minuto.
+
+
+## Trabajo activo: P2 backend, worktree aislado
+
+ROOTACTUAL C:/Users/Jorge/.codex/worktrees/funding-refunds/fiestapay, rama codex/funding-refunds, base731df71. Worktree adjunto creado medianteherramienta. Usar este cwd explícito. Primario C:/Users/Jorge/OneDrive/hackathon/fiestapay tiene vozWIP/.gitignore/24 que NO se copió ni modificó. Sin.env/credenciales en nuevo checkout; npmcicompletado. ContenedorlocalPGfiestapay-test-oct25:55439: bases fiestapay_funding yfiestapay_funding_review creadas, contraseña soloFICTICIA test-only-local; DATABASE_URL explícito en.local/test-database.md.
+
+AGYdiseño FP-FUNDING-DESIGN-20261025 intento1 entregado (sesión23803terminada), .local/funding-design.md copiadoidéntico desdeprimario, GeminiFlashHigh/high244872tokens totales/404s. Propuesta NO vinculante: errores422fakecompletion,indexpurgedexclusion,clock,rollbacks corregidos enencargoGROK.
+
+GROK FP-FUNDING-BACKEND-20261025 intento1/3 ACTIVO sesión19431,80turns/2700s. Prompt.local/funding-backend-task.txt, resultado.local/funding-backend-result.json, informe.local/funding-backend-report.md. EOFobligatorio (`'' | py -3 puente...`). Ownership apps/api/src(financiero,noAI/email), apps/api/test, nueva0007, sharedindex camposopcionales; nofrontend/docs/.env/package/git/SSH/proveedores. ConstructorusaDBfiestapay_funding, revisorreservadofiestapay_funding_review. Padreownsdocs/integración. Hasta2frentes, ahora1. RevisiónfinancieraAGYindependiente (Opusquirúrgico si necesario) después deentrega; no falsoreviewgreen. Plan docs/reviews/funding-acceptance-plan.md AÚN NO EJECUTADO.
+
+Producción2d7c542+DNSoverride siguecorreooperativo;2inbox reales, viejo403/nuevo200/reuso400/Jorge. FuenteGitbase731df incluyeevidencia ymarcadoresagentes; CI8f08772verde. ÚltimoCodex40%5h/48%semanal (actualizarantesentregagrande); pausa20 sigue. Si pausa, detenerproceso propio preservandointento1PAUSADO, leercontinuidad/helperantesprogramar; no dejarGROK/AGYgastando siCodexdetenido. No ciclosnuevoowner ni resetcontadores.
+
+Siguiente: esperarentrega, leerreporteydiffacotado, independientePGtests/money review. No despliegue ni realrefundantesaprobación. UI quedaetapasiguienteGROKconcontratosfinales; no claimP2listo. No repetirgoldenUSD50/webhook/OpenAI. No compra/reset/live/otrasappsVPS/DNSregistros. Este bloqueactual sustituye las notas de diseñoenprogreso abajo.
+
+
 ## Estado vigente: correo cerrado y agentes con ejecución mínima restaurada
 
 Jorge confirmó también reapertura del segundo enlace: rechazado. LogsAPI del recorrido: consume200,200,400 (último19:57:57ECT, token ya usado ycaducado). Claveantigua403/panelnuevo200 e inbox deambos correos acreditados. SMTPreal finalizado, no reenviar ni pedir másdatos/credenciales/links. Reutilización ycaducidad aisladas/concurrencia conservan testsPGanteriores aprobados, sin repetirlos. Fiesta queda para demo/autocaducidad; clave localantigua inválida, no ejecutarcleanupconella.
