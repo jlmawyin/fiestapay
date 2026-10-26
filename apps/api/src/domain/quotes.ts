@@ -5,7 +5,7 @@ import { newId } from '../lib/ids.js';
 import { assertPrivateAccess } from './access.js';
 import { audit } from './audit.js';
 import { assertAcceptingGuests } from './events.js';
-import { decideFundingIfDue, fundingBlocksNewCharge } from './funding.js';
+import { decideFundingIfDue, fundingBlocksNewCharge, type FundingGate } from './funding.js';
 import { concealExpired } from './retention.js';
 import { assertCanOwe } from './rsvp.js';
 import {
@@ -119,7 +119,7 @@ export async function createQuoteForSession(
   const visible = await findEventBySlug(pool, slug);
   if (!visible) throw notFound('Evento no encontrado');
   await concealExpired(pool, visible);
-  const outcome = await withTransaction(pool, async (client) => {
+  const outcome = await withTransaction<FundingGate<{ quote: Quote }>>(pool, async (client) => {
     const found = await client.query<{ id: string }>('SELECT id FROM events WHERE slug = $1', [slug]);
     const eventId = found.rows[0]?.id;
     if (!eventId) throw notFound('Evento no encontrado');

@@ -5,7 +5,7 @@ import { conflict, forbidden, gone, notFound } from '../errors.js';
 import { newAdminKey, newId, newSlug, sha256 } from '../lib/ids.js';
 import { assertAdminKey, digestMatches, rememberUnlock, revokeUnlocks } from './access.js';
 import { audit } from './audit.js';
-import { decideFundingIfDue, fundingBlocksNewCharge, fundingForNewEvent, fundingNow, nextFundingTerms } from './funding.js';
+import { decideFundingIfDue, fundingBlocksNewCharge, fundingForNewEvent, fundingNow, nextFundingTerms, type FundingGate } from './funding.js';
 import { isPastRetention, tombstoneEvent } from './retention.js';
 import { EVENT_COLUMNS, eventTotals, loadFiestaEvent, lockEvent, toFiestaEvent, type EventRow, type Queryable } from './read.js';
 
@@ -248,7 +248,7 @@ async function withAdmin<T>(
 }
 
 export async function confirmEvent(pool: Pool, slug: string, presentedKey: string | null): Promise<FiestaEvent> {
-  const outcome = await withAdmin(pool, slug, presentedKey, async (client, locked) => {
+  const outcome = await withAdmin<FundingGate<{ event: FiestaEvent }>>(pool, slug, presentedKey, async (client, locked) => {
     const settled = await decideFundingIfDue(client, locked);
     const blocked = fundingBlocksNewCharge(settled.event, settled.at);
     if (blocked) return { blocked };

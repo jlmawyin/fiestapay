@@ -10,6 +10,7 @@ import { QrShareModal } from '../components/dashboard/QrShareModal';
 import { CreateEventForm } from '../components/events/CreateEventForm';
 import { Modal } from '../components/common/Modal';
 import { GeminiAssistant } from '../components/chat/GeminiAssistant';
+import { FundingStatusPanel, formatEventInstant, paidPeopleLabel } from '../components/common/FundingStatusPanel';
 
 interface OrganizerDashboardViewProps {
   slug: string;
@@ -200,11 +201,16 @@ ${inviteUrl}`;
         <div>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.65rem', marginBottom: '0.35rem' }}>
             <span className="badge badge-ink">Panel del Organizador</span>
-            {event.confirmed ? (
+            {event.fundingStatus === 'failed' ? (
+              <span className="badge badge-coral">Mínimo no alcanzado a tiempo</span>
+            ) : event.confirmed ? (
               <span className="badge badge-teal">Fiesta Confirmada ✓</span>
             ) : (
               <span className="badge badge-yellow">Por Confirmar</span>
             )}
+            {event.fundingStatus === 'funded' ? (
+              <span className="badge badge-blue">Umbral de financiamiento alcanzado</span>
+            ) : null}
           </div>
           <h1 style={{ fontSize: '1.65rem', color: 'var(--color-ink)' }}>{event.title}</h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-ink-muted)' }}>
@@ -272,6 +278,8 @@ ${inviteUrl}`;
         )}
       </section>
 
+      <FundingStatusPanel event={event} />
+
       {/* Financial Metrics Cards */}
       <div
         style={{
@@ -289,7 +297,7 @@ ${inviteUrl}`;
             {usd(event.collectedCents)}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--color-ink-light)' }}>
-            antes de comisiones
+            capturado menos reembolsos verificados, antes de comisiones
           </div>
         </div>
 
@@ -326,25 +334,30 @@ ${inviteUrl}`;
             ) : (
               <span style={{ color: 'var(--color-ink-light)' }}>Sin condición mínima</span>
             )}
+            {event.fundingDeadlineAt && event.fundingStatus !== 'legacy' && event.fundingStatus !== 'inactive' ? (
+              <div style={{ fontSize: '0.75rem', color: 'var(--color-ink-muted)', marginTop: '0.35rem' }}>
+                Límite: {formatEventInstant(event.fundingDeadlineAt)}
+              </div>
+            ) : null}
           </div>
         </div>
 
         {/* Capacity / Attendees */}
         <div className="panel" style={{ borderLeft: '4px solid var(--color-yellow)' }}>
           <div style={{ fontSize: '0.775rem', color: 'var(--color-ink-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
-            Personas Confirmadas
+            Confirmados (asistencia)
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--color-ink)', margin: '0.2rem 0' }}>
             {event.confirmedPeople} {event.capacity ? `/ ${event.capacity}` : ''}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--color-ink-light)' }}>
-            {guests.length} invitados registrados
+            {paidPeopleLabel(event.paidPeople)} · {guests.length} invitados registrados
           </div>
         </div>
       </div>
 
       {/* Confirmation of Event Realization */}
-      {!event.confirmed && (
+      {!event.confirmed && event.fundingStatus !== 'failed' && (
         <div
           style={{
             backgroundColor: 'var(--color-yellow-tint)',

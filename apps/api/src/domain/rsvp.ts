@@ -5,7 +5,7 @@ import { newId } from '../lib/ids.js';
 import { assertPrivateAccess } from './access.js';
 import { audit } from './audit.js';
 import { assertAcceptingGuests } from './events.js';
-import { decideFundingIfDue, fundingBlocksNewCharge } from './funding.js';
+import { decideFundingIfDue, fundingBlocksNewCharge, type FundingGate } from './funding.js';
 import { concealExpired } from './retention.js';
 import {
   GUEST_COLUMNS,
@@ -39,7 +39,7 @@ export async function joinEvent(
   const visible = await findEventBySlug(pool, slug);
   if (!visible) throw notFound('Evento no encontrado');
   await concealExpired(pool, visible);
-  const outcome = await withTransaction(pool, async (client) => {
+  const outcome = await withTransaction<FundingGate<{ guest: Guest }>>(pool, async (client) => {
     const locked = await lockEvent(client, await eventIdBySlug(client, slug));
     const settled = await decideFundingIfDue(client, locked);
     const blocked = fundingBlocksNewCharge(settled.event, settled.at);
@@ -104,7 +104,7 @@ export async function setRsvp(
   const visible = await findEventBySlug(pool, slug);
   if (!visible) throw notFound('Evento no encontrado');
   await concealExpired(pool, visible);
-  const outcome = await withTransaction(pool, async (client) => {
+  const outcome = await withTransaction<FundingGate<RsvpResult>>(pool, async (client) => {
     const locked = await lockEvent(client, await eventIdBySlug(client, slug));
     const settled = await decideFundingIfDue(client, locked);
     const blocked = fundingBlocksNewCharge(settled.event, settled.at);

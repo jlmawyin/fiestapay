@@ -464,3 +464,110 @@ p, span, li, input, textarea, select, button {
     scroll-behavior: auto !important;
   }
 }
+
+/* Funding status (P2) — additive, visual only */
+.funding-status-panel {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.funding-status-panel__header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.funding-status-panel__metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.funding-status-panel__kicker {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+
+.funding-status-panel__hint,
+.funding-status-panel__note {
+  font-size: 0.775rem;
+  color: var(--color-ink-muted);
+  line-height: 1.4;
+}
+
+.funding-status-panel__deadline {
+  font-size: 0.85rem;
+  color: var(--color-ink);
+}
+
+.funding-status-panel__warn {
+  color: var(--color-coral);
+  font-weight: 700;
+}
+
+.funding-progress {
+  height: 8px;
+  background-color: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.funding-progress__bar {
+  height: 100%;
+  background-color: var(--color-teal);
+  border-radius: var(--radius-full);
+}
+
+.funding-refund-summary {
+  background-color: var(--color-surface-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.9rem;
+  font-size: 0.825rem;
+}
+
+.funding-refund-summary h4 {
+  font-size: 0.9rem;
+  margin-bottom: 0.4rem;
+}
+
+.funding-refund-summary ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.funding-stopped-banner {
+  background-color: var(--color-coral-tint);
+  border: 1px solid var(--color-coral);
+  color: var(--color-ink);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.funding-field-note {
+  margin-top: 0.65rem;
+  font-size: 0.775rem;
+  color: var(--color-ink-muted);
+  line-height: 1.4;
+}
+
+.funding-fee-estimate {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--color-border);
+  font-size: 0.825rem;
+  color: var(--color-ink);
+}

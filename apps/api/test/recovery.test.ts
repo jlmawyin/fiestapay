@@ -270,7 +270,14 @@ describeDb('recuperacion opcional del organizador', () => {
     await owner.put(`/api/events/${event.slug}/recovery/contact`, { email: MAILBOX });
     const purged = tokenOf(fake.sent.at(-1)!);
     await pool.query(
-      `UPDATE events SET starts_at = '2019-01-01T00:00:00.000Z', ends_at = '2020-01-01T00:00:00.000Z' WHERE id = $1`,
+      `UPDATE events SET
+         starts_at = '2019-01-01T00:00:00.000Z',
+         ends_at = '2020-01-01T00:00:00.000Z',
+         funding_deadline_at = CASE
+           WHEN funding_deadline_at IS NULL THEN NULL
+           ELSE LEAST(funding_deadline_at, '2019-01-01T00:00:00.000Z'::timestamptz)
+         END
+       WHERE id = $1`,
       [event.id],
     );
     const gone = await consume(purged);

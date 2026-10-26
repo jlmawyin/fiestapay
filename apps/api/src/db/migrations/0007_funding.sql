@@ -84,8 +84,9 @@ CREATE TABLE funding_refund_tasks (
   updated_at        timestamptz NOT NULL DEFAULT clock_timestamp()
 );
 
--- At most one refund attempt is in flight for a capture. A rejected attempt stays
--- as history and a later row may use a new request id. refunded is not "in flight".
+-- At most one live obligation per capture. refunded is history. A rejected row is
+-- also history: the worker parks that capture in needs_review and does not mint
+-- another request id. Needs_review stays inside this index so it cannot race a new POST.
 CREATE UNIQUE INDEX funding_refund_one_active_idx
   ON funding_refund_tasks (capture_id)
   WHERE status IN ('pending', 'leased', 'pending_provider', 'needs_review');

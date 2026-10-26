@@ -88,13 +88,24 @@ export class FakePayPal implements PayPalAdapter {
   createGate: Gate | null = null;
   captureGate: Gate | null = null;
   refundGate: Gate | null = null;
+  getRefundGate: Gate | null = null;
   /** First matching call stores the refund, then throws, so the retry must reuse the request id. */
   loseNextRefundResponse = false;
   /** Next refundCapture that is not an idempotent replay. */
   failRefund: 'timeout' | '422' | 'missing-id' | null = null;
+  /** Next getRefund only. Cleared when it fires so a later task in the same pass still runs. */
+  failGetRefund: 'timeout' | null = null;
   /** Status applied to a newly stored refund. Tests flip the stored object to COMPLETED later. */
-  nextRefundStatus: 'COMPLETED' | 'PENDING' | 'FAILED' = 'COMPLETED';
+  nextRefundStatus: 'COMPLETED' | 'PENDING' | 'FAILED' | 'CANCELLED' = 'COMPLETED';
+  /**
+   * Inference variant, not a verified PayPal contract. When set, an empty refund body
+   * settles only this fake's remaining capture balance. Real PayPal is not consulted.
+   */
+  emptyBodyRefundsRemainingBalance = false;
+  /** Applied only to the refundCapture return value. The stored refund, and therefore getRefund, stays unchanged. */
+  nextRefundReturnPatch: Partial<PayPalRefund> | null = null;
   tamper: FakeTamper = {};
+  private readonly refundedByCapture = new Map<string, number>();
   private sequence = 0;
 
   constructor(merchantId = 'MERCHANT-TEST') {
@@ -107,7 +118,7 @@ export class FakePayPal implements PayPalAdapter {
   }
 
   /** Takes the pending barrier (if any) and clears it, so it only ever holds one call. */
-  private async takeGate(which: 'createGate' | 'captureGate' | 'refundGate'): Promise<void> {
+  private async takeGate(which: 'createGate' | 'captureGate' | 'refundGate' | 'getRefundGate'): Promise<void> {
     const gate = this[which];
     if (!gate) return;
     this[which] = null;
@@ -132,6 +143,13 @@ export class FakePayPal implements PayPalAdapter {
   gateRefund(): Gate {
     const gate = new Gate();
     this.refundGate = gate;
+    return gate;
+  }
+
+  /** Installs a barrier for the next getRefund call and returns it. */
+  gateGetRefund(): Gate {
+    const gate = new Gate();
+    this.getRefundGate = gate;
     return gate;
   }
 
@@ -278,7 +296,11 @@ export class FakePayPal implements PayPalAdapter {
     }
     if (this.failRefund === 'timeout') throw new PayPalError('timeout simulado al reembolsar', { timeout: true });
 
-    const parsed = input.body === '{}' ? state.amountCents : usdToCents(JSON.parse(input.body).amount?.value);
+    const already = this.refundedByCapture.get(input.captureId) ?? 0;
+    const remaining = state.amountCents - already;
+    const parsed = input.body === '{}'
+      ? (this.emptyBodyRefundsRemainingBalance ? remaining : state.amountCents)
+      : usdToCents(JSON.parse(input.body).amount?.value);
     if (parsed === null || parsed < 1) throw new PayPalError('importe de reembolso invalido', { status: 422 });
     const refund = this.addRefund(input.captureId, parsed, this.nextRefundStatus);
     this.refundByRequest.set(input.requestId, { captureId: input.captureId, body: input.body, refund });
@@ -290,11 +312,19 @@ export class FakePayPal implements PayPalAdapter {
       const { id: _id, ...rest } = refund;
       return rest;
     }
-    return refund;
+    const patch = this.nextRefundReturnPatch;
+    this.nextRefundReturnPatch = null;
+    if (!patch) return refund;
+    return { ...refund, ...patch };
   }
 
   async getRefund(refundId: string): Promise<PayPalRefund> {
     this.refundCalls.push(refundId);
+    await this.takeGate('getRefundGate');
+    if (this.failGetRefund === 'timeout') {
+      this.failGetRefund = null;
+      throw new PayPalError('timeout simulado al consultar el reembolso', { timeout: true });
+    }
     const refund = this.refunds.get(refundId);
     if (!refund) throw new PayPalError('reembolso inexistente', { status: 404 });
     return refund;
@@ -316,6 +346,7 @@ export class FakePayPal implements PayPalAdapter {
       ],
     };
     this.refunds.set(refund.id!, refund);
+    this.refundedByCapture.set(captureId, (this.refundedByCapture.get(captureId) ?? 0) + amountCents);
     return refund;
   }
 

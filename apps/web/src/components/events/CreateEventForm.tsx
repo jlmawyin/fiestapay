@@ -65,7 +65,14 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
   const [agenda, setAgenda] = useState<AgendaItem[]>(initial?.agenda ?? []);
   const [accessCode, setAccessCode] = useState('');
   const [accessTouched, setAccessTouched] = useState(false);
+  const [deadlineLocal, setDeadlineLocal] = useState(() =>
+    initial?.fundingDeadlineAt ? toLocalInput(new Date(initial.fundingDeadlineAt)) : '',
+  );
+  const [deadlineTouched, setDeadlineTouched] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const isEdit = Boolean(initial);
+  const isLegacy = initial?.fundingStatus === 'legacy';
+  const initialDeadlineAbsent = isEdit && (initial?.fundingDeadlineAt == null);
 
   const handleSelectTemplate = (t: TemplateKind) => {
     setTemplate(t);
@@ -157,6 +164,36 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       return;
     }
 
+    const deadlineFilled = deadlineLocal.trim().length > 0;
+    if (deadlineFilled) {
+      const deadlineMs = new Date(deadlineLocal).getTime();
+      if (!Number.isFinite(deadlineMs)) {
+        setValidationError('La fecha limite de aportes no es valida.');
+        return;
+      }
+      if (deadlineMs <= Date.now()) {
+        setValidationError('La fecha limite debe ser posterior a ahora y no posterior al inicio.');
+        return;
+      }
+      if (deadlineMs > startMs) {
+        setValidationError('La fecha limite debe ser posterior a ahora y no posterior al inicio.');
+        return;
+      }
+      if (minimumCents === null) {
+        setValidationError('Sin minimo no hay fecha limite de financiamiento.');
+        return;
+      }
+      if (isLegacy) {
+        setValidationError('Un evento anterior conserva la exencion y no admite fecha limite.');
+        return;
+      }
+    } else if (isEdit && deadlineTouched && minimumCents !== null) {
+      setValidationError(
+        'Un minimo requiere fecha limite. Vaciar el campo al editar no usa la hora de inicio por defecto.',
+      );
+      return;
+    }
+
     const includes = includesText
       .split(',')
       .map((s) => s.trim())
@@ -189,6 +226,13 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
         }),
     };
     if (accessTouched) payload.accessCode = accessCode.trim() ? accessCode.trim() : null;
+    if (isEdit) {
+      if (deadlineTouched) {
+        payload.fundingDeadlineAt = deadlineFilled ? new Date(deadlineLocal).toISOString() : null;
+      }
+    } else if (deadlineFilled) {
+      payload.fundingDeadlineAt = new Date(deadlineLocal).toISOString();
+    }
 
     try {
       await onSubmit(payload);
@@ -467,6 +511,46 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
             <span className="form-label-desc">Cupos disponibles</span>
           </div>
         </div>
+
+        <div className="form-group" style={{ margin: '0.85rem 0 0 0' }}>
+          <label className="form-label" htmlFor="event-funding-deadline">
+            Fecha límite de aportes (opcional)
+          </label>
+          <input
+            id="event-funding-deadline"
+            type="datetime-local"
+            className="form-input"
+            value={deadlineLocal}
+            onChange={(e) => {
+              setDeadlineTouched(true);
+              setDeadlineLocal(e.target.value);
+            }}
+            aria-describedby="event-funding-deadline-help"
+          />
+          <span id="event-funding-deadline-help" className="form-label-desc">
+            {isEdit
+              ? 'Si no la modificas, se conserva el valor actual, incluida una fecha vacía de eventos anteriores. Vaciarla con un mínimo no usa la hora de inicio por defecto.'
+              : 'Si indicas un mínimo y omites esta fecha, el servidor usa la hora de inicio.'}
+          </span>
+        </div>
+        {isLegacy ? (
+          <p className="funding-field-note" role="note">
+            Este evento es anterior al financiamiento automático. Conserva su exención: no hay fecha
+            límite automática y no se activa editando el título o el mínimo.
+          </p>
+        ) : initialDeadlineAbsent ? (
+          <p className="funding-field-note" role="note">
+            Sin fecha límite automática. Vacío y sin cambios conserva el valor actual. No se enviará
+            un valor por defecto.
+          </p>
+        ) : null}
+        {isEdit ? (
+          <p className="funding-field-note" role="note">
+            Si ya existe cualquier orden, el servidor rechaza cambios del mínimo o de la fecha
+            límite. Esta pantalla no sabe si hay órdenes; el mensaje de rechazo se muestra aquí. El
+            precio no se congela solo por tener recaudación.
+          </p>
+        ) : null}
       </div>
 
       {/* What's Included */}

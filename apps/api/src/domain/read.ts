@@ -137,7 +137,20 @@ export async function eventTotals(db: Queryable, eventId: string): Promise<Event
        (SELECT COALESCE(SUM(amount_cents) FILTER (WHERE status IN ('pending', 'leased', 'pending_provider')), 0)
           FROM funding_refund_tasks WHERE event_id = $1) AS pending,
        (SELECT COALESCE(SUM(amount_cents) FILTER (WHERE status = 'needs_review'), 0)
-          FROM funding_refund_tasks WHERE event_id = $1) AS needs_review`,
+          FROM funding_refund_tasks WHERE event_id = $1)
+        + (SELECT COALESCE(SUM(amount_cents), 0)
+             FROM (
+               SELECT DISTINCT ON (capture_id) amount_cents
+                 FROM funding_refund_tasks t
+                WHERE t.event_id = $1
+                  AND t.status = 'rejected'
+                  AND NOT EXISTS (
+                    SELECT 1 FROM funding_refund_tasks live
+                     WHERE live.capture_id = t.capture_id
+                       AND live.status IN ('pending', 'leased', 'pending_provider', 'needs_review')
+                  )
+                ORDER BY capture_id, created_at DESC, id DESC
+             ) open_rejected) AS needs_review`,
     [eventId],
   );
   const collectedCents = sumToCents(rows[0]?.collected);

@@ -1,5 +1,41 @@
 # Checkpoint vigente — FiestaPay
 
+## PAUSA POR CUOTA — 26 octubre 2026, 16:03 Guayaquil
+
+Helper vigente: **19 % cinco horas / 72 % semanal**, `stop=true`, `needs_refresh=false`, mínimo de continuación **2026-10-26T22:26:29Z = 17:26:29 Guayaquil**. Se detuvieron4procesos propios de la revisiónAGY, sin afectar otros procesos/servicios. Ningún reset/crédito usado. No seguir producto hasta helperpermitido. Continuación nativa ACTIVE `fiestapay-reanudar-cuota-26-oct`, una ejecución con guard noantes22:26:29Z; diario sigueactivo. La herramienta no expone nextRunAt/zona, no prometer instante exacto de ejecución.
+
+**BackendGROK3/3 TERMINADOexit0**, 61focalizadas y300/28globales+lint/tipos/build. Informe `.local/funding-backend-attempt3-report.md`, no cuarto intento ni nueva implementación. **AGY financiero FP-FUNDING-VERIFY-20261026 intento1/3 PAUSADO**, ejecución72337terminóBridgeExit-1 por parada ordenada; conserva1, no fallo/timeout. Paquete `.local/funding-final-verify-task.txt`, informe final puede no existir; inspeccionar parciales y retomar mismo1 con PG de revisión separado. Debe verificar F1/F2/F3/S1/O1, no basta conteo verde. No aprobación financiera independiente nueva ni refundexterno.
+
+**UI GROK2/3 TERMINADOexit0**, ejecución14035 ya concluyó; `.local/funding-ui-attempt2-report.md` contiene3hashes y17tests/tipos/lint aprobados. Correcciones de etiqueta pending_provider y texto técnico entregadas; no reimplementar. UIAGYverificación1 aprobó40tests/7casos/10capturas de versión1; falta verificaciónUI2 de3archivos nuevos, ya prevista en paqueteAGYfinal después de inspeccionar reporte2. Las pausas no reinician contadores.
+
+Producción **e03e85b de carga ACTIVADA** y saludable, PR3CIverde, inventario otros contenedores idéntico. Backend/UI financiera nuevos soloLOCAL, no push ni despliegue. SnapshotGit local incluye WIP; no empujar como aprobado ni repetir CI/pagos sin fuente/cambio pertinente. No pagoUSD1/refundreal aún. SMTP/USD50/webhook/OpenAI previos aceptados no se repiten. Opus4.8%semanal detenido; Gemini bucket separado con compuerta canónica, noforce. Claude directo sin puente/cuota verificados y vozWIP primario3/3 sigue sin integración; .gitignore/24/voz de OneDrive intactos.
+
+Al volver: helper, estadoGit/reportes/hashes, mismoAGY1 y verificaciónUI2; si correcto CI/publicación con alcancePR actualizado y protocoloUSD1, si defecto real recuperación segúnskill, **noGROK4**. Máximo2frentes. Retirar continuación al cumplir motivo; si cuota bloquea actualizar esta misma con timestamphelper, sin sondeos.
+
+## Etapa actual — 26 octubre 2026, 16:03 Guayaquil
+
+GROK backend **3/3 ENTREGADO**, ejecución45295exit0: `.local/funding-backend-attempt3-report.md`, `.local/funding-attempt3-focused.log`61PASS y `.local/funding-attempt3-check.log`300PASS/28archivos, lint/tipos/build. Afirma correcciones F1/F2/F3/S1/O1, no cuarto intento. No nuevos DTO. Nada publicado/desplegado. **AGY financiero1/3 ejecución72337** recién iniciado, paquete `.local/funding-final-verify-task.txt`,900s, PG reviewer `fiestapay_funding_review` separado. Debe auditar correcciones y ejecutar pruebas, informe `.local/funding-final-review-report.md`; si defecto real, recuperaciónClaude, noGrok4.
+
+UI financiera1 tuvo aprobaciónAGY1 con40tests y7casos navegador/10capturas. Solo1intento consumido; errores de arnés se resolvieron dentro de él. Reporte `.local/funding-ui-review-report.md`;1SDKPayPal abortado y cero llamadas reales. Copia todavía inexacta para pending_provider y demasiado técnica: **GROK UI mismo encargo2/3 ejecución14035**, `.local/funding-ui-attempt2-task.txt`,600s, solo tres archivos. Resultado/informe `funding-ui-attempt2-*` pendientes. AGY72337 tiene autorización de revisar esa copia como UIverificación2/3 únicamente después de entrega del constructor; si no existe reporte, dejarla pendiente, no esperas en bucle.
+
+Último helper **21%5h/73%semanal stopfalse**, guarda20% inclusiva sigue vigente. Próximo control al cambiar etapa; si llega20 detener ambos procesos propios con paquetes exactos y descendientes, preservar AGY1/UI2 pausados (no fallos), checkpoint y continuación nativa. No consumir reset. Opus4.8%semanal detenido, Gemini90.6%5h/84.9%semanal. ProducciónUIe03 permanece, sin pagoUSD1/reembolso real aún. Sin repetirSMTP/USD50/webhook/OpenAI. No .env en este checkout; primario conserva vozWIP/.gitignore/24. No commits/push del WIP hasta aceptación.
+
+## Etapa actual — 26 octubre 2026, 15:35 Guayaquil
+
+Backend GROK entrega2 terminó exit0 con54tests focalizados,12regresión de retención/correo y `npm run check` completo293tests/28archivos, lint/tipos/build. Se verificó la espera real de transactionid en el arnés, sin debilitar las aserciones de captura tardía. Informe `.local/funding-backend-report.md`. Sin embargo, AGY Opus1/3 **bloqueó fuente** por F1 regeneración/backoff/equidad, F2 movimiento legítimo sin conciliar en mismatch, F3 inversión de bloqueo; S1 persistir ID y aislar fallos. [Resumen](reviews/funding-critical-20261026.md). Opus terminó con4.8%semanal Claude/GPT: no usar ese grupo.
+
+**GROK FP-FUNDING-BACKEND-20261025 ahora intento3/3**, ejecución45295, paquete `.local/funding-backend-attempt3-task.txt`,90turnos1800s,4.7/xhigh. Debe corregir hallazgos con regresiones reales PG; sin cuarto intento. Otro constructor ya terminó: UI FP-FUNDING-UI-20261026 entregó1/3,17tests propios+23regresión/tipos/lint, informe `.local/funding-ui-report.md`. **AGY Gemini verificación UI1/3 ejecución3964**, paquete `.local/funding-ui-verify-task.txt`,1200s, arnés y proveedores interceptados; sin correo/PayPal/IA real. No tocar esos archivos mientras revise. DTO financiero se conserva; posibles problemas de etiquetas/copia pendientes de criterio independiente.
+
+Último Codex55%5h/78%semanal, helperstopfalse. GROK69%Build/58%general; Gemini95.2%5h/85.9%semanal, bucket separado y compuerta canónica por modelo. No bypass, compra ni reseteo. Producción e03 UIcarga, finanzas/UIfinanciera todavía locales/no publicadas. Próximo: entrega3 y AGY financiero PostgreSQL, terminar revisiónUI, reparar únicamente hallazgos dentro de contadores. Claves SMTP/USD50/webhook/OpenAI ya aceptados no se repiten. Continuación puntual26oct eliminada; diario activo.
+
+## Reanudación — 26 octubre 2026, 15:15 Guayaquil
+
+Jorge indicó «sigue». El helper permite producto: 84 % disponible en cinco horas y 82 % semanal, `stop=false`, sin consumir reseteos. GROK: 71 % Build / 60 % general, SuperGrok, reinicio en 4d10h; AGY Gemini: 97,9 % cinco horas / 88,1 % semanal. Se conserva **FP-FUNDING-BACKEND-20261025, intento 2/3**, ahora ejecución `73541`, paquete `.local/funding-backend-attempt2-resume-task.txt`. No se repite construcción ni aceptación previa. El informe financiero aún no existe; corregir la barrera de bloqueo y completar checks antes de AGY independiente.
+
+**P6 activado:** commit aprobado `e03e85bca3fa2e299f4df6f20dcf609c20f9d057`, imagen `sha256:5e4e8d8aab66ddfb1e3a4ec93bdaf8fd12241306c9d4741e3a2f69e133d1fa11`. Verificados marcador anterior, imagen construida y hashes de cuatro fuentes. Activación exclusiva API con ambos Compose, sin reconstruir ni reiniciar DB. Salud del contenedor y HTTPS público correctos; inventario del resto de contenedores idéntico. Marcadores `OTHER_CONTAINERS_UNCHANGED` y `APPROVED_UI_ACTIVATED` en `.local/production-loading-activation.log`. RELEASE_COMMIT actualizado a e03. Imagen anterior e imagen aprobada etiquetadas para conservación. No pagos, correo ni IA reales nuevos. API/shared de e03 son iguales a la versión anterior; las finanzas de b8c15b1 siguen solo locales y sin aprobar.
+
+La continuación puntual `fiestapay-reanudar-cuota-26-oct` fue eliminada mediante herramienta nativa al cumplirse su motivo. Diario sigue activo. No nuevas excepciones de cuota ni de voz/Claude.
+
 ## PAUSA POR CUOTA — 26 octubre 2026, 10:08 Guayaquil
 
 Helper vigente:18% disponible5h/87%semanal, `stop=true`, `needs_refresh=false`. Reanudación mínima verificada `2026-10-26T17:25:13Z` =26oct12:25:13 Guayaquil. Se detuvieron4procesos propios del puente GROK financiero y sus descendientes. Ningún reset/crédito consumido. No seguir producto durante esta pausa.

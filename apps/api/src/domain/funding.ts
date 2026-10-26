@@ -6,8 +6,6 @@ import { centsToUsd } from '../lib/money.js';
 import { audit } from './audit.js';
 import { EVENT_COLUMNS, lockEvent, type EventRow } from './read.js';
 
-const UNIQUE_VIOLATION = '23505';
-
 /**
  * Read only after the event row lock is held. Transaction `now()` is the start
  * of the transaction, so a lock wait can make it older than the deadline.
@@ -32,9 +30,6 @@ export interface FundingInstant {
   /** Instant read after the caller locked the event. */
   at: Date;
 }
-
-const isUniqueViolation = (err: unknown): boolean =>
-  typeof err === 'object' && err !== null && (err as { code?: string }).code === UNIQUE_VIOLATION;
 
 export function assertDeadlineOpen(deadline: Date, startsAt: Date, now: Date): void {
   if (Number.isNaN(deadline.getTime()) || Number.isNaN(startsAt.getTime())) throw badRequest('Fecha limite invalida');
@@ -70,12 +65,10 @@ export function nextFundingTerms(
   orderCount: number,
   now: Date,
 ): { status: FundingStatus; deadline: Date | null } {
-  const omitted = input.fundingDeadlineAt === undefined;
-  const requested: Date | null | undefined = omitted
-    ? undefined
-    : input.fundingDeadlineAt === null
-      ? null
-      : new Date(input.fundingDeadlineAt);
+  const rawDeadline = input.fundingDeadlineAt;
+  const omitted = rawDeadline === undefined;
+  const requested: Date | null | undefined =
+    rawDeadline === undefined ? undefined : rawDeadline === null ? null : new Date(rawDeadline);
   if (requested instanceof Date && Number.isNaN(requested.getTime())) throw badRequest('Fecha limite invalida');
   const deadlineChanged = requested !== undefined && !sameTime(event.funding_deadline_at, requested);
   const minimumChanged = event.minimum_cents !== input.minimumCents;
@@ -106,6 +99,9 @@ export function nextFundingTerms(
   assertDeadlineOpen(deadline, startsAt, now);
   return { status: 'open', deadline };
 }
+
+/** Committed decision plus the caller's result. `blocked` is thrown only after commit. */
+export type FundingGate<T> = { blocked: string } | T;
 
 /** Null when a new charge may start. Failed, and a due row not yet decided, block. */
 export function fundingBlocksNewCharge(event: EventRow, at: Date): string | null {
@@ -240,32 +236,48 @@ export async function syncRefundTasks(client: PoolClient, eventId: string): Prom
       continue;
     }
 
-    const prior = await client.query<{ n: number }>(
-      `SELECT COUNT(*)::int AS n FROM funding_refund_tasks WHERE capture_id = $1`,
+    const priorRejection = await client.query<{ id: string }>(
+      `SELECT id FROM funding_refund_tasks
+        WHERE capture_id = $1 AND status = 'rejected'
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+        FOR UPDATE`,
       [row.capture_id],
     );
-    const generation = (prior.rows[0]?.n ?? 0) + 1;
-    const id = newId();
-    try {
+    const rejectedId = priorRejection.rows[0]?.id;
+    if (rejectedId) {
       await client.query(
-        `INSERT INTO funding_refund_tasks (
-           id, event_id, order_id, guest_id, capture_id, amount_cents, currency,
-           request_id, request_body, status
-         ) VALUES ($1,$2,$3,$4,$5,$6,'USD',$7,$8,'pending')`,
-        [
-          id,
-          eventId,
-          row.order_id,
-          row.guest_id,
-          row.capture_id,
-          remaining,
-          `fp-rfd-${id}`,
-          refundRequestBody(captured, remaining),
-        ],
+        `UPDATE funding_refund_tasks
+            SET status = 'needs_review',
+                lease_owner = NULL,
+                lease_token = NULL,
+                lease_until = NULL,
+                last_error = COALESCE(last_error, $2),
+                updated_at = clock_timestamp()
+          WHERE id = $1 AND status = 'rejected'`,
+        [rejectedId, 'Reembolso rechazado; queda en revision sin una solicitud nueva'],
       );
-    } catch (err) {
-      if (!isUniqueViolation(err)) throw err;
+      continue;
     }
+
+    const id = newId();
+    await client.query(
+      `INSERT INTO funding_refund_tasks (
+         id, event_id, order_id, guest_id, capture_id, amount_cents, currency,
+         request_id, request_body, status
+       ) VALUES ($1,$2,$3,$4,$5,$6,'USD',$7,$8,'pending')
+       ON CONFLICT DO NOTHING`,
+      [
+        id,
+        eventId,
+        row.order_id,
+        row.guest_id,
+        row.capture_id,
+        remaining,
+        `fp-rfd-${id}`,
+        refundRequestBody(captured, remaining),
+      ],
+    );
   }
 }
 
@@ -332,10 +344,58 @@ export async function decideDueEvents(pool: Pool, batch = 20): Promise<number> {
   return decided;
 }
 
-/** Recompute unsent tasks for events already failed, including tombstoned ones. */
+/**
+ * Recompute tasks for failed events that still have eligible work, including
+ * tombstoned ones. Terminal rows do not occupy the batch. The read is limited
+ * to `batch` events; it does not walk every failed event in the process.
+ */
 export async function refreshFailedRefunds(pool: Pool, batch = 50): Promise<number> {
   const { rows } = await pool.query<{ id: string }>(
-    `SELECT id FROM events WHERE funding_status = 'failed' ORDER BY funding_decided_at NULLS FIRST, id LIMIT $1`,
+    `SELECT e.id
+       FROM events e
+      WHERE e.funding_status = 'failed'
+        AND (
+          EXISTS (
+            SELECT 1
+              FROM payment_ledger cap
+             WHERE cap.event_id = e.id
+               AND cap.kind = 'capture'
+               AND (
+                 SELECT COALESCE(SUM(CASE
+                          WHEN kind = 'capture' THEN amount_cents
+                          WHEN kind = 'refund' THEN -amount_cents
+                          ELSE 0
+                        END), 0)
+                   FROM payment_ledger x
+                  WHERE x.capture_id = cap.capture_id
+               ) > 0
+               AND NOT EXISTS (
+                 SELECT 1 FROM funding_refund_tasks live
+                  WHERE live.capture_id = cap.capture_id
+                    AND live.status IN ('pending', 'leased', 'pending_provider', 'needs_review')
+               )
+          )
+          OR EXISTS (
+            SELECT 1
+              FROM funding_refund_tasks t
+             WHERE t.event_id = e.id
+               AND t.status = 'pending'
+               AND t.attempt_count = 0
+               AND t.paypal_refund_id IS NULL
+               AND t.lease_token IS NULL
+               AND t.amount_cents <> (
+                 SELECT COALESCE(SUM(CASE
+                          WHEN kind = 'capture' THEN amount_cents
+                          WHEN kind = 'refund' THEN -amount_cents
+                          ELSE 0
+                        END), 0)
+                   FROM payment_ledger x
+                  WHERE x.capture_id = t.capture_id
+               )
+          )
+        )
+      ORDER BY e.funding_decided_at NULLS FIRST, e.id
+      LIMIT $1`,
     [batch],
   );
   let touched = 0;

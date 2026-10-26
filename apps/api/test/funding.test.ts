@@ -223,18 +223,31 @@ describeDb('financiamiento con minimo y reembolso automatico', () => {
     return { statusCode: res.statusCode, json: res.json() as Record<string, unknown> };
   }
 
-  async function waitForEventsLock(): Promise<void> {
+  /**
+   * A row lock wait does not show up as an ungranted relation lock: both
+   * sessions hold RowShareLock on events, and the waiter blocks on the
+   * holder's transactionid. pg_blocking_pids is the signal that the capture
+   * is actually stopped before its post-lock clock read.
+   */
+  async function waitForEventsLock(holderPid: number): Promise<void> {
     const started = Date.now();
     while (Date.now() - started < 8_000) {
-      const { rows } = await pool.query<{ n: number }>(
-        `SELECT COUNT(*)::int AS n
-           FROM pg_locks l
-           JOIN pg_class c ON c.oid = l.relation
-           JOIN pg_namespace n ON n.oid = c.relnamespace
-          WHERE n.nspname = $1 AND c.relname = 'events' AND NOT l.granted`,
-        [schema],
+      const { rows } = await adminPool.query<{ pid: number }>(
+        `SELECT a.pid
+           FROM pg_stat_activity a
+          WHERE a.pid <> $1
+            AND a.wait_event_type = 'Lock'
+            AND a.wait_event = 'transactionid'
+            AND $1 = ANY (pg_blocking_pids(a.pid))
+            AND a.query ILIKE '%FOR UPDATE%'
+            AND a.query ILIKE '%events%'
+            AND EXISTS (
+              SELECT 1 FROM pg_locks l
+               WHERE l.pid = a.pid AND NOT l.granted AND l.locktype = 'transactionid'
+            )`,
+        [holderPid],
       );
-      if ((rows[0]?.n ?? 0) > 0) return;
+      if (rows.length > 0) return;
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
     throw new Error('la captura no quedo esperando el candado del evento');
@@ -253,9 +266,13 @@ describeDb('financiamiento con minimo y reembolso automatico', () => {
     clock = new Date(CLOCK_START);
     setFundingClockForTests(() => clock);
     fake.failRefund = null;
+    fake.failGetRefund = null;
     fake.loseNextRefundResponse = false;
     fake.nextRefundStatus = 'COMPLETED';
+    fake.emptyBodyRefundsRemainingBalance = false;
+    fake.nextRefundReturnPatch = null;
     fake.refundGate = null;
+    fake.getRefundGate = null;
     fake.captureGate = null;
     fake.createGate = null;
     fake.signatureValid = true;
@@ -489,17 +506,26 @@ describeDb('financiamiento con minimo y reembolso automatico', () => {
     const capturesBefore = fake.captureCalls.filter((call) => call.paypalOrderId === lateOrder).length;
 
     const holder = await pool.connect();
-    const capturing = lateGuest.post(`/api/orders/${lateOrder}/capture`);
+    let capturing: ReturnType<Client['post']> | undefined;
     try {
       await holder.query('BEGIN');
       await holder.query('SELECT id FROM events WHERE slug = $1 FOR UPDATE', [event.slug]);
-      await waitForEventsLock();
+      const { rows: pidRows } = await holder.query<{ pid: number }>('SELECT pg_backend_pid() AS pid');
+      const holderPid = pidRows[0]?.pid;
+      if (!holderPid) throw new Error('sin pid del candado');
+      capturing = lateGuest.post(`/api/orders/${lateOrder}/capture`);
+      await waitForEventsLock(holderPid);
       at(DEADLINE);
       await holder.query('COMMIT');
+    } catch (err) {
+      await holder.query('ROLLBACK').catch(() => undefined);
+      await capturing?.catch(() => undefined);
+      throw err;
     } finally {
       holder.release();
     }
 
+    if (!capturing) throw new Error('la captura no se lanzo');
     const captured = await capturing;
     expect(captured.statusCode, captured.body).toBe(200);
     expect(fake.captureCalls.filter((call) => call.paypalOrderId === lateOrder)).toHaveLength(capturesBefore);
@@ -989,5 +1015,413 @@ describeDb('financiamiento con minimo y reembolso automatico', () => {
 
     const stop = startFundingLoop(pool, null, () => undefined, { intervalMs: 60_000, timeoutMs: 1_000 });
     await stop();
+  }, CASE_MS);
+
+  it('deja FAILED y CANCELLED en revision y no abre otra solicitud', async () => {
+    const failed = await organizer({ title: 'Fallido' });
+    await pinDeadline(failed.event.slug);
+    const failedPay = await pay(failed.event.slug, 'Fallido');
+    at(DEADLINE);
+    fake.nextRefundStatus = 'FAILED';
+    const first = await pass();
+    expect(first.review).toBeGreaterThanOrEqual(1);
+    expect(first.refunded).toBe(0);
+    const failedRow = await fundingOf(failed.event.slug);
+    const failedTask = (await tasksOf(failedRow.id))[0];
+    expect(failedTask?.status).toBe('needs_review');
+    expect(failedTask?.paypal_refund_id).toBeTruthy();
+    expect(failedTask?.request_body).toBe('{}');
+    const failedPosts = fake.refundCaptureCalls.filter((call) => call.captureId === failedPay.captureId);
+    expect(failedPosts).toHaveLength(1);
+    const failedSummary = (await dash(failed.client, failed.event.slug)).event.refundSummary;
+    expect(failedSummary).toMatchObject({
+      refundedCents: 0,
+      pendingCents: 0,
+      needsReviewCents: 2500,
+      outstandingCents: 2500,
+    });
+    await pass();
+    await pass();
+    expect(fake.refundCaptureCalls.filter((call) => call.captureId === failedPay.captureId)).toEqual(failedPosts);
+    const failedAfter = await tasksOf(failedRow.id);
+    expect(failedAfter).toHaveLength(1);
+    expect(failedAfter[0]).toMatchObject({
+      status: 'needs_review',
+      request_id: failedTask?.request_id,
+      request_body: '{}',
+    });
+    expect((await dash(failed.client, failed.event.slug)).event.refundSummary?.outstandingCents).toBe(2500);
+
+    at(CLOCK_START);
+    const cancelled = await organizer({ title: 'Cancelado' });
+    await pinDeadline(cancelled.event.slug);
+    const cancelledPay = await pay(cancelled.event.slug, 'Cancelado');
+    at(DEADLINE);
+    fake.nextRefundStatus = 'CANCELLED';
+    await pass();
+    const cancelledRow = await fundingOf(cancelled.event.slug);
+    const cancelledTask = (await tasksOf(cancelledRow.id))[0];
+    expect(cancelledTask?.status).toBe('needs_review');
+    const cancelledPosts = fake.refundCaptureCalls.filter((call) => call.captureId === cancelledPay.captureId).length;
+    expect(cancelledPosts).toBe(1);
+    await pass();
+    expect(fake.refundCaptureCalls.filter((call) => call.captureId === cancelledPay.captureId)).toHaveLength(cancelledPosts);
+    expect(await tasksOf(cancelledRow.id)).toHaveLength(1);
+    expect((await dash(cancelled.client, cancelled.event.slug)).event.refundSummary).toMatchObject({
+      refundedCents: 0,
+      pendingCents: 0,
+      needsReviewCents: 2500,
+      outstandingCents: 2500,
+    });
+  }, CASE_MS);
+
+  it('conserva una fila rechazada previa y el saldo sigue en revision', async () => {
+    const { client, event } = await organizer({ title: 'Rechazo previo' });
+    await pinDeadline(event.slug);
+    const paid = await pay(event.slug, 'Previo');
+    at(DEADLINE);
+    await runFundingPass(pool, null);
+    const row = await fundingOf(event.slug);
+    const created = (await tasksOf(row.id))[0];
+    expect(created?.status).toBe('pending');
+    await pool.query(
+      `UPDATE funding_refund_tasks
+          SET status = 'rejected', paypal_refund_id = 'REF-PREVIO', last_error = 'historico'
+        WHERE id = $1`,
+      [created?.id],
+    );
+    const hidden = (await dash(client, event.slug)).event.refundSummary;
+    expect(hidden).toMatchObject({
+      refundedCents: 0,
+      pendingCents: 0,
+      needsReviewCents: 2500,
+      outstandingCents: 2500,
+    });
+    const posts = fake.refundCaptureCalls.filter((call) => call.captureId === paid.captureId).length;
+    await pass();
+    await pass();
+    expect(fake.refundCaptureCalls.filter((call) => call.captureId === paid.captureId)).toHaveLength(posts);
+    const parked = await tasksOf(row.id);
+    expect(parked).toHaveLength(1);
+    expect(parked[0]).toMatchObject({
+      status: 'needs_review',
+      request_id: created?.request_id,
+      request_body: created?.request_body,
+      paypal_refund_id: 'REF-PREVIO',
+    });
+    expect((await dash(client, event.slug)).event.refundSummary).toMatchObject({
+      needsReviewCents: 2500,
+      outstandingCents: 2500,
+    });
+  }, CASE_MS);
+
+  it('no deja sin cola un cobro posterior cuando las primeras filas fallidas ya estan cerradas', async () => {
+    await pool.query(
+      `UPDATE funding_refund_tasks SET status = 'needs_review' WHERE status = 'rejected'`,
+    );
+    const stamp = randomBytes(3).toString('hex');
+    const { rows } = await pool.query<{ event_id: string; capture_id: string; slot: number }>(
+      `WITH sess AS (
+         INSERT INTO sessions (id, token_hash) VALUES (gen_random_uuid(), $1::bytea) RETURNING id
+       ),
+       series AS (
+         SELECT gs AS i,
+                gen_random_uuid() AS event_id,
+                gen_random_uuid() AS guest_id,
+                gen_random_uuid() AS quote_id,
+                gen_random_uuid() AS order_id
+           FROM generate_series(1, 52) AS gs
+       ),
+       ev AS (
+         INSERT INTO events (
+           id, slug, organizer_session_id, title, template, meal, description,
+           starts_at, ends_at, location, price_cents, capacity, minimum_cents, confirmed,
+           funding_status, funding_deadline_at, funding_decided_at, funding_basis_cents
+         )
+         SELECT s.event_id, 'starve-' || s.i::text || '-' || $2, sess.id, 'Cola', 'evento', 'cena', 'Cola',
+                $3::timestamptz, $4::timestamptz, 'Quito', 2500, 8, 5000, false,
+                'failed', $5::timestamptz, $5::timestamptz + (s.i::text || ' seconds')::interval, 0
+           FROM series s CROSS JOIN sess
+         RETURNING id
+       ),
+       g AS (
+         INSERT INTO guests (id, event_id, session_id, name, status, companions)
+         SELECT s.guest_id, s.event_id, sess.id, 'Cola ' || s.i::text, 'yes', 0
+           FROM series s CROSS JOIN sess
+           JOIN ev ON ev.id = s.event_id
+         RETURNING id
+       ),
+       q AS (
+         INSERT INTO quotes (
+           id, event_id, guest_id, obligation_version, people, unit_cents, total_cents,
+           paid_cents, amount_cents, summary, expires_at
+         )
+         SELECT s.quote_id, s.event_id, s.guest_id, 1, 1, 2500, 2500, 2500, 0, 'pagado', now() + interval '1 day'
+           FROM series s
+           JOIN g ON g.id = s.guest_id
+         RETURNING id
+       ),
+       o AS (
+         INSERT INTO orders (
+           id, event_id, guest_id, quote_id, obligation_version, request_id, paypal_order_id,
+           amount_cents, payee_merchant_id, status, capture_id
+         )
+         SELECT s.order_id, s.event_id, s.guest_id, s.quote_id, 1,
+                'fp-stv-' || s.order_id::text, 'ORD-STV-' || s.i::text || '-' || $2,
+                2500, $6, 'paid', 'CAP-STV-' || s.i::text || '-' || left(s.order_id::text, 8)
+           FROM series s
+           JOIN q ON q.id = s.quote_id
+         RETURNING id
+       ),
+       led AS (
+         INSERT INTO payment_ledger (
+           id, event_id, guest_id, order_id, kind, amount_cents, external_id, capture_id, created_at
+         )
+         SELECT gen_random_uuid(), s.event_id, s.guest_id, s.order_id, 'capture', 2500,
+                'CAP-STV-' || s.i::text || '-' || left(s.order_id::text, 8),
+                'CAP-STV-' || s.i::text || '-' || left(s.order_id::text, 8),
+                $5::timestamptz - interval '1 minute'
+           FROM series s
+           JOIN o ON o.id = s.order_id
+         RETURNING capture_id
+       ),
+       tasks AS (
+         INSERT INTO funding_refund_tasks (
+           id, event_id, order_id, guest_id, capture_id, amount_cents, currency,
+           request_id, request_body, status, attempt_count
+         )
+         SELECT gen_random_uuid(), s.event_id, s.order_id, s.guest_id,
+                'CAP-STV-' || s.i::text || '-' || left(s.order_id::text, 8),
+                2500, 'USD', 'fp-rfd-stv-' || s.order_id::text, '{}', 'needs_review', 1
+           FROM series s
+           JOIN led ON led.capture_id = 'CAP-STV-' || s.i::text || '-' || left(s.order_id::text, 8)
+          WHERE s.i < 52
+         RETURNING event_id
+       )
+       SELECT s.event_id, 'CAP-STV-' || s.i::text || '-' || left(s.order_id::text, 8) AS capture_id, s.i AS slot
+         FROM series s
+        WHERE s.i IN (1, 52)
+          AND (SELECT COUNT(*) FROM tasks) = 51`,
+      [randomBytes(32), stamp, START, END, DEADLINE, MERCHANT],
+    );
+    const early = rows.find((item) => item.slot === 1);
+    const late = rows.find((item) => item.slot === 52);
+    if (!early || !late) throw new Error('no se armo la cola de eventos fallidos');
+    expect(await tasksOf(late.event_id)).toHaveLength(0);
+
+    const refreshed = await runFundingPass(pool, null);
+    expect(refreshed.refreshed).toBeGreaterThanOrEqual(1);
+    const lateTasks = await tasksOf(late.event_id);
+    expect(lateTasks).toHaveLength(1);
+    expect(lateTasks[0]).toMatchObject({
+      capture_id: late.capture_id,
+      status: 'pending',
+      amount_cents: 2500,
+      attempt_count: 0,
+    });
+    expect(await tasksOf(early.event_id)).toHaveLength(1);
+    expect((await tasksOf(early.event_id))[0]?.status).toBe('needs_review');
+  }, CASE_MS);
+
+  it('anota los 3000 verificados cuando un reembolso manual de 2000 ocurre con la tarea en vuelo', async () => {
+    const { client, event } = await organizer({
+      title: 'Resto',
+      priceCents: 5000,
+      minimumCents: 10_000,
+      goalCents: 20_000,
+    });
+    await pinDeadline(event.slug);
+    const paid = await pay(event.slug, 'Resto');
+    at(DEADLINE);
+    await runFundingPass(pool, null);
+    const row = await fundingOf(event.slug);
+    const queued = (await tasksOf(row.id))[0];
+    expect(queued).toMatchObject({ amount_cents: 5000, request_body: '{}', status: 'pending' });
+
+    fake.emptyBodyRefundsRemainingBalance = true;
+    const gate = fake.gateRefund();
+    const running = pass();
+    await gate.arrived;
+    const manual = fake.addRefund(paid.captureId, 2000);
+    expect((await convergeRefund(pool, fake, manual.id!)).applied).toBe(true);
+    const frozen = (await tasksOf(row.id))[0];
+    expect(frozen).toMatchObject({ status: 'leased', request_body: '{}', request_id: queued?.request_id, amount_cents: 5000 });
+    gate.open();
+    const outcome = await running;
+    expect(outcome.refunded).toBeGreaterThanOrEqual(1);
+
+    const refunds = (await ledgerOf(row.id)).filter((item) => item.kind === 'refund');
+    expect(refunds.map((item) => item.amount_cents).sort((a, b) => a - b)).toEqual([2000, 3000]);
+    expect(new Set(refunds.map((item) => item.external_id)).size).toBe(2);
+    expect(refunds.reduce((sum, item) => sum + item.amount_cents, 0)).toBe(5000);
+    const summary = (await dash(client, event.slug)).event.refundSummary;
+    expect(summary).toMatchObject({ refundedCents: 5000, outstandingCents: 0 });
+    const posts = fake.refundCaptureCalls.filter((call) => call.captureId === paid.captureId);
+    expect(posts).toHaveLength(1);
+    expect(posts[0]?.body).toBe('{}');
+    expect(await tasksOf(row.id)).toHaveLength(1);
+    expect((await tasksOf(row.id))[0]?.status).toBe('refunded');
+    await pass();
+    expect(fake.refundCaptureCalls.filter((call) => call.captureId === paid.captureId)).toHaveLength(1);
+    expect((await ledgerOf(row.id)).filter((item) => item.kind === 'refund')).toHaveLength(2);
+  }, CASE_MS);
+
+  it('no anota un COMPLETED de otra captura o de otra moneda', async () => {
+    const other = await organizer({ title: 'Otra captura' });
+    await pinDeadline(other.event.slug);
+    const otherPay = await pay(other.event.slug, 'Otra');
+    at(DEADLINE);
+    await runFundingPass(pool, null);
+    fake.nextRefundReturnPatch = {
+      links: [{ rel: 'up', href: 'https://api-m.sandbox.paypal.com/v2/payments/captures/CAP-AJENA', method: 'GET' }],
+    };
+    const lookupsBeforeWrongCapture = fake.refundCalls.length;
+    const wrongCapture = await pass();
+    expect(wrongCapture.review).toBeGreaterThanOrEqual(1);
+    const otherRow = await fundingOf(other.event.slug);
+    expect((await tasksOf(otherRow.id))[0]?.status).toBe('needs_review');
+    expect((await ledgerOf(otherRow.id)).some((item) => item.kind === 'refund')).toBe(false);
+    const otherPosts = fake.refundCaptureCalls.filter((call) => call.captureId === otherPay.captureId).length;
+    expect(fake.refundCalls).toHaveLength(lookupsBeforeWrongCapture);
+    const lookupsAfterWrongCapture = fake.refundCalls.length;
+    await pass();
+    expect(fake.refundCaptureCalls.filter((call) => call.captureId === otherPay.captureId)).toHaveLength(otherPosts);
+    expect(fake.refundCalls).toHaveLength(lookupsAfterWrongCapture);
+
+    at(CLOCK_START);
+    const foreign = await organizer({ title: 'Otra moneda' });
+    await pinDeadline(foreign.event.slug);
+    const foreignPay = await pay(foreign.event.slug, 'Moneda');
+    at(DEADLINE);
+    await runFundingPass(pool, null);
+    fake.nextRefundReturnPatch = { amount: { currency_code: 'EUR', value: '25.00' } };
+    const lookupsBeforeCurrency = fake.refundCalls.length;
+    await pass();
+    expect(fake.refundCalls).toHaveLength(lookupsBeforeCurrency);
+    const foreignRow = await fundingOf(foreign.event.slug);
+    expect((await tasksOf(foreignRow.id))[0]?.status).toBe('needs_review');
+    expect((await ledgerOf(foreignRow.id)).some((item) => item.kind === 'refund')).toBe(false);
+    const foreignPosts = fake.refundCaptureCalls.filter((call) => call.captureId === foreignPay.captureId).length;
+    const lookupsAfterCurrency = fake.refundCalls.length;
+    await pass();
+    expect(fake.refundCaptureCalls.filter((call) => call.captureId === foreignPay.captureId)).toHaveLength(foreignPosts);
+    expect(fake.refundCalls).toHaveLength(lookupsAfterCurrency);
+  }, CASE_MS);
+
+  it('un GET que agota el tiempo no frena al resto y el siguiente pase reutiliza el id', async () => {
+    const { event } = await organizer({ title: 'Lote', minimumCents: 10_000, goalCents: 20_000 });
+    await pinDeadline(event.slug);
+    const firstPay = await pay(event.slug, 'UnoLote');
+    const secondPay = await pay(event.slug, 'DosLote');
+    at(DEADLINE);
+    fake.failGetRefund = 'timeout';
+    const first = await pass();
+    expect(first.pending).toBeGreaterThanOrEqual(1);
+    expect(first.refunded).toBeGreaterThanOrEqual(1);
+    const row = await fundingOf(event.slug);
+    const tasks = await tasksOf(row.id);
+    expect(tasks).toHaveLength(2);
+    const waiting = tasks.find((task) => task.status === 'pending');
+    const done = tasks.find((task) => task.status === 'refunded');
+    expect(waiting?.paypal_refund_id).toBeTruthy();
+    expect(waiting?.request_body).toBe('{}');
+    expect(done?.status).toBe('refunded');
+    const ours = new Set([firstPay.captureId, secondPay.captureId]);
+    const posts = fake.refundCaptureCalls.filter((call) => ours.has(call.captureId));
+    expect(posts).toHaveLength(2);
+    expect(new Set(posts.map((call) => call.requestId)).size).toBe(2);
+    expect((await ledgerOf(row.id)).filter((item) => item.kind === 'refund' && item.capture_id === waiting?.capture_id)).toHaveLength(0);
+    expect(fake.refundCalls).toContain(waiting?.paypal_refund_id);
+
+    const second = await pass();
+    expect(second.refunded).toBeGreaterThanOrEqual(1);
+    expect(fake.refundCaptureCalls.filter((call) => ours.has(call.captureId))).toHaveLength(2);
+    expect(fake.refundCalls.filter((id) => id === waiting?.paypal_refund_id).length).toBeGreaterThanOrEqual(2);
+    expect((await tasksOf(row.id)).every((task) => task.status === 'refunded')).toBe(true);
+    const refunds = (await ledgerOf(row.id)).filter((item) => item.kind === 'refund');
+    expect(refunds).toHaveLength(2);
+    expect(refunds.reduce((sum, item) => sum + item.amount_cents, 0)).toBe(5000);
+  }, CASE_MS);
+
+  it('toma el evento antes que la tarea y un webhook concurrente no duplica el libro', async () => {
+    const { event } = await organizer({ title: 'Candado tarea' });
+    await pinDeadline(event.slug);
+    const paid = await pay(event.slug, 'CandadoTarea');
+    at(DEADLINE);
+    await runFundingPass(pool, null);
+    const row = await fundingOf(event.slug);
+    const task = (await tasksOf(row.id))[0];
+    await pool.query(
+      `INSERT INTO payment_ledger (id, event_id, guest_id, order_id, kind, amount_cents, external_id, capture_id)
+       SELECT $1, event_id, guest_id, order_id, 'refund', amount_cents, 'REF-ORDEN', capture_id
+         FROM payment_ledger WHERE capture_id = $2 AND kind = 'capture'`,
+      [randomUUID(), paid.captureId],
+    );
+    await pool.query(
+      `UPDATE funding_refund_tasks
+          SET status = 'leased', lease_token = 'token-orden', lease_until = '2026-12-01T18:00:00Z', attempt_count = 1
+        WHERE id = $1`,
+      [task?.id],
+    );
+
+    const holder = await pool.connect();
+    const probe = await pool.connect();
+    let closing: Promise<boolean> | undefined;
+    try {
+      await holder.query('BEGIN');
+      await holder.query('SELECT id FROM events WHERE id = $1 FOR UPDATE', [row.id]);
+      const { rows: pidRows } = await holder.query<{ pid: number }>('SELECT pg_backend_pid() AS pid');
+      const holderPid = pidRows[0]?.pid;
+      if (!holderPid) throw new Error('sin pid del candado');
+      closing = completeLeasedRefund(pool, task!.id, 'token-orden', 'REF-ORDEN');
+      await waitForEventsLock(holderPid);
+      await probe.query('BEGIN');
+      await probe.query("SET LOCAL lock_timeout = '2s'");
+      await probe.query('SELECT id FROM funding_refund_tasks WHERE id = $1 FOR UPDATE', [task?.id]);
+      await probe.query('COMMIT');
+      await holder.query('COMMIT');
+    } catch (err) {
+      await probe.query('ROLLBACK').catch(() => undefined);
+      await holder.query('ROLLBACK').catch(() => undefined);
+      await closing?.catch(() => undefined);
+      throw err;
+    } finally {
+      probe.release();
+      holder.release();
+    }
+    expect(await closing).toBe(true);
+    expect((await tasksOf(row.id))[0]?.status).toBe('refunded');
+    expect(await completeLeasedRefund(pool, task!.id, 'token-tarde', 'REF-ORDEN')).toBe(false);
+    expect((await ledgerOf(row.id)).filter((item) => item.kind === 'refund')).toHaveLength(1);
+
+    at(CLOCK_START);
+    const raced = await organizer({ title: 'Webhook en vuelo' });
+    await pinDeadline(raced.event.slug);
+    const racedPay = await pay(raced.event.slug, 'WebhookVuelo');
+    at(DEADLINE);
+    fake.nextRefundStatus = 'PENDING';
+    const parked = await pass();
+    expect(parked.pending).toBeGreaterThanOrEqual(1);
+    const racedRow = await fundingOf(raced.event.slug);
+    const racedTask = (await tasksOf(racedRow.id))[0];
+    expect(racedTask?.status).toBe('pending_provider');
+    expect(racedTask?.paypal_refund_id).toBeTruthy();
+    const posts = fake.refundCaptureCalls.filter((call) => call.captureId === racedPay.captureId).length;
+
+    const gate = fake.gateGetRefund();
+    const running = pass();
+    await gate.arrived;
+    fake.refunds.get(racedTask!.paypal_refund_id!)!.status = 'COMPLETED';
+    const webhook = await postWebhook(racedTask!.paypal_refund_id!, `WH-RACE-${++webhookSeq}`);
+    expect(webhook.statusCode).toBe(200);
+    gate.open();
+    const finished = await running;
+    expect(finished.refunded).toBeGreaterThanOrEqual(1);
+    const refunds = (await ledgerOf(racedRow.id)).filter((item) => item.kind === 'refund');
+    expect(refunds).toHaveLength(1);
+    expect(refunds[0]?.amount_cents).toBe(2500);
+    expect(new Set(refunds.map((item) => item.external_id)).size).toBe(1);
+    expect((await tasksOf(racedRow.id))[0]?.status).toBe('refunded');
+    expect(fake.refundCaptureCalls.filter((call) => call.captureId === racedPay.captureId)).toHaveLength(posts);
   }, CASE_MS);
 });
