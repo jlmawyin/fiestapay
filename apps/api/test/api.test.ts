@@ -114,6 +114,7 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
       expect(caps.chat).toBe(false);
       expect(caps.llmProvider).toBe('openai');
       expect(caps.voice).toBe(false);
+      expect(caps.email).toBe(false);
     });
 
     it('devuelve 404 JSON para rutas de API inexistentes', async () => {
@@ -170,7 +171,7 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
 
       // The organizer sees their own dashboard; nobody else does.
       expect((await org.get(`/api/events/${event.slug}/dashboard`)).statusCode).toBe(200);
-      expect((await stranger.get(`/api/events/${event.slug}/dashboard`)).statusCode).toBe(401);
+      expect((await stranger.get(`/api/events/${event.slug}/dashboard`)).statusCode).toBe(403);
     });
 
     it('el invitado no gana autoridad de organizador al conocer el slug', async () => {
@@ -196,12 +197,13 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
         meal: 'cena',
         description: 'Cupo limitado',
         startsAt: '2026-11-20T23:00:00.000Z',
+        endsAt: '2026-11-21T03:00:00.000Z',
         location: 'Auditorio demo',
         includes: ['Entrada'],
         priceCents: 2500,
         capacity,
-        goalCents: 10000,
-        minimumCents: 5000,
+        goalCents: null,
+        minimumCents: null,
         agenda: [{ time: '18:00', title: 'Apertura', speaker: 'Equipo' }],
       });
       expect(res.statusCode).toBe(200);

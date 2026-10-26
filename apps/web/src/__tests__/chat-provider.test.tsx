@@ -20,6 +20,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
       voice: false,
       paypalClientId: 'sb-client-id',
       sandbox: true as const,
+      email: false,
     };
 
     // Verify DemoRibbon displays generic Chat status and no Gemini branding
@@ -68,6 +69,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
       voice: false,
       paypalClientId: null,
       sandbox: true as const,
+      email: false,
     };
 
     // DemoRibbon should display Chat: Desactivado because false overrides gemini true
@@ -109,6 +111,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
       voice: false,
       paypalClientId: null,
       sandbox: true,
+      email: false,
     };
 
     const { rerender } = render(<DemoRibbon capabilities={legacyActive} />);
@@ -122,6 +125,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
       voice: false,
       paypalClientId: null,
       sandbox: true,
+      email: false,
     };
 
     rerender(<DemoRibbon capabilities={legacyInactive} />);
@@ -140,6 +144,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
       voice: false,
       paypalClientId: null,
       sandbox: true as const,
+      email: false,
     };
 
     const error503 = new Error('Service Unavailable');
@@ -174,6 +179,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
       voice: false,
       paypalClientId: 'sb-123',
       sandbox: true as const,
+      email: false,
     };
 
     const mockQuote: Quote = {

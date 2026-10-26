@@ -6,11 +6,15 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import type { GenerateFn } from './ai/gemini.js';
 import type { RespondFn } from './ai/openai.js';
 import { loadConfig, type Config } from './config.js';
+import { createSmtpEmail } from './email/smtp.js';
+import type { EmailAdapter } from './email/types.js';
 import type { Pool } from './db/pool.js';
 import { HttpError } from './errors.js';
 import { isAllowedOrigin } from './lib/origin.js';
+import { requestLogger } from './lib/redact.js';
 import { PayPalSandboxClient } from './paypal/client.js';
 import type { PayPalAdapter } from './paypal/types.js';
+import { registerRecoveryRoutes } from './routes/recovery.js';
 import { registerChatRoutes } from './routes/chat.js';
 import { registerVoiceRoutes } from './routes/voice.js';
 import { registerCoreRoutes } from './routes/core.js';
@@ -25,6 +29,11 @@ export interface BuildAppOptions {
    * browser input can switch the server onto a mock.
    */
   paypal?: PayPalAdapter | null;
+  /**
+   * Email adapter override. Tests inject a fake here. Nothing in the request can select it,
+   * and an unconfigured server stays on null instead of pretending mail was sent.
+   */
+  email?: EmailAdapter | null;
   /** Scripted models for tests; omitted in production so the selected provider's REST call is used. */
   generate?: GenerateFn;
   respond?: RespondFn;
@@ -45,9 +54,11 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   const pool = options.pool;
   const paypal =
     options.paypal !== undefined ? options.paypal : config.paypal ? new PayPalSandboxClient(config.paypal) : null;
+  const email = options.email !== undefined ? options.email : config.email ? createSmtpEmail(config.email) : null;
 
+  const logging = options.logger === false || (options.logger === undefined && config.env === 'test') ? false : requestLogger;
   const app = Fastify({
-    logger: options.logger ?? config.env !== 'test',
+    logger: logging,
     bodyLimit: config.bodyLimitBytes,
     trustProxy: config.env === 'production',
   });
@@ -85,6 +96,9 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
    * because it is server-to-server and authenticated by its signature instead.
    */
   app.addHook('onRequest', async (req, reply) => {
+    reply.header('Referrer-Policy', 'no-referrer');
+    const pathOnly = req.url.split('?')[0] ?? req.url;
+    if (pathOnly === '/api' || pathOnly.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
     const method = req.method.toUpperCase();
     if (method === 'GET' || method === 'HEAD') return;
     const path = req.url.split('?')[0] ?? req.url;
@@ -130,12 +144,14 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     pool,
     config,
     paypal,
+    email,
     ...(options.generate ? { generate: options.generate } : {}),
     ...(options.respond ? { respond: options.respond } : {}),
   };
   await app.register(
     async (api) => {
       await registerCoreRoutes(api, deps);
+      await registerRecoveryRoutes(api, deps);
       await registerPaymentRoutes(api, deps);
       await registerChatRoutes(api, deps);
       await registerVoiceRoutes(api, deps);

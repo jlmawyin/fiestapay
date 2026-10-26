@@ -1,8 +1,35 @@
 # Shared implementation contract
 
+## October 25 current contracts
+
+The current P0–P6 request supersedes incompatible historic P1 rules below. The public invitation is `/e/:slug`; the organizer entry is `/e/:slug/admin?k=:adminKey`. The browser captures the key into localStorage and removes it from the query. The server stores only its SHA-256 digest and compares fixed-length digests with `timingSafeEqual`. Keyed organizer operations require `X-Fiesta-Admin-Key`; the creator cookie alone does not authorize these operations.
+
+- Create/demo/reset return `CreatedEvent` (`{event, adminKey}`); a newly minted key contains 32 random bytes. An existing demo can return a null key. Never put an organizer key into the public invitation or a guest API request.
+- `PUT /api/events/:slug` validates the complete event input and requires the organizer key.
+- `POST /api/events/:slug/close`, `DELETE /api/events/:slug`, dashboard and confirmation require the organizer key. Closed events remain readable, with new RSVP/quotes/orders rejected.
+- `POST /api/events/:slug/admin/key` is a one-time migration path for legacy rows with no key hash, restricted to the original creator session. It cannot rotate or recover a keyed event.
+- `POST /api/events/:slug/unlock` accepts `{code}` and establishes private-event access for the browser session. Missing/wrong proof returns 403 on protected public routes. Changing/clearing the code revokes existing unlocks. A valid admin key can authorize private organizer operations.
+- `endsAt` and positive capacity are required. Expired events return 410 immediately at `endsAt + 72 hours`, including before the periodic sweep. Startup and a 15-minute loop remove public/personal content through a tombstone, preserving financial references for reconciliation. An organizer delete uses the same tombstone policy.
+- Request logs omit query strings and credential headers. API responses use `Cache-Control: no-store`; pages use `Referrer-Policy: no-referrer`.
+
+The access/retention routes passed restart/permission checks through the HTTPS origin. Release `2d7c542` includes independently reviewed SMTP recovery and migration0006. On25Oct the owner completed private SMTP configuration; the API was recreated with the same image and a DNS-client override limited to that service, preserving other containers. Public DNS/HTTPS are restored. Real verification and recovery messages reached the authorized inbox, the previous key returned403, and the new panel request returned200; see [live acceptance](reviews/smtp-live-20261025.md). The consumed email link was reopened and rejected with400, confirmed by Jorge and server logs; isolated expiry/replay/concurrency cases retain the earlier PostgreSQL review. Automatic funding refunds and moderation are subsequent packages. The product must use only OpenAI `gpt-6-luna` after the pending P5 cleanup; the historic Gemini option below is transitional code scheduled for removal.
+
+## Verified optional email recovery
+
+- `GET /api/events/:slug/recovery` requires the organizer key and returns availability and masked contact status.
+- `PUT /api/events/:slug/recovery/contact` requires that key and `{email}`. It sends a verification message through the configured Banahosting SMTP adapter. It does not block event creation. A new/replaced mailbox is unverified until proof is consumed.
+- `DELETE /api/events/:slug/recovery/contact` requires that key and removes the contact and existing proof tokens.
+- `POST /api/recovery/request` accepts `{slug,email}` without an admin header. Valid requests return the same `{status:'accepted'}` for unknown, mismatched, unverified and matching contacts. This means the request was accepted; it does not prove SMTP or inbox delivery. An unavailable mail service returns the same503 across contacts.
+- `POST /api/recovery/consume` accepts `{token}`. Tokens have distinct verify/recover purposes, are random32bytes, stored only as hashes, expire within15minutes and allow one transactional consumer. Recovery returns the new key once; the previous key immediately loses authority.
+- `/recover#t=...` strips the fragment into memory and requires a confirmation click. It supports a new fragment in the same tab and ignores outdated async results. Query tokens are discarded. Public recovery requests never attach the organizer header.
+- Shared PostgreSQL counters constrain IP/event windows and daily send attempts across instances and cookies. Changing/removing contact or tombstoning the event invalidates tokens and clears contact data. Financial references remain intact.
+- SMTP configuration is server-only: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`. Port465 uses TLS;587 requires STARTTLS; certificate validation remains enabled. Acceptance by the outbound server is distinct from receipt/spam; the [operator protocol](EMAIL_SETUP.md) records both for the real test. Future API recreation must include `deploy/compose.smtp-runtime.yml` alongside the base Compose file while this DNS-client configuration is active.
+
+## Historic baseline and unchanged payment contracts
+
 P1 only: one USD sandbox merchant, fixed-price full payment, four templates, fixed local illustrations. No uploads, Payouts, deposits, open fund, Google or live payments. All amounts integer cents. The UI labels captured minus refunded amount `Recaudado` with `antes de comisiones`.
 
-Same-origin JSON API under `/api`. Errors `{error: string}` with proper HTTP status. Browser uses HttpOnly SameSite=Lax cookie. Server checks Origin on mutations, fixes merchant server-side, never trusts browser amounts. Demo identities contain no required email/phone. Public invitation is slug; organizer and guest permissions are separate. No secrets in response except short-lived voice token intentionally issued to browser.
+Same-origin JSON API under `/api`. Errors `{error: string}` with proper HTTP status. Browser uses HttpOnly SameSite=Lax cookie. Server checks Origin on mutations, fixes merchant server-side, never trusts browser amounts. Demo identities contain no required email/phone. Public invitation is slug; organizer and guest permissions are separate. Provider credentials never enter responses. One-time minted organizer keys and short-lived voice tokens are intentional browser capabilities.
 
 - `GET /api/health` -> `{ok:true}`.
 - `GET /api/capabilities` -> Capabilities, providers false unless configured; never fake successful payment/audio/AI.

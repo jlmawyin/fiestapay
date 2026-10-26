@@ -4,19 +4,49 @@ Actualizado: 25 octubre 2026, America/Guayaquil. Resumen de esta entrega; el his
 
 ## Prioridades vigentes y ejecución
 
+**Último estado, 25 oct después de19:37ECT:** correo real desde FiestaPay validado con Jorge. Verificación y recuperación SMTP aceptadas y recibidas en bandeja de entrada; contacto verificado, clave antigua403 y panel con clave nueva200 registrado por el servidor y confirmado con captura. Aplicación2d7c542, misma imagen. [Evidencia completa](docs/reviews/smtp-live-20261025.md).
+
+**Infraestructura:** cinco variables privadas cargadas solo enVPS, modo0600; comparación de formato/presencia sin valores ni advertencias. APIrecreada exclusivamente, todos los demás contenedores y sus arranques iguales. Resolver heredado mantenía parking: ajuste de clienteDNS soloAPI mediante deploy/compose.smtp-runtime.yml, ahora SMTP resuelve correctamente y emailConfigured=true. Sin cambios a registros del dominio, MX, resolutor global ni proxy. Bundle y logs sin coincidencias de los valores privados comprobados. No se repitieron pagos/webhook/IA.
+
+**Aceptación del correo cerrada:** Jorge reabrió el enlace ya consumido y confirmó rechazo; logsAPI400 a las19:57:57ECT. Caducidad y concurrencia tienen pruebas PostgreSQL aprobadas de la fuente desplegada, sin fingir nueva caducidad real. La fiesta ficticia permanece disponible para la demo. Recuperación funcional por correo ya acreditada. Voz sigue esperando la excepción puntual previamente solicitada; P2–P6 restantes conservan su alcance/plazo.
+
+**Agentes:** móduloSMTP construidoGROK2/3 y aprobadoAGY2/3 previamente; evidencia reutilizada, no nuevas revisiones. Cargador opcional no instalado; su objetivo se resolvió con edición privada deJorge. Diagnóstico del bloqueo: GROK3/3 yAGY2/3 completaron archivosREADY al cerrarstdin. Ejecución mínima acreditada; mantenerEOF en próximos encargos, sin afirmar causa exclusiva. No reenviar secretos a revisores. Código de producto sin cambios en esta aceptación; Codex operó configuración y pruebas externas autorizadas.
+
+## Historial anterior
+
+**P0 desplegado, 25 oct 12:28; ruta pública bloqueada:** `97048c1` activo y saludable en Contabo, migración0005 y copia previa conservadas; la captura existente sigue contabilizada una vez. HTTPS directo al origen devuelve200. El DNS público devuelve otra IP y delega en ParkLogic; se pidió revisión a Jorge respetando su prohibición de cambiar DNS/MX. No se declara el sitio públicamente disponible. [Diagnóstico](docs/reviews/domain-routing-20261025.md).
+
+**SMTP implementado localmente:** GROK entregó el mismo intento1/3 adaptado a Banahosting, 253 pruebas/26 archivos, tipos y build aprobados. AGY revisa seguridad, SMTP simulado y recuperación en navegador local. El archivo del servicio aún no tiene las cinco variables (solo se comprobó presencia); no hay destinatario autorizado ni correo enviado. La reparación de voz sigue pendiente de la excepción de una línea solicitada.
+
+**Cambio de correo aprobado por Jorge, 25 oct:** SMTP Banahosting/cPanel sustituye la propuesta anterior. Se detuvo solo el constructor de recuperación, se preservó su trabajo y continúa el mismo intento 1/3 con Nodemailer. Variables reales solo en `/opt/fiestapay/.env.production`; sin cambios MX/DNS ni envío. Guía y viabilidad WhatsApp actualizadas. Pendientes: cuenta/variables y dirección única autorizada por Jorge para acreditar llegada y recuperación real.
+
+**25 oct, 11:40:** persistencia/admin aprobados por AGY y [PR #2](https://github.com/jlmawyin/fiestapay/pull/2) creado en borrador. CI aprobada para `d0bfd00`; 39 fuentes revisadas coinciden con el commit. Antes de desplegar se está preparando compatibilidad de la migración con la imagen anterior para permitir una reversión sin restaurar la base financiera. Recuperación por correo P1 en construcción, sin envío real. Audio aprobado funcionalmente con 22 pruebas, pendiente una línea de lint y respuesta a la excepción puntual solicitada. Producción aún en `1bf3434`.
+
+**Reanudado 25 oct 11:14:** cuota habilitada por helper (99 % cinco horas / 69 % semanal). AGY completa la revisión de persistencia con el mismo intento 1/3 y verifica la versión final de audio en entrega 2/3. Hashes de audio cotejados; no se repitió construcción, pago ni chat. Aceptación y despliegue pendientes.
+
+**Último estado: pausa al 20 %, 25 oct 06:57.** Se detuvieron los procesos propios respetando la respuesta de Jorge. Reanudación actualizada para **11:14 Guayaquil**, tras el mínimo verificado de 11:13:26. Persistencia/admin ya entregado localmente, revisión AGY 1/3 pausada. Audio dejó informe de intento 3 con 18 tests y tipos aprobados; falta verificación independiente de esa versión y lint completo. Sin nuevo despliegue. [Checkpoint vigente y contadores](docs/CHECKPOINT_2026-10-25.md).
+
+**Reanudación del 25 octubre, 06:20 Guayaquil:** Jorge confirmó mantener la pausa al llegar al 20 % de las cinco horas. El helper permitió continuar tras el reinicio de ventana: 97 % disponible al despertar; último control 77 % en cinco horas y 80 % semanal. La exención semanal anterior no se extiende a este despertar. GROK continúa los mismos intentos 2/3 de persistencia/admin y audio; AGY completa la revisión independiente del proxy. No son entregas aceptadas todavía. Aplicación pública mantiene la versión verificada `1bf3434`. [Checkpoint](docs/CHECKPOINT_2026-10-25.md).
+
 Entrega máxima 31 octubre (sábado); [ruta de trabajo actualizada](docs/PLAN_DIARIO.md). P0 persistencia → P1 dos enlaces/recuperación → P2 dinero/reembolsos → P3/P4 abuso/formulario → P5/P6 audio/pulido. La nueva petición elimina Gemini de la aplicación, sin proveedor alternativo. El uso de AGY Gemini como agente de desarrollo es independiente de la IA del producto.
 
 `1bf3434` tiene [CI verde: 209 pruebas/20 archivos](https://github.com/jlmawyin/fiestapay/actions/runs/40147830699), revisión independiente AGY del servidor y webhook, y está activado en Contabo. Configuración OpenAI aplicada; claves Gemini retiradas del `.env` local y del entorno de producción sin mostrarlas. Código residual de compatibilidad se elimina en el paquete siguiente.
 
 **Aceptación externa completada:** webhook PayPal recibido y verificado el25oct05:51UTC, sin duplicar USD50. Chat OpenAI desde navegador público respondió con agenda y 2×25=50; SQL acreditó herramientas de lectura/cotización, cero órdenes y cero movimientos en esa fiesta. [Matriz de aceptación y pruebas pendientes](docs/ACEPTACION_31_OCT.md).
 
-GROK ejecuta `FP-PERSIST-ACCESS-20261025`, entrega 1/3: propiedad persistente, adminKey, ciclo de vida, privacidad, formulario y eliminación Gemini. AGY investiga dependencias y prepara revisión, `FP-SCOPE-RESEARCH-20261025`, entrega 1/3. Cupo al arrancar: Grok 94 % general / 97 % Build; AGY Gemini 100 % semanal / 100 % cinco horas. Claude no está conectado por MCP; CLI autenticada previamente, cuota desconocida, reservado para recuperación. Codex 80 % cinco horas al control; Jorge suspendió el umbral semanal preventivo durante esta ejecución. No se gastó su reseteo.
+GROK completa persistencia/admin/privacidad y, en un segundo frente separado, la cola de audio. La eliminación residual de Gemini pertenece al siguiente paquete P5. Al reanudar: Grok 92 % general / 95 % Build, plan SuperGrok, reinicio en 5 d 19 h; modelos 4.5, 4.6, 4.7 y 4.7 Fast. Se mantiene 4.7 con esfuerzo xhigh para estos encargos. AGY Gemini dispone de 99,5 % semanal / 100 % cinco horas; usa Flash High/high. Claude CLI estaba autenticada, pero no hay MCP ni cuota conocida; sigue reservado para recuperación. No se consumió ningún reseteo.
 
 Diagnóstico parcial P0: PostgreSQL y volumen persistente ya existen; el listado y autoridad dependen de una sesión con caducidad. Falta demostrar reinicio/navegador distinto y separar la clave de organizador de esa sesión. No se ha probado que se hayan perdido filas.
 
-Correo: Jorge no tiene SMTP y autorizó preparar lo necesario; configurará Cloudflare después. Se preparará envío y recuperación de un solo uso, sin afirmar entrega real antes de tener dominio habilitado y credencial. [Guía de configuración](docs/EMAIL_SETUP.md). Automatización diaria actualizada al alcance nuevo, entrega31oct y corrección/presentación hasta5nov, con avisos solo ante cambios verificables.
+**Revisión de proxy terminada:** AGY aprobó la configuración exclusiva de FiestaPay y contrastó los hashes con la evidencia. Protección de enlaces secretos y cabeceras/IP aceptada dentro de ese alcance; no acredita todavía los enlaces admin de la aplicación. [Informe y límites](docs/reviews/proxy-privacy-20261025.md).
+
+**Entrega local de persistencia/admin, 25 oct 06:49:** GROK completó el intento 2/3 con API e interfaz para enlaces separados, código privado y caducidad a las 72 horas del fin. Ejecutó 224 pruebas en 22 archivos, tipos y build correctamente. El check completo detectó un error de lint en voz, cuyo constructor aún trabaja. AGY revisa de forma independiente antes de aceptar o desplegar; navegador distinto/reinicio real siguen sin acreditar. En voz, AGY reprodujo 15 pruebas verdes, pero Codex pidió corregir el descarte silencioso de audio y el indicador prematuro de escucha: intento 3/3 en curso. Ninguno de estos cambios está todavía publicado.
+
+Correo: se usa SMTP de Banahosting/cPanel por decisión expresa de Jorge. Él crea la cuenta y carga las cinco variables solo en el entorno privado del servicio en el VPS. Recuperación opcional, verificada y de un solo uso; envío real pendiente de credenciales y destinatario autorizado. No hay cambios de MX/DNS. [Guía](docs/EMAIL_SETUP.md) y [viabilidad de WhatsApp](docs/WHATSAPP_VIABILIDAD.md). Se mantiene entrega31oct y corte interno5nov.
 
 ## Historial de la etapa anterior
+
+Control posterior de cuota: Codex volvió a76%cincohoras/96%semanal, sin que el agente consumiera ningún reseteo. Grok93%general/96%Build. Audio intento1/3 terminó por timeout1200s sin cambios; intento2/3 acotado en curso. Persistencia continúa intento1/3. No confundir investigación/archivos parciales con aceptación.
 
 ## Pago PayPal de prueba completado
 

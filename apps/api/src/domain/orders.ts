@@ -5,13 +5,17 @@ import { badGateway, conflict, forbidden, notFound, unavailable } from '../error
 import { newId, requestIdFor } from '../lib/ids.js';
 import { PayPalError, type PayPalAdapter } from '../paypal/types.js';
 import { approveUrlOf } from '../paypal/verify.js';
+import { assertPrivateAccess } from './access.js';
 import { audit } from './audit.js';
-import { assertActive } from './events.js';
+import { assertAcceptingGuests } from './events.js';
+import { concealExpired, isPastRetention, tombstoneEvent } from './retention.js';
 import { convergeCapture, isApplied, type CaptureOutcome } from './payments.js';
 import { requireUsableQuote, type QuoteRow } from './quotes.js';
 import {
   ORDER_COLUMNS,
   OPEN_ORDER_SQL,
+  findEventById,
+  findEventBySlug,
   findGuestById,
   findGuestBySession,
   findOrderByAnyId,
@@ -88,14 +92,19 @@ async function reserveOrderIntent(
   slug: string,
   quoteId: string,
   merchantId: string,
+  presentedKey: string | null,
 ): Promise<OrderIntent> {
+  const visible = await findEventBySlug(pool, slug);
+  if (!visible) throw notFound('Evento no encontrado');
+  await concealExpired(pool, visible);
   return withTransaction(pool, async (client) => {
     const found = await client.query<{ id: string }>('SELECT id FROM events WHERE slug = $1', [slug]);
     const eventId = found.rows[0]?.id;
     if (!eventId) throw notFound('Evento no encontrado');
     const event = await lockEvent(client, eventId);
-    // An archived invitation (old demo generation) can never open a new payment.
-    assertActive(event);
+    // Archived, closed, purged, or past retention cannot open a new payment.
+    assertAcceptingGuests(event);
+    await assertPrivateAccess(client, event, sessionId, presentedKey);
 
     const guestRow = await findGuestBySession(client, event.id, sessionId);
     if (!guestRow) throw notFound('Primero unete a la invitacion');
@@ -165,6 +174,7 @@ async function settleCreatedOrder(
 ): Promise<OrderRow> {
   return withTransaction(pool, async (client) => {
     const event = await lockEvent(client, order.event_id);
+    await lockGuest(client, order.guest_id);
     const current = await lockOrder(client, order.id);
     const paypalId = current.paypal_order_id ?? paypalOrderId;
 
@@ -210,8 +220,9 @@ export async function createOrderForSession(
   sessionId: string,
   slug: string,
   quoteId: string,
+  presentedKey: string | null = null,
 ): Promise<OrderResult> {
-  const { order, quote } = await reserveOrderIntent(pool, sessionId, slug, quoteId, deps.merchantId);
+  const { order, quote } = await reserveOrderIntent(pool, sessionId, slug, quoteId, deps.merchantId, presentedKey);
 
   if (order.paypal_order_id) return asOrderResult(order);
 
@@ -262,12 +273,21 @@ interface OwnedOrder {
 }
 
 /** Only the guest who owns the order may capture or read it. */
-async function requireOwnOrder(pool: Pool, sessionId: string, orderId: string): Promise<OwnedOrder> {
+async function requireOwnOrder(
+  pool: Pool,
+  sessionId: string,
+  orderId: string,
+  presentedKey: string | null,
+): Promise<OwnedOrder> {
   const order = await findOrderByAnyId(pool, orderId);
   if (!order) throw notFound('Orden no encontrada');
   const guest = await findGuestById(pool, order.guest_id);
   if (!guest) throw notFound('Orden no encontrada');
   if (guest.session_id !== sessionId) throw forbidden('Esta orden pertenece a otro invitado');
+  const event = await findEventById(pool, order.event_id);
+  if (!event) throw notFound('Orden no encontrada');
+  // Ownership stays with the guest. A private code still gates the order after a code change.
+  await assertPrivateAccess(pool, event, sessionId, presentedKey);
   return { order, guest };
 }
 
@@ -301,6 +321,10 @@ async function claimOrderForCapture(pool: Pool, known: OrderRow): Promise<Captur
     const order = await lockOrder(client, known.id);
 
     if (order.status === 'paid') return { kind: 'paid' };
+    if (event.purged_at || isPastRetention(event.ends_at)) {
+      if (!event.purged_at) await tombstoneEvent(client, event.id, 'retention_purged');
+      return { kind: 'reconcile', order, reason: 'Este evento ya no esta disponible' };
+    }
     if (!order.paypal_order_id) {
       throw conflict('La orden aun no se creo en PayPal; vuelve a intentarlo');
     }
@@ -344,8 +368,9 @@ export async function captureOwnOrder(
   deps: PayPalDeps,
   sessionId: string,
   orderIdParam: string,
+  presentedKey: string | null = null,
 ): Promise<CaptureResponse> {
-  const { order, guest } = await requireOwnOrder(pool, sessionId, orderIdParam);
+  const { order, guest } = await requireOwnOrder(pool, sessionId, orderIdParam, presentedKey);
   const paid = async (): Promise<CaptureResponse> => ({ status: 'paid', guest: await loadGuestByEvent(pool, guest) });
 
   const claim = await claimOrderForCapture(pool, order);
@@ -412,8 +437,9 @@ export async function readOwnOrder(
   deps: PayPalDeps | null,
   sessionId: string,
   orderIdParam: string,
+  presentedKey: string | null = null,
 ): Promise<CaptureResponse> {
-  const { order, guest } = await requireOwnOrder(pool, sessionId, orderIdParam);
+  const { order, guest } = await requireOwnOrder(pool, sessionId, orderIdParam, presentedKey);
   let status: string = order.status;
 
   if (deps && order.paypal_order_id && RECONCILABLE_ON_READ.has(order.status)) {
@@ -439,13 +465,14 @@ export type ApprovalOutcome = 'approved' | 'unknown' | 'ignored';
  */
 export async function markOrderApproved(pool: Pool, paypalOrderId: string): Promise<ApprovalOutcome> {
   return withTransaction(pool, async (client) => {
-    const found = await client.query<{ id: string; event_id: string; status: OrderStatus }>(
-      'SELECT id, event_id, status FROM orders WHERE paypal_order_id = $1',
+    const found = await client.query<{ id: string; event_id: string; guest_id: string; status: OrderStatus }>(
+      'SELECT id, event_id, guest_id, status FROM orders WHERE paypal_order_id = $1',
       [paypalOrderId],
     );
     const row = found.rows[0];
     if (!row) return 'unknown';
     await lockEvent(client, row.event_id);
+    await lockGuest(client, row.guest_id);
     const order = await lockOrder(client, row.id);
     if (order.status !== 'intent' && order.status !== 'created') return 'ignored';
     await client.query(`UPDATE orders SET status = 'approved', updated_at = now() WHERE id = $1`, [order.id]);

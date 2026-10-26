@@ -35,18 +35,42 @@ export const eventInputSchema = z
     meal: z.enum(['desayuno', 'almuerzo', 'cena']),
     description: trimmed(2000),
     startsAt: isoDate,
+    endsAt: isoDate,
     location: requiredText(200),
     includes: z.array(requiredText(120)).max(20),
     priceCents: cents(MAX_PRICE_CENTS),
-    capacity: z.number().int().min(1).max(MAX_CAPACITY).nullable(),
+    capacity: z.number().int().min(1).max(MAX_CAPACITY),
     goalCents: cents(MAX_GOAL_CENTS).nullable(),
     minimumCents: cents(MAX_GOAL_CENTS).nullable(),
     agenda: z.array(agendaItemSchema).max(50),
+    accessCode: z.string().trim().min(4).max(64).nullable().optional(),
   })
   .refine(
     (v) => v.minimumCents === null || v.goalCents === null || v.minimumCents <= v.goalCents,
     { message: 'El minimo no puede superar la meta', path: ['minimumCents'] },
+  )
+  .refine((v) => Date.parse(v.endsAt) > Date.parse(v.startsAt), {
+    message: 'La hora de fin debe ser posterior al inicio',
+    path: ['endsAt'],
+  })
+  .refine((v) => Date.parse(v.startsAt) > Date.now() - 60_000, {
+    message: 'El inicio debe ser en el futuro',
+    path: ['startsAt'],
+  })
+  .refine(
+    (v) => {
+      const ceiling = v.priceCents * v.capacity;
+      if (!Number.isSafeInteger(ceiling)) return false;
+      if (v.goalCents !== null && ceiling < v.goalCents) return false;
+      if (v.minimumCents !== null && ceiling < v.minimumCents) return false;
+      return true;
+    },
+    { message: 'La cuota por el cupo debe cubrir la meta y el minimo', path: ['capacity'] },
   );
+
+export const unlockSchema = z.object({
+  code: z.string().trim().min(1).max(64),
+});
 
 export const joinSchema = z.object({ name: requiredText(60) });
 

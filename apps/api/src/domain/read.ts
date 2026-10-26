@@ -24,6 +24,12 @@ export interface EventRow {
   minimum_cents: number | null;
   confirmed: boolean;
   created_at: Date;
+  ends_at: Date;
+  closed_at: Date | null;
+  purged_at: Date | null;
+  is_demo: boolean;
+  admin_key_hash: Buffer | null;
+  access_code_hash: Buffer | null;
 }
 
 export interface GuestRow {
@@ -38,7 +44,7 @@ export interface GuestRow {
 
 export const EVENT_COLUMNS = `id, slug, organizer_session_id, generation, archived, title, template, meal,
   description, starts_at, location, includes, agenda, price_cents, capacity, goal_cents, minimum_cents,
-  confirmed, created_at`;
+  confirmed, created_at, ends_at, closed_at, purged_at, is_demo, admin_key_hash, access_code_hash`;
 
 export const GUEST_COLUMNS = 'id, event_id, session_id, name, status, companions, obligation_version';
 
@@ -60,6 +66,11 @@ const asAgenda = (value: unknown): AgendaItem[] => {
     ];
   });
 };
+
+export async function findEventById(db: Queryable, eventId: string): Promise<EventRow | null> {
+  const { rows } = await db.query<EventRow>(`SELECT ${EVENT_COLUMNS} FROM events WHERE id = $1`, [eventId]);
+  return rows[0] ?? null;
+}
 
 export async function findEventBySlug(db: Queryable, slug: string): Promise<EventRow | null> {
   const { rows } = await db.query<EventRow>(`SELECT ${EVENT_COLUMNS} FROM events WHERE slug = $1`, [slug]);
@@ -140,6 +151,9 @@ export function toFiestaEvent(row: EventRow, totals: EventTotals): FiestaEvent {
     confirmedPeople: totals.confirmedPeople,
     minimumReached: minimumCents !== null && totals.collectedCents >= minimumCents,
     createdAt: row.created_at.toISOString(),
+    endsAt: row.ends_at.toISOString(),
+    closed: row.closed_at !== null,
+    accessRestricted: row.access_code_hash !== null,
   };
 }
 

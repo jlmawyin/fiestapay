@@ -2,6 +2,7 @@ import { buildApp } from './app.js';
 import { loadConfig } from './config.js';
 import { migrate } from './db/migrate.js';
 import { createPool } from './db/pool.js';
+import { startRetentionLoop } from './domain/retention.js';
 
 const config = loadConfig();
 
@@ -24,6 +25,7 @@ if (process.env.MIGRATE_ON_BOOT !== '0') {
 }
 
 const app = await buildApp({ pool, config });
+const stopRetention = startRetentionLoop(pool, (err) => app.log.error({ err }, 'retencion'));
 
 if (!config.paypal) app.log.warn(`PayPal deshabilitado: ${config.paypalDisabledReason}`);
 if (config.llmProvider === 'openai' && !config.openai) app.log.warn(`Chat OpenAI deshabilitado: ${config.openaiDisabledReason}`);
@@ -32,6 +34,7 @@ if (config.llmProvider === 'gemini' && !config.gemini) app.log.warn(`Chat Gemini
 const shutdown = async (signal: string): Promise<void> => {
   app.log.info(`cerrando por ${signal}`);
   try {
+    stopRetention();
     await app.close();
     await pool.end();
   } finally {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import type { Capabilities, FiestaEvent, ToastMessage } from './types';
 import { api } from './api/client';
+import { captureAdminKeyFromLocation, rememberAdminKey } from './api/admin-key';
 import { DemoRibbon } from './components/common/DemoRibbon';
 import { Header } from './components/common/Header';
 import { ToastContainer } from './components/common/Toast';
@@ -8,14 +9,17 @@ import { OrganizerHomeView } from './views/OrganizerHomeView';
 import { CreateEventView } from './views/CreateEventView';
 import { PublicInviteView } from './views/PublicInviteView';
 import { OrganizerDashboardView } from './views/OrganizerDashboardView';
+import { OrganizerRecoveryView } from './views/OrganizerRecoveryView';
 
 type ViewMode =
   | { mode: 'home' }
   | { mode: 'create' }
   | { mode: 'invite'; slug: string }
-  | { mode: 'dashboard'; slug: string };
+  | { mode: 'dashboard'; slug: string }
+  | { mode: 'recover' };
 
 export const App: React.FC = () => {
+  captureAdminKeyFromLocation();
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
   const [events, setEvents] = useState<FiestaEvent[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
@@ -44,8 +48,9 @@ export const App: React.FC = () => {
     setCurrentView(view);
     let path = '/';
     if (view.mode === 'create') path = '/create';
+    else if (view.mode === 'recover') path = '/recover';
     else if (view.mode === 'invite') path = `/e/${view.slug}`;
-    else if (view.mode === 'dashboard') path = `/e/${view.slug}/dashboard`;
+    else if (view.mode === 'dashboard') path = `/e/${view.slug}/admin`;
 
     if (push && window.location.pathname !== path) {
       window.history.pushState(view, '', path);
@@ -55,8 +60,12 @@ export const App: React.FC = () => {
   // Parse path on initial load & popstate
   const handleLocationChange = useCallback(() => {
     const path = window.location.pathname;
-    const dashboardMatch = path.match(/^\/e\/([^/]+)\/dashboard\/?$/);
-    if (dashboardMatch) {
+    if (path === '/recover' || path === '/recover/') {
+      setCurrentView({ mode: 'recover' });
+      return;
+    }
+    const dashboardMatch = path.match(/^\/e\/([^/]+)\/(?:admin|dashboard)\/?$/);
+    if (dashboardMatch && dashboardMatch[1]) {
       setCurrentView({ mode: 'dashboard', slug: decodeURIComponent(dashboardMatch[1]) });
       return;
     }
@@ -106,9 +115,10 @@ export const App: React.FC = () => {
   const handleCreateDemo = async () => {
     try {
       const res = await api.createDemoEvent();
+      if (res.adminKey) rememberAdminKey(res.event.slug, res.adminKey);
       setEvents((prev) => [res.event, ...prev.filter((e) => e.id !== res.event.id)]);
       showToast('success', `Fiesta "${res.event.title}" creada con éxito (Cuota $25 USD).`, 'Demo Listo');
-      navigate({ mode: 'invite', slug: res.event.slug });
+      navigate({ mode: res.adminKey ? 'dashboard' : 'invite', slug: res.event.slug });
     } catch (err: any) {
       showToast('error', err.message || 'Error al generar fiesta de demostración', 'Error');
     }
@@ -119,8 +129,14 @@ export const App: React.FC = () => {
     setIsResettingDemo(true);
     try {
       const res = await api.resetDemo();
-      setEvents([res.event]);
-      showToast('info', 'Demostración reiniciada. Se ha creado una nueva generación.', 'Reinicio completado');
+      if (res.adminKey) rememberAdminKey(res.event.slug, res.adminKey);
+      try {
+        const list = await api.getOrganizerEvents();
+        setEvents(list.events || []);
+      } catch {
+        setEvents([res.event]);
+      }
+      showToast('info', 'Demostración reiniciada. Las fiestas reales siguen activas.', 'Reinicio completado');
       navigate({ mode: 'home' });
     } catch (err: any) {
       showToast('error', err.message || 'Error al reiniciar la demostración', 'Error');
@@ -182,6 +198,7 @@ export const App: React.FC = () => {
 
         {currentView.mode === 'create' && (
           <CreateEventView
+            recoveryAvailable={capabilities?.email === true}
             onEventCreated={(slug) => {
               initApp();
               navigate({ mode: 'invite', slug });
@@ -199,6 +216,14 @@ export const App: React.FC = () => {
             onShowToast={showToast}
             onNavigateHome={() => navigate({ mode: 'home' })}
           />
+        )}
+
+        {currentView.mode === 'recover' && <OrganizerRecoveryView available={capabilities?.email === true} />}
+
+        {currentView.mode === 'home' && capabilities?.email === true && (
+          <p style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>
+            <a href="/recover" referrerPolicy="no-referrer">Perdi el enlace de organizador</a>
+          </p>
         )}
 
         {currentView.mode === 'dashboard' && (

@@ -2,14 +2,44 @@
 
 Actualizado el 25 octubre 2026 (America/Guayaquil). El calendario no equivale a progreso real; **aceptación completa pendiente**. No marcar una prueba externa por tests con proveedores simulados.
 
-## Etapa vigente: entrega 31 octubre
+## Etapa vigente: entrega31octubre
 
-La petición nueva sustituye el calendario/alcance anterior incompatible. Ver [PLAN_DIARIO.md](PLAN_DIARIO.md) y [PROGRESO.md](../PROGRESO.md). Solo OpenAI en producto; eliminación de código residual en curso. Jorge autoriza preparar recuperación por correo y configurará Cloudflare. Esta ejecución ignora su umbral preventivo semanal de Codex, conserva el de cinco horas y los límites reales.
+**Estado vigente, 25oct después de19:37ECT:** recuperación real por SMTP completada conJorge en aplicación2d7c542. Primer correo de verificación y segundo de recuperación aceptados porBanahosting y confirmados en bandeja de entrada. Contacto verificado, clave antigua403 en petición directa y panel nuevo200 en logsAPI/captura deJorge. [Evidencia](reviews/smtp-live-20261025.md). Reutilización manual confirmada con rechazo400; expiración/concurrencia conservan aprobación PostgreSQL previa, no nueva espera real.
+
+Cinco variablesSMTPsoloVPS.env.production,0600; formato/presencia verificados sin valores ni advertencias. Recreación únicamenteAPI, imagen igual y demás contenedores/arranques intactos. DNSclienteAPI usa overrideversionado deploy/compose.smtp-runtime.yml para evitar caché deparking heredada. ResoluciónSMTPcorrecta, hostnameDBresuelve, healthtrue/emailtrue. No cambios de registros del dominio/MX, resolutorglobal, proxy uotrasapps. [Guíaoperativa](EMAIL_SETUP.md) incluye los dos archivosCompose para recreaciones posteriores.
+
+Cuatroarchivosdebundle ylogsAPI comparados enmemoria con valores privados configurados:0coincidencias; URLslogsinadminkey. NoSMTPsecreto entregado aagentes/local/Git. No nuevos pagos,webhook,chat,voz nireset. Fiesta ficticia de correo disponible para la demo; antiguo adminKey local ya invalidado.
+
+AGY/GROKprevios aprobaron móduloSMTP de fuente2d7c542: evidenciareutilizada, no nuevas revisiones. Helperopcional descartado sininstalar. Diagnóstico posterior con EOF completó archivosREADY enGROK3/3 yAGY2/3; ejecución mínima restaurada, usar entrada cerrada en nuevos encargos. No requiere recuperaciónClaude de este bloqueo. VozWIP y.gitignore/archivo24 preservados. Siguiente etapa:P2finanzas; AGY diseña el paquete ypruebas en FP-FUNDING-DESIGN-20261025 intento1/3, solo informe, sesión23803; plazo31octfuncional/corte5nov.
+
+## Historial operativo anterior
+
+**Estado operativo posterior, 25 oct:** `97048c1` desplegado a las17:27UTC y saludable; copia y rollback conservados, migración0005 aplicada sin restaurar la DB. La primera activación había parado por usar el archivo de interpolación incorrecto; se corrigió y AGY3/3 aprobó el ayudante antes del segundo intento exitoso. Credenciales de Compose en `.env`; credenciales de la API en `.env.production`.
+
+**Bloqueo externo de dominio:** DNS públicos/VPS resuelven162.4.84.247 y NS ParkLogic; el VPS198.7.114.73 devuelve200 con HTTPS/certificado correcto. Registro declara vencimiento2027, último cambio09:02UTC. No cambios DNS/MX por Codex; Jorge debe revisar la delegación. Primer seed público falló antes de HTTP y SQL confirmó cero fixtures, ledger1 intacto. [Evidencia](reviews/domain-routing-20261025.md).
+
+SMTP local entregado1/3: 253 pruebas, tipos/build correctos; AGY1/3 en curso, sesión54215. No credenciales SMTP en el archivo de servicio ni destinatario autorizado, no envío real. Arnés directo al origen en preparación AGY2/3, sesión99684; sus resultados deben etiquetarse como prueba del origen, sin afirmar DNS público resuelto. Voz22tests sin integrar por lint/autorización pendiente.
+
+**Decisión SMTP vigente, 25 oct:** se usa Banahosting/cPanel. Constructor de recuperación reorientado, mismo intento 1/3, sesión 5244; cuatro procesos anteriores propios detenidos sin tocar el constructor de compatibilidad. Nodemailer 10.2.1 instalado, tipos incluidos; sin llamada SMTP real. Cinco variables solo en el servicio VPS y destinatario autorizado pendientes. EMAIL_SETUP y decisión escrita de WhatsApp actualizados; no cambios MX/DNS.
+
+**25 oct 11:40:** AGY aprobó persistencia/API/privacidad y navegador local; PR #2 creado y adjuntado, CI `d0bfd00` correcta. Compatibilidad con la versión anterior en migración 0005 se completa antes de publicar. P1 correo en construcción sin credenciales ni envío. Voz: 22 pruebas independientes y tipos correctos, queda lint de una línea y autorización puntual pendiente. Aún no hay nuevo despliegue.
+
+**Reanudado 25 oct 11:14:** helper permitió continuar con 99 % cinco horas / 69 % semanal. AGY persistencia conserva intento 1/3; AGY audio entrega 2/3 revisa fuentes cuyo hash coincide con el informe GROK 3/3. Sin nueva construcción ni pruebas externas repetidas. La pausa al 20 % sigue vigente.
+
+**Último estado, 25 oct 06:57: PAUSA al 20 % de cinco horas**, como confirmó Jorge; 71 % semanal. Procesos propios detenidos, parciales guardados. Helper fija mínimo 16:13:26 UTC; misma continuación actualizada a 11:14 Guayaquil. Persistencia entregada, AGY revisión 1/3 pausada; audio intento 3 dejó informe de 18 tests, pendiente cotejo y revisión AGY 2/3. Nada nuevo desplegado. [Checkpoint actualizado](CHECKPOINT_2026-10-25.md).
+
+Entrega local posterior, 25 oct 06:49: persistencia/admin intento 2/3 entregado (224 tests/22 archivos, tipos y build; lint completo pendiente por voz). AGY verifica permisos/dinero/retención y navegador, intento 1/3, sesión 14795. Voz: revisión independiente reprodujo 15 tests, pero Codex requirió corregir pérdida silenciosa de audio y estado de escucha antes del fin; GROK intento 3/3, sesión 48610. Proxy obtuvo aprobación independiente acotada en entrega 2/3. Aplicación nueva aún no aceptada ni desplegada.
+
+**Reanudado el 25 octubre, 06:20 Guayaquil:** el helper permitió continuar con 97 % disponible en cinco horas al despertar; último control 77 % en cinco horas / 80 % semanal. Jorge respondió expresamente «Mantener la pausa al llegar al 20 %». GROK retoma los mismos intentos 2/3 de persistencia/admin y audio; AGY debe completar su informe de proxy en la entrega 2/3. Cambios parciales todavía sin aceptación ni despliegue. [Checkpoint](CHECKPOINT_2026-10-25.md). No se consumió reseteo por herramientas.
+
+La petición nueva sustituye el calendario/alcance anterior incompatible. Ver [PLAN_DIARIO.md](PLAN_DIARIO.md) y [PROGRESO.md](../PROGRESO.md). Solo OpenAI en producto; eliminación residual pendiente del siguiente paquete P5. Recuperación por SMTP Banahosting; Jorge crea la cuenta y carga variables únicamente en VPS. Se preservan MX/DNS y correo existente. La excepción semanal anterior no se presume vigente en este despertar: se aplican ambas guardas preventivas y los límites reales.
 
 - `1bf34344c34503ed84f63ab9626587fc2797d2c3` desplegado en el servicio exclusivo FiestaPay, saludable; imagen anterior conservada para reversión. [CI 209 pruebas/20 archivos](https://github.com/jlmawyin/fiestapay/actions/runs/40147830699). Revisión AGY API/webhook aprobada sobre fuentes y 35 pruebas específicas; no sustituye la evidencia externa.
 - **Webhook externo verificado 25 oct 05:51 UTC:** reenvío PayPal aceptado HTTP202; `PAYMENT.CAPTURE.COMPLETED` registrado a las 05:51:01.032819 UTC. Evento PayPal `WH-3DR597333T5489832-9YV22745D26080450`, captura `33J98639UB477180H`, orden `45D94071LC923231F`. Después del webhook: una captura de 5000 centavos, 0 devuelto, saldo0, una auditoría `payment_captured`. No duplicó el cobro. Evidencia `.local/payment24-after-webhook.log`.
 - Configuración OpenAI aplicada con clave ya suministrada por Jorge. Variables Gemini retiradas de `.env` local y `.env.production` sin mostrarlas. **Chat real OpenAI aprobado desde navegador público:** evento `comida-5fp2zhn8`, HTTP200, agenda y cotización 2×25=50 con confirmación. SQL: herramientas get_event_details/get_my_status/prepare_quote; cero órdenes y cero movimientos. Captura en `output/playwright/openai-chat-20261024.png`; nombre histórico, ejecución25oct. No se hizo una nueva llamada Gemini.
 - GROK trabaja paquete persistencia/admin/ciclo de vida/formulario/OpenAI-only, entrega1/3; AGY investiga riesgos y correo en paralelo, sin editar producto. Persistencia actual usa PostgreSQL; autoridad/listado dependen del cookie. Diagnóstico de pérdida de filas todavía no demostrado.
+- Actualización de esos encargos: persistencia intento1 agotó2400s con archivos parciales; intento2 acotado a administración/persistencia/privacidad/UI y pruebas en curso. Audio intento1 agotó1200s sin cambios; intento2 acotado en curso. Código nuevo aún no aceptado ni desplegado. [Contadores](AGENT_RUNS.md).
+- Proxy exclusivo actualizado y validado: no-referrer, URLs secretas fuera de logs del vhost, restauración de IP solo desde redes Cloudflare. Prueba de cabecera falsa rechazada/ignorada según camino; sitios conservan respuestas previas. [Evidencia y límites](reviews/proxy-privacy-20261025.md).
 
 El historial siguiente conserva fechas y resultados de etapas anteriores; sus pendientes de proveedor, webhook y calendario quedan sustituidos por este bloque cuando corresponda.
 

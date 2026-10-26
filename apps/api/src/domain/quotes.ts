@@ -2,10 +2,13 @@ import { fixedQuote, usd, type Quote } from '@fiestapay/shared';
 import { withTransaction, type Pool, type PoolClient } from '../db/pool.js';
 import { conflict, notFound } from '../errors.js';
 import { newId } from '../lib/ids.js';
+import { assertPrivateAccess } from './access.js';
 import { audit } from './audit.js';
-import { assertActive } from './events.js';
+import { assertAcceptingGuests } from './events.js';
+import { concealExpired } from './retention.js';
 import { assertCanOwe } from './rsvp.js';
 import {
+  findEventBySlug,
   findGuestBySession,
   guestPaidCents,
   lockEvent,
@@ -108,13 +111,18 @@ export async function createQuoteForSession(
   sessionId: string,
   slug: string,
   ttlSeconds: number,
+  presentedKey: string | null = null,
 ): Promise<Quote> {
+  const visible = await findEventBySlug(pool, slug);
+  if (!visible) throw notFound('Evento no encontrado');
+  await concealExpired(pool, visible);
   return withTransaction(pool, async (client) => {
     const found = await client.query<{ id: string }>('SELECT id FROM events WHERE slug = $1', [slug]);
     const eventId = found.rows[0]?.id;
     if (!eventId) throw notFound('Evento no encontrado');
     const event = await lockEvent(client, eventId);
-    assertActive(event);
+    assertAcceptingGuests(event);
+    await assertPrivateAccess(client, event, sessionId, presentedKey);
     const guestRow = await findGuestBySession(client, event.id, sessionId);
     if (!guestRow) throw notFound('Primero unete a la invitacion');
     const guest = await lockGuest(client, guestRow.id);

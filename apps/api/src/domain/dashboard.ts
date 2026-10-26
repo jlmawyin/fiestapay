@@ -1,17 +1,19 @@
-import type { Dashboard, Guest, RsvpStatus } from '@fiestapay/shared';
+import type { Dashboard, Guest, PaymentListItem, RsvpStatus } from '@fiestapay/shared';
 import { sumToCents, type Pool } from '../db/pool.js';
+import { assertAdminKey } from './access.js';
 import { auditTrail } from './audit.js';
-import { assertOrganizer } from './events.js';
 import { getEventBySlug, loadFiestaEvent, toGuestWithPrice, type GuestRow } from './read.js';
+import { concealExpired } from './retention.js';
 
 interface GuestWithPaidRow extends GuestRow {
   paid: string | null;
 }
 
-/** Organizer-only view: guests with verified money, plus the audit trail of this event. */
-export async function dashboardFor(pool: Pool, sessionId: string, slug: string): Promise<Dashboard> {
+/** Organizer view. A keyed event accepts only X-Fiesta-Admin-Key, never the session cookie. */
+export async function dashboardFor(pool: Pool, slug: string, presentedKey: string | null): Promise<Dashboard> {
   const eventRow = await getEventBySlug(pool, slug);
-  assertOrganizer(eventRow, sessionId);
+  assertAdminKey(eventRow, presentedKey);
+  await concealExpired(pool, eventRow);
 
   const { rows } = await pool.query<GuestWithPaidRow>(
     `SELECT g.id, g.event_id, g.session_id, g.name, g.status, g.companions, g.obligation_version,
@@ -40,9 +42,37 @@ export async function dashboardFor(pool: Pool, sessionId: string, slug: string):
     ),
   );
 
+  const payments = await pool.query<{
+    order_id: string;
+    guest_name: string;
+    amount_cents: number;
+    status: string;
+    created_at: Date;
+  }>(
+    `SELECT COALESCE(o.paypal_order_id, o.id::text) AS order_id,
+            g.name AS guest_name,
+            o.amount_cents,
+            o.status,
+            o.created_at
+       FROM orders o
+       JOIN guests g ON g.id = o.guest_id
+      WHERE o.event_id = $1
+      ORDER BY o.created_at DESC
+      LIMIT 100`,
+    [eventRow.id],
+  );
+  const paymentItems: PaymentListItem[] = payments.rows.map((row) => ({
+    orderId: row.order_id,
+    guestName: row.guest_name,
+    amountCents: row.amount_cents,
+    status: row.status,
+    createdAt: row.created_at.toISOString(),
+  }));
+
   return {
     event: await loadFiestaEvent(pool, eventRow),
     guests,
+    payments: paymentItems,
     audit: await auditTrail(pool, eventRow.id),
   };
 }
