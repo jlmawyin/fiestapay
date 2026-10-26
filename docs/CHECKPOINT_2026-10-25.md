@@ -1,6 +1,30 @@
 # Checkpoint vigente — FiestaPay
 
-## PAUSA HUMANA VIGENTE — 26 octubre2026,00:05 Guayaquil
+## Etapa actual — 26 octubre 2026, 09:54 Guayaquil
+
+GROK financiero **intento2/3**, ejecución `74074`, paquete `.local/funding-backend-attempt2-task.txt`, resultado `.local/funding-backend-attempt2-result.json`. Intento1 terminó por timeout2700s (`35070`): conservó código financiero y16casosPG en `funding.test.ts`, pero no informe final ni checks cerrados. El timeout consume1; las pausas anteriores no. Nuevo encargo: validar/reparar lo existente, no repetir diseño. 4.7/xhigh,80turnos/1800s; helper38%5h/90%semanal, Grok73%Build/64%general. Mantener guardas20%5h/5%semanal.
+
+GROK carga UI entregó1/3 con4pruebas nuevas+5regresión reportadas. AGY revisión **intento2/3**, ejecución `39089`, paquete `.local/loading-verify2-task.txt`: revisión1 agotó900s con tres casos navegador aprobados y creación detenida por selector incorrecto de su arnés; no es defecto de producto demostrado. Capturas locales vistas por Codex; no desbordamiento390px según medición. Informe final pendiente. AGY puede reparar solo su arnés, no producto.
+
+AGY análisis P3/P4 entregado1/3, `.local/moderation-gap-report.md`; notas correctoras de Codex en `.local/moderation-coordinator-notes.md` (reservas inciertas, chat obligatorio, no borrado físico de invitados ni supuestas columnas). Sin construcción de moderación todavía. Lista pública de aceptación en `docs/ACEPTACION_31_OCT.md`.
+
+Usar `login:false`, `shell:powershell.exe` para comandos administrativos; los perfiles por defecto se atascaron. Próximos puentes con `py -3 -X utf8` y stdin cerrado: UI1 perdió stdout por cp1252, pero reporte/código y uso nativo se recuperaron, sin repetir implementación. Cualquier reporte contiene solo datos de prueba. Producción sigue igual, sin nuevas llamadas reales ni despliegues. Diario reactivado con éxito; one-shot anterior sigue eliminado.
+
+## Reanudación humana — 26 octubre 2026, 09:06 Guayaquil
+
+Jorge indicó «sigue» después de la pausa por energía. Queda levantada esa pausa humana; se mantienen las guardas de cuota y las restricciones de alcance. Worktree y rama iguales, HEAD `188b111`, sin cambios de producto desde `731df71` al reanudar.
+
+Helper: 79 % disponible cinco horas / 97 % semanal, `stop=false`, `needs_refresh=false`. GROK: 71 % general / 79 % Build, SuperGrok, reinicio en 4d16h; modelos 4.7/4.6 disponibles. AGY Gemini: 93,8 % cinco horas / 90,9 % semanal; Claude/GPT: 100 % / 25,8 %. Claude directo sigue sin integración comprobada.
+
+GROK retoma **FP-FUNDING-BACKEND-20261025, intento 1/3**, misma entrega pausada; ejecución `35070`, paquete `.local/funding-backend-resume2-task.txt`, resultado `.local/funding-backend-resume2-result.json`. Modelo 4.7/xhigh, 110 turnos/2700 s. No había informe ni código financiero parcial. Contenedor local `fiestapay-test-oct25` iniciado tras el apagado; sin repetir instalaciones, pagos, correo o IA real.
+
+Se creó una vez el índice del worktree solicitado por el contexto de la sesión: proyecto `C-Users-Jorge-.codex-worktrees-funding-refunds-fiestapay`, generación `2026-10-26T14:04:42Z`, 1566 nodos/5339 relaciones. Cobertura financiera informa `metadata_changed`; SQL0003/0005/0006 tiene rangos parciales leídos directamente. No demuestra exhaustividad. El paquete transmite límites y lectura de fuente obligatoria.
+
+Siguiente: entrega backend local y verificación independiente AGY con base de datos separada; después interfaz según contratos reales. Sin cambios ni despliegues en Contabo en esta reanudación. La pausa siguiente queda como antecedente histórico.
+
+Diario `fiestapay-ejecuci-n-diaria` reactivado mediante herramienta nativa después de la orden humana, conservando instrucciones y horario. No se recreó la continuación puntual eliminada. Segundo frente GROK `FP-LOADING-UX-20261026`, intento1/3, ejecución29030: cambios locales en App/DemoRibbon/CreateEventView/CSS; pruebas e informe pendientes. Sesiones nativas actuales: backend `01a17888-8b88-7f62-8e0c-68da9d469144`, carga `01a1788c-aaf2-7620-acca-d41edb84c0d0`. AGY `FP-MODERATION-GAP-20261026`, intento1/3, ejecución65295, analiza P3/P4 sin modificar producto. Máximo dos frentes de construcción preservado.
+
+## Pausa humana anterior — 26 octubre 2026, 00:05 Guayaquil (levantada)
 
 Jorge pidió detenerse por corte de energía yapagado del equipo. NO reanudar por hora, arranque ni recuperación de cuota: esperar que Jorge diga continuar. Procesos propios detenidos (4 en este cierre); ejecución/backendjob40207 ysu contexto quedan PAUSADOS en intento1/3, no fallo ni intento nuevo. Automatización diaria fiestapay-ejecuci-n-diaria puestaPAUSED por herramienta nativa conservando nombre/prompt/horario; one-shot fiestapay-reanudar-cuota-25-oct ELIMINADA. No otra reanudación programada.
 

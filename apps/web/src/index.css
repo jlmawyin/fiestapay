@@ -130,6 +130,87 @@ p, span, li, input, textarea, select, button {
   margin-right: 0.5rem;
 }
 
+.demo-ribbon-skel {
+  display: inline-block;
+  height: 0.7rem;
+  width: 6.5rem;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.32) 50%,
+    rgba(255, 255, 255, 0.12) 100%
+  );
+  background-size: 200% 100%;
+  animation: demo-ribbon-skel-shift 1.2s ease-in-out infinite;
+}
+
+.demo-ribbon-skel-short {
+  width: 4.5rem;
+}
+
+@keyframes demo-ribbon-skel-shift {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.demo-ribbon-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.demo-ribbon-retry {
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.12rem 0.45rem;
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+
+.create-event-progress {
+  margin-bottom: 1rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--radius-md);
+  background: var(--color-blue-tint);
+  color: var(--color-ink);
+  font-size: 0.875rem;
+}
+
+.create-event-progress-bar {
+  margin-top: 0.55rem;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: rgba(18, 95, 230, 0.15);
+  overflow: hidden;
+  position: relative;
+}
+
+.create-event-progress-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 36%;
+  background: var(--color-blue);
+  border-radius: inherit;
+  animation: create-event-progress-indeterminate 1.4s ease-in-out infinite;
+}
+
+@keyframes create-event-progress-indeterminate {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(380%); }
+}
+
 /* Signature Ticket Motif */
 .ticket-card {
   position: relative;

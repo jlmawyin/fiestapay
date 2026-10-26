@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { EventInput } from '../types';
 import { api } from '../api/client';
 import { rememberAdminKey } from '../api/admin-key';
@@ -21,20 +21,44 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [created, setCreated] = useState<{ slug: string; adminKey: string } | null>(null);
+  const mountedRef = useRef(true);
+  const inFlightRef = useRef<Promise<void> | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const handleSubmit = async (input: EventInput) => {
-    setIsLoading(true);
+    if (inFlightRef.current) {
+      return inFlightRef.current;
+    }
+
+    const run = (async () => {
+      if (mountedRef.current) setIsLoading(true);
+      try {
+        const res = await api.createEvent(input);
+        if (res.adminKey) rememberAdminKey(res.event.slug, res.adminKey);
+        if (!mountedRef.current) return;
+        onShowToast('success', `¡Fiesta "${res.event.title}" creada con éxito!`, 'Fiesta Creada');
+        if (res.adminKey) setCreated({ slug: res.event.slug, adminKey: res.adminKey });
+        else onEventCreated(res.event.slug);
+      } catch (err: any) {
+        if (!mountedRef.current) return;
+        onShowToast('error', err.message || 'No se pudo crear la fiesta', 'Error al crear');
+        throw err;
+      } finally {
+        if (mountedRef.current) setIsLoading(false);
+      }
+    })();
+
+    inFlightRef.current = run;
     try {
-      const res = await api.createEvent(input);
-      if (res.adminKey) rememberAdminKey(res.event.slug, res.adminKey);
-      onShowToast('success', `¡Fiesta "${res.event.title}" creada con éxito!`, 'Fiesta Creada');
-      if (res.adminKey) setCreated({ slug: res.event.slug, adminKey: res.adminKey });
-      else onEventCreated(res.event.slug);
-    } catch (err: any) {
-      onShowToast('error', err.message || 'No se pudo crear la fiesta', 'Error al crear');
-      throw err;
+      await run;
     } finally {
-      setIsLoading(false);
+      inFlightRef.current = null;
     }
   };
 
@@ -60,7 +84,15 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
             </button>
           </div>
         ) : (
-          <CreateEventForm onSubmit={handleSubmit} onCancel={onCancel} isLoading={isLoading} />
+          <>
+            {isLoading ? (
+              <div className="create-event-progress" role="status" aria-live="polite" aria-busy="true">
+                <p>Creando la fiesta…</p>
+                <div className="create-event-progress-bar" aria-hidden="true" />
+              </div>
+            ) : null}
+            <CreateEventForm onSubmit={handleSubmit} onCancel={onCancel} isLoading={isLoading} />
+          </>
         )}
       </div>
     </div>

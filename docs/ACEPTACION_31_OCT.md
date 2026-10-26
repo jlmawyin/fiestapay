@@ -1,28 +1,35 @@
-# Aceptación: entrega del 31 octubre
+# Aceptación de la entrega del 31 de octubre
 
-Estado de referencia: 25 octubre 2026. Una prueba automatizada de proveedor simulado no acredita una transacción externa, un correo recibido ni audio humano. Registrar versión, fecha, dispositivo, resultado y evidencia por criterio. Usar compradores sandbox y nombres ficticios.
+Estado al reanudar el 26 de octubre de 2026. Esta lista separa evidencia existente de pruebas pendientes; una propuesta o una prueba con PayPal simulado no acredita una operación externa.
 
-| # | Criterio de Jorge | Cómo probarlo | Evidencia actual |
-|---|---|---|---|
-| 1 | Enlace público no edita | Navegador sin clave: llamar directamente edición/cierre/borrado/panel; esperar 403 y comprobar DB sin cambios. Repetir con cookie de invitado. | API y navegador local aprobados por AGY; en VPS97048c1, cuatro rutas sin clave403 y datos intactos por conexión directa. DNS/HTTPS público restablecido25oct18:40; no se repitió el arnés de permisos. |
-| 2 | Enlace organizador válido; incorrecto 403 | Abrir enlace admin en navegador distinto, editar descripción y consultar pagos. Repetir con clave aleatoria, truncada y de otra fiesta. Verificar ausencia de clave en DTO público/log. | Navegador local y API verificados; origen del VPS devuelve clave correcta200/incorrecta403 y edición válida200, sin cookies de creador. |
-| 3 | Pago solo por captura, sin duplicado | Aprobar USD50, capturar, repetir orderId y reenviar webhook. Contar una captura/5000 centavos. URL manipulada/APPROVED sin captura conserva pendiente. | Pago real sandbox y reintento 24oct; webhook externo aceptado 25oct sin duplicación, versión1bf3434. |
-| 4 | No llega al mínimo → reembolso | Fiesta de prueba, mínimo superior a lo cobrado, fecha límite corta; pagar y esperar job. Verificar PayPal refund COMPLETED, importe/moneda/captura, ledger único y saldo/progreso correctos. Probar timeout, doble ejecución y captura tardía. | Iniciación automática pendiente; conciliación de reembolsos simulados ya existía. |
-| 5 | Script se muestra como texto | Título/chat `<script>window.__xss=1</script>`; ninguna ejecución, texto visible; repetir en panel. | React escapa texto por defecto; falta prueba específica del flujo nuevo. |
-| 6 | Sin secretos ni Gemini en JS | Build, búsqueda del nombre/proveedor y de valores secretos solo en memoria, salida con conteos. Inspeccionar `/api/capabilities`; revisar source maps y bundles. | Claves Gemini retiradas de entorno; código residual en eliminación. |
-| 7 | Persistencia y autoborrado | Crear, guardar enlaces, recargar, navegador distinto, reinicio exclusivo API, verificar misma fiesta. Reloj controlado de test: fin+71:59 vigente, fin+72h inaccesible; conservar conciliación financiera mínima. | PG/retención/captura tardía aprobados; fixture del VPS sobrevivió reinicio de API y se eliminó con su clave200→410. Prueba directa al origen; DNS/HTTPS público restablecido25oct18:40, sin repetir reinicio. |
-| 8 | Recuperación | Registrar/verificar correo opcional, perder enlace, solicitar, recibir email, consumir token, probar clave nueva y antigua; rechazar reutilización/caducidad y dos consumos simultáneos. | **Recuperación real acreditada25oct:** dos correos desdeFiestaPay aceptadosSMTP y recibidos enentrada; contacto verificado, clavevieja403 y panelnuevo200 con captura/confirmación deJorge ylogsAPI. Enlace usado reabierto y rechazado400, confirmado porJorge/logs; caducidad/concurrencia ya aprobadas enPG. [Evidencia](reviews/smtp-live-20261025.md). |
-| 9 | Audio móvil completo/secuencial | Tres conversaciones desde celular, inicio intacto, dos respuestas juntas se encolan, denegar micrófono y reconectar sin repetición; registrar latencia. | Prueba WebSocket histórica real; micrófono humano/móvil pendiente. |
-| 10 | Demo de90s | Crear, copiar/abrir WhatsApp sin enviar a terceros, abrir enlace público en otro navegador, pagar, ver meta y recepción Business; grabar recorrido real. | Pago y consulta OpenAI reales acreditados por separado; recorrido integrado y significado de payout pendientes. |
+| Criterio solicitado | Evidencia disponible | Comprobación que falta |
+|---|---|---|
+| 1. El invitado no puede editar desde la API | Comprobación de acceso de P0 desplegado: edición pública rechazada con 403. | Regresión de autorización sobre la versión final integrada. |
+| 2. La clave de organizador abre edición y pagos; otra da 403 | Panel con clave nueva 200 y clave anterior 403 durante la aceptación SMTP. | Regresión del panel y edición después del paquete financiero. |
+| 3. Pago solo tras captura verificada y sin duplicar orderId | Captura de USD50 y webhook real de prueba conciliados una vez; pruebas financieras previas aprobadas. | Mantener estas garantías con cierre y devolución concurrentes, primero con PostgreSQL y proveedor simulado. |
+| 4. No alcanzar el mínimo a tiempo devuelve el dinero | Plan de aceptación y diseño disponibles. Implementación en curso. | Revisión independiente y, después, devolución real sandbox de una operación nueva de USD1. |
+| 5. Título/chat con script se muestran como texto | AGY observó escape de texto JSX y límites por IP en la fuente actual; no equivale a prueba en navegador. | Verificar representación literal en navegador y completar moderación/bloqueo, conservando las referencias de pago. |
+| 6. Sin secretos en JavaScript ni presencia del proveedor retirado | Comprobación anterior del bundle/logs sin valores privados; OpenAI real aprobado. | Eliminar código y tipos residuales de Gemini y revisar el bundle final. |
+| 7. Persistencia y borrado a las 72 horas del fin | Reinicio del servicio sin pérdida y retención probados en P0; referencias financieras conservadas. | Regresión de tombstones con obligaciones de devolución y comprobación final en otro navegador. |
+| 8. Recuperación de administración | Jorge recibió dos correos en entrada, verificó, recuperó, abrió el panel nuevo y confirmó rechazo del enlace reutilizado. Servidor: antiguo403/nuevo200/reuso400. | Reusar esta evidencia si la fuente no cambia; no enviar más correos de prueba para repetirla. |
+| 9. Audio completo, sin solaparse ni cortarse en celular | Pruebas locales de cola; queda corrección de lint en WIP separado. | Resolver recuperación del encargo según dirigir-agentes, integrar y realizar prueba humana móvil. |
+| 10. Demo de 90 segundos | Creación, enlaces y pago de prueba existen; recorrido completo aún sin aceptación final. | Ensayar con la versión final: crear, compartir manualmente, pagar como invitado y mostrar meta y recepción verificadas. |
 
-## Guardas de dinero
+## Orden de trabajo
 
-Asistencia y pago son estados distintos: «va» no significa «pagó». Contar pagados solo desde capturas verificadas menos devoluciones. Todo cálculo en centavos en servidor. Reembolsos solo sandbox, con identificador idempotente persistido antes de llamar PayPal. Nunca marcar completado por solicitud aceptada o por timeout. No borrar evidencias financieras al ocultar/eliminar la fiesta.
+1. Terminar backend financiero y su revisión independiente: plazo, decisión irreversible, devolución durable y conciliación.
+2. Conectar la interfaz a los campos reales del servidor: plazo, mínimo, asistentes/pagados y estado de devolución. Mostrar comisión estimada antes del pago y que la absorbe el organizador.
+3. Completar moderación, validación del formulario, limpieza OpenAI y recuperación del audio. Las mejoras de carga pueden construirse en archivos separados mientras se completa el backend.
+4. Ejecutar regresión integrada y pruebas externas que aún falten. Identificar la versión desplegada y documentar resultados.
+5. Ensayar el recorrido de 90 segundos, preparar instrucciones para jueces y cerrar bloqueantes antes del 31.
 
-La [API PayPal](https://developer.paypal.com/api/payments/v2/captures-refund) permite devolver una captura y usar `PayPal-Request-Id`. La estimación de comisión debe identificar tarifa/mercado, quién la absorbe y que la cifra definitiva procede de PayPal; no se traslada automáticamente al invitado ni se altera la cotización de USD50.
+Máximo dos frentes de construcción. GROK implementa; AGY verifica de forma independiente; Claude atiende recuperación según la habilidad. Los contadores no se reinician al pausar o cambiar de día.
 
-## Evidencia externa ya obtenida
+## Operaciones y límites
 
-- Pago: orden `45D94071LC923231F`, captura `33J98639UB477180H`, USD50, una fila de captura y saldo0 después del reintento y webhook. [Detalle](reviews/sandbox-evidence.md).
-- Desglose obtenido directamente de esa captura el25oct06:19UTC: brutoUSD50, comisiónPayPalUSD3, netoUSD47. Es evidencia de esa operación concreta; no promete la misma comisión en toda transacción futura. Artefacto `.local/capture-fee-evidence.json`.
-- OpenAI público: fiesta `comida-5fp2zhn8`, HTTP200, herramientas `get_event_details`, `get_my_status`, `prepare_quote`; cuenta 2×25=50 con confirmación. SQL posterior: cero órdenes y cero movimientos financieros en esa fiesta. Esto demuestra que el asistente no cobró por su cuenta. Evidencia local ignorada `.local/openai25-evidence.log` y captura `output/playwright/openai-chat-20261024.png` (archivo producido el25oct; nombre histórico).
+- La operación de USD50 ya acreditada se conserva. La devolución pendiente se prueba con otra fiesta y USD1, siguiendo [el protocolo financiero](reviews/funding-acceptance-plan.md).
+- La demo usa un único receptor Business sandbox. La captura acredita recepción en esa cuenta; no demuestra una transferencia adicional por PayPal Payouts ni conexión de cuentas de otros organizadores.
+- Los estados de asistencia y pago son distintos. Un RSVP no es una captura; un reembolso solicitado o pendiente no es dinero devuelto.
+- La [recuperación SMTP](reviews/smtp-live-20261025.md) ya está aceptada. [WhatsApp](WHATSAPP_VIABILIDAD.md) se mantiene para compartir y recordar manualmente; Jorge convoca a los probadores.
+- No hay nuevas llamadas reales, pruebas humanas, despliegue del paquete financiero ni grabación acreditados por este documento.
+- Se mantienen los límites de cuota, la pausa al 20 % de cinco horas, la prohibición de consumir reseteos y el aislamiento de otras aplicaciones del VPS.
