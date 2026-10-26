@@ -1,4 +1,20 @@
-# Ruta pública del dominio: intervención del dueño pendiente
+# Ruta pública del dominio: restablecida
+
+## Verificación posterior a la renovación — 25 octubre, 18:40 Guayaquil
+
+Jorge informó que el dominio vencía hoy y fue renovado a las 18:02 ECT, con nuevo vencimiento el 25 octubre 2027. Aclaró que el registrador es **NameSilo**, el correo se aloja en **Banahosting** y Cloudflare mantiene DNS/proxy. La renovación y su hora son información del dueño; las comprobaciones siguientes son evidencia nueva de Codex:
+
+| Comprobación pública | Resultado |
+|---|---|
+| A de `fiestapay.somospanas.com`, resolutores 1.1.1.1 y 8.8.8.8 | `104.21.35.239` y `172.67.181.52`, Cloudflare. |
+| NS de `somospanas.com`, 8.8.8.8 | `austin.ns.cloudflare.com` y `delilah.ns.cloudflare.com`. |
+| HTTPS normal, sin fijar origen, `/api/health` | HTTP200 y `{"ok":true}`; certificado validado. |
+| HTTPS normal, `/` | HTTP200 y página FiestaPay. |
+| `/api/capabilities` | Correo deshabilitado, sandbox y chat configurados. No se invocaron esos proveedores. |
+
+El bloqueo público queda resuelto. Codex no modificó DNS, MX, SPF, DKIM ni otras aplicaciones. La recuperación por correo aún necesita contraseña SMTP, destinatario autorizado y aceptación real desde FiestaPay. No se repitieron pagos ni pruebas de persistencia ya acreditadas.
+
+## Incidencia anterior, conservada como historial
 
 25 octubre 2026, comprobación posterior al despliegue. El servidor de FiestaPay responde correctamente por HTTPS al fijar la conexión al VPS, pero el acceso normal por dominio falla durante TLS. No se modificaron DNS, MX ni cuentas de correo.
 

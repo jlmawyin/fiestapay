@@ -4,9 +4,15 @@ Actualizado: 25 octubre 2026, America/Guayaquil. Resumen de esta entrega; el his
 
 ## Prioridades vigentes y ejecución
 
-**Último estado, 25 oct 13:38:** `2d7c542f8fbea0792e9e066e7e49fd412efad3ad` desplegado y saludable; [CI aprobada](https://github.com/jlmawyin/fiestapay/actions/runs/40221509308), migración0006 aplicada. Recuperación SMTP Banahosting y navegación de enlaces aprobadas por AGY en dos entregas. Ledger sigue con una captura/5000centavos; cero tokens de recuperación en producción, cero correos enviados. La API declara `emailConfigured=false`, sandbox y chat configurados. No se afirma nueva llamada de chat ni disponibilidad de correo.
+**Último estado, 25 oct, después de las 18:40:** ruta pública recuperada: dos resolutores devuelven Cloudflare, NS austin/delilah y HTTPS `/` y `/api/health` devuelven200. Jorge renovó el dominio en NameSilo; Banahosting sigue alojando el correo. No hubo cambios DNS/MX por Codex. Aplicación activa `2d7c542`, [CI aprobada](https://github.com/jlmawyin/fiestapay/actions/runs/40221509308). No se repitieron pago, webhook ni chat.
 
-**Bloqueos humanos:** revisar delegación del dominio (ruta pública sigue fallando TLS y apunta a ParkLogic), cargar configuración SMTP válida únicamente en el VPS y nombrar el destinatario autorizado para probar recepción y recuperación real. Esas preguntas ya están pendientes; no volver a pedir contraseñas ni repetir pagos/webhook/chat acreditados. Las guías SMTP y WhatsApp están actualizadas. Voz permanece sin integrar a la espera de la excepción puntual ya solicitada; P2–P6 restantes siguen según el plan.
+**SMTP:** Jorge informa prueba propia recibida en bandeja de entrada y autoriza la configuración. Cuatro variables cargadas solo en `/opt/fiestapay/.env.production`, modo0600; falta `SMTP_PASS`. [Guía para editarla directamente enVPS](docs/EMAIL_SETUP.md), sin contraseña en chat/comandos/local/logs. Falta también la única dirección autorizada, ya consultada. `emailConfigured=false`; cero envíos desde FiestaPay en esta ejecución, servicio sin recrear. Voz conserva la excepción puntual pendiente; P2–P6 restantes siguen según el plan.
+
+**Resolución SMTP pendiente en Contabo:** DNS público de mail devuelve50.31.177.117 y la prueba TLS a esa IP desdeVPS validó certificado/saludo220. Sin embargo, el resolutor normal del VPS y del contenedorAPI conserva162.4.84.247 y timeout465. No se cambió resolución/DNS/MX, no se autenticó ni envió correo. Volver a comprobar al completar contraseña; no confundirlo con el HTTPS público ya recuperado.
+
+**Agentes, 25oct19:09:** GROK status/cuota responde, pero encargos900s y300s terminaronASK_TIMEOUT sin archivos; contador2/3. AGY status/modelos responde, revisión300s terminóAGY_TIMEOUT sin informe; contador1/3. No hay cargador oculto instalado ni validación independiente nueva. Se conserva el procedimiento estándar de editor remoto; no gastar otro intento sin diagnóstico/hipótesis nueva ni sustituir la recuperación porClaude con cuota desconocida.
+
+Los estados anteriores que siguen son historial; no representan bloqueos DNS vigentes.
 
 **P0 desplegado, 25 oct 12:28; ruta pública bloqueada:** `97048c1` activo y saludable en Contabo, migración0005 y copia previa conservadas; la captura existente sigue contabilizada una vez. HTTPS directo al origen devuelve200. El DNS público devuelve otra IP y delega en ParkLogic; se pidió revisión a Jorge respetando su prohibición de cambiar DNS/MX. No se declara el sitio públicamente disponible. [Diagnóstico](docs/reviews/domain-routing-20261025.md).
 
