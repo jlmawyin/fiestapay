@@ -27,6 +27,8 @@ FiestaPay se conecta al servidor SMTP existente desde Contabo. No instala otro s
 
 ### Introducir la contraseña desde el propio VPS
 
+Destinatario único autorizado recibido por el chat el25oct19:16; no publicarlo en Git ni volver a solicitarlo. La comprobación de presencia de ese momento confirmó contraseña aún vacía, otroscuatroajustes cargados y permisos0600. No se envió correo. Después de guardar la contraseña, continuar con el destinatario ya autorizado.
+
 El cargador opcional de entrada oculta no fue entregado: GROK agotó dos intentos sin archivos y AGY agotó la revisión sin informe. No se instaló ni aprobó ese cargador. La edición estándar del archivo está disponible con Nano en el VPS; esta guía usa el formato documentado de Compose, sin atribuirle pruebas nuevas de los agentes.
 
 En **PowerShell de Jorge**, abrir el archivo remoto:
