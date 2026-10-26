@@ -4,8 +4,9 @@
 
 | Encargo/defecto | Responsable | Intento/entrega | Estado |
 |---|---|---:|---|
-| FP-SMTP-PASSWORD-SETUP-20261025 | GROK | 2/3 timeout, sin archivos | Intento1 agotó900s; intento2 acotado300s también ASK_TIMEOUT, sin archivos ni cuota posterior. Status funciona86%Build/80%general, pero ejecución no acreditada en esta etapa. No se lanza intento3 sin diagnóstico/hipótesis nueva. Ningún cargador se subió al VPS. |
-| FP-SMTP-PASSWORD-VERIFY-20261025 | AGY | 1/3 timeout, sin informe | AGY_TIMEOUT300s; no entregó informe ni pruebas. Status responde, ejecución útil no acreditada. Gemini94.7%semanal/100%5h antes de ask; consumo posterior desconocido. No se aprueba cargador ni se inventa validación independiente. Procedimiento estándar del editor documentado con referencia oficial de Compose. |
+| FP-SMTP-PASSWORD-SETUP-20261025 | GROK | 3/3 diagnóstico aprobado | Intentos1/2 timeout900/300s sin helper. Hipótesis nueva: stdin heredado abierto. Intento3 invocado con entrada cerrada escribió el marcadorREADY y terminó correctamente; capacidad de ejecución mínima acreditada, no helper instalado. Grok4.7/xhigh,46736tokens totales; presupuesto posterior80%general/86%Build. No se afirma causa exclusiva del bloqueo. |
+| FP-SMTP-PASSWORD-VERIFY-20261025 | AGY | 2/3 diagnóstico aprobado | Intento1 timeout300s sin revisión de helper. Intento2 con stdin cerrado escribióREADY y terminó; GeminiFlashHigh/high,20275tokens totales.25.8% agregado del resultado corresponde aClaude/GPT; último bucketGemini94.1%semanal/99%5h. No se aprueba helper inexistente; entrada manual del VPS ya resolvió su objetivo. |
+| FP-FUNDING-DESIGN-20261025 | AGY | 1/3 en curso | Diseño acotadoP2 de plazo/mínimo/reembolso/fees, solo.local/funding-design.md. Sin producto, secretos ni llamadas reales. Nueva invocación EOF; cuotaGemini94.1/99, timeout900s. Padre pasó alcance/grafo caído/fuentes y preguntas de concurrencia. |
 | OpenAI proveedor e interfaz | Claude/AGY inicial → GROK integración | 2/3 | Versión1bf3434, CI y aceptación externa aprobadas. Nueva eliminación definitiva del otro proveedor pertenece al alcance25oct. |
 | Límite de firma webhook | GROK | 1/3 | Aprobado por AGY, CI y webhook real PayPal sin duplicar captura. |
 | Revisión OpenAI/webhook | AGY | 1/3 | Aprobada,35tests específicos; alcance acotado. |
@@ -23,7 +24,7 @@
 
 Paquetes/prompts/reportes operativos en `.local/`, ignorados porGit. Codex controla integración, credenciales, despliegue y evidencias externas; agentes no acceden a secretos niVPS. No hay conectores MCP de los tres agentes en esta sesión: GROK/AGY usan sus puentes canónicos. Claude CLI autenticada el25oct, cuota desconocida, no se inició recuperación.
 
-Los timeouts nuevos son un bloqueo de ejecución todavía sin causa probada: consultar cuota/modelos no acredita capacidad de construir o verificar. Conservar GROK2/3 yAGY1/3 al investigar ese mismo bloqueo; cambiar nombre de tarea o producto no reinicia esos contadores. No instalar ni aprobar el helper opcional inexistente. Las operaciones de configuración de secretos permanecen enCodex/Jorge, con el procedimiento estándar remoto documentado.
+Los timeouts se conservaron hasta la nueva hipótesis y el diagnóstico con archivo real: GROK3/3 yAGY2/3 completaron sus marcadores. Las consultas de cuota solas nunca se usaron como prueba de ejecución. Mantener EOF al invocar puentes canónicos: `'' | py -3 ...`; no modificar ni eludir sus compuertas. El resultado demuestra ejecución mínima, no aprobación automática de paquetes futuros. No instalar ni aprobar el helper opcional inexistente. Las operaciones de configuración de secretos permanecen enCodex/Jorge, con el procedimiento remoto documentado.
 
 Base local desechable para verificación: contenedor `fiestapay-test-oct25`, PostgreSQL16, solo loopback127.0.0.1:55439; sin datos de producción. Configuración de pruebas en `.local/test-database.md`. No tocar contenedores de otros proyectos.
 

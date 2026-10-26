@@ -10,7 +10,7 @@ El adaptador admite465 con TLS y587 con STARTTLS obligatorio, valida certificado
 
 Dependencias `fast-uri` actualizadas a3.1.9/4.2.3; auditoría del espacio de trabajo sin vulnerabilidades registradas. La revisión inspeccionó paquete/bundle y el flujo de datos; no recibió credenciales reales ni demuestra una comparación contra secretos todavía sin cargar.
 
-**Aceptación real posterior:** [SMTP y recuperación verificados con Jorge](smtp-live-20261025.md): dos mensajes enentrada, contacto verificado, claveantigua403 ypanelnuevo200. Reutilización manual pendiente de respuesta; las pruebas de caducidad/concurrencia descritas arriba mantienen su alcance automatizado. [Configuración y protocolo](../EMAIL_SETUP.md).
+**Aceptación real posterior:** [SMTP y recuperación verificados con Jorge](smtp-live-20261025.md): dos mensajes enentrada, contacto verificado, claveantigua403 ypanelnuevo200. Reutilización manual confirmada con rechazo400; las pruebas de caducidad/concurrencia descritas arriba mantienen su alcance automatizado. [Configuración y protocolo](../EMAIL_SETUP.md).
 
 Informes ignorados: `.local/recovery-review.md`, `.local/recovery-ui-review.md`; arneses `.local/recovery-verify.e2e.mjs` y `.local/recovery-verify-hashchange.mjs`. Revisión1:337146tokens entrada/39841salida; revisión2:208584entrada/30877salida. El25,8% agregado del puente corresponde aClaude/GPT, no aGemini usado por estos revisores.
 

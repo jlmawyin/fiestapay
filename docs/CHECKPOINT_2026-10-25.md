@@ -1,5 +1,16 @@
 # Checkpoint de cuota — 25 octubre 2026
 
+## Estado vigente: correo cerrado y agentes con ejecución mínima restaurada
+
+Jorge confirmó también reapertura del segundo enlace: rechazado. LogsAPI del recorrido: consume200,200,400 (último19:57:57ECT, token ya usado ycaducado). Claveantigua403/panelnuevo200 e inbox deambos correos acreditados. SMTPreal finalizado, no reenviar ni pedir másdatos/credenciales/links. Reutilización ycaducidad aisladas/concurrencia conservan testsPGanteriores aprobados, sin repetirlos. Fiesta queda para demo/autocaducidad; clave localantigua inválida, no ejecutarcleanupconella.
+
+Nueva hipótesis probada con cierrestdin, sin modificar puentes: GROK intento3/3 yAGY2/3 escribieronREADY en.local/agent-probe-*.txt y devolvieronok. No se afirma causa exclusiva; invocar siempre `'' | py -3 <puente> ...` para no heredarentradaabierta. Grok4.7/xhigh46736tokens totales, presupuesto80general/86Build; AGYgemini-3.8-flash-high/high20275tokens,9.73seg. ÚltimoFlash94.1%semanal/99%5h. Claude no fue invocado ni se sustituye recuperaciónvoz agotada. No repetir estos diagnósticos ni reiniciar contadores.
+
+Encurso AGY FP-FUNDING-DESIGN-20261025 intento1/3, sesión23803,900s, report.local/funding-design.md/result.local/funding-design-result.json. EOF. Solo diseñoP2finanzas, no producto ni red autenticada/secretos/SSH. Parentgraph índice/búsqueda/coverageTransportclosed, generaciónvieja15oct; paths/misses y fuentes exactas pasados. Primero leerentrega antes deenviarconstructorGROK. P2debeprotegercapturaUSD50existente/legacy; plazo/min decideatomicamente, cola de reembolsosidempotente/latecapture/tombstone, fees sin inventartarifa. Padre comprobófuenteoficialEC https://www.paypal.com/ec/business/paypal-business-fees: último28sep2026, EC5.40%+fijo; fuente de fijoUSD todavía por corroborar. No gastoslive/Payouts/depositos.
+
+Git8f0877261235785d670ede59d0ee2bae3daffd28 pusheadoPR2; CI40251103842 verde. Appimagen/código2d7c542 intacto, runtimeDNSoverrideversionado. Cambios actuales desde8f son evidenciaSMTP/reutilización ydiagnóstico/pasoP2, no producto. VozWIP/.gitignore/24 preservados. CuotaúltimaCodex59%5h/51%semanal, guard20 vigente; consultarantesnuevo bloquegrande. No reinicioautomatizacióncuota, diario activo hasta5nov.
+
+
 ## Cierre vigente: SMTP real verificado, 25oct después de19:37ECT
 
 Misma imagen/código2d7c542. Jorge guardóSMTP_PASSdirectamenteVPS; cinco campos presentes/formato válido,0600. Destinatario único recibido enchat, no publicarlo ni pedirlo otra vez. Aplicado soloAPI conCompose.envinterpolación+runtime.env.production y nuevo deploy/compose.smtp-runtime.yml (dns1.1.1.1/8.8.8.8 soloAPI). Diffnormalizado:soloapi.dns; imagen y otroscontenedores/arranques iguales; APIsana,emailtrue, SMTPDNS50.31.177.117/DBresoluble. No registrosDNS/MX/globalresolver/proxy modificados. Conservar -f deploy/compose.smtp-runtime.yml en futurasrecreaciones.

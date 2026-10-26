@@ -4,13 +4,13 @@ Actualizado el 25 octubre 2026 (America/Guayaquil). El calendario no equivale a 
 
 ## Etapa vigente: entrega31octubre
 
-**Estado vigente, 25oct después de19:37ECT:** recuperación real por SMTP completada conJorge en aplicación2d7c542. Primer correo de verificación y segundo de recuperación aceptados porBanahosting y confirmados en bandeja de entrada. Contacto verificado, clave antigua403 en petición directa y panel nuevo200 en logsAPI/captura deJorge. [Evidencia](reviews/smtp-live-20261025.md). Reutilización manual del enlace ya usado pendiente de respuesta; expiración/concurrencia conservan aprobación PostgreSQL previa, no nueva espera real.
+**Estado vigente, 25oct después de19:37ECT:** recuperación real por SMTP completada conJorge en aplicación2d7c542. Primer correo de verificación y segundo de recuperación aceptados porBanahosting y confirmados en bandeja de entrada. Contacto verificado, clave antigua403 en petición directa y panel nuevo200 en logsAPI/captura deJorge. [Evidencia](reviews/smtp-live-20261025.md). Reutilización manual confirmada con rechazo400; expiración/concurrencia conservan aprobación PostgreSQL previa, no nueva espera real.
 
 Cinco variablesSMTPsoloVPS.env.production,0600; formato/presencia verificados sin valores ni advertencias. Recreación únicamenteAPI, imagen igual y demás contenedores/arranques intactos. DNSclienteAPI usa overrideversionado deploy/compose.smtp-runtime.yml para evitar caché deparking heredada. ResoluciónSMTPcorrecta, hostnameDBresuelve, healthtrue/emailtrue. No cambios de registros del dominio/MX, resolutorglobal, proxy uotrasapps. [Guíaoperativa](EMAIL_SETUP.md) incluye los dos archivosCompose para recreaciones posteriores.
 
-Cuatroarchivosdebundle ylogsAPI comparados enmemoria con valores privados configurados:0coincidencias; URLslogsinadminkey. NoSMTPsecreto entregado aagentes/local/Git. No nuevos pagos,webhook,chat,voz nireset. Fiesta ficticia de correo disponible hasta cerrar comprobación de reutilización; antiguo adminKey local ya invalidado.
+Cuatroarchivosdebundle ylogsAPI comparados enmemoria con valores privados configurados:0coincidencias; URLslogsinadminkey. NoSMTPsecreto entregado aagentes/local/Git. No nuevos pagos,webhook,chat,voz nireset. Fiesta ficticia de correo disponible para la demo; antiguo adminKey local ya invalidado.
 
-AGY/GROKprevios aprobaron móduloSMTP de fuente2d7c542: evidenciareutilizada, no nuevas revisiones. Helperopcional decontraseña descartado sininstalar: timeoutsGROK2/3 yAGY1/3 guardados. No otrointento sin hipótesis/diagnóstico nuevo; noClaudeconcuotadesconocida. VozWIP y.gitignore/archivo24 preservados. Próximo productoautorizado:P2finanzas tras resolver disponibilidadagentes; plazo31octfuncional/corte5nov.
+AGY/GROKprevios aprobaron móduloSMTP de fuente2d7c542: evidenciareutilizada, no nuevas revisiones. Helperopcional descartado sininstalar. Diagnóstico posterior con EOF completó archivosREADY enGROK3/3 yAGY2/3; ejecución mínima restaurada, usar entrada cerrada en nuevos encargos. No requiere recuperaciónClaude de este bloqueo. VozWIP y.gitignore/archivo24 preservados. Siguiente etapa:P2finanzas; AGY diseña el paquete ypruebas en FP-FUNDING-DESIGN-20261025 intento1/3, solo informe, sesión23803; plazo31octfuncional/corte5nov.
 
 ## Historial operativo anterior
 
