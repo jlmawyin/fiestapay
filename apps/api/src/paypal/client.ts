@@ -7,6 +7,7 @@ import {
   type PayPalAdapter,
   type PayPalOrder,
   type PayPalRefund,
+  type RefundCaptureInput,
   type WebhookSignatureInput,
 } from './types.js';
 import { approveUrlOf } from './verify.js';
@@ -190,6 +191,18 @@ export class PayPalSandboxClient implements PayPalAdapter {
       path: `/v2/checkout/orders/${encodeURIComponent(input.paypalOrderId)}/capture`,
       body: '{}',
       headers: { 'paypal-request-id': input.requestId, prefer: 'return=representation' },
+    });
+  }
+
+  async refundCapture(input: RefundCaptureInput): Promise<PayPalRefund> {
+    if (input.requestId.trim().length === 0) throw new PayPalError('PayPal-Request-Id vacio');
+    return this.authed<PayPalRefund>({
+      method: 'POST',
+      path: `/v2/payments/captures/${encodeURIComponent(input.captureId)}/refund`,
+      body: input.body,
+      headers: { 'paypal-request-id': input.requestId, prefer: 'return=representation' },
+      // One replay of the same id and body. The lease that wraps this call covers the budget.
+      retries: 1,
     });
   }
 

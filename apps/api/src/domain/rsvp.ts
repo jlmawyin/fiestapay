@@ -5,6 +5,7 @@ import { newId } from '../lib/ids.js';
 import { assertPrivateAccess } from './access.js';
 import { audit } from './audit.js';
 import { assertAcceptingGuests } from './events.js';
+import { decideFundingIfDue, fundingBlocksNewCharge } from './funding.js';
 import { concealExpired } from './retention.js';
 import {
   GUEST_COLUMNS,
@@ -38,13 +39,17 @@ export async function joinEvent(
   const visible = await findEventBySlug(pool, slug);
   if (!visible) throw notFound('Evento no encontrado');
   await concealExpired(pool, visible);
-  return withTransaction(pool, async (client) => {
-    const event = await lockEvent(client, await eventIdBySlug(client, slug));
+  const outcome = await withTransaction(pool, async (client) => {
+    const locked = await lockEvent(client, await eventIdBySlug(client, slug));
+    const settled = await decideFundingIfDue(client, locked);
+    const blocked = fundingBlocksNewCharge(settled.event, settled.at);
+    if (blocked) return { blocked };
+    const event = settled.event;
     assertAcceptingGuests(event);
     await assertPrivateAccess(client, event, sessionId, presentedKey);
 
     const existing = await findGuestBySession(client, event.id, sessionId);
-    if (existing) return loadGuest(client, existing, event);
+    if (existing) return { guest: await loadGuest(client, existing, event) };
 
     const { rows } = await client.query<GuestRow>(
       `INSERT INTO guests (id, event_id, session_id, name) VALUES ($1, $2, $3, $4)
@@ -54,8 +59,10 @@ export async function joinEvent(
     );
     const guest = rows[0]!;
     await audit(client, event.id, 'guest_joined');
-    return loadGuest(client, guest, event);
+    return { guest: await loadGuest(client, guest, event) };
   });
+  if ('blocked' in outcome) throw conflict(outcome.blocked);
+  return outcome.guest;
 }
 
 /** People already holding a seat, excluding one guest. */
@@ -97,8 +104,12 @@ export async function setRsvp(
   const visible = await findEventBySlug(pool, slug);
   if (!visible) throw notFound('Evento no encontrado');
   await concealExpired(pool, visible);
-  return withTransaction(pool, async (client) => {
-    const event = await lockEvent(client, await eventIdBySlug(client, slug));
+  const outcome = await withTransaction(pool, async (client) => {
+    const locked = await lockEvent(client, await eventIdBySlug(client, slug));
+    const settled = await decideFundingIfDue(client, locked);
+    const blocked = fundingBlocksNewCharge(settled.event, settled.at);
+    if (blocked) return { blocked };
+    const event = settled.event;
     assertAcceptingGuests(event);
     await assertPrivateAccess(client, event, sessionId, presentedKey);
 
@@ -153,6 +164,8 @@ export async function setRsvp(
       event: toFiestaEvent(event, await eventTotals(client, event.id)),
     };
   });
+  if ('blocked' in outcome) throw conflict(outcome.blocked);
+  return outcome;
 }
 
 /** Only a confirmed RSVP creates an obligation to pay. */

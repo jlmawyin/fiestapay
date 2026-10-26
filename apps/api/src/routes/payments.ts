@@ -6,7 +6,7 @@ import { audit } from '../domain/audit.js';
 import { captureOwnOrder, createOrderForSession, markOrderApproved, readOwnOrder, requirePayPal } from '../domain/orders.js';
 import { convergeCapture, convergeRefund, isApplied } from '../domain/payments.js';
 import { findOrderByAnyId } from '../domain/read.js';
-import { orderIdParamSchema, orderSchema, parseOr400, slugParamSchema } from '../lib/schemas.js';
+import { assertNoClientMoneyState, orderIdParamSchema, orderSchema, parseOr400, slugParamSchema } from '../lib/schemas.js';
 import { requireSession } from '../lib/session.js';
 import type { RouteDeps } from './deps.js';
 
@@ -64,7 +64,8 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
     async (req): Promise<OrderResult> => {
       const { slug } = parseOr400(slugParamSchema, req.params);
-      // `confirmed: true` is the server-side trace of the human confirmation step in the UI.
+      // `confirmed: true` is the human confirmation of this order, not a funding state.
+      assertNoClientMoneyState(req.body, ['confirmed']);
       const { quoteId } = parseOr400(orderSchema, req.body);
       const session = await requireSession(pool, config, req);
       const paypal = requirePayPal(config, deps.paypal);

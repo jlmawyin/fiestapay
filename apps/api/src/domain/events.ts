@@ -5,6 +5,7 @@ import { conflict, forbidden, gone, notFound } from '../errors.js';
 import { newAdminKey, newId, newSlug, sha256 } from '../lib/ids.js';
 import { assertAdminKey, digestMatches, rememberUnlock, revokeUnlocks } from './access.js';
 import { audit } from './audit.js';
+import { decideFundingIfDue, fundingBlocksNewCharge, fundingForNewEvent, fundingNow, nextFundingTerms } from './funding.js';
 import { isPastRetention, tombstoneEvent } from './retention.js';
 import { EVENT_COLUMNS, eventTotals, loadFiestaEvent, lockEvent, toFiestaEvent, type EventRow, type Queryable } from './read.js';
 
@@ -40,11 +41,12 @@ export async function insertEvent(
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const slug = newSlug(input.template);
     try {
+      const funding = fundingForNewEvent(input, fundingNow());
       const { rows } = await db.query<EventRow>(
         `INSERT INTO events (id, slug, organizer_session_id, generation, title, template, meal, description,
            starts_at, ends_at, location, includes, agenda, price_cents, capacity, goal_cents, minimum_cents,
-           is_demo, admin_key_hash, access_code_hash)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14,$15,$16,$17,$18,$19,$20)
+           is_demo, admin_key_hash, access_code_hash, funding_deadline_at, funding_status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14,$15,$16,$17,$18,$19,$20,$21,$22)
          RETURNING ${EVENT_COLUMNS}`,
         [
           newId(),
@@ -67,6 +69,8 @@ export async function insertEvent(
           opts.isDemo,
           opts.adminKeyHash,
           opts.accessCodeHash,
+          funding.deadline ? funding.deadline.toISOString() : null,
+          funding.status,
         ],
       );
       return rows[0]!;
@@ -244,18 +248,26 @@ async function withAdmin<T>(
 }
 
 export async function confirmEvent(pool: Pool, slug: string, presentedKey: string | null): Promise<FiestaEvent> {
-  return withAdmin(pool, slug, presentedKey, async (client, event) => {
+  const outcome = await withAdmin(pool, slug, presentedKey, async (client, locked) => {
+    const settled = await decideFundingIfDue(client, locked);
+    const blocked = fundingBlocksNewCharge(settled.event, settled.at);
+    if (blocked) return { blocked };
+    const event = settled.event;
     assertActive(event);
     const totals = await eventTotals(client, event.id);
-    if (event.minimum_cents !== null && totals.collectedCents < event.minimum_cents) {
+    // A funded decision stays funded if later refunds lower the live balance.
+    // Legacy and still-open events keep the live minimum check.
+    if (event.funding_status !== 'funded' && event.minimum_cents !== null && totals.collectedCents < event.minimum_cents) {
       throw conflict('Aun no se alcanza el minimo para confirmar el evento');
     }
     if (!event.confirmed) {
       await client.query('UPDATE events SET confirmed = true WHERE id = $1', [event.id]);
       await audit(client, event.id, 'event_confirmed');
     }
-    return toFiestaEvent({ ...event, confirmed: true }, totals);
+    return { event: toFiestaEvent({ ...event, confirmed: true }, totals) };
   });
+  if ('blocked' in outcome) throw conflict(outcome.blocked);
+  return outcome.event;
 }
 
 const sameMoney = (event: EventRow, input: EventInput): boolean =>
@@ -275,18 +287,17 @@ export async function updateEvent(
     if (input.capacity < totals.confirmedPeople) {
       throw conflict('El cupo no puede ser menor que las reservas confirmadas');
     }
-    if (!sameMoney(event, input)) {
-      const blockers = await client.query<{ guests: number; orders: number }>(
-        `SELECT
-           (SELECT COUNT(*)::int FROM guests WHERE event_id = $1) AS guests,
-           (SELECT COUNT(*)::int FROM orders WHERE event_id = $1) AS orders`,
-        [event.id],
-      );
-      const row = blockers.rows[0];
-      if ((row?.guests ?? 0) > 0 || (row?.orders ?? 0) > 0) {
-        throw conflict('No se pueden cambiar la cuota, la meta o el minimo cuando ya hay invitados o pagos');
-      }
+    const blockers = await client.query<{ guests: number; orders: number }>(
+      `SELECT
+         (SELECT COUNT(*)::int FROM guests WHERE event_id = $1) AS guests,
+         (SELECT COUNT(*)::int FROM orders WHERE event_id = $1) AS orders`,
+      [event.id],
+    );
+    const usage = blockers.rows[0];
+    if (!sameMoney(event, input) && ((usage?.guests ?? 0) > 0 || (usage?.orders ?? 0) > 0)) {
+      throw conflict('No se pueden cambiar la cuota, la meta o el minimo cuando ya hay invitados o pagos');
     }
+    const terms = nextFundingTerms(event, input, new Date(input.startsAt), usage?.orders ?? 0, fundingNow());
 
     let accessCodeHash: Buffer | null | undefined;
     if (input.accessCode === undefined) accessCodeHash = undefined;
@@ -301,7 +312,8 @@ export async function updateEvent(
          title = $2, template = $3, meal = $4, description = $5, starts_at = $6, ends_at = $7,
          location = $8, includes = $9::jsonb, agenda = $10::jsonb, price_cents = $11, capacity = $12,
          goal_cents = $13, minimum_cents = $14,
-         access_code_hash = CASE WHEN $15::boolean THEN $16::bytea ELSE access_code_hash END
+         access_code_hash = CASE WHEN $15::boolean THEN $16::bytea ELSE access_code_hash END,
+         funding_deadline_at = $17, funding_status = $18
        WHERE id = $1
        RETURNING ${EVENT_COLUMNS}`,
       [
@@ -321,6 +333,8 @@ export async function updateEvent(
         input.minimumCents,
         changeCode,
         nextHash,
+        terms.deadline ? terms.deadline.toISOString() : null,
+        terms.status,
       ],
     );
     const updated = rows[0]!;
@@ -349,7 +363,10 @@ export async function closeEvent(pool: Pool, slug: string, presentedKey: string 
 /** Locks the event, then tombstones. In-flight money waits on the same row lock and then sees purged. */
 export async function deleteEvent(pool: Pool, slug: string, presentedKey: string | null): Promise<void> {
   await withAdmin(pool, slug, presentedKey, async (client, event) => {
-    await tombstoneEvent(client, event.id, 'event_deleted');
+    // A due minimum is decided before the tombstone commits. The deadline,
+    // price and minimum stay on the row so a later pass can still refund.
+    const settled = await decideFundingIfDue(client, event);
+    await tombstoneEvent(client, settled.event.id, 'event_deleted');
   });
 }
 

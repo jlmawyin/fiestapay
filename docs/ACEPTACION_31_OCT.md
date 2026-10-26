@@ -33,3 +33,22 @@ Máximo dos frentes de construcción. GROK implementa; AGY verifica de forma ind
 - La [recuperación SMTP](reviews/smtp-live-20261025.md) ya está aceptada. [WhatsApp](WHATSAPP_VIABILIDAD.md) se mantiene para compartir y recordar manualmente; Jorge convoca a los probadores.
 - No hay nuevas llamadas reales, pruebas humanas, despliegue del paquete financiero ni grabación acreditados por este documento.
 - Se mantienen los límites de cuota, la pausa al 20 % de cinco horas, la prohibición de consumir reseteos y el aislamiento de otras aplicaciones del VPS.
+
+## Procedimientos de prueba conservados
+
+Registrar versión, fecha, dispositivo, resultado y evidencia por criterio; usar compradores y nombres ficticios. No repetir las operaciones ya acreditadas si su fuente no cambia.
+
+| Criterio | Procedimiento |
+|---|---|
+| 1 | Sin clave y después con cookie de invitado, llamar edición/cierre/borrado/panel directamente. Esperar403 y datos sin cambios. |
+| 2 | Abrir administración en otro navegador; editar y consultar pagos. Probar clave aleatoria, truncada y de otra fiesta; verificar que no aparezca en DTO público ni logs. |
+| 3 | La evidencia USD50 ya incluye captura, reintento y webhook único. Mantener regresión negativa: URL manipulada o APPROVED sin captura siguen pendientes. |
+| 4 | Aplicar el protocolo de otra fiesta/USD1; verificar recurso PayPal COMPLETED, moneda/importe/captura, ledger único y saldo. Carreras/crashes se prueban con proveedor simulado. |
+| 5 | Título y chat `<script>window.__xss=1</script>` deben quedar visibles como texto; no se ejecutan en invitación ni panel. |
+| 6 | Revisar bundle/source maps/capabilities y ausencia de proveedor retirado. Comparar valores privados solo en memoria y mostrar únicamente conteos. |
+| 7 | Crear, conservar enlaces, recargar/otro navegador/reinicioAPI aislado. En tests, fin+71:59 vigente y fin+72h inaccesible; conservar conciliación financiera. |
+| 8 | La aceptación SMTP ya incluye contacto verificado, recuperación, clave nueva válida/vieja403 y reuso400; caducidad/concurrencia constan enPG. |
+| 9 | Tres conversaciones en celular: inicio completo, cola de dos respuestas, micrófono denegado y reconexión sin repetir operaciones; registrar latencia. |
+| 10 | Crear, abrir compartir WhatsApp sin enviar a terceros, abrir invitación en otro navegador, pagar, mostrar meta y recepción Business; grabar el recorrido real. |
+
+Evidencia externa conservada: orden `45D94071LC923231F`, captura `33J98639UB477180H`, USD50 una sola vez. Esa captura mostró bruto50/comisión3/neto47; no establece una tarifa universal. OpenAI público consultó herramientas y preparó2×25=50 con confirmación sin crear órdenes ni movimientos. Véanse [pago](reviews/sandbox-evidence.md) y [correo](reviews/smtp-live-20261025.md).

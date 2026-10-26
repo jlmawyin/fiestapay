@@ -27,6 +27,8 @@ export type AuditAction =
   // A stale capture claim released after PayPal confirmed no capture exists.
   | 'payment_claim_released'
   | 'event_confirmed'
+  | 'funding_met'
+  | 'funding_failed'
   | 'event_updated'
   | 'event_closed'
   | 'event_deleted'

@@ -1,4 +1,4 @@
-import { centsToUsd } from '../src/lib/money.js';
+import { centsToUsd, usdToCents } from '../src/lib/money.js';
 import {
   PayPalError,
   type CreateOrderInput,
@@ -6,6 +6,7 @@ import {
   type PayPalAdapter,
   type PayPalOrder,
   type PayPalRefund,
+  type RefundCaptureInput,
   type WebhookSignatureInput,
 } from '../src/paypal/types.js';
 
@@ -74,15 +75,25 @@ export class FakePayPal implements PayPalAdapter {
   captureCalls: { paypalOrderId: string; requestId: string }[] = [];
   /** Every refund lookup, so a test can prove a reversal was never read as a refund. */
   refundCalls: string[] = [];
+  refundCaptureCalls: { captureId: string; requestId: string; body: string }[] = [];
+  /** Same PayPal-Request-Id and body replay the stored refund. A different body is a 422. */
+  private readonly refundByRequest = new Map<string, { captureId: string; body: string; refund: PayPalRefund | null }>();
   signatureValid = true;
   /** 'timeout' fails the call after PayPal already created the order, as a real timeout can. */
   failCreate: 'timeout' | 'reject' | null = null;
   failCapture: 'timeout' | 'reject' | 'captured-then-timeout' | null = null;
   /** Consumed one per createOrder call, in arrival order. Takes precedence over failCreate. */
   createFailures: CreateFailure[] = [];
-  /** One-shot barriers: the next create / capture call waits there until the test opens it. */
+  /** One-shot barriers: the next create / capture / refund call waits there until the test opens it. */
   createGate: Gate | null = null;
   captureGate: Gate | null = null;
+  refundGate: Gate | null = null;
+  /** First matching call stores the refund, then throws, so the retry must reuse the request id. */
+  loseNextRefundResponse = false;
+  /** Next refundCapture that is not an idempotent replay. */
+  failRefund: 'timeout' | '422' | 'missing-id' | null = null;
+  /** Status applied to a newly stored refund. Tests flip the stored object to COMPLETED later. */
+  nextRefundStatus: 'COMPLETED' | 'PENDING' | 'FAILED' = 'COMPLETED';
   tamper: FakeTamper = {};
   private sequence = 0;
 
@@ -96,7 +107,7 @@ export class FakePayPal implements PayPalAdapter {
   }
 
   /** Takes the pending barrier (if any) and clears it, so it only ever holds one call. */
-  private async takeGate(which: 'createGate' | 'captureGate'): Promise<void> {
+  private async takeGate(which: 'createGate' | 'captureGate' | 'refundGate'): Promise<void> {
     const gate = this[which];
     if (!gate) return;
     this[which] = null;
@@ -115,6 +126,22 @@ export class FakePayPal implements PayPalAdapter {
     const gate = new Gate();
     this.captureGate = gate;
     return gate;
+  }
+
+  /** Installs a barrier for the next refundCapture call and returns it. */
+  gateRefund(): Gate {
+    const gate = new Gate();
+    this.refundGate = gate;
+    return gate;
+  }
+
+  /** Marks a provider capture complete without going through captureOrder. */
+  forceCaptured(paypalOrderId: string, captureId?: string): string {
+    const state = this.orders.get(paypalOrderId);
+    if (!state) throw new Error(`orden desconocida ${paypalOrderId}`);
+    state.captured = true;
+    state.captureId = captureId ?? state.captureId ?? this.next('CAP');
+    return state.captureId;
   }
 
   private representation(state: FakeOrderState): PayPalOrder {
@@ -228,6 +255,42 @@ export class FakePayPal implements PayPalAdapter {
       throw new PayPalError('timeout simulado despues de capturar', { timeout: true });
     }
     return this.representation(state);
+  }
+
+  async refundCapture(input: RefundCaptureInput): Promise<PayPalRefund> {
+    this.refundCaptureCalls.push({ captureId: input.captureId, requestId: input.requestId, body: input.body });
+    const prior = this.refundByRequest.get(input.requestId);
+    if (prior) {
+      if (prior.captureId !== input.captureId || prior.body !== input.body) {
+        throw new PayPalError('PayPal-Request-Id reutilizado con otro cuerpo', { status: 422 });
+      }
+      if (!prior.refund?.id) throw new PayPalError('UNPROCESSABLE_ENTITY simulado', { status: 422 });
+      return prior.refund;
+    }
+
+    await this.takeGate('refundGate');
+
+    const state = [...this.orders.values()].find((order) => order.captureId === input.captureId);
+    if (!state || !state.captureId) throw new PayPalError('captura inexistente', { status: 404 });
+    if (this.failRefund === '422') {
+      this.refundByRequest.set(input.requestId, { captureId: input.captureId, body: input.body, refund: null });
+      throw new PayPalError('UNPROCESSABLE_ENTITY simulado', { status: 422 });
+    }
+    if (this.failRefund === 'timeout') throw new PayPalError('timeout simulado al reembolsar', { timeout: true });
+
+    const parsed = input.body === '{}' ? state.amountCents : usdToCents(JSON.parse(input.body).amount?.value);
+    if (parsed === null || parsed < 1) throw new PayPalError('importe de reembolso invalido', { status: 422 });
+    const refund = this.addRefund(input.captureId, parsed, this.nextRefundStatus);
+    this.refundByRequest.set(input.requestId, { captureId: input.captureId, body: input.body, refund });
+    if (this.loseNextRefundResponse) {
+      this.loseNextRefundResponse = false;
+      throw new PayPalError('timeout despues de completar el reembolso', { timeout: true });
+    }
+    if (this.failRefund === 'missing-id') {
+      const { id: _id, ...rest } = refund;
+      return rest;
+    }
+    return refund;
   }
 
   async getRefund(refundId: string): Promise<PayPalRefund> {
