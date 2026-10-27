@@ -139,6 +139,26 @@ export const QuoteReviewCard: React.FC<QuoteReviewCardProps> = ({
               <span>Saldo a Pagar:</span>
               <span>{usd(quote.amountCents)}</span>
             </div>
+            {quote.feeEstimate ? (
+              <div className="funding-fee-estimate" aria-label="Estimación de comisión de pasarela">
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.35rem 0' }}>
+                  <span>Estimación de comisión PayPal:</span>
+                  <strong>{usd(quote.feeEstimate.feeCents)}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.2rem 0' }}>
+                  <span>Neto estimado para quien organiza:</span>
+                  <strong>{usd(quote.feeEstimate.netCents)}</strong>
+                </div>
+                <p className="funding-status-panel__hint" style={{ marginTop: '0.35rem' }}>
+                  Comisión PayPal estimada. La asume quien organiza. Tu pago total es{' '}
+                  {usd(quote.amountCents)}. PayPal determina la comisión definitiva.
+                </p>
+              </div>
+            ) : (
+              <p className="funding-status-panel__hint" style={{ marginTop: '0.5rem' }}>
+                Estimación de comisión no disponible.
+              </p>
+            )}
           </div>
 
           {/* Explicit Human Review Confirmation BEFORE Order Creation */}

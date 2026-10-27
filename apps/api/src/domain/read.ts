@@ -1,4 +1,4 @@
-import type { AgendaItem, FiestaEvent, Guest, RsvpStatus, TemplateKind } from '@fiestapay/shared';
+import type { AgendaItem, FiestaEvent, FundingStatus, Guest, RefundSummary, RsvpStatus, TemplateKind } from '@fiestapay/shared';
 import { sumToCents, type Pool, type PoolClient } from '../db/pool.js';
 import { notFound } from '../errors.js';
 
@@ -30,6 +30,10 @@ export interface EventRow {
   is_demo: boolean;
   admin_key_hash: Buffer | null;
   access_code_hash: Buffer | null;
+  funding_deadline_at: Date | null;
+  funding_status: FundingStatus;
+  funding_decided_at: Date | null;
+  funding_basis_cents: number | null;
 }
 
 export interface GuestRow {
@@ -44,7 +48,8 @@ export interface GuestRow {
 
 export const EVENT_COLUMNS = `id, slug, organizer_session_id, generation, archived, title, template, meal,
   description, starts_at, location, includes, agenda, price_cents, capacity, goal_cents, minimum_cents,
-  confirmed, created_at, ends_at, closed_at, purged_at, is_demo, admin_key_hash, access_code_hash`;
+  confirmed, created_at, ends_at, closed_at, purged_at, is_demo, admin_key_hash, access_code_hash,
+  funding_deadline_at, funding_status, funding_decided_at, funding_basis_cents`;
 
 export const GUEST_COLUMNS = 'id, event_id, session_id, name, status, companions, obligation_version';
 
@@ -97,20 +102,68 @@ export interface EventTotals {
   /** Verified captures minus refunds, in cents. Gross, before PayPal fees. */
   collectedCents: number;
   confirmedPeople: number;
+  /**
+   * Holders plus companions only when verified net covers price times that full party.
+   * A partial remainder counts as zero people. Independent of RSVP.
+   */
+  paidPeople: number;
+  refundSummary: RefundSummary;
 }
 
 export async function eventTotals(db: Queryable, eventId: string): Promise<EventTotals> {
-  const { rows } = await db.query<{ collected: string | null; people: string | null }>(
+  const { rows } = await db.query<{
+    collected: string | null;
+    refunded: string | null;
+    people: string | null;
+    paid_people: string | null;
+    pending: string | null;
+    needs_review: string | null;
+  }>(
     `SELECT
        (SELECT COALESCE(SUM(CASE WHEN kind = 'capture' THEN amount_cents ELSE -amount_cents END), 0)
           FROM payment_ledger WHERE event_id = $1) AS collected,
+       (SELECT COALESCE(SUM(CASE WHEN kind = 'refund' THEN amount_cents ELSE 0 END), 0)
+          FROM payment_ledger WHERE event_id = $1) AS refunded,
        (SELECT COALESCE(SUM(1 + companions), 0)
-          FROM guests WHERE event_id = $1 AND status = 'yes') AS people`,
+          FROM guests WHERE event_id = $1 AND status = 'yes') AS people,
+       (SELECT COALESCE(SUM(1 + g.companions), 0)
+          FROM guests g
+          JOIN events ev ON ev.id = g.event_id
+         WHERE g.event_id = $1
+           AND COALESCE((
+             SELECT SUM(CASE WHEN l.kind = 'capture' THEN l.amount_cents ELSE -l.amount_cents END)
+               FROM payment_ledger l WHERE l.guest_id = g.id
+           ), 0) >= ev.price_cents::bigint * (1 + g.companions)) AS paid_people,
+       (SELECT COALESCE(SUM(amount_cents) FILTER (WHERE status IN ('pending', 'leased', 'pending_provider')), 0)
+          FROM funding_refund_tasks WHERE event_id = $1) AS pending,
+       (SELECT COALESCE(SUM(amount_cents) FILTER (WHERE status = 'needs_review'), 0)
+          FROM funding_refund_tasks WHERE event_id = $1)
+        + (SELECT COALESCE(SUM(amount_cents), 0)
+             FROM (
+               SELECT DISTINCT ON (capture_id) amount_cents
+                 FROM funding_refund_tasks t
+                WHERE t.event_id = $1
+                  AND t.status = 'rejected'
+                  AND NOT EXISTS (
+                    SELECT 1 FROM funding_refund_tasks live
+                     WHERE live.capture_id = t.capture_id
+                       AND live.status IN ('pending', 'leased', 'pending_provider', 'needs_review')
+                  )
+                ORDER BY capture_id, created_at DESC, id DESC
+             ) open_rejected) AS needs_review`,
     [eventId],
   );
+  const collectedCents = sumToCents(rows[0]?.collected);
   return {
-    collectedCents: sumToCents(rows[0]?.collected),
+    collectedCents,
     confirmedPeople: sumToCents(rows[0]?.people),
+    paidPeople: sumToCents(rows[0]?.paid_people),
+    refundSummary: {
+      refundedCents: sumToCents(rows[0]?.refunded),
+      pendingCents: sumToCents(rows[0]?.pending),
+      needsReviewCents: sumToCents(rows[0]?.needs_review),
+      outstandingCents: collectedCents,
+    },
   };
 }
 
@@ -154,6 +207,11 @@ export function toFiestaEvent(row: EventRow, totals: EventTotals): FiestaEvent {
     endsAt: row.ends_at.toISOString(),
     closed: row.closed_at !== null,
     accessRestricted: row.access_code_hash !== null,
+    fundingDeadlineAt: row.funding_deadline_at ? row.funding_deadline_at.toISOString() : null,
+    fundingStatus: row.funding_status,
+    paidPeople: totals.paidPeople,
+    refundSummary: totals.refundSummary,
+    fundingBasisCents: row.funding_basis_cents,
   };
 }
 

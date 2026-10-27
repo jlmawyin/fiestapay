@@ -195,14 +195,28 @@ describeDb('persistencia, clave de organizador y acceso privado', () => {
     );
 
     await pool.query(
-      `UPDATE events SET starts_at = now() - interval '80 hours', ends_at = now() - interval '71 hours' WHERE slug = $1`,
+      `UPDATE events SET
+         starts_at = now() - interval '80 hours',
+         ends_at = now() - interval '71 hours',
+         funding_deadline_at = CASE
+           WHEN funding_deadline_at IS NULL THEN NULL
+           ELSE LEAST(funding_deadline_at, now() - interval '80 hours')
+         END
+       WHERE slug = $1`,
       [slug],
     );
     expect((await purgeExpiredEvents(pool)).purged).toBe(0);
     expect((await new Client(app).get(`/api/events/${slug}`)).statusCode).toBe(200);
 
     await pool.query(
-      `UPDATE events SET starts_at = now() - interval '80 hours', ends_at = now() - interval '73 hours' WHERE slug = $1`,
+      `UPDATE events SET
+         starts_at = now() - interval '80 hours',
+         ends_at = now() - interval '73 hours',
+         funding_deadline_at = CASE
+           WHEN funding_deadline_at IS NULL THEN NULL
+           ELSE LEAST(funding_deadline_at, now() - interval '80 hours')
+         END
+       WHERE slug = $1`,
       [slug],
     );
     expect((await new Client(app).get(`/api/events/${slug}`)).statusCode).toBe(410);

@@ -8,6 +8,7 @@ import { approveUrlOf } from '../paypal/verify.js';
 import { assertPrivateAccess } from './access.js';
 import { audit } from './audit.js';
 import { assertAcceptingGuests } from './events.js';
+import { decideFundingIfDue, fundingBlocksNewCharge } from './funding.js';
 import { concealExpired, isPastRetention, tombstoneEvent } from './retention.js';
 import { convergeCapture, isApplied, type CaptureOutcome } from './payments.js';
 import { requireUsableQuote, type QuoteRow } from './quotes.js';
@@ -62,11 +63,9 @@ export function paypalReturnUrls(origin: string | undefined, slug: string): { re
   return { returnUrl: `${invitation}?paypal=approved`, cancelUrl: `${invitation}?paypal=cancelled` };
 }
 
-interface OrderIntent {
-  order: OrderRow;
-  event: EventRow;
-  quote: QuoteRow;
-}
+type ReservedOrder =
+  | { blocked: string }
+  | { order: OrderRow; event: EventRow; quote: QuoteRow };
 
 const CAPTURE_IN_FLIGHT = 'Tu pago anterior esta en verificacion con PayPal; espera a que se confirme';
 
@@ -93,7 +92,7 @@ async function reserveOrderIntent(
   quoteId: string,
   merchantId: string,
   presentedKey: string | null,
-): Promise<OrderIntent> {
+): Promise<ReservedOrder> {
   const visible = await findEventBySlug(pool, slug);
   if (!visible) throw notFound('Evento no encontrado');
   await concealExpired(pool, visible);
@@ -101,7 +100,11 @@ async function reserveOrderIntent(
     const found = await client.query<{ id: string }>('SELECT id FROM events WHERE slug = $1', [slug]);
     const eventId = found.rows[0]?.id;
     if (!eventId) throw notFound('Evento no encontrado');
-    const event = await lockEvent(client, eventId);
+    const locked = await lockEvent(client, eventId);
+    const settled = await decideFundingIfDue(client, locked);
+    const blocked = fundingBlocksNewCharge(settled.event, settled.at);
+    if (blocked) return { blocked };
+    const event = settled.event;
     // Archived, closed, purged, or past retention cannot open a new payment.
     assertAcceptingGuests(event);
     await assertPrivateAccess(client, event, sessionId, presentedKey);
@@ -222,7 +225,9 @@ export async function createOrderForSession(
   quoteId: string,
   presentedKey: string | null = null,
 ): Promise<OrderResult> {
-  const { order, quote } = await reserveOrderIntent(pool, sessionId, slug, quoteId, deps.merchantId, presentedKey);
+  const reserved = await reserveOrderIntent(pool, sessionId, slug, quoteId, deps.merchantId, presentedKey);
+  if ('blocked' in reserved) throw conflict(reserved.blocked);
+  const { order, quote } = reserved;
 
   if (order.paypal_order_id) return asOrderResult(order);
 
@@ -316,7 +321,9 @@ async function claimOrderForCapture(pool: Pool, known: OrderRow): Promise<Captur
   return withTransaction(pool, async (client) => {
     // event_id and guest_id never change on an order, so taking them from the unlocked read is
     // safe and lets the event lock still be the first one acquired.
-    const event = await lockEvent(client, known.event_id);
+    const locked = await lockEvent(client, known.event_id);
+    const settled = await decideFundingIfDue(client, locked);
+    const event = settled.event;
     const guest = await lockGuest(client, known.guest_id);
     const order = await lockOrder(client, known.id);
 
@@ -345,6 +352,8 @@ async function claimOrderForCapture(pool: Pool, known: OrderRow): Promise<Captur
         reason: 'Tu asistencia cambio despues de esta orden; pide una cotizacion nueva',
       };
     }
+    const blocked = fundingBlocksNewCharge(event, settled.at);
+    if (blocked) return { kind: 'reconcile', order, reason: blocked };
 
     const { rows } = await client.query<OrderRow>(
       `UPDATE orders SET status = 'capturing', updated_at = now()

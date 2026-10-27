@@ -4,6 +4,7 @@ import { newId } from '../lib/ids.js';
 import type { PayPalAdapter, PayPalOrder } from '../paypal/types.js';
 import { captureIdFromRefund, verifyCapturedOrder, verifyRefund } from '../paypal/verify.js';
 import { audit } from './audit.js';
+import { decideFundingIfDue, syncRefundTasks } from './funding.js';
 import { findGuestById, lockEvent, lockGuest, lockOrder, type OrderRow } from './read.js';
 
 export interface CaptureApplication {
@@ -85,7 +86,12 @@ export async function convergeCapture(
   const { captureId, amountCents } = check;
 
   return withTransaction(pool, async (client) => {
-    const event = await lockEvent(client, order.event_id);
+    const locked = await lockEvent(client, order.event_id);
+    // Fresh clock after the lock. A capture applied now does not count toward a
+    // deadline that this same instant has already reached: the decision reads the
+    // ledger first, then the row is inserted with this timestamp.
+    const settled = await decideFundingIfDue(client, locked);
+    const event = settled.event;
     await lockGuest(client, order.guest_id);
     const current = await lockOrder(client, order.id);
 
@@ -98,11 +104,11 @@ export async function convergeCapture(
     // order belongs to — including an archived generation, so a late capture lands on the
     // invitation it was paid for instead of inflating the current one.
     const inserted = await client.query<{ id: string }>(
-      `INSERT INTO payment_ledger (id, event_id, guest_id, order_id, kind, amount_cents, external_id, capture_id)
-         VALUES ($1, $2, $3, $4, 'capture', $5, $6, $6)
+      `INSERT INTO payment_ledger (id, event_id, guest_id, order_id, kind, amount_cents, external_id, capture_id, created_at)
+         VALUES ($1, $2, $3, $4, 'capture', $5, $6, $6, $7::timestamptz)
        ON CONFLICT (kind, external_id) DO NOTHING
        RETURNING id`,
-      [newId(), current.event_id, current.guest_id, current.id, amountCents, captureId],
+      [newId(), current.event_id, current.guest_id, current.id, amountCents, captureId, settled.at.toISOString()],
     );
     const applied = inserted.rows.length > 0;
 
@@ -119,9 +125,11 @@ export async function convergeCapture(
       const stale =
         !LIVE_FOR_CAPTURE.has(current.status) ||
         event.archived ||
+        event.funding_status === 'failed' ||
         guest?.obligation_version !== current.obligation_version;
       await audit(client, current.event_id, stale ? 'payment_captured_stale_order' : 'payment_captured');
     }
+    if (event.funding_status === 'failed') await syncRefundTasks(client, event.id);
 
     return { applied, duplicate: !applied, captureId, amountCents };
   });
@@ -192,7 +200,8 @@ export async function convergeRefund(pool: Pool, paypal: PayPalAdapter, refundId
   }
 
   return withTransaction(pool, async (client) => {
-    await lockEvent(client, eventId);
+    const locked = await lockEvent(client, eventId);
+    const settled = await decideFundingIfDue(client, locked);
 
     const seen = await client.query<{ id: string }>(
       `SELECT id FROM payment_ledger WHERE kind = 'refund' AND external_id = $1`,
@@ -231,15 +240,26 @@ export async function convergeRefund(pool: Pool, paypal: PayPalAdapter, refundId
     }
 
     const inserted = await client.query<{ id: string }>(
-      `INSERT INTO payment_ledger (id, event_id, guest_id, order_id, kind, amount_cents, external_id, capture_id)
-         VALUES ($1, $2, $3, $4, 'refund', $5, $6, $7)
+      `INSERT INTO payment_ledger (id, event_id, guest_id, order_id, kind, amount_cents, external_id, capture_id, created_at)
+         VALUES ($1, $2, $3, $4, 'refund', $5, $6, $7, $8::timestamptz)
        ON CONFLICT (kind, external_id) DO NOTHING
        RETURNING id`,
-      [newId(), base.event_id, base.guest_id, base.order_id, check.amountCents, check.refundId, check.captureId],
+      [
+        newId(),
+        base.event_id,
+        base.guest_id,
+        base.order_id,
+        check.amountCents,
+        check.refundId,
+        check.captureId,
+        settled.at.toISOString(),
+      ],
     );
     const applied = inserted.rows.length > 0;
     if (applied) await audit(client, base.event_id, 'payment_refunded');
-    // A refund lowers the collected progress; it never cancels the event by itself.
+    if (settled.event.funding_status === 'failed') await syncRefundTasks(client, base.event_id);
+    // A refund lowers the collected progress. It does not undo a funded decision,
+    // and it does not by itself cancel an event that has no funding deadline.
     return { applied, duplicate: !applied, refundId: check.refundId, eventId: base.event_id };
   });
 }

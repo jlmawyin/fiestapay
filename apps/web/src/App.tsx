@@ -148,7 +148,11 @@ export const App: React.FC = () => {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Sandbox Demo Ribbon */}
-      <DemoRibbon capabilities={capabilities} />
+      <DemoRibbon
+        capabilities={capabilities}
+        status={capabilities ? 'ready' : sessionError ? 'unavailable' : 'loading'}
+        onRetry={capabilities || !sessionError ? undefined : initApp}
+      />
 
       {/* Global Navigation Header */}
       <Header

@@ -44,6 +44,7 @@ export const eventInputSchema = z
     minimumCents: cents(MAX_GOAL_CENTS).nullable(),
     agenda: z.array(agendaItemSchema).max(50),
     accessCode: z.string().trim().min(4).max(64).nullable().optional(),
+    fundingDeadlineAt: isoDate.nullable().optional(),
   })
   .refine(
     (v) => v.minimumCents === null || v.goalCents === null || v.minimumCents <= v.goalCents,
@@ -52,6 +53,18 @@ export const eventInputSchema = z
   .refine((v) => Date.parse(v.endsAt) > Date.parse(v.startsAt), {
     message: 'La hora de fin debe ser posterior al inicio',
     path: ['endsAt'],
+  })
+  .refine(
+    (v) => {
+      if (v.fundingDeadlineAt === undefined || v.fundingDeadlineAt === null) return true;
+      const deadline = Date.parse(v.fundingDeadlineAt);
+      return deadline > Date.now() && deadline <= Date.parse(v.startsAt);
+    },
+    { message: 'La fecha limite debe ser posterior a ahora y no posterior al inicio', path: ['fundingDeadlineAt'] },
+  )
+  .refine((v) => v.minimumCents !== null || v.fundingDeadlineAt == null, {
+    message: 'Sin minimo no hay fecha limite de financiamiento',
+    path: ['fundingDeadlineAt'],
   })
   .refine((v) => Date.parse(v.startsAt) > Date.now() - 60_000, {
     message: 'El inicio debe ser en el futuro',
@@ -105,6 +118,32 @@ export const orderIdParamSchema = z.object({
     .max(80)
     .regex(/^[A-Za-z0-9-]+$/, 'Identificador invalido'),
 });
+
+const CLIENT_MONEY_STATE_KEYS = [
+  'funded',
+  'paid',
+  'refunded',
+  'fundingStatus',
+  'fundingBasisCents',
+  'collectedCents',
+  'confirmed',
+  'minimumReached',
+  'paidPeople',
+  'refundSummary',
+  'feeEstimate',
+] as const;
+
+/** Rejects a body that tries to declare paid, funded or refunded. `allowed` keeps legitimate keys such as order confirmation. */
+export function assertNoClientMoneyState(value: unknown, allowed: readonly string[] = []): void {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+  const skip = new Set(allowed);
+  for (const key of CLIENT_MONEY_STATE_KEYS) {
+    if (skip.has(key)) continue;
+    if (Object.prototype.hasOwnProperty.call(value, key)) {
+      throw badRequest('El cliente no puede fijar el estado de pago o de financiamiento');
+    }
+  }
+}
 
 /** Parses with zod and converts failures into 400 {error}. */
 export function parseOr400<T>(schema: { safeParse: (v: unknown) => { success: boolean; data?: T; error?: z.ZodError } }, value: unknown): T {

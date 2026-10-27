@@ -11,6 +11,7 @@ import { PayPalSection } from '../components/invite/PayPalSection';
 import { GeminiAssistant } from '../components/chat/GeminiAssistant';
 import { QrShareModal } from '../components/dashboard/QrShareModal';
 import { VoiceInvitationAgent } from '../components/voice/VoiceInvitationAgent';
+import { FundingStatusPanel, newGuestActivityBlocked, paidPeopleLabel } from '../components/common/FundingStatusPanel';
 
 interface PublicInviteViewProps {
   slug: string;
@@ -138,6 +139,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   // Load quote when guest is attending and owes money
   const fetchQuote = useCallback(async () => {
     if (!guest || guest.status !== 'yes') return;
+    if (event && newGuestActivityBlocked(event)) return;
     const scope = scopeVersion.current;
     setIsLoadingQuote(true);
     try {
@@ -150,13 +152,13 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
     } finally {
       if (scope === scopeVersion.current) setIsLoadingQuote(false);
     }
-  }, [slug, guest, onShowToast]);
+  }, [slug, guest, event, onShowToast]);
 
   useEffect(() => {
-    if (guest && guest.status === 'yes') {
+    if (guest && guest.status === 'yes' && event && !newGuestActivityBlocked(event)) {
       fetchQuote();
     }
-  }, [guest?.status, guest?.companions, fetchQuote]);
+  }, [guest?.status, guest?.companions, event, fetchQuote]);
 
   const handleJoin = async (name: string) => {
     const scope = scopeVersion.current;
@@ -372,6 +374,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   });
 
   const inviteUrl = window.location.href;
+  const activityBlocked = newGuestActivityBlocked(event);
 
   return (
     <div style={{ maxWidth: '680px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -384,7 +387,13 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         <div style={{ padding: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
             <span className="badge badge-blue">Cuota Fija: {usd(event.priceCents)} por persona</span>
-            {event.confirmed && <span className="badge badge-teal">Fiesta Confirmada ✓</span>}
+            {event.fundingStatus === 'failed' ? (
+              <span className="badge badge-coral">Mínimo no alcanzado a tiempo</span>
+            ) : event.confirmed ? (
+              <span className="badge badge-teal">Fiesta Confirmada ✓</span>
+            ) : event.fundingStatus === 'funded' ? (
+              <span className="badge badge-blue">Umbral de financiamiento alcanzado</span>
+            ) : null}
           </div>
 
           <h1 style={{ fontSize: '1.85rem', marginBottom: '0.5rem', color: 'var(--color-ink)' }}>
@@ -433,8 +442,11 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
                 ASISTENTES CONFIRMADOS
               </span>
               <strong style={{ color: 'var(--color-ink)' }}>
-                {event.confirmedPeople} personas {event.capacity ? `(máx. ${event.capacity})` : ''}
+                {event.confirmedPeople} confirmados (asistencia) {event.capacity ? `(máx. ${event.capacity})` : ''}
               </strong>
+              <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-ink-muted)', marginTop: '0.2rem' }}>
+                {paidPeopleLabel(event.paidPeople)}
+              </span>
             </div>
           </div>
 
@@ -512,43 +524,8 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
             </div>
           )}
 
-          {/* Financial Transparency Bar */}
-          <div
-            style={{
-              marginTop: '1.25rem',
-              backgroundColor: 'var(--color-surface-subtle)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '0.85rem 1rem',
-              fontSize: '0.85rem',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <span style={{ fontWeight: 700, color: 'var(--color-ink)' }}>Recaudado: </span>
-                <strong style={{ color: 'var(--color-teal)', fontSize: '1.05rem' }}>
-                  {usd(event.collectedCents)}
-                </strong>
-                <span style={{ fontSize: '0.72rem', color: 'var(--color-ink-muted)', marginLeft: '0.35rem' }}>
-                  antes de comisiones
-                </span>
-              </div>
-              {event.goalCents && (
-                <span style={{ color: 'var(--color-ink-muted)' }}>Meta: {usd(event.goalCents)}</span>
-              )}
-            </div>
-
-            {event.minimumCents && (
-              <div style={{ marginTop: '0.35rem', fontSize: '0.775rem', color: 'var(--color-ink-muted)' }}>
-                Mínimo necesario para confirmar: <strong>{usd(event.minimumCents)}</strong> (
-                {event.minimumReached ? (
-                  <span style={{ color: 'var(--color-teal)', fontWeight: 700 }}>Alcanzado ✓</span>
-                ) : (
-                  <span style={{ color: 'var(--color-coral)', fontWeight: 700 }}>Pendiente</span>
-                )}
-                )
-              </div>
-            )}
+          <div style={{ marginTop: '1.25rem' }}>
+            <FundingStatusPanel event={event} />
           </div>
         </div>
 
@@ -557,9 +534,16 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
 
         {/* Guest RSVP & Payment Stub */}
         <div style={{ padding: '1.5rem', backgroundColor: '#FAFCFE' }}>
-          {!guest ? (
+          {activityBlocked && (
+            <p className="funding-stopped-banner" role="status" style={{ marginBottom: '1rem' }}>
+              {event.fundingStatus === 'failed'
+                ? 'No se admiten nuevas asistencias ni pagos: el mínimo no se alcanzó a tiempo. Si ya tenías una orden de PayPal, puedes verificar su captura real abajo.'
+                : 'Las inscripciones están cerradas. No se admiten asistencias ni pagos nuevos. Si ya tenías una orden de PayPal, puedes verificar su captura real abajo.'}
+            </p>
+          )}
+          {!guest && !activityBlocked ? (
             <JoinForm onJoin={handleJoin} isLoading={isJoining} />
-          ) : (
+          ) : !guest ? null : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               {/* Guest Greeting Header */}
               <div
@@ -583,19 +567,22 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
                 </div>
               </div>
 
-              {/* RSVP Selector */}
-              <RsvpForm guest={guest} event={event} onSaveRsvp={handleSaveRsvp} isLoading={isSavingRsvp} />
+              {!activityBlocked ? (
+                <RsvpForm guest={guest} event={event} onSaveRsvp={handleSaveRsvp} isLoading={isSavingRsvp} />
+              ) : null}
 
               {/* Server Quote & Payment Review */}
               {guest.status === 'yes' && (
                 <>
-                  <QuoteReviewCard
-                    quote={quote}
-                    isLoadingQuote={isLoadingQuote}
-                    onRefreshQuote={fetchQuote}
-                    onCreateOrder={handleCreateOrder}
-                    isCreatingOrder={isCreatingOrder}
-                  />
+                  {!activityBlocked ? (
+                    <QuoteReviewCard
+                      quote={quote}
+                      isLoadingQuote={isLoadingQuote}
+                      onRefreshQuote={fetchQuote}
+                      onCreateOrder={handleCreateOrder}
+                      isCreatingOrder={isCreatingOrder}
+                    />
+                  ) : null}
 
                   {/* Scoped Active Order Notice & Reconciliation */}
                   {activeOrder && (

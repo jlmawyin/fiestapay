@@ -8,6 +8,24 @@ export interface EventInput {
   agenda: AgendaItem[];
   /** Write-only. The server stores a hash and never returns the code. */
   accessCode?: string | null;
+  /**
+   * Omitted on update keeps the stored deadline, including a legacy NULL.
+   * Omitted on create with a minimum defaults to startsAt. Explicit null on
+   * create with a minimum also defaults to startsAt. No minimum means no deadline.
+   */
+  fundingDeadlineAt?: string | null;
+}
+/** legacy: pre-funding row, exempt from automatic refunds. inactive: no automatic funding. */
+export type FundingStatus = 'legacy' | 'inactive' | 'open' | 'funded' | 'failed';
+/**
+ * Refund progress for one event. pending and needsReview are not money returned.
+ * outstanding is captured minus verified refunds, gross, before processor fees.
+ */
+export interface RefundSummary {
+  refundedCents: number;
+  pendingCents: number;
+  needsReviewCents: number;
+  outstandingCents: number;
 }
 export interface FiestaEvent {
   id: string; slug: string; title: string; template: TemplateKind; meal: 'desayuno' | 'almuerzo' | 'cena';
@@ -15,9 +33,67 @@ export interface FiestaEvent {
   agenda: AgendaItem[]; priceCents: number; capacity: number | null; goalCents: number | null;
   minimumCents: number | null; confirmed: boolean; collectedCents: number; confirmedPeople: number;
   minimumReached: boolean; createdAt: string; closed?: boolean; accessRestricted?: boolean;
+  /** ISO-8601, or null when automatic funding is not armed. */
+  fundingDeadlineAt?: string | null;
+  fundingStatus?: FundingStatus;
+  /**
+   * People in parties whose verified net covers the full current fixed quota
+   * (current price times holder and companions). A positive remainder below that
+   * quota counts as nobody in the party: seats are not guessed. Not RSVP.
+   */
+  paidPeople?: number;
+  refundSummary?: RefundSummary;
+  /** Net verified cents used at the irreversible decision. Null until then. */
+  fundingBasisCents?: number | null;
 }
 export interface Guest { id: string; name: string; status: RsvpStatus; companions: number; paidCents: number; dueCents: number }
-export interface Quote { id: string; guestId: string; people: number; unitCents: number; totalCents: number; paidCents: number; amountCents: number; summary: string; expiresAt: string }
+/** Ecuador domestic standard checkout estimate. Not a settled PayPal fee and not a guest surcharge. */
+export const PAYPAL_EC_DOMESTIC_RATE_BPS = 540;
+export const PAYPAL_EC_DOMESTIC_FIXED_CENTS = 30;
+export const FEE_ESTIMATE_PROVENANCE = 'paypal-ec-business-fees-2026-09-28-domestic-standard';
+export interface FeeEstimate {
+  estimate: true;
+  feeCents: number;
+  netCents: number;
+  rateBps: typeof PAYPAL_EC_DOMESTIC_RATE_BPS;
+  fixedCents: typeof PAYPAL_EC_DOMESTIC_FIXED_CENTS;
+  currency: 'USD';
+  absorber: 'organizer';
+  provenance: typeof FEE_ESTIMATE_PROVENANCE;
+}
+/**
+ * Organizer-absorbed estimate for a guest amount that is already due.
+ * Variable part rounds half up in integer cents. Zero due estimates zero.
+ * The fixed component still applies to a positive amount, so a tiny charge
+ * can estimate a negative net. Throws when the rate product plus the half-up
+ * offset of 5000 would leave safe integers.
+ */
+export function estimateOrganizerFee(amountCents: number): FeeEstimate {
+  if (!Number.isSafeInteger(amountCents) || amountCents < 0) throw new Error('Centavos invalidos');
+  const empty: FeeEstimate = {
+    estimate: true,
+    feeCents: 0,
+    netCents: 0,
+    rateBps: PAYPAL_EC_DOMESTIC_RATE_BPS,
+    fixedCents: PAYPAL_EC_DOMESTIC_FIXED_CENTS,
+    currency: 'USD',
+    absorber: 'organizer',
+    provenance: FEE_ESTIMATE_PROVENANCE,
+  };
+  if (amountCents === 0) return empty;
+  const roundingOffset = 5_000;
+  if (amountCents > Math.floor((Number.MAX_SAFE_INTEGER - roundingOffset) / PAYPAL_EC_DOMESTIC_RATE_BPS)) {
+    throw new Error('Importe fuera de rango para estimar la comision');
+  }
+  const variable = Math.floor((amountCents * PAYPAL_EC_DOMESTIC_RATE_BPS + roundingOffset) / 10_000);
+  const feeCents = variable + PAYPAL_EC_DOMESTIC_FIXED_CENTS;
+  const netCents = amountCents - feeCents;
+  if (!Number.isSafeInteger(feeCents) || !Number.isSafeInteger(netCents)) {
+    throw new Error('Comision fuera de rango');
+  }
+  return { ...empty, feeCents, netCents };
+}
+export interface Quote { id: string; guestId: string; people: number; unitCents: number; totalCents: number; paidCents: number; amountCents: number; summary: string; expiresAt: string; feeEstimate?: FeeEstimate }
 export interface OrderResult { orderId: string; status: string; approveUrl?: string }
 /** Gemini stays in the type until the deferred provider-removal package. Runtime still prefers OpenAI. */
 export type LlmProvider = 'openai' | 'gemini';

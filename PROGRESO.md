@@ -1,8 +1,35 @@
 # Progreso de FiestaPay
 
-Actualizado: 25 octubre 2026, America/Guayaquil. Resumen de esta entrega; el historial completo continúa en [docs/ESTADO.md](docs/ESTADO.md).
+Actualizado: 26 octubre 2026, America/Guayaquil. Resumen de esta entrega; el historial completo continúa en [docs/ESTADO.md](docs/ESTADO.md).
 
 ## Prioridades vigentes y ejecución
+
+**26 oct, 19:52:** AGY aprobó también el audio integrado (18pruebas+4UI, tipos/lint0); la excepción de una línea fue autorizada expresamente por Jorge. Backend yUIfinanciera ya aprobados. Se prepara versión conjunta yCI antes de activar; devolución externaUSD1 y audio humano siguen pendientes. [Revisión de voz](docs/reviews/voice-integration-20261026.md).
+
+**26 oct, 19:50:** ejecución reanudada con95%5h; AGY aprobó backend y copiaUI2 tras61+12API,17web y7casos navegador. EE4417d publicado enPR3, CI40428750524 verde. Respaldo/restauración y ensayo0007 enDBaislada conservaron23fiestas y pagoUSD50, sin activar plazos legados; imagen candidata construida pero sinactivar. Jorge autorizó la única corrección de tipo del audio: integrada enmanaged, primariointacto, AGYvoz3/3 verifica ahora. Próximo: CI/activación y prueba nuevaUSD1 con reembolso por plazo; sin repetirUSD50/correo/OpenAI. [Checkpoint actual](docs/CHECKPOINT_2026-10-25.md).
+
+**Pausa26oct16:03 por cuota:** helper19%5h/72%semanal, guarda20% vigente. BackendGROK3 entregó61tests focales y300globales/28archivos, lint/tipos/build; UIcopiaGROK2 entregó17tests/tipos/lint. **AGY financiero1 pausado**, conserva intento; falta su revisión y la de copiaUI2. Cuatroprocesos propios detenidos. No finanzas publicadas/desplegadas ni reembolso real. Continuación nativa preparada con mínimo permitido17:26:29Guayaquil, sujeto al helper; no se consumió reseteo. [Checkpoint](docs/CHECKPOINT_2026-10-25.md).
+
+**26 oct, 15:35: finanzas siguen bloqueadas para publicar.** La entrega2 de GROK terminó con293tests/28archivos y lint/tipos/build correctos. Opus independiente encontró tres problemas de seguridad/liveness financiera y una mejora de recuperación: [hallazgos](docs/reviews/funding-critical-20261026.md). GROK los corrige en intento3/3, ejecución45295. UI financiera entregada1/3 (17tests propios+23regresión), ahora AGY Gemini verifica navegador y estados en ejecución3964. Opus quedó4.8%semanal y se detuvo; Gemini tiene bucket propio95.2%5h/85.9%semanal, sin forzar compuertas. Sin nueva operación externa ni despliegue financiero.
+
+**26 oct, reanudación 15:15:** helper permite continuar (84 % cinco horas / 82 % semanal), GROK retoma el mismo intento financiero 2/3, ejecución `73541`. La continuación puntual de cuota quedó retirada. **La interfaz aprobada e03e85b ya está desplegada**: API saludable y HTTPS público correctos, inventario de los demás contenedores idéntico; imagen anterior conservada. No se publicaron las finanzas locales ni se repitieron pagos, correo o IA. Evidencia `.local/production-loading-activation.log` y [checkpoint](docs/CHECKPOINT_2026-10-25.md). Los párrafos siguientes son antecedentes.
+
+Segundo frente autorizado: GROK construye la interfaz de mínimo/plazo, recuentos separados y comisión estimada devuelta por servidor. Paquete FP-FUNDING-UI-20261026 intento1/3, ejecución57259; sin suponer campos de reembolso individual inexistentes. Backend sigue independiente en intento2/3. Ninguno de estos dos paquetes financieros está aprobado ni desplegado.
+
+**Pausa26oct10:08 por cuota:**18%5h, guarda20% confirmada por Jorge. GROK financiero intento2/3 preservado,4procesos propios detenidos;53pruebas aprobadas/1fallida (espera de bloqueo del evento), sin aceptación P2. PR3/e03e85b tiene CI verde y UI revisada; imagen construida enVPS pero **no activada**, servicio sigue2d7c542. Continuación nativa creada con guard noantes26oct12:25:13 Guayaquil; la herramienta no expone hora de ejecución confirmada. [Checkpoint completo](docs/CHECKPOINT_2026-10-25.md).
+
+**26 oct, carga de interfaz aprobada:** GROK1/3 y AGY2/3 completaron la espera de PayPal/chat, reintento tras error y progreso de creación con protección de envíos duplicados. Verificación independiente:9pruebas de componentes,5casos Chromium local, lint y tipos; archivos cotejados por hash. [Revisión](docs/reviews/loading-ux-20261026.md). No es aceptación de APIs reales ni audio móvil. El backend financiero sigue local, intento2/3; la entrega de carga no incluye sus archivos sin validar.
+
+**Reanudado por Jorge, 26 oct 09:06:** la pausa de energía terminó con su instrucción «sigue». GROK conserva el intento 1/3 del backend de cierre/reembolsos; ejecución local `35070`, sin código financiero entregado todavía. Helper permite continuar (79 % cinco horas / 97 % semanal). AGY disponible para verificación independiente. Producción, SMTP, pago USD50 y chat OpenAI aprobados previamente no se repiten. [Checkpoint actualizado](docs/CHECKPOINT_2026-10-25.md).
+
+**PAUSA POR SOLICITUD DE JORGE —26oct00:05:** corte de energía/apagado. Agentes detenidos, diarioPAUSED y continuación puntualeliminada; no reanudar automáticamente hasta que Jorge lo pida. GROKBackendintento1/3 preservado, sin código entregado. Diseños/paquetes ycheckpoint guardados. Producción/correo delVPS intactos.
+
+
+
+**Reanudado25oct23:46:** helper permite continuar con98%5h/44%semanal. GROK P2retoma mismo intento1/3 (job40207), sin repetir pago/correo/chat. Se deshabilitó únicamente el MCPask-grok delpropioGrok tras verificar fallos dearranque; grafo vuelve a responder pero es antiguo, requiere lecturaexacta. Aún sinentrega financiera validada. [Checkpoint vigente](docs/CHECKPOINT_2026-10-25.md).
+
+**P2 en construcción local:** GROK FP-FUNDING-BACKEND-20261025 intento1/3 en el worktree `C:/Users/Jorge/.codex/worktrees/funding-refunds/fiestapay`, rama `codex/funding-refunds`, base731df71. Ownership API/shared/tests, sin UI ni proveedores reales. AGY terminó diseño1/3; Codex corrigió sus propuestas inseguras de422/tombstone/clock antes de construir. Revisión independiente y aceptación externa todavía pendientes. [Plan de pruebas](docs/reviews/funding-acceptance-plan.md). La producción sigue2d7c542; no se despliega este paquete sin revisión.
+
 
 **Último estado, 25 oct después de19:37ECT:** correo real desde FiestaPay validado con Jorge. Verificación y recuperación SMTP aceptadas y recibidas en bandeja de entrada; contacto verificado, clave antigua403 y panel con clave nueva200 registrado por el servidor y confirmado con captura. Aplicación2d7c542, misma imagen. [Evidencia completa](docs/reviews/smtp-live-20261025.md).
 

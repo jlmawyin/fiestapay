@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { fixedQuote } from '@fiestapay/shared';
+import { estimateOrganizerFee, fixedQuote } from '@fiestapay/shared';
+import { badRequest } from '../src/errors.js';
 import { centsToUsd, usdToCents } from '../src/lib/money.js';
 import { isAllowedOrigin, originFromReferer } from '../src/lib/origin.js';
 import { redactRequest } from '../src/lib/redact.js';
-import { eventInputSchema, orderSchema, rsvpSchema } from '../src/lib/schemas.js';
+import { assertNoClientMoneyState, eventInputSchema, orderSchema, rsvpSchema } from '../src/lib/schemas.js';
 import { approveUrlOf, captureIdFromRefund, verifyCapturedOrder, verifyRefund } from '../src/paypal/verify.js';
 import { quoteSummary } from '../src/domain/quotes.js';
 import { paypalReturnUrls } from '../src/domain/orders.js';
@@ -152,6 +153,62 @@ describe('validacion de entradas', () => {
     expect(orderSchema.safeParse({ quoteId, confirmed: true }).success).toBe(true);
     expect(orderSchema.safeParse({ quoteId, confirmed: false }).success).toBe(false);
     expect(orderSchema.safeParse({ quoteId: 'no-uuid', confirmed: true }).success).toBe(false);
+  });
+
+  it('acepta una fecha limite entre ahora y el inicio, y la omision', () => {
+    expect(eventInputSchema.safeParse(base).success).toBe(true);
+    expect(eventInputSchema.safeParse({ ...base, fundingDeadlineAt: '2026-12-01T18:00:00.000Z' }).success).toBe(true);
+    expect(eventInputSchema.safeParse({ ...base, fundingDeadlineAt: '2026-12-01T18:00:01.000Z' }).success).toBe(false);
+    expect(eventInputSchema.safeParse({ ...base, fundingDeadlineAt: '2020-01-01T00:00:00.000Z' }).success).toBe(false);
+    expect(eventInputSchema.safeParse({ ...base, minimumCents: null, fundingDeadlineAt: '2026-12-01T12:00:00.000Z' }).success).toBe(false);
+  });
+});
+
+describe('estimacion de comision del organizador', () => {
+  it('estima 5.40% + USD 0.30 sobre USD 50 y cero cuando no hay cobro', () => {
+    const fifty = estimateOrganizerFee(5000);
+    expect(fifty.feeCents).toBe(300);
+    expect(fifty.netCents).toBe(4700);
+    expect(fifty.rateBps).toBe(540);
+    expect(fifty.fixedCents).toBe(30);
+    expect(fifty.absorber).toBe('organizer');
+    expect(fifty.estimate).toBe(true);
+    expect(fifty.provenance).toContain('2026-09-28');
+    expect(estimateOrganizerFee(0)).toMatchObject({ feeCents: 0, netCents: 0 });
+    expect(fixedQuote(2500, 2).amountCents).toBe(5000);
+  });
+
+  it('redondea half-up y rechaza un importe que no cabe en un entero seguro', () => {
+    // 100 * 540 = 54000; half-up divisor 10000 -> 5, mas 30.
+    expect(estimateOrganizerFee(100)).toMatchObject({ feeCents: 35, netCents: 65 });
+    // 1 centimo no llega a medio punto basico: solo el fijo, y el neto puede ser negativo.
+    expect(estimateOrganizerFee(1)).toMatchObject({ feeCents: 30, netCents: -29 });
+    expect(() => estimateOrganizerFee(Number.MAX_SAFE_INTEGER)).toThrow(/rango/);
+    expect(() => estimateOrganizerFee(1.5)).toThrow(/invalidos/);
+    // floor(MAX_SAFE_INTEGER / 540) keeps the product inside a safe integer, but
+    // the half-up offset of 5000 pushes the numerator past it.
+    const productOnly = Math.floor(Number.MAX_SAFE_INTEGER / 540);
+    expect(Number.isSafeInteger(productOnly * 540)).toBe(true);
+    expect(Number.isSafeInteger(productOnly * 540 + 5_000)).toBe(false);
+    expect(() => estimateOrganizerFee(productOnly)).toThrow(/rango/);
+    const safe = Math.floor((Number.MAX_SAFE_INTEGER - 5_000) / 540);
+    expect(Number.isSafeInteger(safe * 540 + 5_000)).toBe(true);
+    const bounded = estimateOrganizerFee(safe);
+    expect(Number.isSafeInteger(bounded.feeCents)).toBe(true);
+    expect(Number.isSafeInteger(bounded.netCents)).toBe(true);
+    expect(bounded.feeCents).toBe(Math.floor((safe * 540 + 5_000) / 10_000) + 30);
+    expect(bounded.netCents).toBe(safe - bounded.feeCents);
+  });
+
+  it('rechaza un cuerpo que declara pagado o financiado', () => {
+    expect(() => assertNoClientMoneyState({ title: 'x', funded: true })).toThrow(badRequest('x').constructor);
+    try {
+      assertNoClientMoneyState({ paid: 1 });
+      throw new Error('debio rechazar');
+    } catch (err) {
+      expect((err as { statusCode?: number }).statusCode).toBe(400);
+    }
+    expect(() => assertNoClientMoneyState({ quoteId: 'x', confirmed: true }, ['confirmed'])).not.toThrow();
   });
 });
 

@@ -1,10 +1,11 @@
-import { fixedQuote, usd, type Quote } from '@fiestapay/shared';
+import { estimateOrganizerFee, fixedQuote, usd, type Quote } from '@fiestapay/shared';
 import { withTransaction, type Pool, type PoolClient } from '../db/pool.js';
 import { conflict, notFound } from '../errors.js';
 import { newId } from '../lib/ids.js';
 import { assertPrivateAccess } from './access.js';
 import { audit } from './audit.js';
 import { assertAcceptingGuests } from './events.js';
+import { decideFundingIfDue, fundingBlocksNewCharge, type FundingGate } from './funding.js';
 import { concealExpired } from './retention.js';
 import { assertCanOwe } from './rsvp.js';
 import {
@@ -46,6 +47,8 @@ export const toQuote = (row: QuoteRow): Quote => ({
   amountCents: row.amount_cents,
   summary: row.summary,
   expiresAt: row.expires_at.toISOString(),
+  // Shown before PayPal is opened. It is not added to amountCents.
+  feeEstimate: estimateOrganizerFee(row.amount_cents),
 });
 
 export function quoteSummary(people: number, unitCents: number, totalCents: number, amountCents: number): string {
@@ -116,19 +119,25 @@ export async function createQuoteForSession(
   const visible = await findEventBySlug(pool, slug);
   if (!visible) throw notFound('Evento no encontrado');
   await concealExpired(pool, visible);
-  return withTransaction(pool, async (client) => {
+  const outcome = await withTransaction<FundingGate<{ quote: Quote }>>(pool, async (client) => {
     const found = await client.query<{ id: string }>('SELECT id FROM events WHERE slug = $1', [slug]);
     const eventId = found.rows[0]?.id;
     if (!eventId) throw notFound('Evento no encontrado');
-    const event = await lockEvent(client, eventId);
+    const locked = await lockEvent(client, eventId);
+    const settled = await decideFundingIfDue(client, locked);
+    const blocked = fundingBlocksNewCharge(settled.event, settled.at);
+    if (blocked) return { blocked };
+    const event = settled.event;
     assertAcceptingGuests(event);
     await assertPrivateAccess(client, event, sessionId, presentedKey);
     const guestRow = await findGuestBySession(client, event.id, sessionId);
     if (!guestRow) throw notFound('Primero unete a la invitacion');
     const guest = await lockGuest(client, guestRow.id);
     assertCanOwe(guest);
-    return toQuote(await insertQuote(client, event, guest, ttlSeconds));
+    return { quote: toQuote(await insertQuote(client, event, guest, ttlSeconds)) };
   });
+  if ('blocked' in outcome) throw conflict(outcome.blocked);
+  return outcome.quote;
 }
 
 export async function findQuote(db: Queryable, quoteId: string): Promise<QuoteRow | null> {

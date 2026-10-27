@@ -19,7 +19,7 @@ import { createQuoteForSession } from '../domain/quotes.js';
 import { findGuestBySession, getEventBySlug, loadFiestaEvent, loadGuest } from '../domain/read.js';
 import { concealExpired } from '../domain/retention.js';
 import { joinEvent, setRsvp } from '../domain/rsvp.js';
-import { eventInputSchema, joinSchema, parseOr400, rsvpSchema, slugParamSchema, unlockSchema } from '../lib/schemas.js';
+import { assertNoClientMoneyState, eventInputSchema, joinSchema, parseOr400, rsvpSchema, slugParamSchema, unlockSchema } from '../lib/schemas.js';
 import { ensureSession, readSession, requireSession } from '../lib/session.js';
 import type { RouteDeps } from './deps.js';
 
@@ -71,6 +71,7 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
     async (req, reply): Promise<CreatedEvent> => {
       const session = await ensureSession(pool, config, req, reply);
+      assertNoClientMoneyState(req.body);
       const input = parseOr400(eventInputSchema, req.body);
       return createEvent(pool, session.id, input);
     },
@@ -118,6 +119,7 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
     { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (req): Promise<{ event: FiestaEvent }> => {
       const { slug } = parseOr400(slugParamSchema, req.params);
+      assertNoClientMoneyState(req.body);
       const input = parseOr400(eventInputSchema, req.body);
       return { event: await updateEvent(pool, slug, presentedAdminKey(req), input) };
     },

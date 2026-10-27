@@ -1,6 +1,34 @@
 # Estado de implementación
 
-Actualizado el 25 octubre 2026 (America/Guayaquil). El calendario no equivale a progreso real; **aceptación completa pendiente**. No marcar una prueba externa por tests con proveedores simulados.
+Actualizado el 26 octubre 2026 (America/Guayaquil). El calendario no equivale a progreso real; **aceptación completa pendiente**. No marcar una prueba externa por tests con proveedores simulados.
+
+## Continuación vigente
+
+**26 oct, 19:52:** financieroAGY1/UIcopy2/vozAGY3 aprobados localmente. Voz18+4tests, tipos/lint0;3hashes coincide. PendienteCI versiónconjunta, despliegue yUSD1/refundreal; micrófono humano no probado. Producción todavía e03; primario conservado. [Checkpoint](CHECKPOINT_2026-10-25.md).
+
+**26 oct, 19:50: REANUDADO.** AGYfinanciero1 yUIcopy2 aprobados,13hashes coinciden, PR3EE4417d/CI40428750524verdes. Ensayomigración enDBaislada23eventos/1captura5000/refund0, todoslegados, sin afectarservicios. Candidata construidaNOactivada. Audiointegrado conexcepciónhumana deunalíneatipos, AGYvoz3/3 ejecución61459 pendiente. No operación nuevaPayPal ni audiófono humano acreditados. [Checkpoint](CHECKPOINT_2026-10-25.md).
+
+**PAUSA26oct16:03**, helper19%5h/72%semanal, siguiente mínimo22:26:29Z/17:26:29Guayaquil. BackendGROK3 yUIcopy2 terminaron con informes/checks; AGYfinanciero1 detenido ordenadamente, no falla ni nuevo intento. Falta revisión independiente de backend y de copiaUI2. Sin nuevas operaciones externas/push/despliegue financiero. La interfaz de carga e03 ya está activa. Continuación nativa fiestapay-reanudar-cuota-26-oct ACTIVE, cuatroprocesos propios detenidos, sin reset. [Estado para retomar](CHECKPOINT_2026-10-25.md).
+
+**26 oct, 15:35:** GROK backend2 entregó293tests verdes y checks completos; Opus1 bloqueó fuente por reintentos/equidad, movimiento de devolución no registrado en mismatch e inversión de bloqueos. Constructor corrige en **intento3/3, ejecución45295**; no cuarto intento. UI financiera1 entregada, AGY Gemini revisión1 ejecución3964. La imagen productiva sigue e03 de carga, sin código financiero nuevo. Último helper55%Codex5h/78%semanal, stopfalse. Opus4.8%semanal detenido; no es el bucket de Gemini. [Checkpoint y evidencias](CHECKPOINT_2026-10-25.md).
+
+**26 oct, 15:15: ejecución reanudada**, helper 84 % cinco horas / 82 % semanal. Backend financiero GROK conserva intento 2/3, ejecución `73541`, con revisión independiente pendiente. **UI e03e85b activada y saludable** en Contabo: público HTTP200, API healthy, otros contenedores idénticos, reversión anterior preservada. No backend financiero nuevo en producción ni pruebas externas repetidas. Continuación puntual eliminada mediante herramienta; diario activo. [Checkpoint vigente](CHECKPOINT_2026-10-25.md). Las pausas siguientes son históricas.
+
+**PAUSA26oct10:08 por cuota:** helper18%5h/87%semanal, siguiente instante permitido17:25:13Z/12:25:13Guayaquil. BackendGROK2/3pausado,4procesos propios detenidos,53testsPASS/1FAIL en barrera de bloqueo; no revisión financiera ni aceptación externa nuevas. PR3/UIe03e85b/CI40344856673verde; imagenconstruidaexit0 sin activar/reiniciarservicio. Contenedor/RELEASE siguen2d7c542. Programación nativa creada fiestapay-reanudar-cuota-26-oct con guardhorario; nextRunAt/zona no expuestos. [Checkpoint](CHECKPOINT_2026-10-25.md).
+
+**26 oct, carga de interfaz aprobada:**9tests/2archivos,5casos Chromium local, ESLint y tipos verificados por AGY2/3 sobre entrega GROK1/3; hashes actuales coinciden. Espera de capacidades, reintento y progreso/duplicados de creación completos en este alcance. [Evidencia](reviews/loading-ux-20261026.md). Fuente financiera en intento2/3, aún sin aceptación. No nuevos pagos, correo ni llamadas IA reales.
+
+**26 oct 09:06, reanudación humana:** Jorge dijo «sigue». Helper permite continuar (79 % cinco horas / 97 % semanal); GROK vuelve al mismo intento 1/3 de FP-FUNDING-BACKEND-20261025, ejecución `35070`. PG local iniciado después del apagado. Sin cambios de producto previos ni nueva aceptación externa. AGY disponible; Claude directo aún sin conexión comprobada. El párrafo de pausa siguiente es histórico. [Checkpoint vigente](CHECKPOINT_2026-10-25.md).
+
+**PAUSA POR SOLICITUD DE JORGE —26oct00:05:** corte de energía/apagado. Agentes detenidos, diarioPAUSED y continuación puntualeliminada; no reanudar automáticamente hasta que Jorge lo pida. GROKBackendintento1/3 preservado, sin código entregado. Diseños/paquetes ycheckpoint guardados. Producción/correo delVPS intactos.
+
+
+
+25oct23:46:98%5h/44%semanal, helperstopfalse. GROK FP-FUNDING-BACKEND-20261025 intenta1/3reanudado, job40207. No P2entregado/aceptado todavía. Fallo dearranqueask-grokselfMCP verificado; deshabilitado solamenteen clienteGrok,codebaseMCPenabled. Grafoyaresponde(generación15oct,stale),sourcefallback. Regla20% siguevigente. One-shotcumpliódespertar, retirarla al finalizar si no nueva pausa. [Checkpoint](CHECKPOINT_2026-10-25.md).
+
+## Construcción actual: P2 financiero, todavía sin entregar
+
+Worktree activo `C:/Users/Jorge/.codex/worktrees/funding-refunds/fiestapay`, rama `codex/funding-refunds`, base731df71. La copia primaria y sus cambios de voz/.gitignore/24 permanecen intactos. GROK FP-FUNDING-BACKEND-20261025 intento1/3REANUDADO,job40207,80turns/2700s, EOF, solo API/shared/tests; sin secretos, deploy ni proveedores reales. AGY diseño1/3 entregado244872tokens totales,404s; informe de propuestas, no aprobación. Codex impuso correcciones:422 no equivale a reembolso, fondos/tombstone conservados, reloj traslock y decisión previa a dinero tardío, sin activación retroactiva de legados. Bases locales constructor/revisor creadas, npmci terminado. Pendiente entrega, revisión financiera independiente y UI.
 
 ## Etapa vigente: entrega31octubre
 

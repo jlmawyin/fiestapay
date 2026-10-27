@@ -79,10 +79,23 @@ export interface WebhookSignatureInput {
 }
 
 /** The surface the domain uses. Tests inject a fake; production injects the sandbox client. */
+export interface RefundCaptureInput {
+  captureId: string;
+  /** Stable PayPal-Request-Id. A timeout retries this same value. */
+  requestId: string;
+  /** Exact JSON body persisted before the call. `{}` refunds the capture in full. */
+  body: string;
+}
+
 export interface PayPalAdapter {
   createOrder(input: CreateOrderInput): Promise<CreatedOrder>;
   getOrder(paypalOrderId: string): Promise<PayPalOrder>;
   captureOrder(input: { paypalOrderId: string; requestId: string }): Promise<PayPalOrder>;
+  /**
+   * POST /v2/payments/captures/{id}/refund. Empty object refunds the full capture.
+   * An amount object is a partial refund. The same request id and body are safe to repeat.
+   */
+  refundCapture(input: RefundCaptureInput): Promise<PayPalRefund>;
   getRefund(refundId: string): Promise<PayPalRefund>;
   verifyWebhookSignature(input: WebhookSignatureInput): Promise<boolean>;
 }
