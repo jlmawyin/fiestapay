@@ -1,5 +1,9 @@
 # Checkpoint vigente — FiestaPay
 
+## Confirmación de pausa — 26 octubre 2026, 20:37 Guayaquil
+
+Lectura nueva de cuota y helper: **12 % cinco horas / 57 % semanal**, `stop=true`, `needs_refresh=false`. Se conserva la pausa y el mínimo **2026-10-27T03:28:04Z (26 oct, 22:28:04 Guayaquil)**. La continuación `fiestapay-reanudar-cuota-26-oct` ya está ACTIVE con esa guarda; no se crea duplicado. Commit administrativo anterior confirmado: `3a30258`; producto y remoto siguen `8918866`. Sin trabajo de producto ni nuevas llamadas a proveedores durante esta confirmación. GROK moderación sigue pausado en intento 1/3; la excepción puntual de tipado de audio ya fue ejecutada y verificada.
+
 ## PAUSA POR CUOTA — 26 octubre 2026, 20:30 Guayaquil
 
 Helper **20%5h/59%semanal, stoptrue**, inclusivo segúnJorge. Reanudación mínima **2026-10-27T03:28:04Z =26oct22:28:04Guayaquil**. Se detuvieron5procesos propios del constructorGrok. Ningún reset/crédito consumido. No trabajo deproducto durante esta pausa. Continuación nativa ACTIVE `fiestapay-reanudar-cuota-26-oct`, única ejecución conguard noantes03:28:04Z; diarioactivo. La herramienta no expuso nextRunAt/zona; indicar mínimo permitido, no prometer instante exacto.

@@ -1,5 +1,7 @@
 # Progreso de FiestaPay
 
+**26 oct, 20:37: pausa confirmada.** Helper: 12 % disponible en cinco horas y 57 % semanal. No se reanuda producto. Continuación existente con mínimo permitido 22:28:04 Guayaquil, sujeta a cuota nueva; moderación conserva intento 1/3. El audio autorizado y el reembolso sandbox ya están verificados; no se repiten.
+
 Actualizado: 26 octubre 2026, America/Guayaquil. Resumen de esta entrega; el historial completo continúa en [docs/ESTADO.md](docs/ESTADO.md).
 
 ## Prioridades vigentes y ejecución
