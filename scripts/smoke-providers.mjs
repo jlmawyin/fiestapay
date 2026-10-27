@@ -12,7 +12,7 @@ async function request(path, body) {
 }
 try {
   const caps = await request('/capabilities');
-  evidence.checks.push({name:'configuration',paypal:caps.paypal,chat:Boolean(caps.chat ?? caps.gemini),llmProvider:caps.llmProvider ?? null,voice:caps.voice});
+  evidence.checks.push({name:'configuration',paypal:caps.paypal,chat:Boolean(caps.chat),llmProvider:caps.llmProvider ?? null,voice:caps.voice});
   const {event} = await request('/demo',{});
   const path = '/events/'+event.slug;
   await request(path+'/join',{name:'Prueba técnica'});

@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
-import type { GenerateFn } from './ai/gemini.js';
 import type { RespondFn } from './ai/openai.js';
 import { loadConfig, type Config } from './config.js';
 import { createSmtpEmail } from './email/smtp.js';
@@ -35,8 +34,7 @@ export interface BuildAppOptions {
    * and an unconfigured server stays on null instead of pretending mail was sent.
    */
   email?: EmailAdapter | null;
-  /** Scripted models for tests; omitted in production so the selected provider's REST call is used. */
-  generate?: GenerateFn;
+  /** Scripted model for tests; omitted in production so the OpenAI REST call is used. */
   respond?: RespondFn;
   logger?: boolean;
 }
@@ -146,7 +144,6 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     config,
     paypal,
     email,
-    ...(options.generate ? { generate: options.generate } : {}),
     ...(options.respond ? { respond: options.respond } : {}),
   };
   await app.register(

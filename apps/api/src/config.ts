@@ -19,15 +19,6 @@ export interface PayPalConfig {
   brandName: string;
 }
 
-export interface GeminiConfig {
-  apiKey: string;
-  model: string;
-  baseUrl: string;
-  timeoutMs: number;
-  maxToolRounds: number;
-  maxHistoryMessages: number;
-}
-
 export interface OpenAIConfig {
   apiKey: string;
   model: string;
@@ -75,17 +66,15 @@ export interface Config {
   webDir: string;
   serveWeb: boolean;
   paypal: PayPalConfig | null;
-  /** Chat provider chosen by LLM_PROVIDER. Only the selected one is ever configured. */
+  /** Compatibility marker. The only accepted value is openai. */
   llmProvider: LlmProvider;
   openai: OpenAIConfig | null;
-  gemini: GeminiConfig | null;
   voice: ReturnType<typeof voiceConfig>;
   email: EmailConfig | null;
   /** Reason PayPal is unavailable, for honest 503 bodies. */
   paypalDisabledReason: string | null;
   emailDisabledReason: string | null;
   openaiDisabledReason: string | null;
-  geminiDisabledReason: string | null;
 }
 
 const str = (v: string | undefined): string | null => {
@@ -212,27 +201,11 @@ function readEmail(env: NodeJS.ProcessEnv, publicOrigin: string | null): { confi
   };
 }
 
-function readGemini(env: NodeJS.ProcessEnv): { config: GeminiConfig | null; reason: string | null } {
-  const apiKey = str(env.GEMINI_API_KEY);
-  if (!apiKey) return { config: null, reason: 'Falta configuracion de Gemini: GEMINI_API_KEY' };
-  return {
-    config: {
-      apiKey,
-      model: str(env.GEMINI_MODEL) ?? 'gemini-3.8-flash',
-      baseUrl: (str(env.GEMINI_BASE_URL) ?? 'https://generativelanguage.googleapis.com/v1beta').replace(/\/+$/, ''),
-      timeoutMs: num(env.GEMINI_TIMEOUT_MS, 20000),
-      maxToolRounds: num(env.GEMINI_MAX_TOOL_ROUNDS, 4),
-      maxHistoryMessages: num(env.GEMINI_MAX_HISTORY, 24),
-    },
-    reason: null,
-  };
-}
-
-/** Throws on an unknown value: a typo must not silently switch, or disable, the chat provider. */
+/** Compatibility only. Any value other than openai fails closed and is not echoed. */
 function readLlmProvider(env: NodeJS.ProcessEnv): LlmProvider {
   const raw = (str(env.LLM_PROVIDER) ?? 'openai').toLowerCase();
-  if (raw === 'openai' || raw === 'gemini') return raw;
-  throw new Error('LLM_PROVIDER invalido: use openai o gemini');
+  if (raw === 'openai') return raw;
+  throw new Error('LLM_PROVIDER invalido: solo se admite openai');
 }
 
 function readOpenAI(env: NodeJS.ProcessEnv): { config: OpenAIConfig | null; reason: string | null } {
@@ -271,10 +244,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
   const paypal = readPayPal(env);
   const email = readEmail(env, publicOrigin === null ? null : publicOrigin.replace(/\/+$/, ''));
-  // Only the selected provider is read, so there is no configured client to fall back to.
   const llmProvider = readLlmProvider(env);
-  const openai = llmProvider === 'openai' ? readOpenAI(env) : { config: null, reason: 'Proveedor de chat seleccionado: gemini' };
-  const gemini = llmProvider === 'gemini' ? readGemini(env) : { config: null, reason: 'Proveedor de chat seleccionado: openai' };
+  const openai = readOpenAI(env);
   const webDir = str(env.WEB_DIST_DIR) ?? join(import.meta.dirname, '..', '..', 'web', 'dist');
 
   return {
@@ -298,10 +269,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     llmProvider,
     openai: openai.config,
     openaiDisabledReason: openai.reason,
-    gemini: gemini.config,
     voice: voiceConfig(env),
     email: email.config,
     emailDisabledReason: email.reason,
-    geminiDisabledReason: gemini.reason,
   };
 }

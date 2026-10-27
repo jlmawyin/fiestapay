@@ -3,9 +3,9 @@ import type { Capabilities, Quote, ChatResult, ChatTranscriptMessage, RsvpStatus
 import { api } from '../../api/client';
 import { usd } from '../../types';
 
-interface GeminiAssistantProps {
+interface ChatAssistantProps {
   slug: string;
-  capabilities: (Capabilities & { chat?: boolean; llmProvider?: 'openai' | 'gemini' }) | null;
+  capabilities: Capabilities | null;
   onApplyQuote?: (quote: Quote) => void;
   onConfirmRsvp?: (status: RsvpStatus, companions: number) => Promise<void>;
   /** Server says this session cannot send. The transcript stays readable. */
@@ -56,7 +56,7 @@ function applyTranscript(prev: ChatMessage[], incoming: ChatTranscriptMessage[])
   return [...greeting, ...fromServer, ...pending];
 }
 
-export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
+export const ChatAssistant: React.FC<ChatAssistantProps> = ({
   slug,
   capabilities,
   onApplyQuote,
@@ -68,7 +68,7 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [confirmedActionIds, setConfirmedActionIds] = useState<Set<string>>(new Set());
-  const composerDisabled = accessRevoked || closed || !(capabilities?.chat ?? capabilities?.gemini);
+  const composerDisabled = accessRevoked || closed || !capabilities?.chat;
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -80,7 +80,7 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
   ]);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
 
-  const chatAvailable = Boolean(capabilities?.chat ?? capabilities?.gemini);
+  const chatAvailable = Boolean(capabilities?.chat);
 
   const pullHistory = useCallback(async () => {
     try {

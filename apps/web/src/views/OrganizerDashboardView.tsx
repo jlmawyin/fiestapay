@@ -10,7 +10,7 @@ import { RecoveryEmailCard } from '../components/dashboard/RecoveryEmailCard';
 import { QrShareModal } from '../components/dashboard/QrShareModal';
 import { CreateEventForm } from '../components/events/CreateEventForm';
 import { Modal } from '../components/common/Modal';
-import { GeminiAssistant } from '../components/chat/GeminiAssistant';
+import { ChatAssistant } from '../components/chat/ChatAssistant';
 import { FundingStatusPanel, formatEventInstant, paidPeopleLabel } from '../components/common/FundingStatusPanel';
 
 interface OrganizerDashboardViewProps {
@@ -528,8 +528,7 @@ ${inviteUrl}`;
         </div>
       </Modal>
 
-      {/* Gemini Assistant */}
-      <GeminiAssistant slug={slug} capabilities={capabilities} />
+      <ChatAssistant slug={slug} capabilities={capabilities} />
     </div>
   );
 };

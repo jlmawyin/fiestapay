@@ -35,7 +35,7 @@ class MockAudioContext {
   createGain = vi.fn(() => ({ connect: vi.fn(), gain: { value: 1 } }));
 }
 
-const capabilities: Capabilities = { voice: true, gemini: false, paypal: false, paypalClientId: null, sandbox: true, email: false };
+const capabilities: Capabilities = { voice: true, chat: false, paypal: false, paypalClientId: null, sandbox: true, email: false };
 const guest: Guest = { id: 'guest-one', name: 'Invitado demo', status: 'yes', companions: 0, paidCents: 0, dueCents: 2500 };
 const token = { token: 'test-token', leaseId: 'test-lease', sessionConfig: {}, maxSeconds: 60 };
 let stopTrack: ReturnType<typeof vi.fn>;

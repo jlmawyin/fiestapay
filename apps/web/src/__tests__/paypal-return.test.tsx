@@ -45,7 +45,7 @@ const mockEvent: FiestaEvent = {
 const mockCapabilities = {
   paypal: false, // fallback button mode
   paypalClientId: null,
-  gemini: false,
+  chat: false,
   voice: false,
   sandbox: true as const,
   email: false,

@@ -1,12 +1,23 @@
-import type { GeminiPart, HistoryRole } from './gemini.js';
 import type { OpenAIItem } from './openai.js';
 
+/** Roles as persisted. `function` holds tool outputs and is not shown as chat text. */
+export type HistoryRole = 'user' | 'model' | 'function';
+
 /**
- * A persisted chat part. User turns are provider neutral (`text`); model and function turns keep
- * the selected provider's native shape: Gemini parts as returned, or one OpenAI item per part
- * under `openai`. Each adapter replays its own turns verbatim and reduces foreign ones to text.
+ * Persisted chat part. New user turns store `{text}`. New model and function turns store one
+ * OpenAI item under `openai`. Older rows may still carry `thought`, `thoughtSignature`,
+ * `functionCall`, or `functionResponse`. Those keys stay readable and are not replayed.
  */
-export interface StoredPart extends GeminiPart {
+export interface StoredPart {
+  text?: string;
+  /** Legacy thought summaries are excluded from visible text. */
+  thought?: boolean;
+  /** Legacy signature. Never forwarded to the model or a transcript. */
+  thoughtSignature?: string;
+  /** Legacy tool call. Not executed on replay. */
+  functionCall?: { id?: string; name?: string; args?: unknown };
+  /** Legacy tool result. Not replayed. */
+  functionResponse?: { id?: string; name?: string; response?: Record<string, unknown> };
   openai?: OpenAIItem;
 }
 
@@ -15,11 +26,11 @@ export interface StoredTurn {
   parts: StoredPart[];
 }
 
-export const isOpenAITurn = (turn: StoredTurn): boolean => turn.parts.some((p) => p.openai !== undefined);
+export const isOpenAITurn = (turn: StoredTurn): boolean => turn.parts.some((part) => part.openai !== undefined);
 
-/** Visible text of neutral or Gemini parts; Gemini thought summaries and signatures are excluded. */
+/** Visible text. Thought summaries and non-text payloads are excluded. */
 export const visibleText = (parts: StoredPart[]): string =>
   parts
-    .map((p) => (typeof p.text === 'string' && !('thought' in p && p.thought === true) ? p.text : ''))
+    .map((part) => (typeof part.text === 'string' && part.thought !== true ? part.text : ''))
     .join('')
     .trim();

@@ -21,7 +21,6 @@ export async function registerChatRoutes(app: FastifyInstance, deps: RouteDeps):
       const { message } = parseOr400(chatSchema, req.body);
       const session = await ensureSession(pool, config, req, reply);
       return chatWithAssistant(pool, config, session.id, slug, message, {
-        generate: deps.generate,
         respond: deps.respond,
       }, presentedAdminKey(req));
     },

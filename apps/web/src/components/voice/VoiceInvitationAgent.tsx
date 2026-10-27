@@ -793,7 +793,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                   Voz no habilitada en el servidor
                 </div>
                 <p style={{ color: 'var(--color-ink-muted)' }}>
-                  Las credenciales de AssemblyAI Voice no están activas en este entorno. Puedes interactuar mediante el chat escrito de Gemini o con el formulario.
+                  Las credenciales de AssemblyAI Voice no están activas en este entorno. Puedes interactuar mediante el chat escrito o con el formulario.
                 </p>
               </div>
             ) : (

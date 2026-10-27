@@ -4,7 +4,7 @@ import type { Capabilities } from '../../types';
 export type DemoRibbonStatus = 'loading' | 'ready' | 'unavailable';
 
 interface DemoRibbonProps {
-  capabilities: (Capabilities & { chat?: boolean; llmProvider?: 'openai' | 'gemini' }) | null;
+  capabilities: Capabilities | null;
   status?: DemoRibbonStatus;
   onRetry?: () => void;
 }
@@ -20,7 +20,7 @@ const statusClusterStyle: React.CSSProperties = {
 
 export const DemoRibbon: React.FC<DemoRibbonProps> = ({ capabilities, status, onRetry }) => {
   const resolvedStatus: DemoRibbonStatus = status ?? 'ready';
-  const chatAvailable = Boolean(capabilities?.chat ?? capabilities?.gemini);
+  const chatAvailable = Boolean(capabilities?.chat);
 
   return (
     <div className="demo-ribbon" role="region" aria-label="Aviso de modo sandbox y pagos de prueba">
