@@ -11,6 +11,9 @@ Esta guía recoge hechos del proyecto y cómo usarlos en la entrega. No garantiz
 | Separar envío y recepción | SMTP aceptado no demuestra llegada. Jorge confirmó los dos mensajes en entrada, verificó el contacto, recuperó su enlace y rechazó el token ya usado. La clave anterior dejó de servir. [Correo](reviews/smtp-live-20261025.md). |
 | Validar la evidencia del revisor | Un hash de prueba en un informe no coincidía. Se recalculó por bytes y se repitió solo la prueba afectada; los resultados anteriores se reutilizan únicamente cuando la fuente pertinente sigue igual. [Formulario](reviews/form-20261027.md). |
 | Preparar la actualización antes de activarla | La migración0008 se ensayó en un clon restaurado, conservando24eventos y las referencias de pago. La publicación recreó únicamente la API y comprobó que las demás aplicaciones no cambiaron. [Operaciones](OPERATIONS.md). |
+| Validar tablas generadas contra los archivos | En P5 los35hashes del JSON eran correctos, pero todos los tamaños copiados a prosa eran erróneos. La comparación directa por bytes y el artefacto de máquina prevalecen; no repetir pruebas de producto para corregir esa tabla. |
+| Eliminar los archivos retirados al publicar | Una extracción de tar superpone archivos y conserva los eliminados del repositorio. El despliegue9a40f26 retiró explícitamente los dos archivos antiguos y comprobó su ausencia en la imagen. [P5](reviews/openai-only-20261027.md). |
+| Probar una copia fuera del servidor | El dump descargado al equipo deJorge se restauró enPG16 local, con24fiestas/20asistentes/3movimientos y referencias financieras intactas. No basta conservar la copia en el mismoVPS. [Restauración](reviews/off-vps-backup-20261027.md). |
 | Acotar los loops y la autoridad | GROK construye; AGY comprueba de forma independiente. Timeout consume un intento; pausa ordenada conserva el contador. La cuota se calcula con el helper y se detiene al20%de cinco horas. Claude aporta diagnóstico si está conectado; su ausencia no autoriza inventar una revisión. |
 
 ## Aplicación a la presentación
@@ -23,4 +26,4 @@ La voz tiene cola y simulaciones aprobadas, pero todavía falta la prueba físic
 
 ## Próximas comprobaciones
 
-Cerrar OpenAI-only sin perder las garantías existentes; ensayar el recorrido final; comprobar enlaces y compradores de prueba; completar instrucciones y material en inglés antes del corte interno. Usar el31octubre para corregir bloqueantes y el5noviembre como límite de presentación/envío acordado. No introducir fondo abierto, anticipos, aportes físicos o descuentos durante ese cierre.
+OpenAI-only ya está publicado como9a40f26. Quedan la prueba física de audio, ensayo final, enlaces/compradores de prueba e instrucciones y material en inglés. Usar el31octubre para corregir bloqueantes y el5noviembre como límite de presentación/envío acordado. No introducir fondo abierto, anticipos, aportes físicos o descuentos durante ese cierre.

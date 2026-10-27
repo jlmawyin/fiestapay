@@ -1,5 +1,13 @@
 # Checkpoint vigente — FiestaPay
 
+## Publicado P5 — 27 octubre 2026, 15:38 Guayaquil
+
+Workspace `C:/Users/Jorge/.codex/worktrees/funding-refunds/fiestapay`, rama `codex/openai-only-20261027`. Release activo `9a40f2657377118294e7ee5f5fbb1aca56b566e1`, imagen `sha256:ab51b94bb0d34fd0f0af80d5862ed73e7cdd53487a46c7d8d1244177d94494af`, esquema0008. PR5 borrador adjunto, base `codex/guest-moderation-20261027`; CI40579135674 SUCCESS para9a40f26. No merges. Primario intacto; `.grok/config.toml` local sintrack sigue fuera deGit. Fuente aprobadaGROK1/AGY1; AGY2 documental timeout30s consumido, no producto ni nuevas pruebas.35hashes/tamaños delJSON cotejados; tabla de tamaños prose errónea no se usa.
+
+Activación `.local/openai-only-activation.log` exit0/OPENAI_ONLY_RELEASE_ACTIVATED. Solo API recreada, ambosCompose preservados; backupDB y anteriorimagen44guardados. HTTPS/health/assetrefs coincide conimagen; capabilitiesOpenAI/chattrue/sandbox sinflagretirado. APIcompilada sinadaptadorantiguo, fuentesobsoletas2retiradas explícitamente.24eventos/23legacy conservados, goldenUSD50net5000 yrefundUSD1net0; secretosbundle/logs0 mediantecomparaciónenmemoria, otroscontenedoresidénticos. No probar otra vez proveedores/pagos/correo ya aceptados. CopiafueraVPS privada y restauraciónlocalPG16 aprobadas, detalladas debajo; preservar dump ignorado alarchivarworktreefuturo.
+
+Últimohelper62%5h35%semanal permitido, sin reseteos; antes de otra ejecución renovar. Ningún job propio activo. Continuación de cuota27 retirada; diario continúa activo hasta5nov. Siguiente trabajo: aceptación humana audio en celular (pregunta ya hecha, no duplicar), ensayo90s y preparar accesos/materiales de jueces con versión identificada. No afirmar audiofísico, video, envíoDevpost o nuevo pago sin evidencia. No reabrir moderación/formulario/finanzas ya aprobados ni introducir extras.31octsolo bloqueantes, corte5nov. Antecedentes siguen debajo.
+
 ## P5 aprobado; publicación pendiente — 27 octubre, tarde
 
 Rama activa `codex/openai-only-20261027`, mismo checkout. GROK1 yAGY1 fuente APROBADA:332regresión+14casos independientes+2recorridos Edge contra API/PostgreSQL local y proveedores falsos. Codex volvió a cotejar35hashes/tamaños del JSON: cero diferencias. Tabla de35tamaños en prosa del informe AGY errónea; no usarla. Corrección documental AGY2 ejecución88043 terminóAGY_TIMEOUT30s antes de entregar, sin cambios de producto; contador2/3 consumido conservadoramente, sin reiniciar ni reejecutar pruebas. La aprobación de fuente y JSON verificado del intento1 siguen vigentes. No tareas propias de agentes ejecutándose.

@@ -19,3 +19,9 @@ El historial conserva roles y filas antiguas. Solo su texto visible se convierte
 No hubo llamadas nuevas a OpenAI, PayPal, SMTP o AssemblyAI. La aceptación externa previa se conserva. Los ensayos con proveedores simulados no prueban audio físico ni un nuevo pago. La prueba de celular y el recorrido completo de90segundos siguen pendientes.
 
 Los artefactos privados de revisión permanecen en `.local`. Este informe acredita la fuente local; la versión desplegada y CI se registran por separado en [ESTADO.md](../ESTADO.md).
+
+## Publicación verificada
+
+Release `9a40f2657377118294e7ee5f5fbb1aca56b566e1`, [PR5](https://github.com/jlmawyin/fiestapay/pull/5), [CI40579135674](https://github.com/jlmawyin/fiestapay/actions/runs/40579135674) verde. Imagen `sha256:ab51b94bb0d34fd0f0af80d5862ed73e7cdd53487a46c7d8d1244177d94494af` activada el27oct15:38, esquema0008.
+
+Se recreó solo la API, se eliminaron exactamente los dos archivos fuente retirados y se comprobaron salud, HTTPS, recursos públicos y capabilitiesOpenAI. Se conservaron24fiestas/23legadas y ambas referencias financieras; secretos encontrados en bundle/logs0, demás contenedores idénticos. El entorno no contiene variables del proveedor retirado. No se repitieron llamadas de prueba a proveedores, pagos ni correos.
