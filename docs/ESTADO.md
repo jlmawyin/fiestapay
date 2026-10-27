@@ -4,6 +4,8 @@ Actualizado el 26 octubre 2026 (America/Guayaquil). El calendario no equivale a 
 
 ## Continuación vigente
 
+**PAUSA POR CUOTA:**20% cinco horas/44% semanal, stoptrue. Publicación44d2c3c completa antes de la pausa; servidor sigue activo. Ningún módulo nuevo iniciado. Continuación fiestapay-reanudar-cuota-27-oct creada con guarda noantes19:33:55Z/14:33:55Guayaquil, confirmarcuota aldespertar. Sin reset ni cuarto intento. Pendientes OpenAI-only/audiohumano/ensayo90s. [Checkpoint](CHECKPOINT_2026-10-25.md).
+
 **27 oct, 11:29: release44d2c3c ACTIVA, esquema0008.** PR4/CI40540682440verde, constructor338tests/32archivos yAGYmoderación2/form3 aprobados. Backend+interfaz de bloqueo/retirada/chat y advertencia de ejemplos publicados. Migración ensayada antes y activación con ambosCompose, soloAPIrecreada.24eventos/23legados preservados, doradaUSD50intacta,USD1refundnet0, secretos0 y demáscontenedoresidénticos. No APIs de proveedor nuevas; audiohumano pendiente. SiguienteP5limpiezaOpenAI-only. El historial anterior conserva6mensajes, con índice de conversaciones creado por actividad del nuevo flujo; no archivo histórico completo acreditado.
 
 **27 oct, 10:40:** GROK entregó moderación2 y formulario2, ambos exit0. Check integrado332pruebas/32archivos y tipos/lint/build. Dos verificaciones AGY activas: moderación1=`35714`, formulario2=`36853`, fakeproviders/PG de revisión. No cambios de fuente mientras auditan. Aprobación/publicación todavía pendientes; no confundir entrega del constructor con aceptación. Hashes7+2 coinciden y snapshot30archivos guardado. No nueva llamada proveedor/voz humana ni despliegue.

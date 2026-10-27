@@ -1,5 +1,13 @@
 # Checkpoint vigente — FiestaPay
 
+## PAUSA POR CUOTA — 27 octubre 2026, después de publicar
+
+Helper **20 % cinco horas / 44 % semanal**, `stop=true`, `needs_refresh=false`; guarda inclusiva de Jorge aplicada. **No iniciar P5 ni más trabajo de producto**. Todos los encargos AI/build concluyeron antes de la pausa; el servicio Contabo permanece activo y sano. No reset/crédito consumido. Continuación nativa `fiestapay-reanudar-cuota-27-oct` ACTIVE, mínimo permitido **2026-10-27T19:33:55Z = 27oct14:33:55 Guayaquil**. La herramienta confirmó creación pero no expuso nextRunAt/zona; indicar mínimo y compuerta, no prometer instante exacto. La continuación del26 ya fue retirada al cumplirse su motivo; diario sigue activo.
+
+Producción/remote código **44d2c3c7396fb4fc43c98af6416eaff1144f3409**, schema0008, PR4adjunta yCI40540682440SUCCESS. Último commitadministrativo **3e5f2fc** y cierreposterior quedan soloLOCAL para no iniciar otraCI sin cambios de producto. Rama codex/guest-moderation-20261027, MISMOcheckoutfunding-refunds/fiestapay. No reimplantar/reprobar etapa aprobada: GROKmoderación3, AGY2; formGROK2/AGY3. Datos/secretos/otrasapps preservados según activación exit0. Imagen/sourceanterior ybackups privadosretendidos. .grok/config.toml untrackedlocalesperado; no subirlo ni tocarprimario.
+
+Al volver: consultarquota/helper; si permitido, retirar ESTAcontinuación al cumplirmotivo yseguir P5OpenAI-only desde `.local/openai-only-coordinator-plan-20261027.md`, encargadoGrok1/AGYindependiente conownership antesdeprogramar. No másGrokheaders ni resetsdecontadores resueltos. Nuevo domain/moderation.ts importaHistoryRole delmóduloaretirar; conservar guards, dinero, cola yhistorialvisible alrenombrarChatAssistant. ClaudeMCPaúnausente/ningunaconsulta, audiofísico sinrespuesta yguion90sborrador; no repetirSMTP/USD50/refundUSD1/OpenAI. Si helperbloquea actualizar MISMAcontinuación con sunuevotimestamp, sinsondeosfrecuentes. No hablar de appterminada: P5/audio/ensayo quedanpendientes.
+
 ## Publicación completada — 27 octubre 2026, 11:29 Guayaquil
 
 **ACTIVA release44d2c3c7396fb4fc43c98af6416eaff1144f3409/esquema0008**, imagenSHA6c89f0812d90172517909e9ff7e747811c1909712497a5782678110b712e9e13. Ramaactual **codex/guest-moderation-20261027** enMISMOworktree C:/Users/Jorge/.codex/worktrees/funding-refunds/fiestapay. [PR4](https://github.com/jlmawyin/fiestapay/pull/4) draft, basecodex/funding-refunds; adjuntada nativamente. [CI40540682440](https://github.com/jlmawyin/fiestapay/actions/runs/40540682440) SUCCESS/head44exacto. Constructor3check338tests/32files. No merge realizado. Remote/sourceapp44, últimosdocs puedenadelantarse localmente.
