@@ -4,6 +4,8 @@ Actualizado el 26 octubre 2026 (America/Guayaquil). El calendario no equivale a 
 
 ## Continuación vigente
 
+**27 oct, 10:20:** dos frentes GROK en intento2/3: moderación61786 y formulario38582. Ambos primeros intentos agotaron timeout con parciales, sin aceptación; contadores consumidos. AGY formulario1 entregó22pruebas+6recorridos/5capturas, reprodujo aviso ausente. Fecha permite60segundos pasados: corrección servidor/UI asignada a sus dueños actuales. PostgreSQL local había quedado detenido al reiniciar Desktop; solo contenedor de pruebas fiestapay-test-oct25 arrancado, dos bases disponibles. No nuevo deploy/proveedor real. Pendientes pruebas y revisión de los módulos, OpenAI-only y audio físico.
+
 **27 oct, 09:35: reanudado con cuota permitida (97 % cinco horas / 56 % semanal).** Moderación GROK conserva intento 1/3 y continúa en ejecución `10067`; todavía sin entrega ni revisión nueva. Retirada la continuación puntual obsoleta; diario vigente con contrato Claude actualizado. Grafo cerrado, fuente directa acotada. No nuevas operaciones PayPal/SMTP/OpenAI ni despliegue; producción `8918866`. Audio humano sigue pendiente.
 
 **26 oct, 20:37:** cuota actual 12 % cinco horas / 57 % semanal, helper detenido; mismo mínimo 22:28:04 Guayaquil y misma continuación activa. No trabajo de producto durante la pausa. Moderación GROK conserva intento 1/3. El commit administrativo anterior `3a30258` está confirmado; producción sigue `8918866`.
