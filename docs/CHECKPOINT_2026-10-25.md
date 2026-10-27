@@ -1,5 +1,13 @@
 # Checkpoint vigente — FiestaPay
 
+## Reanudación — 27 octubre 2026, 09:35 Guayaquil
+
+Helper **97 % cinco horas / 56 % semanal, stop=false**. GROK retoma **FP-MODERATION-P3P4-20261026, MISMO intento 1/3**, ejecución `10067`; se inspeccionó el progreso de lectura y el árbol limpio antes de iniciar. Paquete `.local/moderation-build-task.txt` actualizado solo con contexto de reanudación; resultado `.local/moderation-build-resume-20261027-result.json`, reporte previsto `.local/moderation-build-report.md`. Modelo 4.7/xhigh, 110 turnos/2400s para módulo completo. GROK 63 % Build / 51 % general, SuperGrok, reinicio 3d16h. AGY Gemini 100 % cinco horas / 83,7 % semanal; bucket Claude/GPT 4,8 % STOP. Máximo dos frentes, uno activo ahora.
+
+`index_status` y `check_index_coverage` devuelven `Transport closed`; no repetir probes ni reindexar. Se leyó fuente exacta de access/rsvp/chat y se pasó al constructor la limitación de grafo y la obligación de lectura directa de archivos afectados. No afirmar cobertura completa. Claude MCP no aparece expuesto: no status/modelos ni consulta con consumo; las nuevas instrucciones de Jorge sobre diagnóstico de solo lectura y aplicación de parches ya están en la skill global.
+
+Continuación puntual `fiestapay-reanudar-cuota-26-oct` **eliminada por herramienta nativa** al cumplirse el motivo. Diario `fiestapay-ejecuci-n-diaria` actualizado preservando horario/límites y con contrato Claude vigente. Producto remoto/VPS sigue `8918866`; HEAD administrativo `f06bf85`. No repetir USD1/refund, USD50, SMTP u OpenAI ya aceptados. Audio físico de Jorge sigue sin resultado. Siguiente: terminar moderación1, verificación independiente AGY; después limpieza OpenAI sin pisar los mismos archivos mientras el constructor trabaja. Primario OneDrive intacto.
+
 ## Confirmación de pausa — 26 octubre 2026, 20:37 Guayaquil
 
 Lectura nueva de cuota y helper: **12 % cinco horas / 57 % semanal**, `stop=true`, `needs_refresh=false`. Se conserva la pausa y el mínimo **2026-10-27T03:28:04Z (26 oct, 22:28:04 Guayaquil)**. La continuación `fiestapay-reanudar-cuota-26-oct` ya está ACTIVE con esa guarda; no se crea duplicado. Commit administrativo anterior confirmado: `3a30258`; producto y remoto siguen `8918866`. Sin trabajo de producto ni nuevas llamadas a proveedores durante esta confirmación. GROK moderación sigue pausado en intento 1/3; la excepción puntual de tipado de audio ya fue ejecutada y verificada.

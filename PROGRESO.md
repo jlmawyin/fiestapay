@@ -1,5 +1,7 @@
 # Progreso de FiestaPay
 
+**27 oct, 09:35: ejecución reanudada.** Helper permite trabajar: 97 % disponible en cinco horas y 56 % semanal. GROK retoma **FP-MODERATION-P3P4-20261026, el mismo intento 1/3**, ejecución `10067`, sin repetir finanzas, voz, correo ni llamadas reales. GROK: 63 % Build / 51 % general, SuperGrok, reinicio en 3d16h. AGY Gemini: 100 % cinco horas / 83,7 % semanal; Claude/GPT sigue bloqueado al 4,8 %. La continuación puntual de cuota del 26 quedó retirada; el diario sigue activo y refleja el contrato nuevo de Claude. Grafo no disponible (`Transport closed`): lectura directa acotada, sin bucle de reparación. Claude MCP sigue sin exponer estado/modelos; eso no bloquea la construcción de GROK ni la revisión Gemini. Producto público sigue `8918866`.
+
 **26 oct, 20:37: pausa confirmada.** Helper: 12 % disponible en cinco horas y 57 % semanal. No se reanuda producto. Continuación existente con mínimo permitido 22:28:04 Guayaquil, sujeta a cuota nueva; moderación conserva intento 1/3. El audio autorizado y el reembolso sandbox ya están verificados; no se repiten.
 
 Actualizado: 26 octubre 2026, America/Guayaquil. Resumen de esta entrega; el historial completo continúa en [docs/ESTADO.md](docs/ESTADO.md).

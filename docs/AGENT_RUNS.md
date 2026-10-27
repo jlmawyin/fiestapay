@@ -1,5 +1,7 @@
 # Encargos y contadores vigentes
 
+**27 oct, 09:35:** helper Codex 97 % cinco horas / 56 % semanal permite reanudar. GROK moderación conserva intento 1/3, ejecución `10067`; paquete/progreso preservados. Fuente aún sin entrega nueva. GROK 63 % Build / 51 % general, SuperGrok, reinicio 3d16h; modelos 4.7, 4.7-fast, 4.6, 4.5. AGY Gemini 100 % cinco horas / 83,7 % semanal; Claude/GPT 4,8 % STOP. Retirada continuación de cuota del 26, diario vigente. Ninguna consulta Claude ni repetición de evidencia externa.
+
 **Cierre26oct20:30:** Codex20%5h/59%semanal, helperstoptrue. GROKmoderación1 pausado ordenadamente con5procesos propios detenidos; no fallo/timeout. Mínimo de continuación2026-10-27T03:28:04Z/26oct22:28:04Guayaquil. Releaseproductivo8918866/CI308tests aprobado y nuevaUSD1 devueltaCOMPLETED; no repetir. ÚltimoGrok63%Build52%general/SuperGrok/reset4d5h antesdemoderación. VozAGY3 uso162063entrada/24019salida,total186082/cache1152945, agregado4.8% esClaudeGPT/noGemini.
 
 Último cierre26oct16:03: GROK posterior64%Build/53%general, SuperGrok, reinicio4d9h. Backend3:195574entrada/88082salida,cache4960896,total5244552; UIcopy2:152252entrada/11490salida,cache557696,total721438. El total incluye caché, no equivale a tokens nuevos de salida. AGYfinal1 quedó pausado por Codex19%5h, no fallo ni entrega nueva. Datos detallados en los resultados privados del puente.
