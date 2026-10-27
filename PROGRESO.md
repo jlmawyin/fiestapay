@@ -4,6 +4,10 @@ Actualizado: 26 octubre 2026, America/Guayaquil. Resumen de esta entrega; el his
 
 ## Prioridades vigentes y ejecución
 
+**Pausa26oct20:30:** Codex20%5h/59%semanal, guarda inclusiva respetada. GROKmoderación1/3 pausado conprogreso de lectura guardado y5procesospropiosdetenidos; aúnsin códigoentregado. Continuaciónnativa preparadaparamínimopermitido22:28:04Guayaquil. Release8918866 yUSD1/refundCOMPLETEDsiguenaprobados, no repetir. PendientesmoderaciónP3/P4, eliminaciónresidualGeminiP5 y respuesta de prueba humanaaudio. [Checkpoint](docs/CHECKPOINT_2026-10-25.md).
+
+**26 oct, 20:14: devolución automática REAL SANDBOX APROBADA.** Release8918866 activa, CI308tests/29archivos verde. NuevaUSD1 frente amínimoUSD2: captura4DJ8478167395053U antesdelplazo, cierre20:11 yrefund81V65255AJ038122F COMPLETED verificado porGETPayPal. Ledger1captura100/1refund100, tareaintento1 establetrasotrociclo, recaudado0, quote/RSVPposteriores409. USD50anterior intacto. [Evidencia](docs/reviews/refund-sandbox-20261026.md). Audio22simulacionesaprobadas e integrado; prueba física deJorge pendiente. GROK siguienteP3/P4 intento1 construye moderación.
+
 **26 oct, 19:52:** AGY aprobó también el audio integrado (18pruebas+4UI, tipos/lint0); la excepción de una línea fue autorizada expresamente por Jorge. Backend yUIfinanciera ya aprobados. Se prepara versión conjunta yCI antes de activar; devolución externaUSD1 y audio humano siguen pendientes. [Revisión de voz](docs/reviews/voice-integration-20261026.md).
 
 **26 oct, 19:50:** ejecución reanudada con95%5h; AGY aprobó backend y copiaUI2 tras61+12API,17web y7casos navegador. EE4417d publicado enPR3, CI40428750524 verde. Respaldo/restauración y ensayo0007 enDBaislada conservaron23fiestas y pagoUSD50, sin activar plazos legados; imagen candidata construida pero sinactivar. Jorge autorizó la única corrección de tipo del audio: integrada enmanaged, primariointacto, AGYvoz3/3 verifica ahora. Próximo: CI/activación y prueba nuevaUSD1 con reembolso por plazo; sin repetirUSD50/correo/OpenAI. [Checkpoint actual](docs/CHECKPOINT_2026-10-25.md).

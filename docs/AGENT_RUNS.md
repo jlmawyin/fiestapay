@@ -1,5 +1,7 @@
 # Encargos y contadores vigentes
 
+**Cierre26oct20:30:** Codex20%5h/59%semanal, helperstoptrue. GROKmoderación1 pausado ordenadamente con5procesos propios detenidos; no fallo/timeout. Mínimo de continuación2026-10-27T03:28:04Z/26oct22:28:04Guayaquil. Releaseproductivo8918866/CI308tests aprobado y nuevaUSD1 devueltaCOMPLETED; no repetir. ÚltimoGrok63%Build52%general/SuperGrok/reset4d5h antesdemoderación. VozAGY3 uso162063entrada/24019salida,total186082/cache1152945, agregado4.8% esClaudeGPT/noGemini.
+
 Último cierre26oct16:03: GROK posterior64%Build/53%general, SuperGrok, reinicio4d9h. Backend3:195574entrada/88082salida,cache4960896,total5244552; UIcopy2:152252entrada/11490salida,cache557696,total721438. El total incluye caché, no equivale a tokens nuevos de salida. AGYfinal1 quedó pausado por Codex19%5h, no fallo ni entrega nueva. Datos detallados en los resultados privados del puente.
 
 25 octubre 2026. Skill dirigir-agentes; contadores se conservan entre sesiones/responsables. No confundir ejecución iniciada con entrega aprobada.
@@ -19,6 +21,7 @@
 | FP-LOADING-UX-20261026 | GROK | 1/3 entregada | Archivos y hashes en.local/loading-ux-report.md; reportó4pruebas nuevas+5regresión, lint/tipos. Salida del puente perdió metadatos porcp1252; no se repite implementación por eso. Futuras llamadasPython-Xutf8. Nativeusage2164881tokens (cachelectura2020608), Grokposterior69%general/78%Build. Revisión independiente pendiente. |
 | FP-LOADING-VERIFY-20261026 | AGY | 2/3 aprobada | Informe final,9tests/2archivos,5casos Chromium local, lint/tipos y5hashes coincidentes. Reparó solo su arnés (selector y cierre de su propio proceso). Constructor sigue1/3. Sin proveedores reales ni prueba humana móvil. [Revisión](reviews/loading-ux-20261026.md). |
 | FP-MODERATION-GAP-20261026 | AGY | 1/3 entregada | Informe estático, no pruebas:260144entrada/30217salida, total290361, cache3539537. Modales de bloqueo/borrado aún pendientes; validación/rate limits y escape JSX observados. Codex corrigió propuestas sobre liberación de reservas inciertas y chat obligatorio en.local/moderation-coordinator-notes.md. |
+| FP-MODERATION-P3P4-20261026 | GROK | 1/3 PAUSADO por cuota | Ejecución8993, paquete moderation-build-task.txt,4.7/xhigh110turnos2400s. Parada ordenada al20%5h,5procesos propios. Progreso guarda lectura de notas yplan; sin código/checks entregados todavía. Preservarcontador yparciales; retomar mismo1, no arrancarotroencargo. Backend/UI/historial/guardas completos yAGYindependiente pendientes. |
 | OpenAI proveedor e interfaz | Claude/AGY inicial → GROK integración | 2/3 | Versión1bf3434, CI y aceptación externa aprobadas. Nueva eliminación definitiva del otro proveedor pertenece al alcance25oct. |
 | Límite de firma webhook | GROK | 1/3 | Aprobado por AGY, CI y webhook real PayPal sin duplicar captura. |
 | Revisión OpenAI/webhook | AGY | 1/3 | Aprobada,35tests específicos; alcance acotado. |
