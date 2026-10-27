@@ -3,7 +3,7 @@ import type { Capabilities, Guest, Quote, RsvpStatus } from '../../types';
 import { api } from '../../api/client';
 import { ContinuousResampler } from '../../voice/resampler';
 import { floatToPCM16, pcm16ToBase64 } from '../../voice/pcm';
-import { PlaybackQueue } from '../../voice/playback';
+import { PlaybackQueue, type PlaybackFault } from '../../voice/playback';
 
 interface VoiceInvitationAgentProps {
   slug: string;
@@ -25,6 +25,32 @@ interface ActionProposal {
   status: RsvpStatus;
   companions: number;
   confirmed: boolean;
+}
+
+/** Call AudioContext.resume() now. The returned promise may be awaited later. */
+function invokeResume(ctx: AudioContext): Promise<void> {
+  try {
+    const pending = ctx.resume();
+    const ready = new Promise<void>((resolve, reject) => {
+      Promise.resolve(pending).then(() => resolve(), reject);
+    });
+    void ready.catch(() => {});
+    return ready;
+  } catch (error) {
+    const ready = Promise.reject<void>(error);
+    void ready.catch(() => {});
+    return ready;
+  }
+}
+
+function playbackFaultMessage(reason: PlaybackFault['reason']): string {
+  if (reason === 'overflow') {
+    return 'No se reprodujo el audio completo. Lee la respuesta del asistente en el texto.';
+  }
+  if (reason === 'resume') {
+    return 'No se pudo reanudar el audio. Lee la respuesta del asistente en el texto.';
+  }
+  return 'No se pudo reproducir el audio. Lee la respuesta del asistente en el texto.';
 }
 
 function parseRsvpAction(actionStr: string): { status: RsvpStatus; companions: number } | null {
@@ -71,6 +97,8 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   const sessionGenerationRef = useRef(0);
   const toolGenerationRef = useRef(0);
   const toolQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const playbackSpeakingRef = useRef(false);
+  const toolsInFlightRef = useRef(false);
 
   const voiceAvailable = Boolean(capabilities?.voice);
 
@@ -80,6 +108,8 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     toolGenerationRef.current += 1;
     toolQueueRef.current = Promise.resolve();
     isReadyRef.current = false;
+    playbackSpeakingRef.current = false;
+    toolsInFlightRef.current = false;
 
     // Clear timebox timer
     if (timerRef.current) {
@@ -163,6 +193,27 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     cleanupSession();
     const generation = sessionGenerationRef.current;
     const isCurrentSession = () => sessionGenerationRef.current === generation;
+
+    // Create and resume inside the click, before any await. A context opened
+    // after the microphone or token request is no longer in the user gesture,
+    // so browsers leave it suspended and the first samples are clipped.
+    const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
+    if (typeof AudioContextCtor !== 'function') {
+      setErrorMessage('No se pudo crear el audio del navegador.');
+      setSessionState('error');
+      return;
+    }
+    let ctx: AudioContext;
+    try {
+      ctx = new AudioContextCtor();
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'No se pudo iniciar la sesión de voz.');
+      setSessionState('error');
+      return;
+    }
+    audioContextRef.current = ctx;
+    const resumeReady = invokeResume(ctx);
+
     setErrorMessage(null);
     setSessionState('requesting_permission');
     setUserTranscript('');
@@ -195,16 +246,42 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
       if (!isCurrentSession()) return;
       leaseIdRef.current = tokenData.leaseId;
 
-      // 3. Setup AudioContext & PlaybackQueue
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      const ctx = new AudioCtx();
-      audioContextRef.current = ctx;
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
-      }
+      // Playback starts only after the gesture-time resume() has reached running.
+      await resumeReady;
       if (!isCurrentSession()) return;
+      if (ctx.state !== 'running') {
+        throw new Error('No se pudo preparar el audio del navegador.');
+      }
 
-      playbackRef.current = new PlaybackQueue(ctx);
+      const replyAudioPending = () =>
+        playbackSpeakingRef.current || Boolean(playbackRef.current?.isBusy);
+
+      playbackRef.current = new PlaybackQueue(ctx, {
+        onFault: (fault) => {
+          if (!isCurrentSession()) return;
+          const message = playbackFaultMessage(fault.reason);
+          setErrorMessage(message);
+          onShowToast(
+            fault.reason === 'overflow' ? 'warning' : 'error',
+            message,
+            fault.reason === 'overflow' ? 'Audio incompleto' : 'Audio no disponible',
+          );
+          // Nothing left to hear, so the badge must not stay on speaking.
+          if (!playbackRef.current?.isBusy) {
+            playbackSpeakingRef.current = false;
+            setAgentStatus(toolsInFlightRef.current ? 'processing' : 'listening');
+          }
+        },
+        onActivity: ({ speaking }) => {
+          if (!isCurrentSession()) return;
+          playbackSpeakingRef.current = speaking;
+          if (speaking) {
+            setAgentStatus('speaking');
+            return;
+          }
+          setAgentStatus(toolsInFlightRef.current ? 'processing' : 'listening');
+        },
+      });
       resamplerRef.current = new ContinuousResampler(ctx.sampleRate, 24000);
 
       // 4. Setup AudioWorklet or ScriptProcessor fallback for mic capture
@@ -362,11 +439,10 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
           case 'input.speech.started':
             toolGenerationRef.current += 1;
             accumulatedToolsRef.current = [];
-            // Barge-in: user interrupted agent speech, immediately flush audio buffer
-            setAgentStatus('listening');
-            if (playbackRef.current) {
-              playbackRef.current.flush();
-            }
+            toolsInFlightRef.current = false;
+            // VAD must not cut audio already queued. Stop and unmount still flush.
+            // The badge stays on speaking until that audio has actually ended.
+            if (!replyAudioPending()) setAgentStatus('listening');
             break;
 
           case 'reply.started':
@@ -404,7 +480,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
             if (typeof parsed.text === 'string') {
               setAgentTranscript(parsed.text);
             }
-            setAgentStatus('listening');
+            if (!replyAudioPending()) setAgentStatus('listening');
             break;
 
           case 'tool.call':
@@ -419,12 +495,12 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
             break;
 
           case 'reply.done': {
-            setAgentStatus('listening');
+            if (!replyAudioPending()) setAgentStatus('listening');
             const toolsToExecute = [...accumulatedToolsRef.current];
             accumulatedToolsRef.current = [];
 
             if (parsed.status === 'interrupted') {
-              // Discard in-flight tools if reply was interrupted
+              // Discard in-flight tools if reply was interrupted. Do not flush audio.
               toolGenerationRef.current += 1;
               break;
             }
@@ -435,67 +511,74 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
               const isCurrentTurn = () => isCurrentSession() && toolGenerationRef.current === toolGeneration;
               const executeTools = async () => {
                 if (!isCurrentTurn()) return;
-                setAgentStatus('processing');
-                for (const tool of toolsToExecute) {
-                  if (!isCurrentTurn()) return;
+                toolsInFlightRef.current = true;
+                if (!replyAudioPending()) setAgentStatus('processing');
                 try {
-                  const toolRes = await api.executeVoiceTool(slug, {
-                    leaseId: tokenData.leaseId,
-                    name: tool.name,
-                    arguments: tool.arguments,
-                  });
-                  if (!isCurrentTurn()) return;
+                  for (const tool of toolsToExecute) {
+                    if (!isCurrentTurn()) return;
+                    try {
+                      const toolRes = await api.executeVoiceTool(slug, {
+                        leaseId: tokenData.leaseId,
+                        name: tool.name,
+                        arguments: tool.arguments,
+                      });
+                      if (!isCurrentTurn()) return;
 
-                  // Send tool result back over WebSocket
-                  if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(
-                      JSON.stringify({
-                        type: 'tool.result',
-                        call_id: tool.call_id,
-                        result: JSON.stringify(toolRes.response ?? { ok: true }),
-                        is_error: false,
-                      })
-                    );
-                  }
+                      // Send tool result back over WebSocket
+                      if (ws.readyState === WebSocket.OPEN) {
+                        ws.send(
+                          JSON.stringify({
+                            type: 'tool.result',
+                            call_id: tool.call_id,
+                            result: JSON.stringify(toolRes.response ?? { ok: true }),
+                            is_error: false,
+                          })
+                        );
+                      }
 
-                  // Handle suggested quote
-                  if (toolRes.quote) {
-                    setSuggestedQuote(toolRes.quote);
-                    onApplyQuote?.(toolRes.quote);
-                  }
+                      // Handle suggested quote
+                      if (toolRes.quote) {
+                        setSuggestedQuote(toolRes.quote);
+                        onApplyQuote?.(toolRes.quote);
+                      }
 
-                  // Handle action proposals (e.g. rsvp:yes:1)
-                  if (toolRes.actions && Array.isArray(toolRes.actions)) {
-                    for (const act of toolRes.actions) {
-                      const parsedAction = parseRsvpAction(act);
-                      if (parsedAction) {
-                        setActionProposals((prev) => [
-                          ...prev,
-                          {
-                            id: `${tool.call_id}-${Date.now()}`,
-                            status: parsedAction.status,
-                            companions: parsedAction.companions,
-                            confirmed: false,
-                          },
-                        ]);
+                      // Handle action proposals (e.g. rsvp:yes:1)
+                      if (toolRes.actions && Array.isArray(toolRes.actions)) {
+                        for (const act of toolRes.actions) {
+                          const parsedAction = parseRsvpAction(act);
+                          if (parsedAction) {
+                            setActionProposals((prev) => [
+                              ...prev,
+                              {
+                                id: `${tool.call_id}-${Date.now()}`,
+                                status: parsedAction.status,
+                                companions: parsedAction.companions,
+                                confirmed: false,
+                              },
+                            ]);
+                          }
+                        }
+                      }
+                    } catch (toolErr: any) {
+                      if (!isCurrentTurn()) return;
+                      if (ws.readyState === WebSocket.OPEN) {
+                        ws.send(
+                          JSON.stringify({
+                            type: 'tool.result',
+                            call_id: tool.call_id,
+                            result: JSON.stringify({ error: toolErr.message || 'Error executing tool' }),
+                            is_error: true,
+                          })
+                        );
                       }
                     }
                   }
-                } catch (toolErr: any) {
-                  if (!isCurrentTurn()) return;
-                  if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(
-                      JSON.stringify({
-                        type: 'tool.result',
-                        call_id: tool.call_id,
-                        result: JSON.stringify({ error: toolErr.message || 'Error executing tool' }),
-                        is_error: true,
-                      })
-                    );
+                } finally {
+                  if (toolGenerationRef.current === toolGeneration && isCurrentSession()) {
+                    toolsInFlightRef.current = false;
+                    setAgentStatus(replyAudioPending() ? 'speaking' : 'listening');
                   }
                 }
-              }
-                if (isCurrentTurn()) setAgentStatus('listening');
               };
               toolQueueRef.current = toolQueueRef.current.then(executeTools, executeTools);
             }

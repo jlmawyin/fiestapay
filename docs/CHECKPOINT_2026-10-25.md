@@ -1,5 +1,17 @@
 # Checkpoint vigente — FiestaPay
 
+## Aprobación para publicar — 26 octubre 2026, 19:52 Guayaquil
+
+AGYvoz3/3 ejecución61459 terminóexit0, informe `.local/voice-integrated-review-report.md`:18testsvoz+4UI, tipos/lint0 y3hashes coinciden. Cambio autorizado Codex deunatipificación integrado; otros2archivos exactosGROK3, primario intacto. No pruebas físicas de audio. FinancieroAGY1 yUIcopyAGY2 ya aprobados,13hashes coinciden. Prepararcommitconjunto voz+docs, CI nuevo yunaactivación. EE4417d/CI40428750524 ya verde ysuimagencandidata construida, NOactivada; producciónsiguee03. ReutilizarensayoSQL0007 deEE solo sihashmigración idéntico. No reiniciar otrasapps. PasoexternopendienteUSD1/plazo8min/reembolsoCOMPLETED, no tocarUSD50. Pausa20%vigente, ningunaexenciónnueva/reset.
+
+## Reanudación y aceptación local — 26 octubre 2026, 19:34–19:50 Guayaquil
+
+Jorge indicó «reanuda». Helper95%5h/70%semanal stopfalse; continuación puntual26oct eliminada por herramienta al cumplirse motivo, diario activo. AGY retomó MISMO intento financiero1, ejecución56827, paquete `.local/funding-final-verify-resume-task.txt`,1200s; terminóexit0. Informe `.local/funding-final-review-report.md`: **API y copiaUI2 APPROVED_WITHIN_SCOPE**. Independiente61API+12retención/correo+17web y7casos Chromium/10capturas;13hashes cotejados por Codex, todos coinciden. Uso216365entrada/27699salida,total244064,cache3780265; agregado4.8% perteneceClaude/GPT detenido, noGemini. EE4417d publicado enPR3 con alcance actualizado, CI40428750524 SUCCESS. Sin refundexterno nuevo.
+
+**Preflight Contabo:** respaldo nuevo y restauración soloDBtemporal `fiestapay_preflight_ee4417d`;0007 aplicada allí,23eventos/1ledger conservados, captura dorada1/5000/refund0, nolegados0/plazosarmados0/tareas0. DBtemporal eliminada por su propio script. Inventario de todosloscontenedores idéntico. Fuente candidata aislada en `/opt/fiestapay/releases/candidate-ee4417d`, imagen `fiestapay:candidate-ee4417d` SHA92c6099fcb2f058a207d1d19044aa19973a4d63a366590db9f0a4e5c1d65174a. **NO activada**, producción siguee03 yschema0006. `.local/funding-preflight-ee.log` exit0. No aplicaciónAPI/worker enlaDBclonada: soloSQL de migración, sinproveedores.
+
+**Excepción humana puntual de audio recibida:** Jorge autorizó Codex a integrar WIP revisado y cambiar solamente `let now = 0`→`let now: number`. Se cotejaron3hashes del primario contra informesGROK3/AGY2 y copiaron almanaged; primario intacto. NuevoplaybackSHA D9158B2ABD0E91C117A94E264A5B60408DBE6FA862FEF3D3717DB4C3015774EC; otros2hashes idénticos. **AGY vozverificación3/3 ejecución61459**, paquete `.local/voice-integrated-verify-task.txt`,900s, aúnsinveredicto. NoGrok4. Solo3archivosvoz sincommit; preservar alpublicar EE y no incluir sin aprobación. Revisiónfinanciera fuenteEE permanece válida. EsperarvozyCI para decidirunaactivaciónconjunta; si cambiaimagenreutilizarpreflightSQL idéntico conhashverificado. Prueba humana móvil todavía pendiente, sin llamadaAssemblyAI nueva.
+
 ## PAUSA POR CUOTA — 26 octubre 2026, 16:03 Guayaquil
 
 Helper vigente: **19 % cinco horas / 72 % semanal**, `stop=true`, `needs_refresh=false`, mínimo de continuación **2026-10-26T22:26:29Z = 17:26:29 Guayaquil**. Se detuvieron4procesos propios de la revisiónAGY, sin afectar otros procesos/servicios. Ningún reset/crédito usado. No seguir producto hasta helperpermitido. Continuación nativa ACTIVE `fiestapay-reanudar-cuota-26-oct`, una ejecución con guard noantes22:26:29Z; diario sigueactivo. La herramienta no expone nextRunAt/zona, no prometer instante exacto de ejecución.
