@@ -44,6 +44,9 @@ export interface GuestRow {
   status: RsvpStatus;
   companions: number;
   obligation_version: number;
+  /** Present when the row was loaded with GUEST_COLUMNS. Dashboard SQL that omits them leaves these unset. */
+  blocked_at?: Date | null;
+  removed_at?: Date | null;
 }
 
 export const EVENT_COLUMNS = `id, slug, organizer_session_id, generation, archived, title, template, meal,
@@ -51,7 +54,8 @@ export const EVENT_COLUMNS = `id, slug, organizer_session_id, generation, archiv
   confirmed, created_at, ends_at, closed_at, purged_at, is_demo, admin_key_hash, access_code_hash,
   funding_deadline_at, funding_status, funding_decided_at, funding_basis_cents`;
 
-export const GUEST_COLUMNS = 'id, event_id, session_id, name, status, companions, obligation_version';
+export const GUEST_COLUMNS =
+  'id, event_id, session_id, name, status, companions, obligation_version, blocked_at, removed_at';
 
 const asStringArray = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
@@ -230,6 +234,10 @@ export function toGuestWithPrice(row: GuestRow, priceCents: number, paidCents: n
     // Overpayment (for example after reducing companions) is never auto-refunded: it simply
     // leaves nothing due and waits for human reconciliation.
     dueCents: Math.max(0, obligation - paidCents),
+    // Only a real timestamp is published. A loader that did not select the columns must not
+    // pretend the guest was checked and found unblocked.
+    ...(row.blocked_at ? { blockedAt: row.blocked_at.toISOString() } : {}),
+    ...(row.removed_at ? { removedAt: row.removed_at.toISOString() } : {}),
   };
 }
 

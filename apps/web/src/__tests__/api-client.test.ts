@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { api, ApiError } from '../api/client';
-import { adminKeyFor, captureAdminKeyFromLocation, rememberAdminKey } from '../api/admin-key';
+import { adminHeaderFor, adminKeyFor, captureAdminKeyFromLocation, rememberAdminKey } from '../api/admin-key';
 
 describe('API Client Specification Compliance (docs/API.md)', () => {
   beforeEach(() => {
@@ -154,5 +154,238 @@ describe('API Client Specification Compliance (docs/API.md)', () => {
         }),
       })
     );
+  });
+});
+
+function headerOf(init: RequestInit | undefined): string | null {
+  return new Headers(init?.headers).get('X-Fiesta-Admin-Key');
+}
+
+function callInit(spy: { mock: { calls: unknown[][] } }, url: string): RequestInit {
+  const found = spy.mock.calls.find((call) => call[0] === url);
+  expect(found, url).toBeTruthy();
+  return (found?.[1] ?? {}) as RequestInit;
+}
+
+describe('moderation admin header allowlist', () => {
+  const slug = 'comida-abc';
+  const key = 'clave-organizador';
+  const otherKey = 'clave-otra';
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
+  });
+
+  it('sends the saved key on the client moderation calls with method and query', async () => {
+    rememberAdminKey(slug, key);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ guests: [], conversations: [], messages: [], outcome: 'blocked', ok: true, id: 'm1', alreadyDeleted: false }),
+    } as Response);
+
+    await api.getModerationGuests(slug);
+    await api.getModerationConversations(slug);
+    await api.getModerationMessages(slug, 'conv/1');
+    await api.deleteModerationMessage(slug, 'msg/1');
+    await api.blockGuest(slug, 'guest/1');
+    await api.unblockGuest(slug, 'guest/1');
+    await api.removeGuest(slug, 'guest/1');
+
+    const expected: Array<[string, string]> = [
+      ['/api/events/comida-abc/moderation/guests', 'GET'],
+      ['/api/events/comida-abc/moderation/conversations', 'GET'],
+      ['/api/events/comida-abc/moderation/messages?conversationId=conv%2F1', 'GET'],
+      ['/api/events/comida-abc/moderation/messages/msg%2F1', 'DELETE'],
+      ['/api/events/comida-abc/guests/guest%2F1/block', 'POST'],
+      ['/api/events/comida-abc/guests/guest%2F1/unblock', 'POST'],
+      ['/api/events/comida-abc/guests/guest%2F1/remove', 'POST'],
+    ];
+
+    for (const [url, method] of expected) {
+      const init = callInit(fetchSpy, url);
+      expect((init.method ?? 'GET').toUpperCase()).toBe(method);
+      expect(headerOf(init)).toBe(key);
+      expect(String(url)).not.toContain(key);
+      expect(String(init.body ?? '')).not.toContain(key);
+    }
+
+    const messagesUrl = '/api/events/comida-abc/moderation/messages?conversationId=conv-9&limit=20&before=41';
+    expect(adminHeaderFor(messagesUrl, 'GET')).toBe(key);
+    expect(adminHeaderFor('/api/events/comida-abc/moderation/conversations/conv%2F9/block', 'post')).toBe(key);
+    expect(adminHeaderFor('/api/events/comida-abc/moderation/conversations/conv%2F9/unblock', 'POST')).toBe(key);
+  });
+
+  it('uses the decoded slug key and keeps encoded ids on one segment', async () => {
+    rememberAdminKey('casa/uno', 'clave-decodificada');
+    rememberAdminKey('casa%2Funo', 'clave-codificada');
+    rememberAdminKey('casa', 'clave-casa');
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ outcome: 'blocked' }),
+    } as Response);
+
+    await api.blockGuest('casa/uno', 'id/a');
+    await api.deleteModerationMessage('casa/uno', 'm/2');
+
+    const block = callInit(fetchSpy, '/api/events/casa%2Funo/guests/id%2Fa/block');
+    const deleted = callInit(fetchSpy, '/api/events/casa%2Funo/moderation/messages/m%2F2');
+    expect(block.method).toBe('POST');
+    expect(headerOf(block)).toBe('clave-decodificada');
+    expect(deleted.method).toBe('DELETE');
+    expect(headerOf(deleted)).toBe('clave-decodificada');
+    expect(adminHeaderFor('/api/events/casa%2Funo/moderation/conversations/a%2Fb/unblock', 'POST')).toBe('clave-decodificada');
+    expect(adminHeaderFor('/api/events/casa/uno/moderation/guests', 'GET')).toBeNull();
+  });
+
+  it('does not borrow another event key and omits the header when the local key is missing', async () => {
+    rememberAdminKey(slug, key);
+    rememberAdminKey('otra-fiesta', otherKey);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ guests: [] }),
+    } as Response);
+
+    await api.getModerationGuests('otra-fiesta');
+    await api.blockGuest(slug, 'g1');
+    expect(headerOf(callInit(fetchSpy, '/api/events/otra-fiesta/moderation/guests'))).toBe(otherKey);
+    expect(headerOf(callInit(fetchSpy, '/api/events/comida-abc/guests/g1/block'))).toBe(key);
+
+    localStorage.clear();
+    await api.getModerationGuests(slug);
+    await api.removeGuest('sin-clave', 'g1');
+    expect(headerOf(callInit(fetchSpy, '/api/events/comida-abc/moderation/guests'))).toBeNull();
+    expect(headerOf(callInit(fetchSpy, '/api/events/sin-clave/guests/g1/remove'))).toBeNull();
+    expect(adminHeaderFor('/api/events/comida-abc/moderation/conversations/c1/block', 'POST')).toBeNull();
+    expect(adminHeaderFor('/api/events/comida-abc/moderation/messages/m1', 'DELETE')).toBeNull();
+  });
+
+  it('rejects neighbor paths, empty segments, and wrong verbs', () => {
+    rememberAdminKey(slug, key);
+    const denied: Array<[string, string]> = [
+      ['/api/events/comida-abc/moderation', 'GET'],
+      ['/api/events/comida-abc/moderation/guests/export', 'GET'],
+      ['/api/events/comida-abc/moderation/settings', 'GET'],
+      ['/api/events/comida-abc/moderation/guests', 'POST'],
+      ['/api/events/comida-abc/moderation/guests', 'DELETE'],
+      ['/api/events/comida-abc/moderation/conversations', 'POST'],
+      ['/api/events/comida-abc/moderation/conversations/conv-1', 'GET'],
+      ['/api/events/comida-abc/moderation/conversations/conv-1/messages', 'GET'],
+      ['/api/events/comida-abc/moderation/conversations/block', 'POST'],
+      ['/api/events/comida-abc/moderation/conversations/a/b/block', 'POST'],
+      ['/api/events/comida-abc/moderation/conversations//block', 'POST'],
+      ['/api/events/comida-abc/moderation/conversations/./block', 'POST'],
+      ['/api/events/comida-abc/moderation/conversations/../block', 'POST'],
+      ['/api/events/comida-abc/moderation/conversations/%2E%2E/unblock', 'POST'],
+      ['/api/events/comida-abc/moderation/conversations/conv-1/block/extra', 'POST'],
+      ['/api/events/comida-abc/moderation/conversations/conv-1/remove', 'POST'],
+      ['/api/events/comida-abc/moderation/conversations/conv-1/block', 'GET'],
+      ['/api/events/comida-abc/moderation/messages/msg-1', 'GET'],
+      ['/api/events/comida-abc/moderation/messages/msg-1', 'POST'],
+      ['/api/events/comida-abc/moderation/messages', 'DELETE'],
+      ['/api/events/comida-abc/moderation/messages/', 'DELETE'],
+      ['/api/events/comida-abc/moderation/messages/..', 'DELETE'],
+      ['/api/events/comida-abc/moderation/messages/.', 'DELETE'],
+      ['/api/events/comida-abc/moderation/messages/%2E%2E', 'DELETE'],
+      ['/api/events/comida-abc/moderation/messages/msg-1/extra', 'DELETE'],
+      ['/api/events/comida-abc/moderation/messages/%ZZ', 'DELETE'],
+      ['/api/events/comida-abc/guests/guest-1/block', 'GET'],
+      ['/api/events/comida-abc/guests/guest-1/block', 'DELETE'],
+      ['/api/events/comida-abc/guests/guest-1/blocked', 'POST'],
+      ['/api/events/comida-abc/guests/guest-1/block/extra', 'POST'],
+      ['/api/events/comida-abc/guests/guest-1/remove-all', 'POST'],
+      ['/api/events/comida-abc/guests//block', 'POST'],
+      ['/api/events/comida-abc/guests/../block', 'POST'],
+      ['/api/events/comida-abc/guests/%2E%2E/remove', 'POST'],
+      ['/api/events/comida-abc/guests/%ZZ/block', 'POST'],
+      ['/api/events/comida-abc/guests/a/b/block', 'POST'],
+      ['/api/events/comida-abc/block', 'POST'],
+      ['/api/events/comida-abc/chat/block', 'POST'],
+      ['/api/events/comida-abc/moderation/blocklist', 'GET'],
+      ['/api/events/comida-abc/moderation/guests/', 'GET'],
+      ['/api/events/comida-abc/unlock', 'POST'],
+      ['/api/events/comida-abc/admin/key', 'POST'],
+      ['/api/other/comida-abc/moderation/guests', 'GET'],
+      ['https://example.test/api/events/comida-abc/moderation/guests', 'GET'],
+      ['http://127.0.0.1/api/events/comida-abc/guests/guest-1/block', 'POST'],
+      ['/api/events/comida-abc/moderation/guests?block=1', 'POST'],
+      ['/api/events/comida-abc/guests/guest-1/block?x=1', 'GET'],
+    ];
+
+    for (const [path, method] of denied) {
+      expect(adminHeaderFor(path, method), `${method} ${path}`).toBeNull();
+    }
+
+    expect(adminHeaderFor('/api/events/comida-abc/moderation/guests?block=1', 'GET')).toBe(key);
+    expect(adminHeaderFor('/api/events/comida-abc/guests/guest%2F1/block?x=1', 'POST')).toBe(key);
+    expect(adminHeaderFor('/api/events/comida-abc/moderation/messages/msg-1?before=4', 'Delete')).toBe(key);
+  });
+
+  it('keeps public get, join, rsvp, quote, orders, capture, receipt, chat, history, and voice free of the key', async () => {
+    rememberAdminKey(slug, key);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    } as Response);
+
+    await api.getEventBySlug(slug);
+    await api.joinEvent(slug, 'Ana');
+    await api.rsvp(slug, 'yes', 0);
+    await api.getQuote(slug);
+    await api.createOrder(slug, 'quote-1');
+    await api.captureOrder('ord-1');
+    await api.getOrder('ord-1');
+    await api.sendChat(slug, 'hola');
+    await api.getChatHistory(slug);
+    await api.getVoiceToken(slug);
+    await api.executeVoiceTool(slug, { leaseId: 'lease-1', name: 'set_rsvp', arguments: {} });
+    await api.unlockEvent(slug, 'codigo');
+    await api.getHealth();
+
+    const urls = [
+      '/api/events/comida-abc',
+      '/api/events/comida-abc/join',
+      '/api/events/comida-abc/rsvp',
+      '/api/events/comida-abc/quote',
+      '/api/events/comida-abc/orders',
+      '/api/orders/ord-1/capture',
+      '/api/orders/ord-1',
+      '/api/events/comida-abc/chat',
+      '/api/events/comida-abc/chat/history',
+      '/api/events/comida-abc/voice/token',
+      '/api/events/comida-abc/voice/tool',
+      '/api/events/comida-abc/unlock',
+      '/api/health',
+    ];
+    for (const url of urls) {
+      const init = callInit(fetchSpy, url);
+      expect(headerOf(init), url).toBeNull();
+      expect(String(url)).not.toContain(key);
+    }
+
+    expect(adminHeaderFor('/api/events/comida-abc/receipt', 'GET')).toBeNull();
+    expect(adminHeaderFor('/api/events/comida-abc/orders/ord-1/receipt', 'GET')).toBeNull();
+    expect(adminHeaderFor('/api/orders/ord-1', 'GET')).toBeNull();
+    expect(adminHeaderFor('https://pay.example/api/events/comida-abc/moderation/guests', 'GET')).toBeNull();
+  });
+
+  it('still attaches the key only to the older organizer routes', () => {
+    rememberAdminKey(slug, key);
+    expect(adminHeaderFor('/api/events/comida-abc/dashboard', 'GET')).toBe(key);
+    expect(adminHeaderFor('/api/events/comida-abc/dashboard?x=1', 'GET')).toBe(key);
+    expect(adminHeaderFor('/api/events/comida-abc/confirm', 'POST')).toBe(key);
+    expect(adminHeaderFor('/api/events/comida-abc/close', 'POST')).toBe(key);
+    expect(adminHeaderFor('/api/events/comida-abc', 'PUT')).toBe(key);
+    expect(adminHeaderFor('/api/events/comida-abc', 'DELETE')).toBe(key);
+    expect(adminHeaderFor('/api/events/comida-abc/recovery', 'GET')).toBe(key);
+    expect(adminHeaderFor('/api/events/comida-abc/recovery/contact', 'PUT')).toBe(key);
+    expect(adminHeaderFor('/api/events/comida-abc/recovery/contact', 'DELETE')).toBe(key);
+    expect(adminHeaderFor('/api/events/comida-abc/dashboard', 'POST')).toBeNull();
+    expect(adminHeaderFor('/api/events/comida-abc/confirm', 'GET')).toBeNull();
+    expect(adminHeaderFor('/api/events/comida-abc/close', 'GET')).toBeNull();
+    expect(adminHeaderFor('/api/events/comida-abc', 'POST')).toBeNull();
+    expect(adminHeaderFor('/api/events/comida-abc/recovery', 'POST')).toBeNull();
+    expect(adminHeaderFor('/api/events/comida-abc/recovery/contact', 'GET')).toBeNull();
+    expect(adminHeaderFor('/api/events/otra-fiesta/dashboard', 'GET')).toBeNull();
   });
 });

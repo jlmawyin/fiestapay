@@ -11,16 +11,26 @@ import {
   getGuestPaymentStatus,
 } from './reminderHelper';
 
+export interface GuestModerationActions {
+  onBlock: (guestId: string) => void;
+  onUnblock: (guestId: string) => void;
+  onRemove: (guestId: string) => void;
+  busyId?: string | null;
+}
+
 export interface GuestGridProps {
   guests: Guest[];
   eventTitle: string;
   inviteUrl: string;
+  /** Organizer only. Omitted on any surface that is not the keyed dashboard. */
+  moderation?: GuestModerationActions;
 }
 
 export const GuestGrid: React.FC<GuestGridProps> = ({
   guests,
   eventTitle,
   inviteUrl,
+  moderation,
 }) => {
   const columnDefs = useMemo<ColDef<Guest>[]>(() => {
     return [
@@ -163,8 +173,65 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
           );
         },
       },
+      ...(moderation
+        ? [
+            {
+              headerName: 'Moderacion',
+              colId: 'moderation',
+              flex: 1.4,
+              minWidth: 180,
+              sortable: false,
+              cellRenderer: (params: ICellRendererParams<Guest>) => {
+                const guest = params.data;
+                if (!guest) return null;
+                const busy = moderation.busyId === guest.id;
+                const label = guest.removedAt
+                  ? 'Retirado'
+                  : guest.blockedAt
+                    ? 'Bloqueado'
+                    : guest.paymentPending
+                      ? 'Pago en verificacion'
+                      : 'Activo';
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>{label}</span>
+                    <span style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        data-testid={`moderation-block-${guest.id}`}
+                        disabled={busy || Boolean(guest.blockedAt || guest.removedAt)}
+                        onClick={() => moderation.onBlock(guest.id)}
+                      >
+                        Bloquear
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        data-testid={`moderation-unblock-${guest.id}`}
+                        disabled={busy || !guest.blockedAt || Boolean(guest.removedAt)}
+                        onClick={() => moderation.onUnblock(guest.id)}
+                      >
+                        Desbloquear
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        data-testid={`moderation-remove-${guest.id}`}
+                        disabled={busy || Boolean(guest.removedAt)}
+                        onClick={() => moderation.onRemove(guest.id)}
+                      >
+                        Retirar
+                      </button>
+                    </span>
+                  </div>
+                );
+              },
+            } satisfies ColDef<Guest>,
+          ]
+        : []),
     ];
-  }, [eventTitle, inviteUrl]);
+  }, [eventTitle, inviteUrl, moderation]);
 
   const defaultColDef = useMemo<ColDef>(
     () => ({

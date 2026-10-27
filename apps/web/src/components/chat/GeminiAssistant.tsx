@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import type { Capabilities, Quote, ChatResult, RsvpStatus } from '../../types';
+import React, { useCallback, useEffect, useState } from 'react';
+import type { Capabilities, Quote, ChatResult, ChatTranscriptMessage, RsvpStatus } from '../../types';
 import { api } from '../../api/client';
 import { usd } from '../../types';
 
@@ -8,6 +8,10 @@ interface GeminiAssistantProps {
   capabilities: (Capabilities & { chat?: boolean; llmProvider?: 'openai' | 'gemini' }) | null;
   onApplyQuote?: (quote: Quote) => void;
   onConfirmRsvp?: (status: RsvpStatus, companions: number) => Promise<void>;
+  /** Server says this session cannot send. The transcript stays readable. */
+  accessRevoked?: boolean;
+  /** Invitation is closed to new messages. */
+  closed?: boolean;
 }
 
 function parseRsvpAction(actionStr: string): { status: RsvpStatus; companions: number } | null {
@@ -29,16 +33,42 @@ interface ChatMessage {
   timestamp: string;
 }
 
+const GREETING_ID = 'init-1';
+let pendingSerial = 0;
+
+function applyTranscript(prev: ChatMessage[], incoming: ChatTranscriptMessage[]): ChatMessage[] {
+  const greeting = prev.filter((message) => message.id === GREETING_ID);
+  const fromServer: ChatMessage[] = incoming.map((message) => {
+    const previous = prev.find((item) => item.id === message.id);
+    return {
+      id: message.id,
+      sender: message.role === 'user' ? 'user' : 'assistant',
+      text: message.text,
+      timestamp: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      ...(previous?.quote ? { quote: previous.quote } : {}),
+      ...(previous?.actions ? { actions: previous.actions } : {}),
+    };
+  });
+  const serverTexts = new Set(fromServer.map((message) => `${message.sender}:${message.text}`));
+  const pending = prev.filter(
+    (message) => message.id.startsWith('pending-') && !serverTexts.has(`${message.sender}:${message.text}`),
+  );
+  return [...greeting, ...fromServer, ...pending];
+}
+
 export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
   slug,
   capabilities,
   onApplyQuote,
   onConfirmRsvp,
+  accessRevoked = false,
+  closed = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [confirmedActionIds, setConfirmedActionIds] = useState<Set<string>>(new Set());
+  const composerDisabled = accessRevoked || closed || !(capabilities?.chat ?? capabilities?.gemini);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -52,13 +82,31 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
 
   const chatAvailable = Boolean(capabilities?.chat ?? capabilities?.gemini);
 
+  const pullHistory = useCallback(async () => {
+    try {
+      const page = await api.getChatHistory(slug);
+      setMessages((prev) => applyTranscript(prev, page.messages));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo leer el historial.';
+      setErrorNotice(message);
+    }
+  }, [slug]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    void pullHistory();
+    const timer = window.setInterval(() => void pullHistory(), 4000);
+    return () => window.clearInterval(timer);
+  }, [isOpen, pullHistory]);
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim() || isLoading || !chatAvailable) return;
+    if (!inputMessage.trim() || isLoading || composerDisabled) return;
 
     const userText = inputMessage.trim();
+    pendingSerial += 1;
     const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
+      id: `pending-user-${pendingSerial}`,
       sender: 'user',
       text: userText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -72,14 +120,21 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
     try {
       const res: ChatResult = await api.sendChat(slug, userText);
       const assistantMsg: ChatMessage = {
-        id: `assistant-${Date.now()}`,
+        id: res.assistantMessageId ?? `pending-assistant-${pendingSerial}`,
         sender: 'assistant',
         text: res.text,
         quote: res.quote,
         actions: res.actions,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
-      setMessages((prev) => [...prev, assistantMsg]);
+      setMessages((prev) => {
+        const withoutPending = prev.map((message) =>
+          message.id === userMsg.id ? { ...message, id: res.userMessageId ?? message.id } : message,
+        );
+        if (withoutPending.some((message) => message.id === assistantMsg.id)) return withoutPending;
+        return [...withoutPending, assistantMsg];
+      });
+      void pullHistory();
     } catch (err: any) {
       if (err.status === 503) {
         setErrorNotice(
@@ -199,6 +254,14 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
               backgroundColor: 'var(--color-cloudwhite)',
             }}
           >
+            {(accessRevoked || closed) && (
+              <div className="session-revoked-banner" role="status">
+                {accessRevoked
+                  ? 'El organizador revoco el acceso de esta sesion. Puedes leer el historial; el formulario queda cerrado.'
+                  : 'Esta invitacion esta cerrada. Puedes leer el historial; no se envian mensajes nuevos.'}
+              </div>
+            )}
+
             {!chatAvailable && (
               <div
                 style={{
@@ -256,7 +319,7 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
                         <div>
                           {m.quote.people} personas • Saldo: <strong>{usd(m.quote.amountCents)}</strong>
                         </div>
-                        {onApplyQuote && (
+                        {onApplyQuote && !accessRevoked && !closed && (
                           <button
                             onClick={() => onApplyQuote(m.quote!)}
                             className="btn btn-teal"
@@ -307,7 +370,7 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
                               <div style={{ fontSize: '0.78rem', color: 'var(--color-ink-muted)', marginBottom: '0.4rem' }}>
                                 Sugerencia: <strong>{statusLabel}</strong>
                               </div>
-                              {onConfirmRsvp && (
+                              {onConfirmRsvp && !accessRevoked && !closed && (
                                 <button
                                   type="button"
                                   onClick={async () => {
@@ -398,14 +461,22 @@ export const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               placeholder="Escribe un mensaje o pregunta..."
-              disabled={isLoading || !chatAvailable}
+              disabled={isLoading || composerDisabled}
               aria-label="Mensaje para el asistente"
             />
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ padding: '0.5rem 0.7rem', fontSize: '0.75rem' }}
+              onClick={() => void pullHistory()}
+            >
+              Actualizar
+            </button>
             <button
               type="submit"
               className="btn btn-primary"
               style={{ padding: '0.5rem 0.85rem', fontSize: '0.85rem' }}
-              disabled={isLoading || !inputMessage.trim() || !chatAvailable}
+              disabled={isLoading || !inputMessage.trim() || composerDisabled}
             >
               Enviar
             </button>

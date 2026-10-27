@@ -3,9 +3,11 @@ import React, { useState } from 'react';
 interface JoinFormProps {
   onJoin: (name: string) => Promise<void>;
   isLoading: boolean;
+  /** When set, the alias field stays visible and disabled. */
+  disabledReason?: string | null;
 }
 
-export const JoinForm: React.FC<JoinFormProps> = ({ onJoin, isLoading }) => {
+export const JoinForm: React.FC<JoinFormProps> = ({ onJoin, isLoading, disabledReason = null }) => {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +42,12 @@ export const JoinForm: React.FC<JoinFormProps> = ({ onJoin, isLoading }) => {
         Usa un alias ficticio para probar tu asistencia y tu cuota. No necesitas datos personales, contraseña ni registro previo.
       </p>
 
+      {disabledReason && (
+        <div className="session-revoked-banner" role="status" style={{ marginBottom: '0.75rem' }}>
+          {disabledReason}
+        </div>
+      )}
+
       {error && (
         <div
           style={{
@@ -64,10 +72,12 @@ export const JoinForm: React.FC<JoinFormProps> = ({ onJoin, isLoading }) => {
           onChange={(e) => setName(e.target.value)}
           placeholder="Ej. Invitado Demo"
           aria-label="Alias del invitado"
+          name="attendee-name"
+          id="attendee-name"
           required
-          disabled={isLoading}
+          disabled={isLoading || Boolean(disabledReason)}
         />
-        <button type="submit" className="btn btn-primary" disabled={isLoading || !name.trim()}>
+        <button type="submit" className="btn btn-primary" disabled={isLoading || !name.trim() || Boolean(disabledReason)}>
           {isLoading ? 'Entrando...' : 'Entrar a la fiesta'}
         </button>
       </form>

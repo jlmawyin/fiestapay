@@ -12,6 +12,10 @@ interface VoiceInvitationAgentProps {
   onConfirmRsvp?: (status: RsvpStatus, companions: number) => Promise<void>;
   onApplyQuote?: (quote: Quote) => void;
   onShowToast: (type: 'success' | 'error' | 'info' | 'warning', message: string, title?: string) => void;
+  /** This session cannot start or continue voice. Existing playback is stopped. */
+  accessRevoked?: boolean;
+  /** The invitation is closed to new voice sessions. */
+  eventClosed?: boolean;
 }
 
 interface AccumulatedToolCall {
@@ -69,6 +73,8 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   onConfirmRsvp,
   onApplyQuote,
   onShowToast,
+  accessRevoked = false,
+  eventClosed = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [consentGranted, setConsentGranted] = useState(false);
@@ -180,7 +186,24 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     };
   }, [cleanupSession]);
 
+  const voiceStopped = accessRevoked || eventClosed;
+  useEffect(() => {
+    if (!voiceStopped) return;
+    cleanupSession();
+    setSessionState((current) => (current === 'idle' ? current : 'ended'));
+  }, [voiceStopped, cleanupSession]);
+
   const handleStartVoice = async () => {
+    if (voiceStopped) {
+      onShowToast(
+        'info',
+        accessRevoked
+          ? 'El organizador revoco el acceso de esta sesion. La voz queda detenida.'
+          : 'Esta invitacion esta cerrada. La voz queda detenida.',
+        'Voz',
+      );
+      return;
+    }
     if (!guest) {
       onShowToast('info', 'Debes unirte a la fiesta primero para hablar con el asistente de voz.', 'Identificación requerida');
       return;
@@ -631,7 +654,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   };
 
   const handleConfirmActionProposal = async (proposal: ActionProposal) => {
-    if (!onConfirmRsvp) return;
+    if (!onConfirmRsvp || voiceStopped) return;
     setIsConfirmingAction(true);
     try {
       await onConfirmRsvp(proposal.status, proposal.companions);
@@ -803,11 +826,18 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                 </div>
 
                 {/* Session controls */}
+                {voiceStopped && (
+                  <p className="session-revoked-banner" role="status">
+                    {accessRevoked
+                      ? 'El organizador revoco el acceso de esta sesion. No se inicia voz nueva.'
+                      : 'Esta invitacion esta cerrada. No se inicia voz nueva.'}
+                  </p>
+                )}
                 {sessionState === 'idle' || sessionState === 'ended' || sessionState === 'error' ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <button
                       onClick={handleStartVoice}
-                      disabled={!consentGranted}
+                      disabled={!consentGranted || voiceStopped}
                       className="btn btn-teal"
                       style={{ padding: '0.75rem', fontWeight: 700, width: '100%' }}
                     >
@@ -939,7 +969,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                           </p>
                           <button
                             onClick={() => handleConfirmActionProposal(prop)}
-                            disabled={prop.confirmed || isConfirmingAction}
+                            disabled={prop.confirmed || isConfirmingAction || voiceStopped}
                             className="btn btn-teal"
                             style={{ width: '100%', fontSize: '0.75rem', padding: '0.4rem' }}
                           >

@@ -571,3 +571,37 @@ p, span, li, input, textarea, select, button {
   font-size: 0.825rem;
   color: var(--color-ink);
 }
+
+.session-revoked-banner,
+.moderation-note {
+  background-color: var(--color-yellow-tint);
+  border: 1px solid var(--color-yellow-dark);
+  color: var(--color-ink);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.moderation-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.moderation-layout {
+  display: grid;
+  grid-template-columns: minmax(9rem, 14rem) minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.moderation-message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .moderation-layout {
+    grid-template-columns: 1fr;
+  }
+}

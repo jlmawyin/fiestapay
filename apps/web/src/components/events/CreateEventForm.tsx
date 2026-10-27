@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { EventInput, FiestaEvent, TemplateKind, AgendaItem } from '../../types';
 import { TemplateCover } from '../illustrations/TemplateCover';
 
@@ -37,6 +37,53 @@ const mealForHour = (hour: number): 'desayuno' | 'almuerzo' | 'cena' => {
 
 const dollars = (cents: number | null): string => (cents === null ? '' : (cents / 100).toFixed(2));
 
+const EXAMPLE_FIELDS = [
+  { field: 'title', label: 'Título del Evento', example: 'Nombre de la fiesta', inputId: 'event-title' },
+  { field: 'location', label: 'Lugar o Dirección', example: 'Lugar o direccion', inputId: 'event-location' },
+  {
+    field: 'description',
+    label: 'Descripción para los invitados',
+    example: 'Que van a hacer',
+    inputId: 'event-desc',
+  },
+  {
+    field: 'includes',
+    label: '¿Qué incluye la cuota? (Separados por coma)',
+    example: 'Separa con comas',
+    inputId: 'event-includes',
+  },
+] as const;
+
+type ExampleFieldKey = (typeof EXAMPLE_FIELDS)[number]['field'];
+
+type ExampleHit = {
+  field: ExampleFieldKey;
+  label: string;
+  raw: string;
+  inputId: string;
+};
+
+type ExampleReview = {
+  signature: string;
+  hits: ExampleHit[];
+};
+
+type Submission = { ok: false; message: string } | { ok: true; payload: EventInput };
+
+// Whole-field match only. Folding trim, case, and accents must not treat a
+// longer sentence that merely discusses an example as the placeholder.
+const foldExampleText = (value: string): string =>
+  value
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+const matchesKnownExample = (value: string, example: string): boolean => {
+  const folded = foldExampleText(value);
+  return folded.length > 0 && folded === foldExampleText(example);
+};
+
 export const CreateEventForm: React.FC<CreateEventFormProps> = ({
   onSubmit,
   onCancel,
@@ -70,6 +117,8 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
   );
   const [deadlineTouched, setDeadlineTouched] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [exampleReview, setExampleReview] = useState<ExampleReview | null>(null);
+  const exampleWarningRef = useRef<HTMLDivElement>(null);
   const isEdit = Boolean(initial);
   const isLegacy = initial?.fundingStatus === 'legacy';
   const initialDeadlineAbsent = isEdit && (initial?.fundingDeadlineAt == null);
@@ -101,46 +150,84 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
     setAgenda(agenda.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setValidationError(null);
+  const exampleValues = (): Record<ExampleFieldKey, string> => ({
+    title,
+    location,
+    description,
+    includes: includesText,
+  });
 
+  const collectExampleHits = (): ExampleHit[] => {
+    const values = exampleValues();
+    return EXAMPLE_FIELDS.filter((item) => matchesKnownExample(values[item.field], item.example)).map((item) => ({
+      field: item.field,
+      label: item.label,
+      raw: values[item.field],
+      inputId: item.inputId,
+    }));
+  };
+
+  const reviewSignature = (): string =>
+    JSON.stringify({
+      template,
+      title,
+      description,
+      meal,
+      mealTouched,
+      startsAt,
+      endsAt,
+      endsTouched,
+      location,
+      priceDollars,
+      capacity,
+      goalDollars,
+      minimumDollars,
+      includesText,
+      agenda,
+      accessCode,
+      accessTouched,
+      deadlineLocal,
+      deadlineTouched,
+    });
+
+  const liveSignature = reviewSignature();
+  const activeReview = exampleReview && exampleReview.signature === liveSignature ? exampleReview : null;
+
+  useEffect(() => {
+    if (!activeReview) return;
+    exampleWarningRef.current?.focus();
+  }, [activeReview]);
+
+  const buildSubmission = (): Submission => {
     if (!title.trim()) {
-      setValidationError('Escribe un titulo.');
-      return;
+      return { ok: false, message: 'Escribe un titulo.' };
     }
     if (!location.trim()) {
-      setValidationError('Escribe el lugar.');
-      return;
+      return { ok: false, message: 'Escribe el lugar.' };
     }
     const startMs = new Date(startsAt).getTime();
     const endMs = new Date(endsAt).getTime();
-    if (!Number.isFinite(startMs) || startMs <= Date.now() - 60_000) {
-      setValidationError('El inicio debe ser en el futuro.');
-      return;
+    if (!Number.isFinite(startMs) || startMs <= Date.now()) {
+      return { ok: false, message: 'El inicio debe ser en el futuro.' };
     }
     if (!Number.isFinite(endMs) || endMs <= startMs) {
-      setValidationError('La hora de fin debe ser posterior al inicio.');
-      return;
+      return { ok: false, message: 'La hora de fin debe ser posterior al inicio.' };
     }
     const priceNum = parseFloat(priceDollars);
     if (!Number.isFinite(priceNum) || priceNum <= 0) {
-      setValidationError('La cuota por persona debe ser mayor a 0.');
-      return;
+      return { ok: false, message: 'La cuota por persona debe ser mayor a 0.' };
     }
     const priceCents = Math.round(priceNum * 100);
     const parsedCapacity = Number.parseInt(capacity, 10);
     if (!Number.isInteger(parsedCapacity) || parsedCapacity < 1) {
-      setValidationError('Indica un cupo mayor a 0.');
-      return;
+      return { ok: false, message: 'Indica un cupo mayor a 0.' };
     }
 
     let goalCents: number | null = null;
     if (goalDollars.trim()) {
       const g = parseFloat(goalDollars);
       if (!Number.isFinite(g) || g <= 0) {
-        setValidationError('La meta debe ser un monto mayor a 0.');
-        return;
+        return { ok: false, message: 'La meta debe ser un monto mayor a 0.' };
       }
       goalCents = Math.round(g * 100);
     }
@@ -149,49 +236,41 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
     if (minimumDollars.trim()) {
       const m = parseFloat(minimumDollars);
       if (!Number.isFinite(m) || m <= 0) {
-        setValidationError('El minimo debe ser un monto mayor a 0.');
-        return;
+        return { ok: false, message: 'El minimo debe ser un monto mayor a 0.' };
       }
       minimumCents = Math.round(m * 100);
     }
     if (minimumCents !== null && goalCents !== null && minimumCents > goalCents) {
-      setValidationError('El minimo no puede superar la meta.');
-      return;
+      return { ok: false, message: 'El minimo no puede superar la meta.' };
     }
     const ceiling = priceCents * parsedCapacity;
     if ((goalCents !== null && ceiling < goalCents) || (minimumCents !== null && ceiling < minimumCents)) {
-      setValidationError('La cuota por el cupo debe cubrir la meta y el minimo.');
-      return;
+      return { ok: false, message: 'La cuota por el cupo debe cubrir la meta y el minimo.' };
     }
 
     const deadlineFilled = deadlineLocal.trim().length > 0;
     if (deadlineFilled) {
       const deadlineMs = new Date(deadlineLocal).getTime();
       if (!Number.isFinite(deadlineMs)) {
-        setValidationError('La fecha limite de aportes no es valida.');
-        return;
+        return { ok: false, message: 'La fecha limite de aportes no es valida.' };
       }
       if (deadlineMs <= Date.now()) {
-        setValidationError('La fecha limite debe ser posterior a ahora y no posterior al inicio.');
-        return;
+        return { ok: false, message: 'La fecha limite debe ser posterior a ahora y no posterior al inicio.' };
       }
       if (deadlineMs > startMs) {
-        setValidationError('La fecha limite debe ser posterior a ahora y no posterior al inicio.');
-        return;
+        return { ok: false, message: 'La fecha limite debe ser posterior a ahora y no posterior al inicio.' };
       }
       if (minimumCents === null) {
-        setValidationError('Sin minimo no hay fecha limite de financiamiento.');
-        return;
+        return { ok: false, message: 'Sin minimo no hay fecha limite de financiamiento.' };
       }
       if (isLegacy) {
-        setValidationError('Un evento anterior conserva la exencion y no admite fecha limite.');
-        return;
+        return { ok: false, message: 'Un evento anterior conserva la exencion y no admite fecha limite.' };
       }
     } else if (isEdit && deadlineTouched && minimumCents !== null) {
-      setValidationError(
-        'Un minimo requiere fecha limite. Vaciar el campo al editar no usa la hora de inicio por defecto.',
-      );
-      return;
+      return {
+        ok: false,
+        message: 'Un minimo requiere fecha limite. Vaciar el campo al editar no usa la hora de inicio por defecto.',
+      };
     }
 
     const includes = includesText
@@ -234,11 +313,70 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       payload.fundingDeadlineAt = new Date(deadlineLocal).toISOString();
     }
 
+    return { ok: true, payload };
+  };
+
+  const rejectSubmission = (message: string) => {
+    setExampleReview(null);
+    setValidationError(message);
+  };
+
+  const submitPayload = async (payload: EventInput) => {
     try {
       await onSubmit(payload);
     } catch (err: any) {
+      setExampleReview(null);
       setValidationError(err.message || 'Error al crear la fiesta');
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isLoading) return;
+    setValidationError(null);
+
+    const built = buildSubmission();
+    if (!built.ok) {
+      rejectSubmission(built.message);
+      return;
+    }
+
+    const hits = collectExampleHits();
+    if (hits.length > 0) {
+      setExampleReview({ signature: reviewSignature(), hits });
+      return;
+    }
+
+    setExampleReview(null);
+    await submitPayload(built.payload);
+  };
+
+  const handleReviseExamples = () => {
+    if (isLoading || !activeReview) return;
+    const first = activeReview.hits[0];
+    setExampleReview(null);
+    if (first) document.getElementById(first.inputId)?.focus();
+  };
+
+  const handlePublishExamples = async () => {
+    if (isLoading || !activeReview) return;
+    const signature = reviewSignature();
+    if (signature !== activeReview.signature) {
+      setExampleReview(null);
+      return;
+    }
+
+    const built = buildSubmission();
+    if (!built.ok) {
+      rejectSubmission(built.message);
+      return;
+    }
+    if (collectExampleHits().length === 0 || reviewSignature() !== signature) {
+      setExampleReview(null);
+      return;
+    }
+
+    await submitPayload(built.payload);
   };
 
   return (
@@ -647,6 +785,43 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
           ))}
         </div>
       </div>
+
+      {activeReview ? (
+        <div
+          ref={exampleWarningRef}
+          id="example-values-warning"
+          tabIndex={-1}
+          role="alert"
+          aria-labelledby="example-values-warning-title"
+          style={{
+            backgroundColor: 'var(--color-yellow-tint)',
+            color: 'var(--color-ink)',
+            border: '1px solid var(--color-yellow-dark)',
+            padding: '0.75rem',
+            borderRadius: 'var(--radius-md)',
+            fontSize: '0.875rem',
+          }}
+        >
+          <p id="example-values-warning-title" style={{ margin: '0 0 0.5rem' }}>
+            Algunos campos tienen el texto de ejemplo. Revisa esos campos o publica estos valores a propósito.
+          </p>
+          <ul style={{ margin: '0 0 0.75rem', paddingLeft: '1.25rem' }}>
+            {activeReview.hits.map((hit) => (
+              <li key={hit.field}>
+                {hit.label}: {hit.raw}
+              </li>
+            ))}
+          </ul>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button type="button" className="btn btn-secondary" onClick={handleReviseExamples} disabled={isLoading}>
+              Revisar campos
+            </button>
+            <button type="button" className="btn btn-primary" onClick={handlePublishExamples} disabled={isLoading}>
+              Publicar estos valores
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {/* Action Buttons */}
       <div

@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
-import type { Dashboard, Capabilities, EventInput } from '../types';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import type { Dashboard, Capabilities, EventInput, ModerationGuest } from '../types';
 import { api, ApiError } from '../api/client';
 import { adminKeyFor, rememberAdminKey } from '../api/admin-key';
 import { usd } from '../types';
 import { GuestGrid } from '../components/dashboard/GuestGrid';
+import { ModerationPanel } from '../components/dashboard/ModerationPanel';
 import { OrganizerLinkCard } from '../components/dashboard/OrganizerLinkCard';
 import { RecoveryEmailCard } from '../components/dashboard/RecoveryEmailCard';
 import { QrShareModal } from '../components/dashboard/QrShareModal';
@@ -39,7 +40,13 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
   const [showDelete, setShowDelete] = useState(false);
   const [busyLifecycle, setBusyLifecycle] = useState(false);
   const requestVersion = useRef(0);
+  const [moderationTick, setModerationTick] = useState(0);
+  const [moderationById, setModerationById] = useState<Record<string, ModerationGuest>>({});
+  const [moderationBusyId, setModerationBusyId] = useState<string | null>(null);
   const storedKey = adminKeyFor(slug);
+  const rememberGuests = useCallback((list: ModerationGuest[]) => {
+    setModerationById(Object.fromEntries(list.map((guest) => [guest.id, guest])));
+  }, []);
 
   useEffect(() => {
     const version = ++requestVersion.current;
@@ -90,6 +97,25 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
   };
 
   const inviteUrl = `${window.location.origin}/e/${slug}`;
+
+  const moderateGuest = async (action: 'block' | 'unblock' | 'remove', guestId: string) => {
+    setModerationBusyId(guestId);
+    try {
+      const result =
+        action === 'block'
+          ? await api.blockGuest(slug, guestId)
+          : action === 'unblock'
+            ? await api.unblockGuest(slug, guestId)
+            : await api.removeGuest(slug, guestId);
+      onShowToast('success', result.message, 'Moderacion');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo moderar';
+      onShowToast('error', message, 'Moderacion');
+    } finally {
+      setModerationBusyId(null);
+      setModerationTick((value) => value + 1);
+    }
+  };
 
   const handleCopyLink = async () => {
     try {
@@ -408,10 +434,27 @@ ${inviteUrl}`;
         </div>
 
         <GuestGrid
-          guests={guests}
+          guests={guests.map((guest) => {
+            const extra = moderationById[guest.id];
+            return extra
+              ? {
+                  ...guest,
+                  blockedAt: extra.blockedAt,
+                  removedAt: extra.removedAt,
+                  paymentPending: extra.paymentPending,
+                }
+              : guest;
+          })}
           eventTitle={event.title}
           inviteUrl={inviteUrl}
+          moderation={{
+            busyId: moderationBusyId,
+            onBlock: (guestId) => void moderateGuest('block', guestId),
+            onUnblock: (guestId) => void moderateGuest('unblock', guestId),
+            onRemove: (guestId) => void moderateGuest('remove', guestId),
+          }}
         />
+        <ModerationPanel slug={slug} refreshKey={moderationTick} onGuests={rememberGuests} />
         <p style={{ fontSize: '0.775rem', color: 'var(--color-ink-light)', marginTop: '0.5rem' }}>
           Revisa el mensaje y elige a quién enviarlo en WhatsApp.
         </p>

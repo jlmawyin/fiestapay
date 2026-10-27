@@ -6,6 +6,7 @@ import { newId, requestIdFor } from '../lib/ids.js';
 import { PayPalError, type PayPalAdapter } from '../paypal/types.js';
 import { approveUrlOf } from '../paypal/verify.js';
 import { assertPrivateAccess } from './access.js';
+import { REVOKED_MESSAGE, assertSessionMayAct, guestAccessRevoked } from './moderation.js';
 import { audit } from './audit.js';
 import { assertAcceptingGuests } from './events.js';
 import { decideFundingIfDue, fundingBlocksNewCharge } from './funding.js';
@@ -112,6 +113,7 @@ async function reserveOrderIntent(
     const guestRow = await findGuestBySession(client, event.id, sessionId);
     if (!guestRow) throw notFound('Primero unete a la invitacion');
     const guest = await lockGuest(client, guestRow.id);
+    await assertSessionMayAct(client, event.id, sessionId);
     assertCanOwe(guest);
 
     const quote = await requireUsableQuote(client, quoteId, event, guest);
@@ -354,6 +356,11 @@ async function claimOrderForCapture(pool: Pool, known: OrderRow): Promise<Captur
     }
     const blocked = fundingBlocksNewCharge(event, settled.at);
     if (blocked) return { kind: 'reconcile', order, reason: blocked };
+    // A fresh capture POST is a new action. An order already in `capturing` was sent before
+    // this check and must still be retried with the same request id.
+    if (order.status !== 'capturing' && guestAccessRevoked(guest)) {
+      return { kind: 'reconcile', order, reason: REVOKED_MESSAGE };
+    }
 
     const { rows } = await client.query<OrderRow>(
       `UPDATE orders SET status = 'capturing', updated_at = now()

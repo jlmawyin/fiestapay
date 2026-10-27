@@ -3,6 +3,7 @@ import type { Config, GeminiConfig, OpenAIConfig } from '../config.js';
 import type { Pool } from '../db/pool.js';
 import { HttpError, unavailable } from '../errors.js';
 import { audit } from '../domain/audit.js';
+import { ModerationHold, appendChatTurn, assertChatRevision, assertSessionMayAct } from '../domain/moderation.js';
 import { assertPrivateAccess } from '../domain/access.js';
 import { assertActive } from '../domain/events.js';
 import { concealExpired } from '../domain/retention.js';
@@ -150,8 +151,9 @@ export async function converse(
       try {
         outcome = await execute(call.name, call.args);
       } catch (err) {
-        // A domain refusal (expired quote, archived event, RSVP missing) is information for the
-        // model, not a failed request.
+        // A block or a deletion that landed while the model was running must not be stored
+        // as a tool answer. Other domain refusals stay information for the model.
+        if (err instanceof ModerationHold) throw err;
         const motivo = err instanceof HttpError ? err.message : 'No se pudo ejecutar la herramienta';
         outcome = { response: { ok: false, motivo } };
       }
@@ -208,7 +210,7 @@ async function loadHistory(pool: Pool, eventId: string, sessionId: string, limit
   const { rows } = await pool.query<{ role: HistoryRole; parts: unknown }>(
     `SELECT role, parts FROM (
        SELECT id, role, parts FROM chat_messages
-        WHERE event_id = $1 AND session_id = $2
+        WHERE event_id = $1 AND session_id = $2 AND deleted_at IS NULL
         ORDER BY id DESC LIMIT $3
      ) recent ORDER BY id ASC`,
     [eventId, sessionId, limit],
@@ -217,21 +219,6 @@ async function loadHistory(pool: Pool, eventId: string, sessionId: string, limit
     role: row.role,
     parts: Array.isArray(row.parts) ? (row.parts as StoredPart[]) : [],
   }));
-}
-
-async function appendTurn(
-  pool: Pool,
-  eventId: string,
-  sessionId: string,
-  role: HistoryRole,
-  parts: StoredPart[],
-): Promise<void> {
-  await pool.query('INSERT INTO chat_messages (event_id, session_id, role, parts) VALUES ($1,$2,$3,$4::jsonb)', [
-    eventId,
-    sessionId,
-    role,
-    JSON.stringify(parts),
-  ]);
 }
 
 async function scopeMessageCount(pool: Pool, eventId: string, sessionId: string): Promise<number> {
@@ -261,32 +248,44 @@ export async function chatWithAssistant(
   await concealExpired(pool, event);
   assertActive(event);
   await assertPrivateAccess(pool, event, sessionId, presentedKey);
-  const provider = selectProvider(config, providers);
   const guest = await findGuestBySession(pool, event.id, sessionId);
+  // Before provider selection, the credit row, and any provider HTTP. A block that lands
+  // during the round is checked again under the chat scope lock, never held across the call.
+  await assertSessionMayAct(pool, event.id, sessionId);
+  const provider = selectProvider(config, providers);
 
   if ((await scopeMessageCount(pool, event.id, sessionId)) >= MAX_MESSAGES_PER_SCOPE) {
     throw new HttpError(429, 'Alcanzaste el limite de mensajes del asistente en este evento');
   }
 
-  const history = await loadHistory(pool, event.id, sessionId, provider.maxHistoryMessages);
   await reserveAiRequest(pool, sessionId, event.id);
   const userTurn: StoredTurn = { role: 'user', parts: [{ text: message }] };
-  await appendTurn(pool, event.id, sessionId, 'user', userTurn.parts);
+  const storedUser = await appendChatTurn(pool, event.id, sessionId, 'user', userTurn.parts);
   await audit(pool, event.id, 'chat_message');
-  history.push(userTurn);
+  const history = await loadHistory(pool, event.id, sessionId, provider.maxHistoryMessages);
+  const assistantIds: string[] = [];
 
   const result = await converse(
     provider.adapter(systemInstruction(event, guest)),
     history,
-    (name, args) => runTool({ pool, sessionId, event, guest, quoteTtlSeconds: config.quoteTtlSeconds }, name, args),
-    (turn) => appendTurn(pool, event.id, sessionId, turn.role, turn.parts),
+    async (name, args) => {
+      await assertChatRevision(pool, event.id, sessionId, storedUser.revision);
+      return runTool({ pool, sessionId, event, guest, quoteTtlSeconds: config.quoteTtlSeconds }, name, args);
+    },
+    async (turn) => {
+      const saved = await appendChatTurn(pool, event.id, sessionId, turn.role, turn.parts, storedUser.revision);
+      if (turn.role === 'model') assistantIds.push(saved.id);
+    },
   );
 
   const freshGuest = guest ? await loadGuest(pool, guest, event) : undefined;
+  const assistantMessageId = assistantIds[assistantIds.length - 1];
   return {
     text: result.text.length > 0 ? result.text : FALLBACK_TEXT,
     ...(result.quote ? { quote: result.quote } : {}),
     ...(freshGuest ? { guest: freshGuest } : {}),
     ...(result.actions.length > 0 ? { actions: result.actions } : {}),
+    userMessageId: storedUser.id,
+    ...(assistantMessageId ? { assistantMessageId } : {}),
   };
 }
