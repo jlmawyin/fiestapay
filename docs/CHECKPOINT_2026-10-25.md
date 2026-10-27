@@ -1,5 +1,15 @@
 # Checkpoint vigente — FiestaPay
 
+## Revisiones independientes — 27 octubre 2026, 10:40 Guayaquil
+
+**Constructores terminaron exit0:** moderación61786/inento2 entregó `.local/moderation-build-report.md`,47focalizadas +npmruncheck332tests/32archivos/lint/tipos/build; formulario38582/intento2 entregó `.local/form-example-build-report-20261027.md`,39tests/tipos/lint/build. ArchivoformSHA79CC5D2F1A5BFB61921570E7B71D90DE6856C4EBB19C9FBB12C146CD3B703AA3, nuevotestSHA91A1A9F027A4DFE5AC1DE9BF00DEC18161450718B642A8E3FF8BC88CDA3E0603.7hashesmoderación cotejados, todoscoinciden; fuente completa30archivos en `.local/moderation-source-snapshot-20261027.json`. No funding.ts/funding-refunds.ts/playback.ts/config/0001-0007 modificados. Servidor yUI ahora fecha estrictamente futura. No aprobación aún.
+
+**AGY FP-MODERATION-VERIFY-20261027 intento1**, ejecución `35714`, paquete `.local/moderation-review-task-20261027.txt`,1800s, soft16:03Z; reporte `.local/moderation-review-report-20261027.md`, resultado `.local/moderation-review-result-20261027.json`. Audita30archivosP3, dinero/permisos/concurrencia/rate-limit/XSS/transcript ybrowser conPG `fiestapay_funding_review`; puedeescribirsolo.local/moderation-review-*. **AGY FP-FORM-VERIFY-20261027 intento2**, ejecución `36853`, paquete `.local/form-review-attempt2-task-20261027.txt`,1200s, soft15:55Z; reporte `.local/form-review-attempt2-report-20261027.md`, resultado `.local/form-review-attempt2-result-20261027.json`. Dos archivosform+arnés/browserpropio; nopisar evidencia1. No constructores activos; fuentecongelada mientras revisan, soloCodexdocs. No repetir fullchecksin causa: AGYcasos independientes y regresionesfocales.
+
+Últimocupo Codex53%5h/49%semanal permitido; Gemini92.1%5h/80.3%semanal; ClaudeGPT4.8STOP. GROK posterior56%Build/44%general, SuperGrok3d15h. Moderación2uso186913entrada/49740salida/27358razonamiento/cache6927488,total7164141incluyecaché; formulario2uso127017entrada/51488salida/36323razonamiento/cache2457344,total2635849incluyecaché. Timeouts1sin métricastokens, no inventarlas.
+
+Alretomar: resultados/veredictos/hashes deambos AGY; no tocar fuenteaún/no push. Si hay defectos, conservarconstructor2y usar3solo para hallazgosconcretos consolidados. Si aprueban, prepararCI/PR ydespliegueseguro conambosCompose, cuidando0008preflight ynoafectarotrasapps; P5OpenAI-only todavía pendiente, noafirmarappcompleta. ProductoVPS8918866, SMTP/USD50/USD1refund previos no se repiten. Pruebahumanaaudio siguependiente. One-shot26retirado; diarioactivo. ConfiglocalGrok.grok/config.toml sinpublicar ybasePGlocalarrancada.
+
 ## Etapa actual — 27 octubre 2026, 10:20 Guayaquil
 
 Último helper **61 % cinco horas / 50 % semanal, stop=false**. GROK 59 % Build / 47 % general, SuperGrok, reinicio3d15h. Dos frentes activos y contadores reales:
