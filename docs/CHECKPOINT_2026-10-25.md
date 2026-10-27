@@ -1,5 +1,13 @@
 # Checkpoint vigente — FiestaPay
 
+## Última corrección entregada — 27 octubre 2026, 11:15 Guayaquil
+
+**GROKmoderación3/3 terminóexit0**, reporte `.local/moderation-build-attempt3-report-20261027.md`: allowlist exactadeverbos/rutas en admin-key.ts y6casosnuevos api-client.test.ts;14client+3modUI+14form y fullnpmruncheck **338tests/32archivos/lint/tipos/build** correctos. Hashes732DD95C636675632082E8DC1F1473B60F9F89348F66143011EC788A08912287 yBF0A09AC575F03A52019190164B4519ACED59762C6FDADCCDCEF945B2A346022 cotejados. Las30fuentesprevias siguenidénticas. Nuevo manifiesto32 `.local/moderation-final-source-snapshot-20261027.json`. Uso225925entrada/42609salida/30288razonamiento/cache1941632,total2210166incluyecaché;55%Build43%general posterior. No cuartoGrok ni másedicionesproducto ahora.
+
+**AGYmoderaciónverificación2/3 ACTIVA**, ejecución `12376`, paquete `.local/moderation-review-attempt2-task-20261027.txt`,1200s/soft16:30Z/hard~16:35Z. Reporte `.local/moderation-review-attempt2-report-20261027.md`, resultado `.local/moderation-review-attempt2-result-20261027.json`. Solo2archivosheaders+browserpositivo/negativo; reutiliza96PG+form52 sihashes32intactos. No fullcheckotra vezsinfuente/nuevofallo. No ediciónproducto niotrosconstructores. Preflight0008 yaaprobado, no repetir. Pendienteesteveredicto antesdeCI/PR/publicar. Si pasa, CI338esperados yoperaciónseguraambosCompose; si surgeotrofalloconstructor3agotado, seguirrecuperaciónskill/Claudeausente sininventarconsulta.
+
+Últimohelper **32%5h/46%semanal** permitido,20guardainclusivavigente. Gemini86.9%5h/78.5%weekly, ClaudeGPT4.8STOP. FormAGY3cerrado aprobado6hashes+17rerun, no másllamadas. Prod0007/8918866 sigue; código338todavíaLOCALsincommit. Primariointacto. MantenerfuentecongeladahastaAGY2; sóloCodexdocs/ops. P5OpenAI-only/phonehumanopendientes. One-shot26retirado, diarioactivo.
+
 ## Hallazgo de navegador y preflight — 27 octubre 2026, 11:05 Guayaquil
 
 **AGYmoderación1 entregó BLOCKED exit0:**47constructorPG+42regresiones+7adversariales=96tests, sin skips; cliente no adjuntaadminKey a9rutasnuevas, browser403. Fuenteexacta `apps/web/src/api/admin-key.ts` confirma whitelistantigua. No defecto financiero nuevo reportado. Informe `.local/moderation-review-report-20261027.md`; uso338695entrada/54323salida/393018total/cache8776103. MetadataGit ynota de fechaUI de ese informe están desactualizadas: fuenteauditada por manifiesto30coincide yformulario yaesestrictamentefuturo, confirmadoAGYform3. No seguir sugerencia amplia startsWith/includes: último constructor exige allowlistdeverbos/rutas exactas.
