@@ -1,9 +1,10 @@
-import type { ChatResult } from '@fiestapay/shared';
+import type { ChatResult, ChatTranscript } from '@fiestapay/shared';
 import type { FastifyInstance } from 'fastify';
 import { chatWithAssistant } from '../ai/chat.js';
 import { presentedAdminKey } from '../domain/access.js';
-import { chatSchema, parseOr400, slugParamSchema } from '../lib/schemas.js';
-import { ensureSession } from '../lib/session.js';
+import { listOwnTranscript } from '../domain/moderation.js';
+import { chatSchema, parseOr400, slugParamSchema, transcriptQuerySchema } from '../lib/schemas.js';
+import { ensureSession, readSession } from '../lib/session.js';
 import type { RouteDeps } from './deps.js';
 
 export async function registerChatRoutes(app: FastifyInstance, deps: RouteDeps): Promise<void> {
@@ -25,4 +26,12 @@ export async function registerChatRoutes(app: FastifyInstance, deps: RouteDeps):
       }, presentedAdminKey(req));
     },
   );
+
+  // Own transcript only. A missing cookie is an empty page, not another guest's history.
+  app.get('/events/:slug/chat/history', async (req): Promise<ChatTranscript> => {
+    const { slug } = parseOr400(slugParamSchema, req.params);
+    const query = parseOr400(transcriptQuerySchema, req.query);
+    const session = await readSession(pool, config, req);
+    return listOwnTranscript(pool, slug, session?.id ?? null, presentedAdminKey(req), query.limit, query.before);
+  });
 }

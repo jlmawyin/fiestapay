@@ -1,8 +1,20 @@
 # Progreso de FiestaPay
 
+**27 oct, 10:40: construcción local entregada, revisión en curso.** GROK moderación2 terminó con47pruebas focales y `npm run check` completo:332pruebas/32archivos, lint/tipos/build correctos. Formulario2 entregó39pruebas, tipos/lint/build, aviso de texto de ejemplo y fecha futura estricta. Servidor y formulario ya rechazan inicio pasado o igual al reloj. Hashes de7archivos de moderación y2de formulario cotejados; snapshot de30archivos. **AGY verifica independientemente:** moderación1 (`35714`) y formulario2 (`36853`). No aprobación, push ni despliegue nuevos hasta sus resultados. Último cupo Codex53% cinco horas/49% semanal; GROK56%Build/44%general; Gemini92,1% cinco horas/80,3%semanal. Producto público8918866.
+
+**27 oct, 10:20:** AGY completó revisión independiente del formulario:22pruebas y6recorridos Edge a ancho de teléfono. Detectó publicación de texto de ejemplo sin aviso; Codex identificó además tolerancia de60segundos pasados en la fecha. [Hallazgos](docs/reviews/form-20261027.md). GROK conserva parciales y pasa a intento2/3 en moderación (`61786`) y formulario (`38582`) tras dos timeouts reales; no se presentan como pausas ni aprobación. Base local de pruebas reiniciada y verificada; no VPS modificado. La guía de jueces, guion borrador90s y procedimiento de despliegue ya reflejan los hechos aprobados. Producto público sigue8918866; nuevos módulos aún sin revisión ni publicación.
+
+**27 oct, 09:35: ejecución reanudada.** Helper permite trabajar: 97 % disponible en cinco horas y 56 % semanal. GROK retoma **FP-MODERATION-P3P4-20261026, el mismo intento 1/3**, ejecución `10067`, sin repetir finanzas, voz, correo ni llamadas reales. GROK: 63 % Build / 51 % general, SuperGrok, reinicio en 3d16h. AGY Gemini: 100 % cinco horas / 83,7 % semanal; Claude/GPT sigue bloqueado al 4,8 %. La continuación puntual de cuota del 26 quedó retirada; el diario sigue activo y refleja el contrato nuevo de Claude. Grafo no disponible (`Transport closed`): lectura directa acotada, sin bucle de reparación. Claude MCP sigue sin exponer estado/modelos; eso no bloquea la construcción de GROK ni la revisión Gemini. Producto público sigue `8918866`.
+
+**26 oct, 20:37: pausa confirmada.** Helper: 12 % disponible en cinco horas y 57 % semanal. No se reanuda producto. Continuación existente con mínimo permitido 22:28:04 Guayaquil, sujeta a cuota nueva; moderación conserva intento 1/3. El audio autorizado y el reembolso sandbox ya están verificados; no se repiten.
+
 Actualizado: 26 octubre 2026, America/Guayaquil. Resumen de esta entrega; el historial completo continúa en [docs/ESTADO.md](docs/ESTADO.md).
 
 ## Prioridades vigentes y ejecución
+
+**Pausa26oct20:30:** Codex20%5h/59%semanal, guarda inclusiva respetada. GROKmoderación1/3 pausado conprogreso de lectura guardado y5procesospropiosdetenidos; aúnsin códigoentregado. Continuaciónnativa preparadaparamínimopermitido22:28:04Guayaquil. Release8918866 yUSD1/refundCOMPLETEDsiguenaprobados, no repetir. PendientesmoderaciónP3/P4, eliminaciónresidualGeminiP5 y respuesta de prueba humanaaudio. [Checkpoint](docs/CHECKPOINT_2026-10-25.md).
+
+**26 oct, 20:14: devolución automática REAL SANDBOX APROBADA.** Release8918866 activa, CI308tests/29archivos verde. NuevaUSD1 frente amínimoUSD2: captura4DJ8478167395053U antesdelplazo, cierre20:11 yrefund81V65255AJ038122F COMPLETED verificado porGETPayPal. Ledger1captura100/1refund100, tareaintento1 establetrasotrociclo, recaudado0, quote/RSVPposteriores409. USD50anterior intacto. [Evidencia](docs/reviews/refund-sandbox-20261026.md). Audio22simulacionesaprobadas e integrado; prueba física deJorge pendiente. GROK siguienteP3/P4 intento1 construye moderación.
 
 **26 oct, 19:52:** AGY aprobó también el audio integrado (18pruebas+4UI, tipos/lint0); la excepción de una línea fue autorizada expresamente por Jorge. Backend yUIfinanciera ya aprobados. Se prepara versión conjunta yCI antes de activar; devolución externaUSD1 y audio humano siguen pendientes. [Revisión de voz](docs/reviews/voice-integration-20261026.md).
 

@@ -3,6 +3,7 @@ import { withTransaction, type Pool, type PoolClient } from '../db/pool.js';
 import { conflict, notFound } from '../errors.js';
 import { newId } from '../lib/ids.js';
 import { assertPrivateAccess } from './access.js';
+import { assertSessionMayAct } from './moderation.js';
 import { audit } from './audit.js';
 import { assertAcceptingGuests } from './events.js';
 import { decideFundingIfDue, fundingBlocksNewCharge, type FundingGate } from './funding.js';
@@ -133,6 +134,7 @@ export async function createQuoteForSession(
     const guestRow = await findGuestBySession(client, event.id, sessionId);
     if (!guestRow) throw notFound('Primero unete a la invitacion');
     const guest = await lockGuest(client, guestRow.id);
+    await assertSessionMayAct(client, event.id, sessionId);
     assertCanOwe(guest);
     return { quote: toQuote(await insertQuote(client, event, guest, ttlSeconds)) };
   });

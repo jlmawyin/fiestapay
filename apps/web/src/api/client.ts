@@ -8,6 +8,11 @@ import type {
   OrderResult,
   Dashboard,
   ChatResult,
+  ChatTranscript,
+  ModerationActionResult,
+  ModerationGuest,
+  ModerationConversation,
+  ModerationMessagePage,
   CreatedEvent,
   RecoveryStatus,
   RecoveryContactUpdate,
@@ -210,6 +215,55 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ message }),
     });
+  },
+
+  async getChatHistory(slug: string): Promise<ChatTranscript> {
+    return request<ChatTranscript>(`/api/events/${encodeURIComponent(slug)}/chat/history`);
+  },
+
+  async getModerationGuests(slug: string): Promise<{ guests: ModerationGuest[] }> {
+    return request<{ guests: ModerationGuest[] }>(`/api/events/${encodeURIComponent(slug)}/moderation/guests`);
+  },
+
+  async blockGuest(slug: string, guestId: string): Promise<ModerationActionResult> {
+    return request<ModerationActionResult>(
+      `/api/events/${encodeURIComponent(slug)}/guests/${encodeURIComponent(guestId)}/block`,
+      { method: 'POST' },
+    );
+  },
+
+  async unblockGuest(slug: string, guestId: string): Promise<ModerationActionResult> {
+    return request<ModerationActionResult>(
+      `/api/events/${encodeURIComponent(slug)}/guests/${encodeURIComponent(guestId)}/unblock`,
+      { method: 'POST' },
+    );
+  },
+
+  async removeGuest(slug: string, guestId: string): Promise<ModerationActionResult> {
+    return request<ModerationActionResult>(
+      `/api/events/${encodeURIComponent(slug)}/guests/${encodeURIComponent(guestId)}/remove`,
+      { method: 'POST' },
+    );
+  },
+
+  async getModerationConversations(slug: string): Promise<{ conversations: ModerationConversation[] }> {
+    return request<{ conversations: ModerationConversation[] }>(
+      `/api/events/${encodeURIComponent(slug)}/moderation/conversations`,
+    );
+  },
+
+  async getModerationMessages(slug: string, conversationId: string): Promise<ModerationMessagePage> {
+    const query = new URLSearchParams({ conversationId });
+    return request<ModerationMessagePage>(
+      `/api/events/${encodeURIComponent(slug)}/moderation/messages?${query.toString()}`,
+    );
+  },
+
+  async deleteModerationMessage(slug: string, messageId: string): Promise<{ ok: true; id: string; alreadyDeleted: boolean }> {
+    return request<{ ok: true; id: string; alreadyDeleted: boolean }>(
+      `/api/events/${encodeURIComponent(slug)}/moderation/messages/${encodeURIComponent(messageId)}`,
+      { method: 'DELETE' },
+    );
   },
 
   async getVoiceToken(

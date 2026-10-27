@@ -3,6 +3,7 @@ import { sumToCents, withTransaction, type Pool, type PoolClient } from '../db/p
 import { conflict, notFound } from '../errors.js';
 import { newId } from '../lib/ids.js';
 import { assertPrivateAccess } from './access.js';
+import { assertSessionMayAct } from './moderation.js';
 import { audit } from './audit.js';
 import { assertAcceptingGuests } from './events.js';
 import { decideFundingIfDue, fundingBlocksNewCharge, type FundingGate } from './funding.js';
@@ -47,6 +48,7 @@ export async function joinEvent(
     const event = settled.event;
     assertAcceptingGuests(event);
     await assertPrivateAccess(client, event, sessionId, presentedKey);
+    await assertSessionMayAct(client, event.id, sessionId);
 
     const existing = await findGuestBySession(client, event.id, sessionId);
     if (existing) return { guest: await loadGuest(client, existing, event) };
@@ -116,6 +118,7 @@ export async function setRsvp(
     const found = await findGuestBySession(client, event.id, sessionId);
     if (!found) throw notFound('Primero unete a la invitacion');
     const guest = await lockGuest(client, found.id);
+    await assertSessionMayAct(client, event.id, sessionId);
 
     if (change.status === 'yes' && event.capacity !== null) {
       const others = await otherConfirmedPeople(client, event.id, guest.id);

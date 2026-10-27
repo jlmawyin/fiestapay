@@ -139,6 +139,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   // Load quote when guest is attending and owes money
   const fetchQuote = useCallback(async () => {
     if (!guest || guest.status !== 'yes') return;
+    if (guest.blockedAt || guest.removedAt) return;
     if (event && newGuestActivityBlocked(event)) return;
     const scope = scopeVersion.current;
     setIsLoadingQuote(true);
@@ -155,10 +156,11 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   }, [slug, guest, event, onShowToast]);
 
   useEffect(() => {
+    if (guest?.blockedAt || guest?.removedAt) return;
     if (guest && guest.status === 'yes' && event && !newGuestActivityBlocked(event)) {
       fetchQuote();
     }
-  }, [guest?.status, guest?.companions, event, fetchQuote]);
+  }, [guest?.status, guest?.companions, guest?.blockedAt, guest?.removedAt, event, fetchQuote]);
 
   const handleJoin = async (name: string) => {
     const scope = scopeVersion.current;
@@ -179,6 +181,10 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   };
 
   const handleSaveRsvp = async (status: RsvpStatus, companions: number) => {
+    if (guest?.blockedAt || guest?.removedAt) {
+      onShowToast('error', 'Esta sesion no puede cambiar la asistencia.', 'Acceso revocado');
+      throw new Error('sesion revocada');
+    }
     const scope = scopeVersion.current;
     setIsSavingRsvp(true);
     try {
@@ -206,6 +212,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   };
 
   const handleCreateOrder = async (quoteId: string) => {
+    if (guest?.blockedAt || guest?.removedAt) return;
     const scope = scopeVersion.current;
     setIsCreatingOrder(true);
     try {
@@ -229,6 +236,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   };
 
   const handleCaptureSuccess = async (orderId: string): Promise<boolean> => {
+    if (guest?.blockedAt || guest?.removedAt) return false;
     const scope = scopeVersion.current;
     try {
       const res = await api.captureOrder(orderId);
@@ -375,6 +383,8 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
 
   const inviteUrl = window.location.href;
   const activityBlocked = newGuestActivityBlocked(event);
+  const sessionRevoked = Boolean(guest?.blockedAt || guest?.removedAt);
+  const formsClosed = activityBlocked || sessionRevoked;
 
   return (
     <div style={{ maxWidth: '680px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -541,6 +551,13 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
                 : 'Las inscripciones están cerradas. No se admiten asistencias ni pagos nuevos. Si ya tenías una orden de PayPal, puedes verificar su captura real abajo.'}
             </p>
           )}
+          {sessionRevoked && (
+            <p className="session-revoked-banner" role="status" style={{ marginBottom: '1rem' }}>
+              {guest?.removedAt
+                ? 'Tu participación fue retirada. El abono ya registrado sigue visible y no se reembolsa solo. Si un pago sigue en verificación, espera a que se concilie antes de reintentar el retiro.'
+                : 'Esta sesión no puede confirmar asistencia, chatear, usar voz ni iniciar un pago nuevo. Si ya había un cobro en curso, verifica su estado real abajo. El recibo de lo abonado sigue visible.'}
+            </p>
+          )}
           {!guest && !activityBlocked ? (
             <JoinForm onJoin={handleJoin} isLoading={isJoining} />
           ) : !guest ? null : (
@@ -567,14 +584,14 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
                 </div>
               </div>
 
-              {!activityBlocked ? (
+              {!formsClosed ? (
                 <RsvpForm guest={guest} event={event} onSaveRsvp={handleSaveRsvp} isLoading={isSavingRsvp} />
               ) : null}
 
               {/* Server Quote & Payment Review */}
               {guest.status === 'yes' && (
                 <>
-                  {!activityBlocked ? (
+                  {!formsClosed ? (
                     <QuoteReviewCard
                       quote={quote}
                       isLoadingQuote={isLoadingQuote}
@@ -626,8 +643,8 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
                     </div>
                   )}
 
-                  {/* PayPal Dynamic Integration */}
-                  {activeOrder && (
+                  {/* PayPal capture stays hidden once this session is revoked. Verify/GET above remains. */}
+                  {activeOrder && !sessionRevoked && (
                     <PayPalSection
                       order={activeOrder}
                       capabilities={capabilities}
@@ -654,6 +671,8 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
       <GeminiAssistant
         slug={slug}
         capabilities={capabilities}
+        accessRevoked={sessionRevoked}
+        closed={activityBlocked}
         onApplyQuote={(q) => {
           setQuote(q);
           onShowToast('info', 'Cotización sugerida por el asistente cargada. Revisa los detalles en pantalla.', 'Cotización');
@@ -666,6 +685,8 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         slug={slug}
         capabilities={capabilities}
         guest={guest}
+        accessRevoked={sessionRevoked}
+        eventClosed={activityBlocked}
         onConfirmRsvp={handleSaveRsvp}
         onApplyQuote={(q) => {
           setQuote(q);

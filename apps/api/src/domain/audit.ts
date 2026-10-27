@@ -42,7 +42,11 @@ export type AuditAction =
   | 'recovery_email_verified'
   | 'recovery_link_sent'
   | 'recovery_send_failed'
-  | 'chat_message';
+  | 'chat_message'
+  | 'guest_blocked'
+  | 'guest_unblocked'
+  | 'guest_removed'
+  | 'chat_message_deleted';
 
 export async function audit(db: Queryable, eventId: string | null, action: AuditAction): Promise<void> {
   await db.query('INSERT INTO audit_log (event_id, action) VALUES ($1, $2)', [eventId, action]);

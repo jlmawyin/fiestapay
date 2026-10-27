@@ -2,6 +2,7 @@ import { usd, type Quote } from '@fiestapay/shared';
 import { z } from 'zod';
 import type { Pool } from '../db/pool.js';
 import { MAX_COMPANIONS } from '../lib/schemas.js';
+import { assertSessionMayAct } from '../domain/moderation.js';
 import { createQuoteForSession } from '../domain/quotes.js';
 import { eventTotals, guestPaidCents, obligationCents, type EventRow, type GuestRow } from '../domain/read.js';
 
@@ -109,6 +110,7 @@ function eventDetails(event: EventRow, totals: { collectedCents: number; confirm
 }
 
 export async function runTool(ctx: ToolContext, name: string, rawArgs: unknown): Promise<ToolOutcome> {
+  await assertSessionMayAct(ctx.pool, ctx.event.id, ctx.sessionId);
   const args = asRecord(rawArgs);
 
   switch (name) {

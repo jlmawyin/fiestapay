@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { estimateOrganizerFee, fixedQuote } from '@fiestapay/shared';
 import { badRequest } from '../src/errors.js';
 import { centsToUsd, usdToCents } from '../src/lib/money.js';
@@ -138,6 +138,27 @@ describe('validacion de entradas', () => {
     expect(eventInputSchema.safeParse({ ...base, capacity: null }).success).toBe(false);
     expect(eventInputSchema.safeParse({ ...base, capacity: 2, goalCents: 10000 }).success).toBe(false);
     expect(eventInputSchema.safeParse({ ...base, endsAt: undefined }).success).toBe(false);
+  });
+
+  it('rechaza un inicio 30s en el pasado o igual a ahora, y acepta uno futuro', () => {
+    vi.useFakeTimers();
+    try {
+      const frozen = new Date('2026-10-27T15:00:00.000Z');
+      vi.setSystemTime(frozen);
+      const at = (deltaMs: number) => new Date(frozen.getTime() + deltaMs).toISOString();
+      const input = (startsAt: string) => ({
+        ...base,
+        startsAt,
+        endsAt: new Date(Date.parse(startsAt) + 2 * 60 * 60 * 1000).toISOString(),
+      });
+      expect(eventInputSchema.safeParse(input(at(-30_000))).success).toBe(false);
+      expect(eventInputSchema.safeParse(input(at(0))).success).toBe(false);
+      expect(eventInputSchema.safeParse(input(at(-59_000))).success).toBe(false);
+      expect(eventInputSchema.safeParse(input(at(1_000))).success).toBe(true);
+      expect(Date.now()).toBe(frozen.getTime());
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('acota textos, listas y acompanantes', () => {

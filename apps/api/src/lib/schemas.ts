@@ -66,7 +66,8 @@ export const eventInputSchema = z
     message: 'Sin minimo no hay fecha limite de financiamiento',
     path: ['fundingDeadlineAt'],
   })
-  .refine((v) => Date.parse(v.startsAt) > Date.now() - 60_000, {
+  // Equal to now is already past for a start. The previous 60s skew accepted it.
+  .refine((v) => Date.parse(v.startsAt) > Date.now(), {
     message: 'El inicio debe ser en el futuro',
     path: ['startsAt'],
   })
@@ -100,6 +101,7 @@ export const orderSchema = z.object({
 });
 
 export const chatSchema = z.object({ message: requiredText(1000) });
+const MESSAGE_ID_RE = /^[1-9][0-9]{0,18}$/;
 
 export const slugParamSchema = z.object({
   slug: z
@@ -117,6 +119,27 @@ export const orderIdParamSchema = z.object({
     .min(3)
     .max(80)
     .regex(/^[A-Za-z0-9-]+$/, 'Identificador invalido'),
+});
+
+export const guestIdParamSchema = z.object({
+  slug: slugParamSchema.shape.slug,
+  guestId: z.string().trim().regex(UUID_RE, 'Identificador invalido'),
+});
+
+export const conversationIdParamSchema = z.object({
+  slug: slugParamSchema.shape.slug,
+  conversationId: z.string().trim().regex(UUID_RE, 'Identificador invalido'),
+});
+
+export const messageIdParamSchema = z.object({
+  slug: slugParamSchema.shape.slug,
+  messageId: z.string().trim().regex(MESSAGE_ID_RE, 'Identificador invalido'),
+});
+
+export const transcriptQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+  before: z.string().trim().regex(MESSAGE_ID_RE, 'Cursor invalido').optional(),
+  conversationId: z.string().trim().regex(UUID_RE, 'Identificador invalido').optional(),
 });
 
 const CLIENT_MONEY_STATE_KEYS = [

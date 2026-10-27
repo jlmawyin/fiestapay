@@ -46,7 +46,20 @@ export interface FiestaEvent {
   /** Net verified cents used at the irreversible decision. Null until then. */
   fundingBasisCents?: number | null;
 }
-export interface Guest { id: string; name: string; status: RsvpStatus; companions: number; paidCents: number; dueCents: number }
+export interface Guest {
+  id: string;
+  name: string;
+  status: RsvpStatus;
+  companions: number;
+  paidCents: number;
+  dueCents: number;
+  /** Set only when this session is blocked. Omitted means the caller did not receive a moderation flag. */
+  blockedAt?: string | null;
+  /** Set only when the guest was logically removed. The row, orders and ledger stay. */
+  removedAt?: string | null;
+  /** True when a create, capture or refund lease is still unverified, so the seat was kept. */
+  paymentPending?: boolean;
+}
 /** Ecuador domestic standard checkout estimate. Not a settled PayPal fee and not a guest surcharge. */
 export const PAYPAL_EC_DOMESTIC_RATE_BPS = 540;
 export const PAYPAL_EC_DOMESTIC_FIXED_CENTS = 30;
@@ -115,7 +128,57 @@ export interface RecoveryConsumeRecovered { purpose: 'recover'; slug: string; ad
 export type RecoveryConsumeResult = RecoveryConsumeVerified | RecoveryConsumeRecovered;
 /** adminKey is returned once, on create. Later reads omit it. */
 export interface CreatedEvent { event: FiestaEvent; adminKey: string | null }
-export interface ChatResult { text: string; quote?: Quote; guest?: Guest; actions?: string[] }
+export interface ChatResult {
+  text: string;
+  quote?: Quote;
+  guest?: Guest;
+  actions?: string[];
+  /** Server id of the user turn just stored. Absent when the turn was refused. */
+  userMessageId?: string;
+  /** Server id of the assistant turn just stored. Absent when the reply was discarded. */
+  assistantMessageId?: string;
+}
+/** Visible chat text. Ids are the server row ids, never a client clock. */
+export interface ChatTranscriptMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  createdAt: string;
+}
+export interface ChatTranscript {
+  messages: ChatTranscriptMessage[];
+  /** Older page cursor. Absent when this page reaches the start of the transcript. */
+  nextBefore?: string;
+}
+export interface ModerationGuest {
+  id: string;
+  name: string;
+  status: RsvpStatus;
+  companions: number;
+  paidCents: number;
+  dueCents: number;
+  blockedAt: string | null;
+  removedAt: string | null;
+  paymentPending: boolean;
+}
+export interface ModerationActionResult {
+  outcome: 'blocked' | 'unblocked' | 'removed';
+  guest: ModerationGuest;
+  message: string;
+}
+/** Opaque conversation id. Not a session cookie and not a browser id. */
+export interface ModerationConversation {
+  id: string;
+  guestId: string | null;
+  guestName: string | null;
+}
+export interface ModerationMessage extends ChatTranscriptMessage {
+  conversationId: string;
+}
+export interface ModerationMessagePage {
+  messages: ModerationMessage[];
+  nextBefore?: string;
+}
 export interface PaymentListItem { orderId: string; guestName: string; amountCents: number; status: string; createdAt: string }
 export interface Dashboard { event: FiestaEvent; guests: Guest[]; payments?: PaymentListItem[]; audit: { action: string; createdAt: string }[] }
 export const TEMPLATE_LABELS: Record<TemplateKind,string> = {comida:'Comida',casa:'Fiesta en casa',viaje:'Viaje conjunto',evento:'Evento'};

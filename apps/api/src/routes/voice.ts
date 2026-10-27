@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { TOOL_DECLARATIONS, TOOL_NAMES, runTool } from '../ai/tools.js';
 import { withTransaction } from '../db/pool.js';
 import { assertPrivateAccess, presentedAdminKey } from '../domain/access.js';
+import { assertSessionMayAct } from '../domain/moderation.js';
 import { assertActive } from '../domain/events.js';
 import { findGuestBySession, getEventBySlug } from '../domain/read.js';
 import { concealExpired } from '../domain/retention.js';
@@ -42,6 +43,7 @@ export async function registerVoiceRoutes(app: FastifyInstance, deps: RouteDeps)
     assertActive(event);
     await assertPrivateAccess(pool, event, session.id, presentedAdminKey(req));
     if (!await findGuestBySession(pool, event.id, session.id)) throw forbidden('Únete con un alias antes de iniciar la voz');
+    await assertSessionMayAct(pool, event.id, session.id);
     const voice = config.voice;
     if (!voice.enabled) throw unavailable('La voz no está habilitada');
     // Reserve the entire maximum duration before issuing a token. Global DB lock prevents
@@ -52,6 +54,7 @@ export async function registerVoiceRoutes(app: FastifyInstance, deps: RouteDeps)
       if (Number(usage.rows[0]?.seconds) + voice.maxSeconds > voice.dailySeconds) throw new HttpError(429,'Se alcanzó el límite diario de voz; continúa por texto');
       const active = await db.query('SELECT id FROM voice_leases WHERE session_id=$1 AND expires_at>now()', [session.id]);
       if (active.rowCount) throw new HttpError(429,'Ya tienes una sesión de voz reservada. Espera a que termine');
+      await assertSessionMayAct(db, event.id, session.id);
       const id = newId();
       await db.query("INSERT INTO voice_leases(id,session_id,event_id,reserved_seconds,expires_at) VALUES($1,$2,$3,$4,now()+($4+60)*interval '1 second')", [id,session.id,event.id,voice.maxSeconds]);
       return id;
@@ -80,6 +83,7 @@ export async function registerVoiceRoutes(app: FastifyInstance, deps: RouteDeps)
     await concealExpired(pool, event);
     assertActive(event);
     await assertPrivateAccess(pool, event, session.id, presentedAdminKey(req));
+    await assertSessionMayAct(pool, event.id, session.id);
     const lease = await pool.query('SELECT id FROM voice_leases WHERE id=$1 AND session_id=$2 AND event_id=$3 AND expires_at>now()',[body.leaseId,session.id,event.id]);
     if (!lease.rowCount || !TOOL_NAMES.has(body.name)) throw forbidden('Herramienta o sesión de voz no autorizada');
     const guest = await findGuestBySession(pool,event.id,session.id);

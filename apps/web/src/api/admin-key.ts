@@ -25,6 +25,42 @@ export function captureAdminKeyFromLocation(): void {
   window.history.replaceState(window.history.state, '', next);
 }
 
+const guestModeration = /^\/guests\/([^/]+)\/(block|unblock|remove)$/;
+const conversationModeration = /^\/moderation\/conversations\/([^/]+)\/(block|unblock)$/;
+const messageDelete = /^\/moderation\/messages\/([^/]+)$/;
+
+/** One raw path segment. Encoded ids stay one segment. `.` and `..` do not. */
+function singleSegment(segment: string): boolean {
+  if (segment.length === 0 || segment === '.' || segment === '..') return false;
+  try {
+    const decoded = decodeURIComponent(segment);
+    return decoded.length > 0 && decoded !== '.' && decoded !== '..';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The nine moderation routes, by method and exact shape.
+ * A prefix such as `/moderation`, or a substring such as `/block`, is not an organizer call.
+ */
+function moderationOrganizer(rest: string, verb: string): boolean {
+  if (verb === 'GET') {
+    return rest === '/moderation/guests' || rest === '/moderation/conversations' || rest === '/moderation/messages';
+  }
+  if (verb === 'DELETE') {
+    const message = messageDelete.exec(rest);
+    return message !== null && singleSegment(message[1] ?? '');
+  }
+  if (verb === 'POST') {
+    const guest = guestModeration.exec(rest);
+    if (guest && singleSegment(guest[1] ?? '')) return true;
+    const conversation = conversationModeration.exec(rest);
+    return conversation !== null && singleSegment(conversation[1] ?? '');
+  }
+  return false;
+}
+
 /** Organizer calls only. Public, join, pay, chat and voice stay without the key. */
 export function adminHeaderFor(path: string, method: string): string | null {
   const match = path.match(/^\/api\/events\/([^/?]+)/);
@@ -38,7 +74,8 @@ export function adminHeaderFor(path: string, method: string): string | null {
     (rest === '/close' && verb === 'POST') ||
     (rest === '' && (verb === 'PUT' || verb === 'DELETE')) ||
     (rest === '/recovery' && verb === 'GET') ||
-    (rest === '/recovery/contact' && (verb === 'PUT' || verb === 'DELETE'));
+    (rest === '/recovery/contact' && (verb === 'PUT' || verb === 'DELETE')) ||
+    moderationOrganizer(rest, verb);
   if (!organizer) return null;
   return adminKeyFor(slug);
 }
