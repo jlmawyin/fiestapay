@@ -14,6 +14,7 @@
 
 | Encargo/defecto | Responsable | Intento/entrega | Estado |
 |---|---|---:|---|
+| FP-OPENAI-ONLY-20261027 | GROK | 1/3 en curso | Ejecución27832,4.7/xhigh120turnos3600s. Retirar proveedor delproducto sin alterar dinero/headers/moderación/cola; portar garantías de pruebas a fakeOpenAI y documentar casosobsoletos. GROK53%Build40%general, SuperGrok3d11h; Codex99%5h41%semanal. Sin entrega ni aprobación todavía. |
 | FP-SMTP-PASSWORD-SETUP-20261025 | GROK | 3/3 diagnóstico aprobado | Intentos1/2 timeout900/300s sin helper. Hipótesis nueva: stdin heredado abierto. Intento3 invocado con entrada cerrada escribió el marcadorREADY y terminó correctamente; capacidad de ejecución mínima acreditada, no helper instalado. Grok4.7/xhigh,46736tokens totales; presupuesto posterior80%general/86%Build. No se afirma causa exclusiva del bloqueo. |
 | FP-SMTP-PASSWORD-VERIFY-20261025 | AGY | 2/3 diagnóstico aprobado | Intento1 timeout300s sin revisión de helper. Intento2 con stdin cerrado escribióREADY y terminó; GeminiFlashHigh/high,20275tokens totales.25.8% agregado del resultado corresponde aClaude/GPT; último bucketGemini94.1%semanal/99%5h. No se aprueba helper inexistente; entrada manual del VPS ya resolvió su objetivo. |
 | FP-FUNDING-DESIGN-20261025 | AGY | 1/3 entregada | Diseño en.local/funding-design.md, GeminiFlashHigh/high,244872tokens totales,404s. No implementación. Codex corrigió supuestos de422, sweeper excluyendo tombstones, reloj/decisión y tipos obligatorios antes del encargo. |
