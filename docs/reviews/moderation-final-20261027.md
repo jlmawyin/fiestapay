@@ -1,5 +1,13 @@
 # Moderación y formulario — aceptación local del 27 de octubre
 
+## Publicación comprobada
+
+Release `44d2c3c7396fb4fc43c98af6416eaff1144f3409` activada enContabo el27oct. [PR4](https://github.com/jlmawyin/fiestapay/pull/4), [CIverde](https://github.com/jlmawyin/fiestapay/actions/runs/40540682440). Imagen `sha256:6c89f0812d90172517909e9ff7e747811c1909712497a5782678110b712e9e13`. Se aplicó0008 al arrancar únicamenteAPI; salud yHTTPS público correctos, referencias de assets coinciden con imagen. Conservados24eventos/23legados, capturaUSD50 sin devolución y captura/refundUSD1 conneto0. Comparación enmemoria:0valoresprivados enbundle/logs. Identificadores/arranques de otroscontenedores idénticos. Backup nuevo privado e imagen8918866anterior conservados, sin rollback automático deDB ni modificación DNS/MX/proxy.
+
+Evidencia operativa privada: `.local/moderation-activation.log` exit0 y marcador `MODERATION_RELEASE_ACTIVATED`. No hubo nueva compra, captura/reembolso, envíoSMTP o prueba física de micrófono.
+
+## Revisión previa a publicar
+
 GROK entregó el módulo en3/3 y AGY lo verificó independientemente en2/3. La primera revisión de navegador detectó que el cliente omitía la clave de organizador en las rutas nuevas; la última entrega lo corrigió con una lista exacta de verbos/rutas y pruebas de solicitudes reales del cliente. No se debilitó la autorización del servidor.
 
 - Check integrado del constructor: **338pruebas/32archivos**, lint, tipos y builds aprobados, PostgreSQL activo.
