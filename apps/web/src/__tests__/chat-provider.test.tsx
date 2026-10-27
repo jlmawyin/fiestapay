@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { GeminiAssistant } from '../components/chat/GeminiAssistant';
+import { ChatAssistant } from '../components/chat/ChatAssistant';
 import { DemoRibbon } from '../components/common/DemoRibbon';
 import { api } from '../api/client';
 import type { Capabilities, Quote } from '../types';
@@ -11,11 +11,10 @@ afterEach(() => {
 });
 
 describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
-  it('supports OpenAI enabled with gemini=false and no Gemini branding in UI', async () => {
+  it('supports OpenAI enabled and shows no retired provider name', async () => {
     const capabilities = {
       chat: true,
       llmProvider: 'openai' as const,
-      gemini: false,
       paypal: true,
       voice: false,
       paypalClientId: 'sb-client-id',
@@ -23,18 +22,18 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
       email: false,
     };
 
-    // Verify DemoRibbon displays generic Chat status and no Gemini branding
+    // Ribbon uses the chat flag and does not name a retired provider.
     const { unmount } = render(<DemoRibbon capabilities={capabilities} />);
     expect(screen.getByText('Chat: Configurado')).toBeInTheDocument();
     expect(screen.queryByText(/gemini/i)).toBeNull();
     unmount();
 
-    // Verify GeminiAssistant shows generic Asistente FiestaPay text
+    // Verify ChatAssistant shows generic Asistente FiestaPay text
     vi.spyOn(api, 'sendChat').mockResolvedValue({
       text: 'Hola, soy tu asistente OpenAI',
     });
 
-    render(<GeminiAssistant slug="fiesta-slug" capabilities={capabilities} />);
+    render(<ChatAssistant slug="fiesta-slug" capabilities={capabilities} />);
 
     // Open chat panel
     fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente IA' }));
@@ -55,12 +54,12 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
       expect(screen.getByText('Hola, soy tu asistente OpenAI')).toBeInTheDocument();
     });
 
-    // Confirm still no Gemini branding in the whole rendered complementary panel
+    // The open panel does not name a retired provider.
     const panel = screen.getByRole('complementary', { name: 'Panel del Asistente FiestaPay' });
     expect(panel.textContent).not.toMatch(/gemini/i);
   });
 
-  it('honors explicit chat=false despite legacy gemini=true and guards submit', async () => {
+  it('keeps chat=false disabled even if a retired flag is still on the payload', async () => {
     const capabilities = {
       chat: false,
       llmProvider: 'openai' as const,
@@ -80,7 +79,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
 
     const sendChatSpy = vi.spyOn(api, 'sendChat');
 
-    render(<GeminiAssistant slug="fiesta-slug" capabilities={capabilities} />);
+    render(<ChatAssistant slug="fiesta-slug" capabilities={capabilities} />);
     fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente IA' }));
 
     // Status shows Chat no disponible
@@ -103,35 +102,23 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
     expect(screen.queryByText(/gemini/i)).toBeNull();
   });
 
-  it('supports legacy response when chat property is missing', () => {
-    // Legacy capabilities with only gemini: true
-    const legacyActive: Capabilities = {
+  it('does not treat a retired capability flag as chat availability', () => {
+    const retiredOnly = {
       gemini: true,
       paypal: true,
       voice: false,
       paypalClientId: null,
       sandbox: true,
       email: false,
-    };
+    } as Capabilities;
 
-    const { rerender } = render(<DemoRibbon capabilities={legacyActive} />);
-    expect(screen.getByText('Chat: Configurado')).toBeInTheDocument();
+    const { rerender } = render(<DemoRibbon capabilities={retiredOnly} />);
+    expect(screen.getByText('Chat: Desactivado')).toBeInTheDocument();
     expect(screen.queryByText(/gemini/i)).toBeNull();
 
-    // Legacy capabilities with gemini: false
-    const legacyInactive: Capabilities = {
-      gemini: false,
-      paypal: false,
-      voice: false,
-      paypalClientId: null,
-      sandbox: true,
-      email: false,
-    };
-
-    rerender(<DemoRibbon capabilities={legacyInactive} />);
+    rerender(<DemoRibbon capabilities={{ paypal: false, voice: false, paypalClientId: null, sandbox: true, email: false }} />);
     expect(screen.getByText('Chat: Desactivado')).toBeInTheDocument();
 
-    // Null capabilities fallback
     rerender(<DemoRibbon capabilities={null} />);
     expect(screen.getByText('Chat: Desactivado')).toBeInTheDocument();
   });
@@ -139,7 +126,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
   it('displays 503 fallback visible without Gemini branding and guides manual actions', async () => {
     const capabilities = {
       chat: true,
-      gemini: true,
+      llmProvider: 'openai' as const,
       paypal: false,
       voice: false,
       paypalClientId: null,
@@ -151,7 +138,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
     (error503 as any).status = 503;
     vi.spyOn(api, 'sendChat').mockRejectedValue(error503);
 
-    render(<GeminiAssistant slug="fiesta-slug" capabilities={capabilities} />);
+    render(<ChatAssistant slug="fiesta-slug" capabilities={capabilities} />);
     fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente IA' }));
 
     const input = screen.getByRole('textbox', { name: /Mensaje para el asistente/i });
@@ -174,7 +161,6 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
     const capabilities = {
       chat: true,
       llmProvider: 'openai' as const,
-      gemini: false,
       paypal: true,
       voice: false,
       paypalClientId: 'sb-123',
@@ -205,7 +191,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
     const onConfirmRsvp = vi.fn(async () => undefined);
 
     render(
-      <GeminiAssistant
+      <ChatAssistant
         slug="fiesta-slug"
         capabilities={capabilities}
         onApplyQuote={onApplyQuote}

@@ -5,7 +5,6 @@ import { loadConfig, type OpenAIConfig } from '../src/config.js';
 import type { Pool } from '../src/db/pool.js';
 import { HttpError } from '../src/errors.js';
 import { converse, MAX_TOOL_CALLS_PER_ROUND, openaiAdapter } from '../src/ai/chat.js';
-import { toGeminiHistory } from '../src/ai/gemini.js';
 import type { StoredTurn } from '../src/ai/history.js';
 import { createResponse, sanitizeOutput, toOpenAIInput, toOpenAITools, type RespondOutput } from '../src/ai/openai.js';
 import { TOOL_DECLARATIONS, type ToolOutcome } from '../src/ai/tools.js';
@@ -33,36 +32,44 @@ afterEach(() => {
 });
 
 describe('configuracion del proveedor de chat', () => {
-  it('usa OpenAI gpt-6-luna con razonamiento bajo por defecto y no configura Gemini', () => {
-    const config = loadConfig({ NODE_ENV: 'test', OPENAI_API_KEY: KEY, GEMINI_API_KEY: 'g-key' } as NodeJS.ProcessEnv);
+  it('usa OpenAI gpt-6-luna con razonamiento bajo y no lee claves ajenas', () => {
+    const config = loadConfig({
+      NODE_ENV: 'test',
+      OPENAI_API_KEY: KEY,
+      GEMINI_API_KEY: 'g-key-should-not-appear',
+      GEMINI_MODEL: 'modelo-ajeno',
+      GEMINI_BASE_URL: 'https://example.invalid',
+    } as NodeJS.ProcessEnv);
     expect(config.llmProvider).toBe('openai');
     expect(config.openai).toMatchObject({ model: 'gpt-6-luna', reasoningEffort: 'low', baseUrl: 'https://api.openai.com/v1' });
-    expect(config.gemini).toBeNull();
+    expect(config).not.toHaveProperty('gemini');
+    const packed = JSON.stringify(config);
+    expect(packed).not.toContain('g-key-should-not-appear');
+    expect(packed).not.toContain('modelo-ajeno');
+    expect(packed).not.toContain('example.invalid');
+    expect(packed.toLowerCase()).not.toContain('gemini');
   });
 
-  it('Gemini solo se configura si se selecciona explicitamente', () => {
-    const config = loadConfig({ NODE_ENV: 'test', LLM_PROVIDER: 'gemini', OPENAI_API_KEY: KEY, GEMINI_API_KEY: 'g-key' } as NodeJS.ProcessEnv);
-    expect(config.llmProvider).toBe('gemini');
-    expect(config.gemini?.apiKey).toBe('g-key');
-    expect(config.openai).toBeNull();
-  });
-
-  it('rechaza un LLM_PROVIDER desconocido sin repetir su valor', () => {
-    expect(() => loadConfig({ NODE_ENV: 'test', LLM_PROVIDER: 'sk-pegada-por-error' } as NodeJS.ProcessEnv)).toThrow(
-      /LLM_PROVIDER invalido/,
-    );
-    try {
-      loadConfig({ NODE_ENV: 'test', LLM_PROVIDER: 'sk-pegada-por-error' } as NodeJS.ProcessEnv);
-    } catch (err) {
-      expect((err as Error).message).not.toContain('sk-pegada');
+  it('acepta solo LLM_PROVIDER=openai y no repite un valor rechazado', () => {
+    expect(loadConfig({ NODE_ENV: 'test', LLM_PROVIDER: 'openai', OPENAI_API_KEY: KEY } as NodeJS.ProcessEnv).llmProvider).toBe('openai');
+    expect(loadConfig({ NODE_ENV: 'test', LLM_PROVIDER: 'OpenAI', OPENAI_API_KEY: KEY } as NodeJS.ProcessEnv).llmProvider).toBe('openai');
+    for (const raw of ['gemini', 'sk-pegada-por-error']) {
+      expect(() => loadConfig({ NODE_ENV: 'test', LLM_PROVIDER: raw } as NodeJS.ProcessEnv)).toThrow(/LLM_PROVIDER invalido/);
+      try {
+        loadConfig({ NODE_ENV: 'test', LLM_PROVIDER: raw } as NodeJS.ProcessEnv);
+      } catch (err) {
+        expect((err as Error).message).not.toContain(raw);
+      }
     }
   });
 
   it('sin clave deja el chat apagado con un motivo sin secretos', () => {
-    const config = loadConfig({ NODE_ENV: 'test', GEMINI_API_KEY: 'g-key' } as NodeJS.ProcessEnv);
+    const config = loadConfig({ NODE_ENV: 'test', GEMINI_API_KEY: 'g-key-should-not-appear' } as NodeJS.ProcessEnv);
     expect(config.openai).toBeNull();
-    expect(config.gemini).toBeNull();
+    expect(config).not.toHaveProperty('gemini');
     expect(config.openaiDisabledReason).toContain('OPENAI_API_KEY');
+    expect(config.openaiDisabledReason).not.toContain('g-key');
+    expect(JSON.stringify(config).toLowerCase()).not.toContain('gemini');
   });
 
   it('acota tiempos, rondas, historial y salida', () => {
@@ -98,24 +105,20 @@ describe('capacidades segun el proveedor seleccionado', () => {
     }
   }
 
-  it('OpenAI configurado: chat true, gemini false', async () => {
-    expect(await caps({ OPENAI_API_KEY: KEY, GEMINI_API_KEY: 'g-key' })).toMatchObject({
-      chat: true,
-      gemini: false,
-      llmProvider: 'openai',
-    });
+  it('OpenAI configurado anuncia chat y omite un proveedor retirado', async () => {
+    const announced = await caps({ OPENAI_API_KEY: KEY, GEMINI_API_KEY: 'g-key-should-not-appear' });
+    expect(announced).toMatchObject({ chat: true, llmProvider: 'openai' });
+    expect(announced).not.toHaveProperty('gemini');
+    const packed = JSON.stringify(announced);
+    expect(packed.toLowerCase()).not.toContain('gemini');
+    expect(packed).not.toContain('g-key');
   });
 
-  it('Gemini seleccionado y configurado: chat y gemini true', async () => {
-    expect(await caps({ LLM_PROVIDER: 'gemini', GEMINI_API_KEY: 'g-key' })).toMatchObject({
-      chat: true,
-      gemini: true,
-      llmProvider: 'gemini',
-    });
-  });
-
-  it('OpenAI sin clave: chat false aunque exista clave de Gemini', async () => {
-    expect(await caps({ GEMINI_API_KEY: 'g-key' })).toMatchObject({ chat: false, gemini: false, llmProvider: 'openai' });
+  it('sin clave anuncia chat apagado aunque el entorno traiga una clave ajena', async () => {
+    const announced = await caps({ GEMINI_API_KEY: 'g-key-should-not-appear' });
+    expect(announced).toMatchObject({ chat: false, llmProvider: 'openai' });
+    expect(JSON.stringify(announced).toLowerCase()).not.toContain('gemini');
+    expect(JSON.stringify(announced)).not.toContain('g-key');
   });
 });
 
@@ -346,14 +349,14 @@ describe('bucle de herramientas con OpenAI (sin base de datos)', () => {
   });
 });
 
-describe('historial entre proveedores y ventanas truncadas', () => {
+describe('historial legado y ventanas truncadas', () => {
   const oaModel = (...items: Parameters<typeof completed>): StoredTurn => ({ role: 'model', parts: items.map((openai) => ({ openai })) });
   const oaOutputs = (...ids: string[]): StoredTurn => ({
     role: 'function',
     parts: ids.map((id) => ({ openai: { type: 'function_call_output' as const, call_id: id, output: '{"ok":true}' } })),
   });
 
-  it('OpenAI no recibe salidas huerfanas, llamadas sin respuesta ni firmas de Gemini', () => {
+  it('no reenvia salidas huerfanas, llamadas sin respuesta ni firmas o cargas legadas', () => {
     const turns: StoredTurn[] = [
       // Window truncated right after a model turn: this output has no call.
       oaOutputs('call_lost'),
@@ -385,23 +388,6 @@ describe('historial entre proveedores y ventanas truncadas', () => {
       reasoning('rs_ok', 'enc-ok'),
       fnCall('call_ok', 'get_my_status'),
       { type: 'function_call_output', call_id: 'call_ok', output: '{"ok":true}' },
-    ]);
-  });
-
-  it('Gemini no recibe items de OpenAI ni respuestas sin llamada', () => {
-    const turns: StoredTurn[] = [
-      { role: 'function', parts: [{ functionResponse: { id: 'g0', name: 'get_event_details', response: {} } }] },
-      { role: 'user', parts: [{ text: 'hola' }] },
-      oaModel(reasoning('rs_1', 'enc-1'), fnCall('call_1', 'get_my_status')),
-      oaOutputs('call_1'),
-      oaModel(message('Estas confirmada.')),
-      { role: 'user', parts: [] },
-      { role: 'user', parts: [{ text: 'gracias' }] },
-    ];
-    expect(toGeminiHistory(turns)).toEqual([
-      { role: 'user', parts: [{ text: 'hola' }] },
-      { role: 'model', parts: [{ text: 'Estas confirmada.' }] },
-      { role: 'user', parts: [{ text: 'gracias' }] },
     ]);
   });
 });

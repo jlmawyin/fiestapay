@@ -110,7 +110,7 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
       expect(caps.paypalClientId).toBe('sandbox-client-id');
       expect(caps.sandbox).toBe(true);
       // No AI key and no voice routes in this server: both must report false.
-      expect(caps.gemini).toBe(false);
+      expect(caps).not.toHaveProperty('gemini');
       expect(caps.chat).toBe(false);
       expect(caps.llmProvider).toBe('openai');
       expect(caps.voice).toBe(false);
@@ -889,7 +889,7 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
       const caps = body<Capabilities>(await client.get('/api/capabilities'));
       expect(caps.paypal).toBe(false);
       expect(caps.paypalClientId).toBeNull();
-      expect(caps.gemini).toBe(false);
+      expect(caps).not.toHaveProperty('gemini');
 
       const { event } = body<{ event: FiestaEvent }>(await client.post('/api/demo'));
       const guest = new Client(bare);
@@ -905,7 +905,7 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
 
       const chat = await guest.post(`/api/events/${event.slug}/chat`, { message: 'Que incluye?' });
       expect(chat.statusCode).toBe(503);
-      expect(body<{ error: string }>(chat).error).toMatch(/Gemini|asistente/);
+      expect(body<{ error: string }>(chat).error).toMatch(/asistente/);
     });
   });
 

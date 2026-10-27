@@ -8,7 +8,7 @@ import { JoinForm } from '../components/invite/JoinForm';
 import { RsvpForm } from '../components/invite/RsvpForm';
 import { QuoteReviewCard } from '../components/invite/QuoteReviewCard';
 import { PayPalSection } from '../components/invite/PayPalSection';
-import { GeminiAssistant } from '../components/chat/GeminiAssistant';
+import { ChatAssistant } from '../components/chat/ChatAssistant';
 import { QrShareModal } from '../components/dashboard/QrShareModal';
 import { VoiceInvitationAgent } from '../components/voice/VoiceInvitationAgent';
 import { FundingStatusPanel, newGuestActivityBlocked, paidPeopleLabel } from '../components/common/FundingStatusPanel';
@@ -667,8 +667,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         eventTitle={event.title}
       />
 
-      {/* Gemini Chat Assistant */}
-      <GeminiAssistant
+      <ChatAssistant
         slug={slug}
         capabilities={capabilities}
         accessRevoked={sessionRevoked}

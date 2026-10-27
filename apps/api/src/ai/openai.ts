@@ -41,7 +41,7 @@ export interface OpenAIFunctionOutputItem {
 export type OpenAIOutputItem = OpenAIReasoningItem | OpenAIFunctionCallItem | OpenAIMessageItem;
 export type OpenAIItem = OpenAIOutputItem | OpenAIFunctionOutputItem;
 
-/** Plain conversational message, used for user turns and for text carried over from Gemini. */
+/** Plain conversational message, used for user turns and for text carried over from legacy rows. */
 export interface OpenAITextMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -87,7 +87,7 @@ const FAILED = 'El asistente no pudo completar la respuesta; usa los formularios
 const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 
-/** Same function set as Gemini, in the strict Responses format. */
+/** Authorized tools in the strict Responses format. */
 export function toOpenAITools(declarations: FunctionDeclaration[]): OpenAITool[] {
   return declarations.map((d): OpenAITool => ({
     type: 'function',
@@ -148,9 +148,9 @@ const outputsOf = (turn: StoredTurn | undefined): OpenAIFunctionOutputItem[] =>
 
 /**
  * Stored turns to Responses input. Own turns are replayed verbatim (reasoning included) only when
- * every function_call has its output in the next turn; otherwise, and for Gemini turns, only the
- * visible text survives. Outputs never appear without their call, so a truncated window or a
- * provider switch cannot produce orphan tool items or foreign signatures.
+ * every function_call has its output in the next turn. Otherwise, and for legacy rows, only the
+ * visible text survives. Outputs never appear without their call, so a truncated window cannot
+ * produce orphan tool items, foreign signatures, or legacy function payloads.
  */
 export function toOpenAIInput(turns: StoredTurn[]): OpenAIInputItem[] {
   const input: OpenAIInputItem[] = [];

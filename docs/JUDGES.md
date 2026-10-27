@@ -20,4 +20,4 @@ Verified evidence retained from October25–26 includes the USD50 sandbox captur
 
 The sandbox recipient is the single Business merchant configured for the demo. A verified capture demonstrates receipt in that account. Connecting each organizer's personal merchant or making an additional transfer through PayPal Payouts is outside this demo.
 
-The complete human walkthrough, physical mobile audio and final video remain separate acceptance items. A real voice session requires available provider credits and microphone consent; simulated audio tests do not prove physical playback. See [current status](ESTADO.md).
+The complete human walkthrough, physical mobile audio and final video remain separate acceptance items. A real voice session requires available provider credits and microphone consent; simulated audio tests do not prove physical playback. Incoming responses should wait in a queue without cutting the audio already playing. Pressing **Detener** explicitly stops playback and the microphone. See [mobile voice acceptance](VOICE_ACCEPTANCE.md) and [current status](ESTADO.md).

@@ -6,7 +6,7 @@ import { assertSessionMayAct } from '../domain/moderation.js';
 import { createQuoteForSession } from '../domain/quotes.js';
 import { eventTotals, guestPaidCents, obligationCents, type EventRow, type GuestRow } from '../domain/read.js';
 
-/** JSON-schema-ish declaration the Gemini API expects for native function calling. */
+/** JSON-schema-ish declaration shared by the Responses function tools. */
 export interface FunctionDeclaration {
   name: string;
   description: string;
@@ -26,7 +26,7 @@ export interface ToolContext {
 }
 
 export interface ToolOutcome {
-  /** Payload handed back to the model as a functionResponse. */
+  /** Payload handed back to the model as a tool result. */
   response: Record<string, unknown>;
   /** Quote card to render in the UI; the human still has to confirm it. */
   quote?: Quote;

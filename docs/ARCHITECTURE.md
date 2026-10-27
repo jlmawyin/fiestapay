@@ -9,7 +9,7 @@ flowchart LR
   Nginx --> API[Fastify API]
   API --> DB[(PostgreSQL)]
   API --> PayPal[PayPal sandbox]
-  API --> LLM[OpenAI Responses / optional Gemini]
+  API --> LLM[OpenAI Responses]
   Browser --> Voice[AssemblyAI voice WebSocket]
   Voice --> Browser
   Browser -->|authorized tool request| API
@@ -25,4 +25,4 @@ Chat and voice use the same tool dispatcher. Model output is untrusted. Tools ca
 
 Browser audio is sent directly to AssemblyAI with a temporary token; server keys never reach the browser. FiestaPay does not persist microphone audio. Chat history is stored per event/session. Do not enter personal information; use fictional demo aliases.
 
-The text provider is selected server-side by `LLM_PROVIDER=openai|gemini`. OpenAI is the default (`gpt-6-luna`, low reasoning). Only the selected adapter is configured; errors keep the manual flow available without switching providers. OpenAI reasoning items are encrypted and retained server-side for stateless tool continuations, never sent to the browser. Cross-provider history carries visible text without foreign tool signatures.
+The runtime text model is OpenAI Responses `gpt-6-luna` with low reasoning. `LLM_PROVIDER=openai` is accepted for compatibility and any other value is rejected. A missing key or provider error keeps the manual flow available. Reasoning items are encrypted and retained server-side for stateless tool continuations, never sent to the browser. Legacy history replays visible text only: signatures, thoughts, and old tool payloads are not forwarded.

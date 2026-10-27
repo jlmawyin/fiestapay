@@ -1,5 +1,5 @@
 import type { ChatResult } from '@fiestapay/shared';
-import type { Config, GeminiConfig, OpenAIConfig } from '../config.js';
+import type { Config, OpenAIConfig } from '../config.js';
 import type { Pool } from '../db/pool.js';
 import { HttpError, unavailable } from '../errors.js';
 import { audit } from '../domain/audit.js';
@@ -9,8 +9,7 @@ import { assertActive } from '../domain/events.js';
 import { concealExpired } from '../domain/retention.js';
 import { reserveAiRequest } from './budget.js';
 import { findGuestBySession, getEventBySlug, loadGuest, type EventRow, type GuestRow } from '../domain/read.js';
-import { callsOf, generateContent, textOf, toGeminiHistory, type GenerateFn, type HistoryRole } from './gemini.js';
-import type { StoredPart, StoredTurn } from './history.js';
+import type { HistoryRole, StoredPart, StoredTurn } from './history.js';
 import { createResponse, openaiCallsOf, openaiTextOf, toOpenAIInput, toOpenAITools, type RespondFn } from './openai.js';
 import { TOOL_NAMES, TOOL_DECLARATIONS, runTool, type ToolOutcome } from './tools.js';
 
@@ -23,9 +22,8 @@ export const MAX_TOOL_CALLS_PER_ROUND = 5;
 const FALLBACK_TEXT =
   'No pude redactar una respuesta. Puedes seguir con los formularios de la pagina: asistencia, cotizacion y pago funcionan sin el asistente.';
 
-/** Test seams: scripted models replacing each provider's HTTP round trip. */
+/** Test seam: a scripted model replaces the OpenAI HTTP round trip. */
 export interface ChatProviders {
-  generate?: GenerateFn | undefined;
   respond?: RespondFn | undefined;
 }
 
@@ -48,32 +46,6 @@ export interface ProviderAdapter {
   maxToolRounds: number;
   round(history: StoredTurn[]): Promise<ModelRound>;
   responses(answers: { call: ToolCall; response: Record<string, unknown> }[]): StoredTurn;
-}
-
-export function geminiAdapter(config: GeminiConfig, instruction: string, generate: GenerateFn): ProviderAdapter {
-  return {
-    maxToolRounds: config.maxToolRounds,
-    async round(history) {
-      const output = await generate(config, {
-        systemInstruction: instruction,
-        history: toGeminiHistory(history),
-        declarations: TOOL_DECLARATIONS,
-      });
-      return {
-        turn: output.parts.length > 0 ? { role: 'model', parts: output.parts } : null,
-        calls: callsOf(output.parts).map((c) => ({ ...(c.id ? { id: c.id } : {}), name: c.name, args: c.args, argsValid: true })),
-        text: textOf(output.parts),
-      };
-    },
-    responses(answers) {
-      return {
-        role: 'function',
-        parts: answers.map(({ call, response }): StoredPart => ({
-          functionResponse: { ...(call.id ? { id: call.id } : {}), name: call.name, response },
-        })),
-      };
-    },
-  };
 }
 
 export function openaiAdapter(config: OpenAIConfig, instruction: string, respond: RespondFn): ProviderAdapter {
@@ -189,21 +161,15 @@ function systemInstruction(event: EventRow, guest: GuestRow | null): string {
   ].join('\n');
 }
 
-/** The selected provider only: a missing configuration is a 503, never a switch to the other one. */
+/** OpenAI only. A missing key is a 503, never another model. */
 function selectProvider(
   config: Config,
   providers: ChatProviders,
 ): { maxHistoryMessages: number; adapter: (instruction: string) => ProviderAdapter } {
-  if (config.llmProvider === 'openai') {
-    const openai = config.openai;
-    if (!openai) throw unavailable(config.openaiDisabledReason ?? 'El asistente no esta configurado');
-    const respond = providers.respond ?? createResponse;
-    return { maxHistoryMessages: openai.maxHistoryMessages, adapter: (i) => openaiAdapter(openai, i, respond) };
-  }
-  const gemini = config.gemini;
-  if (!gemini) throw unavailable(config.geminiDisabledReason ?? 'El asistente no esta configurado');
-  const generate = providers.generate ?? generateContent;
-  return { maxHistoryMessages: gemini.maxHistoryMessages, adapter: (i) => geminiAdapter(gemini, i, generate) };
+  const openai = config.openai;
+  if (!openai) throw unavailable(config.openaiDisabledReason ?? 'El asistente no esta configurado');
+  const respond = providers.respond ?? createResponse;
+  return { maxHistoryMessages: openai.maxHistoryMessages, adapter: (instruction) => openaiAdapter(openai, instruction, respond) };
 }
 
 async function loadHistory(pool: Pool, eventId: string, sessionId: string, limit: number): Promise<StoredTurn[]> {

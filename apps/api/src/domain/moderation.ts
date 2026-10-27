@@ -6,8 +6,7 @@ import type {
   ModerationMessage,
   ModerationMessagePage,
 } from '@fiestapay/shared';
-import type { HistoryRole } from '../ai/gemini.js';
-import { visibleText, type StoredPart } from '../ai/history.js';
+import { visibleText, type HistoryRole, type StoredPart } from '../ai/history.js';
 import { openaiTextOf } from '../ai/openai.js';
 import { withTransaction, type Pool, type PoolClient } from '../db/pool.js';
 import { HttpError, conflict, notFound } from '../errors.js';

@@ -34,8 +34,7 @@ const stopFunding = startFundingLoop(pool, fundingPaypal, (err) => app.log.error
 });
 
 if (!config.paypal) app.log.warn(`PayPal deshabilitado: ${config.paypalDisabledReason}`);
-if (config.llmProvider === 'openai' && !config.openai) app.log.warn(`Chat OpenAI deshabilitado: ${config.openaiDisabledReason}`);
-if (config.llmProvider === 'gemini' && !config.gemini) app.log.warn(`Chat Gemini deshabilitado: ${config.geminiDisabledReason}`);
+if (!config.openai) app.log.warn(`Chat deshabilitado: ${config.openaiDisabledReason}`);
 
 const shutdown = async (signal: string): Promise<void> => {
   app.log.info(`cerrando por ${signal}`);

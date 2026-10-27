@@ -1,4 +1,3 @@
-import type { GenerateFn } from '../ai/gemini.js';
 import type { RespondFn } from '../ai/openai.js';
 import type { Config } from '../config.js';
 import type { Pool } from '../db/pool.js';
@@ -12,7 +11,6 @@ export interface RouteDeps {
   paypal: PayPalAdapter | null;
   /** Null when email is not configured. Tests inject a fake; browsers cannot select it. */
   email: EmailAdapter | null;
-  /** Overridden only by tests with a scripted model; production uses each provider's REST call. */
-  generate?: GenerateFn;
+  /** Overridden only by tests with a scripted model; production uses the OpenAI REST call. */
   respond?: RespondFn;
 }

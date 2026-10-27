@@ -32,9 +32,7 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
   // available just because the UI would like it to be.
   app.get('/capabilities', async (): Promise<Capabilities> => ({
     paypal: config.paypal !== null,
-    // Only the selected provider is ever configured, so `gemini` is false whenever OpenAI is chosen.
-    gemini: config.llmProvider === 'gemini' && config.gemini !== null,
-    chat: config.llmProvider === 'openai' ? config.openai !== null : config.gemini !== null,
+    chat: config.openai !== null,
     llmProvider: config.llmProvider,
     voice: config.voice.enabled,
     paypalClientId: config.paypal?.clientId ?? null,

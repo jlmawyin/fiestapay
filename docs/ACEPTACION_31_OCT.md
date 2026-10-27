@@ -4,22 +4,22 @@ Estado al reanudar el 27 de octubre de 2026. Esta lista separa evidencia existen
 
 | Criterio solicitado | Evidencia disponible | Comprobación que falta |
 |---|---|---|
-| 1. El invitado no puede editar desde la API | Comprobación de acceso de P0 desplegado: edición pública rechazada con 403. | Regresión de autorización sobre la versión final integrada. |
-| 2. La clave de organizador abre edición y pagos; otra da 403 | Panel con clave nueva 200 y clave anterior 403 durante la aceptación SMTP. | Regresión del panel y edición después del paquete financiero. |
-| 3. Pago solo tras captura verificada y sin duplicar orderId | Captura de USD50 y webhook real de prueba conciliados una vez; pruebas financieras previas aprobadas. | Mantener estas garantías con cierre y devolución concurrentes, primero con PostgreSQL y proveedor simulado. |
+| 1. El invitado no puede editar desde la API | P0 rechazó edición pública; release44d2c3c conserva esa autorización. AGY probó las9rutas de moderación con403sin clave o con clave incorrecta y navegador público sin encabezado de administración. | Conservar la regresión al finalizar P5; no otorgar autoridad por cookie de creador. |
+| 2. La clave de organizador abre edición y pagos; otra da 403 | Recuperación SMTP antiguo403/nuevo200 y moderación integrada en navegador con API/PostgreSQL local: acciones200con clave y403sin ella. | Revisar la versión final integrada y conservar enlaces de administración al ensayar. |
+| 3. Pago solo tras captura verificada y sin duplicar orderId | CapturaUSD50/webhook real conciliados una vez; AGY añadió regresiones de captura/reembolso concurrentes y de conciliación después de bloquear una sesión. Referencias preservadas al desplegar44d2c3c. | Conservar las garantías en P5 sin repetir el pago ya acreditado. |
 | 4. No alcanzar el mínimo a tiempo devuelve el dinero | Release8918866: nuevaUSD1 capturada y devuelta automáticamente, PayPalCOMPLETED, ledgerúnico yacciones409; [evidencia](reviews/refund-sandbox-20261026.md). | Conservar regresión en cambios posteriores; no repetir la operación sin causa. |
-| 5. Título/chat con script se muestran como texto | AGY observó escape de texto JSX y límites por IP en la fuente actual; no equivale a prueba en navegador. | Verificar representación literal en navegador y completar moderación/bloqueo, conservando las referencias de pago. |
-| 6. Sin secretos en JavaScript ni presencia del proveedor retirado | Comprobación anterior del bundle/logs sin valores privados; OpenAI real aprobado. | Eliminar código y tipos residuales de Gemini y revisar el bundle final. |
-| 7. Persistencia y borrado a las 72 horas del fin | Reinicio del servicio sin pérdida y retención probados en P0; referencias financieras conservadas. | Regresión de tombstones con obligaciones de devolución y comprobación final en otro navegador. |
+| 5. Título/chat con script se muestran como texto | Moderación44d2c3c incluye pruebas independientes de texto literal, límitesIP y permisos. Edge contra Fastify/PostgreSQL comprobó acciones del organizador e interfaz del invitado bloqueado. | Conservar escape y controles al renombrar el componente de chat en P5; el historial anterior no tiene un índice completo automático. |
+| 6. Sin secretos en JavaScript ni presencia del proveedor retirado | P5 publicado como9a40f26, CIverde yAGYaprobado: adaptador/tipos/configuración retirados,35hashes JSON cotejados. Recursos públicos corresponden a imagen activa, capabilitiesOpenAI sinflagantiguo, entorno sin variables retiradas, secretosbundle/logs0 comparados en memoria. [Revisión](reviews/openai-only-20261027.md). | Acreditado para9a40f26; conservar en cualquier corrección posterior. No repetir la prueba externa de OpenAI sin causa. |
+| 7. Persistencia y borrado a las 72 horas del fin | Retención probada en P0; recreaciones de API conservaron las fiestas y referencias financieras. El27oct se copió un dump fuera del VPS y se restauró en PostgreSQL16 local aislado:24fiestas/20asistentes/3movimientos y esquema0008, con ambas referencias financieras intactas. [Evidencia](reviews/off-vps-backup-20261027.md). | Conservar regresión de retención al finalizar P5. La restauración acredita datos; no simula recuperación completa del servidor y sus servicios externos. |
 | 8. Recuperación de administración | Jorge recibió dos correos en entrada, verificó, recuperó, abrió el panel nuevo y confirmó rechazo del enlace reutilizado. Servidor: antiguo403/nuevo200/reuso400. | Reusar esta evidencia si la fuente no cambia; no enviar más correos de prueba para repetirla. |
 | 9. Audio completo, sin solaparse ni cortarse en celular | Integrado8918866:18testsvoz+4UI, lint/tipos aprobados; excepción puntual autorizada porJorge. | Prueba física solicitada aJorge; resultado y dispositivo pendientes. |
 | 10. Demo de 90 segundos | Creación, enlaces y pago de prueba existen; recorrido completo aún sin aceptación final. | Ensayar con la versión final: crear, compartir manualmente, pagar como invitado y mostrar meta y recepción verificadas. |
 
 ## Orden de trabajo
 
-1. Completar moderación y sus guardas, sin alterar el cierre financiero y la cola de audio aprobados.
-2. Verificar independientemente permisos, bloqueo, historial y formulario. Mantener las regresiones de dinero, concurrencia y voz.
-3. Eliminar el proveedor Gemini del producto y mantener únicamente OpenAI, con timeout y salida manual. La prueba física del audio sigue pendiente de Jorge.
+1. P5 publicado y comprobado como9a40f26 el27oct: CIverde, soloAPI, recursos/capabilities/finanzas/secretos y demás servicios correctos. No repetir ese hito.
+2. Preparar el paquete de jueces, asignación privada de compradores sandbox y recorrido final sin anunciar funciones pendientes.
+3. Completar la prueba física del audio con Jorge; los ensayos de audio simulado y de navegador de escritorio no la sustituyen.
 4. Ejecutar regresión integrada y solo las pruebas externas todavía necesarias. Identificar la versión desplegada, revisar el bundle final y documentar resultados.
 5. Ensayar el recorrido de 90 segundos, preparar instrucciones para jueces y cerrar bloqueantes antes del 31. La versión8918866 ya incluye financiero/interfaz/audio revisados y devolución externa acreditada; no reconstruir ese hito.
 

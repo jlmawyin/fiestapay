@@ -19,7 +19,7 @@ describe('Assistant RSVP confirmation', () => {
     vi.spyOn(api, 'sendChat').mockResolvedValue({ text: 'Revisa la propuesta', actions: ['rsvp:yes:1'] });
     vi.spyOn(api, 'rsvp').mockRejectedValue(new Error('Capacidad insuficiente'));
     const onShowToast = vi.fn();
-    render(<PublicInviteView slug="fiesta" capabilities={{ gemini: true, voice: false, paypal: false, paypalClientId: null, sandbox: true, email: false }} onShowToast={onShowToast} onNavigateHome={vi.fn()} />);
+    render(<PublicInviteView slug="fiesta" capabilities={{ chat: true, llmProvider: 'openai', voice: false, paypal: false, paypalClientId: null, sandbox: true, email: false }} onShowToast={onShowToast} onNavigateHome={vi.fn()} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Abrir asistente IA' }));
     const input = screen.getByRole('textbox', { name: /Mensaje para el asistente/i });
     fireEvent.change(input, { target: { value: 'Quiero asistir con un acompañante' } });

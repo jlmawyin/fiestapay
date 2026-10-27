@@ -108,11 +108,11 @@ export function estimateOrganizerFee(amountCents: number): FeeEstimate {
 }
 export interface Quote { id: string; guestId: string; people: number; unitCents: number; totalCents: number; paidCents: number; amountCents: number; summary: string; expiresAt: string; feeEstimate?: FeeEstimate }
 export interface OrderResult { orderId: string; status: string; approveUrl?: string }
-/** Gemini stays in the type until the deferred provider-removal package. Runtime still prefers OpenAI. */
-export type LlmProvider = 'openai' | 'gemini';
+/** The only runtime chat provider. */
+export type LlmProvider = 'openai';
 export interface Capabilities {
   paypal: boolean; voice: boolean; paypalClientId: string | null; sandbox: true;
-  chat?: boolean; gemini?: boolean; llmProvider?: LlmProvider;
+  chat?: boolean; llmProvider?: LlmProvider;
   /** True only when the server has SMTP configured. Never implies a message was accepted or delivered. */
   email: boolean;
 }

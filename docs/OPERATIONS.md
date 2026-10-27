@@ -25,6 +25,8 @@ The dedicated certificate is managed with Certbot HTTP-01. Its webroot is `/root
 
 `backup.sh` creates a private custom-format dump under `/opt/fiestapay/backups`. Run `restore-drill.sh /opt/fiestapay/backups/fiestapay-TIMESTAMP.dump` to restore into a newly created temporary database, query event/ledger counts and remove that scratch database. It never overwrites production. Retain a separate copy outside the VPS for disaster recovery before final acceptance; a backup on the same disk is not that protection.
 
+On 27October, a private copy was downloaded to Jorge's machine, verified by SHA256 and fully restored into a new temporary PostgreSQL16 database. It preserved 24events, 20guests, schema0008 and both accepted financial references. The temporary database was removed. This does not simulate recovery of the entire VPS or its external services. See [off-VPS restore evidence](reviews/off-vps-backup-20261027.md).
+
 ## Remaining operational acceptance
 
 Record actual deploy, rollback, backup and restore evidence in [ESTADO.md](ESTADO.md). Monitor credentials, voice quota, API failures, certificate expiry and hosting through 15 December. Buyer sandbox accounts, human rehearsal and freeze/submission tasks remain explicit milestones in the daily plan.
