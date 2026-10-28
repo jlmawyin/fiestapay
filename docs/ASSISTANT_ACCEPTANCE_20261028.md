@@ -1,6 +1,6 @@
 # Aceptación de asistentes: preguntas y evidencia
 
-**Plan de prueba; todavía sin ejecución real de esta ronda.** Se aplica después de aprobar y desplegar la versión identificada. Las respuestas simuladas de las pruebas locales no acreditan estas respuestas de OpenAI/AssemblyAI.
+**Ronda real del28oct ejecutada con hallazgos.** Fuente6b33b4f:24turnos de texto(22correctos/2incompletos),22preguntas con audio sintético al servicio real(17respuestas correctas/4fallos/1incompleta) y2consultas de voz no ejecutadas tras429por reservaactiva. No se conoce el número exacto de llamadas al modelo; no hay prueba de celular físico. [Informe de14puntos](reviews/tester-browser-20261028.md). La tabla de abajo conserva el protocolo y los criterios; no implica que todos estén aprobados.
 
 Doce consultas por rol, en texto y voz. No añadir preguntas fuera del presupuesto acumulado sin reestimar la ronda. El límite preparado es24turnos de texto y hasta8reservas de voz/960segundos reservados, siempre subordinado al límite real del servidor. La reserva no equivale al consumo facturado.
 

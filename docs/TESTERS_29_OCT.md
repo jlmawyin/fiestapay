@@ -1,3 +1,5 @@
+> Estado28oct: pagos50+50+25 verificados en la ronda automática, pero quedan defectos conocidos en la vista previa de WhatsApp, algunas respuestas IA y contraste. No los cuentes como funciones ya aprobadas. La prueba de voz en tu celular sigue siendo necesaria; registra lo que oyes y si el inicio se corta. Jorge convoca; los agentes no envían invitaciones. [Informe actual](reviews/tester-browser-20261028.md).
+
 # Prueba humana de FiestaPay — 29 octubre
 
 Para Jorge y sus 3–5 probadores. Duración orientativa: 20 minutos por persona. Resultados hasta las 20:00 America/Guayaquil. Jorge comparte la convocatoria; la aplicación no envía invitaciones automáticamente.

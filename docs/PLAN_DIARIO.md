@@ -1,5 +1,9 @@
 # Plan vigente — FiestaPay · entrega máxima 31 octubre 2026
 
+## Estado28oct: ronda real e integración del constructor
+
+Producto6b33b4f:10/14puntos de navegador aprobados; cuatro grupos de corrección pendientes en el informe. GROKCLIpausado porJorge; constructor temporalDSHprobado conlow, AGYverificaciónindependiente, Claude recuperación segúnhabilidad. Esto no reinicia paquetes3/3. Se solicitó excepción acotada de recuperación y presupuesto de revalidación; no se presume respuesta ni nuevos topes. La campaña3pagos125USD/24texto/8solicitudesvoz ya cerró.
+
 ## Encargo consolidado del 28 de octubre — prioridad vigente
 
 El [encargo de Jorge](ENCARGO_2026-10-28.md) y su ZIP de pruebas sustituyen las partes incompatibles del calendario anterior. Cierre funcional sábado31oct; corte interno de envío5nov. Resultados humanos previstos hasta jueves29oct20:00 Guayaquil.
@@ -34,7 +38,7 @@ Las etiquetas P0–P6 de esta etapa son prioridades nuevas; «P2 cero horas» de
 
 **35 horas humanas disponibles; no son una estimación garantizada del trabajo nuevo.** Recuperación, reembolsos automáticos y audio móvil concentran el riesgo. Los agentes ejecutan paquetes acotados; Codex integra. No prometemos compensar desviaciones con jornadas humanas más largas. El 31 queda para corrección, sin funciones nuevas. El recorrido de 90 segundos es una meta de presentación, no una garantía de duración de PayPal o de la red.
 
-Orden técnico: (1) cerrar evidencia del pago/OpenAI ya construido, (2) persistencia y autorización, (3) ciclo de vida y recuperación, (4) devolución y cierre financiero, (5) moderación/formulario/audio, (6) aceptación y presentación. Se puede investigar en paralelo, máximo dos frentes de construcción. GROK construye; AGY verifica independientemente; Claude interviene solo en recuperación conforme a `dirigir-agentes`. Tres entregas evaluadas por problema como máximo, contadores persistentes.
+Orden técnico: (1) cerrar evidencia del pago/OpenAI ya construido, (2) persistencia y autorización, (3) ciclo de vida y recuperación, (4) devolución y cierre financiero, (5) moderación/formulario/audio, (6) aceptación y presentación. Se puede investigar en paralelo, máximo dos frentes de construcción. Desde el28oct DSH construye temporalmente y GROKCLI queda pausado; AGY verifica independientemente y Claude interviene en recuperación conforme a `dirigir-agentes`. Tres entregas evaluadas por problema como máximo, contadores persistentes.
 
 Puntos de diseño: asistencia («va») y pago («pagó» solo tras captura) separados; DB conserva referencias financieras mínimas aunque la fiesta y su contenido dejen de estar disponibles; clave de administración de 32 bytes, hash en DB y comparación constante; toda autorización del servidor; el enlace público jamás permite editar. No usar nombres reales de jueces obligatoriamente: la prueba usa identidades ficticias; el producto permite nombre del asistente/pagador.
 

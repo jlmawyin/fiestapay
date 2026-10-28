@@ -88,3 +88,14 @@ Los timeouts se conservaron hasta la nueva hipótesis y el diagnóstico con arch
 Base local desechable para verificación: contenedor `fiestapay-test-oct25`, PostgreSQL16, solo loopback127.0.0.1:55439; sin datos de producción. Configuración de pruebas en `.local/test-database.md`. No tocar contenedores de otros proyectos.
 
 Jorge confirmó mantener la pausa al 20 % de cinco horas. La exención semanal anterior no se presume permanente: en este despertar se aplican ambas guardas. No se consume el reseteo del usuario.
+
+
+28oct12:13 — FP-TESTER-EVIDENCE-REVIEW-20261028 / AGY Gemini / intento1/3 EN CURSO: revisión independiente SOLO evidencia real congelada de24turnos de texto y hechos de3capturas125USD. No reparación del arnés3/3, no código/producto/proveedores. CuotaGemini100%5h63.8%semanal; Claude/GPT4.8%STOP separado. Root ejecuta QA por excepción humana autorizada.
+
+28oct12:26 — FP-TESTER-EVIDENCE-REVIEW-20261028 AGY1/3 entregó22/24texto aprobados,2respuestas incompletas. Codex descarta inferencia17llamadas como conteo real: sintelemetría, proveedor por turno desconocido. Uso73584entrada/19918salida/15728thinking/93502total. Gemini posterior99%5h62.9%semanal; bucketClaude/GPT4.8%STOP, noforce. Revisión2/3 amplía a22preguntasvoz realmente intentadas y dos pendientes por429reservaactiva, sin nuevos proveedores ni producto.
+
+28oct12:35 — FP-TESTER-BROWSER-OPERATOR-20261028 / Codex / excepción humana de EJECUCIÓN: ronda finalizó10/14puntos,54capturas numeradas,3capturasPayPal125USD,24texto,22preguntasvoz. Sin modificación deapp/arnés. AGY FP-TESTER-EVIDENCE-REVIEW-20261028 intento2/3 CERRADO: corrige proveedor realdesconocido, texto22/24, voz17correctas4fallos1incompleta2noejecutadas; no aprobar arquitectura/ASR/hardware por esa muestra. Uso2:90189entrada/23454salida/17339thinking/cache50889/113643total. Rootdiscrepa severidadCRITICAL atribuida a respuesta devoz: no fallo de captura ni devolución ejecutada; se registraP1deguía.429reservaactiva esguardaesperada, no defecto ni cuota globaldemostrada. ConstruccionesB/C3/3yarnés3/3 siguenagotados.
+
+28oct13:00 — DSH-BRIDGE-VALIDATION-20261028 NOOP1/3 yFILETOOLS1/3 COMPLETADOS: sesiónsession-55c64f3f-12c2-4309-8483-96f660c1afa2, runsrun-b29aab33-75ec-4814-9f1b-327939139cf2(5.3s,1turn,0tools) yrun-8c9a122f-9f58-4ca7-8487-7c405c266ee8(11.4s,2turnos,write/pwsh),exit0.13tests deRootcorrectos;sin producto/claves aDSH;usage/quota%noexpuestosnoreportar0. FP-DSH-INTEGRATION-VERIFY-20261028 AGY1/3 cerradoPASS8simulaciones,100914total(83867in17047out13165think/cache147100),160.44s. Generóartifactbrainexterno,no leído/usado ni prometidoaislamientoduro. No más jobsrootactivos. GROKpausadohistorialsinreset.
+
+CuotaAGYGeminiposteriorDSHreview: weekly 62.1%restante, 5h 98%restante. El agregado4.8%perteneceaClaude/GPT,no cuotaGemini. DSH bridge no exponeuso/saldo;consumo real de sus2llamadasdesconocido,no declarar0tokens.

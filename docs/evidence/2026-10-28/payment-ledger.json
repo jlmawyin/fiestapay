@@ -1,0 +1,35 @@
+[
+  {
+    "paypal_order_id": "6WX03765GY104952A",
+    "status": "paid",
+    "amount_cents": 5000,
+    "currency": "USD",
+    "capture_id": "3VL85236CE745973D",
+    "capture_rows": 1,
+    "captured_cents": 5000,
+    "refund_rows": 0,
+    "ledger_external_id": "3VL85236CE745973D"
+  },
+  {
+    "paypal_order_id": "0M3892971X5696405",
+    "status": "paid",
+    "amount_cents": 5000,
+    "currency": "USD",
+    "capture_id": "8B726614E36326832",
+    "capture_rows": 1,
+    "captured_cents": 5000,
+    "refund_rows": 0,
+    "ledger_external_id": "8B726614E36326832"
+  },
+  {
+    "paypal_order_id": "0RF21260236962122",
+    "status": "paid",
+    "amount_cents": 2500,
+    "currency": "USD",
+    "capture_id": "4PB12920F5996540D",
+    "capture_rows": 1,
+    "captured_cents": 2500,
+    "refund_rows": 0,
+    "ledger_external_id": "4PB12920F5996540D"
+  }
+]
