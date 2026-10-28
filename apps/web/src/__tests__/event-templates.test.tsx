@@ -17,6 +17,12 @@ function fillBasics(price = '25.00', capacity = '10') {
   fireEvent.change(screen.getByLabelText(/Capacidad máxima/i), { target: { value: capacity } });
 }
 
+function submitCreate() {
+  fireEvent.click(screen.getByRole('button', { name: 'Revisar invitación' }));
+  const publish = screen.queryByRole('button', { name: 'Publicar invitación' });
+  if (publish) fireEvent.click(publish);
+}
+
 describe('Event Templates & Agenda', () => {
   it('starts empty, validates inline, and submits cents for 25/18/65/40 USD', async () => {
     const onSubmit = vi.fn().mockImplementation(async (_input: EventInput) => undefined);
@@ -24,12 +30,12 @@ describe('Event Templates & Agenda', () => {
 
     expect((screen.getByLabelText(/Título del Evento/i) as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText(/Lugar o Dirección/i) as HTMLInputElement).placeholder).toBe('Lugar o direccion');
-    fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
+    submitCreate();
     expect(await screen.findByRole('alert')).toHaveTextContent('Escribe un titulo.');
     expect(onSubmit).not.toHaveBeenCalled();
 
     fillBasics('25.00', '8');
-    fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
+    submitCreate();
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     const comida = onSubmit.mock.calls[0][0] as EventInput;
     expect(comida.template).toBe('comida');
@@ -40,7 +46,7 @@ describe('Event Templates & Agenda', () => {
     onSubmit.mockClear();
     fireEvent.click(screen.getByRole('radio', { name: /En Casa/i }));
     fireEvent.change(screen.getByLabelText(/Cuota por persona/i), { target: { value: '18.00' } });
-    fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
+    submitCreate();
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect((onSubmit.mock.calls[0][0] as EventInput).template).toBe('casa');
     expect((onSubmit.mock.calls[0][0] as EventInput).priceCents).toBe(1800);
@@ -49,14 +55,14 @@ describe('Event Templates & Agenda', () => {
     onSubmit.mockClear();
     fireEvent.click(screen.getByRole('radio', { name: /Viaje/i }));
     fireEvent.change(screen.getByLabelText(/Cuota por persona/i), { target: { value: '65.00' } });
-    fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
+    submitCreate();
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect((onSubmit.mock.calls[0][0] as EventInput).priceCents).toBe(6500);
 
     onSubmit.mockClear();
     fireEvent.click(screen.getByRole('radio', { name: /Evento/i }));
     fireEvent.change(screen.getByLabelText(/Cuota por persona/i), { target: { value: '40.00' } });
-    fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
+    submitCreate();
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect((onSubmit.mock.calls[0][0] as EventInput).template).toBe('evento');
     expect((onSubmit.mock.calls[0][0] as EventInput).priceCents).toBe(4000);
@@ -89,7 +95,7 @@ describe('Event Templates & Agenda', () => {
     fireEvent.change(lastSpeakerInput, { target: { value: 'Chef Alejandro' } });
 
     // Submit and verify speaker is included in payload
-    fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
+    submitCreate();
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     const submittedWithSpeaker = onSubmit.mock.calls[0][0] as EventInput;
     const addedItem = submittedWithSpeaker.agenda.find((a) => a.title === 'Taller de Parrilla');
@@ -106,7 +112,7 @@ describe('Event Templates & Agenda', () => {
     }
 
     // Submit with empty agenda - must remain valid
-    fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
+    submitCreate();
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     const submittedEmptyAgenda = onSubmit.mock.calls[0][0] as EventInput;
     expect(submittedEmptyAgenda.agenda).toEqual([]);
@@ -125,7 +131,7 @@ describe('Event Templates & Agenda', () => {
     expect(dateInput.value).not.toMatch(/T19:00$/);
 
     // Submit without changing date
-    fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
+    submitCreate();
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
 
     const submitted = onSubmit.mock.calls[0][0] as EventInput;

@@ -302,4 +302,67 @@ describe('PayPal Return Flow, URL Order Recovery and Capture Safety', () => {
     expect(api.getEventBySlug).toHaveBeenLastCalledWith('second');
     expect(screen.queryByText(/Alejandro/)).not.toBeInTheDocument();
   });
+
+  it('checks the original tab after Abrir PayPal and captures only through the server', async () => {
+    sessionStorage.setItem('fiestapay_order_test-fiesta', JSON.stringify({
+      orderId: 'ORD-EXT-1',
+      status: 'paid',
+      approveUrl: 'https://sandbox.paypal.com/checkoutnow?token=ORD-EXT-1',
+    }));
+    window.history.replaceState({}, '', '/e/test-fiesta');
+    let gets = 0;
+    let releaseGet!: (value: { status: string; guest: Guest }) => void;
+    const getPending = new Promise<{ status: string; guest: Guest }>((resolve) => { releaseGet = resolve; });
+    vi.mocked(api.getOrder).mockImplementation(() => {
+      gets += 1;
+      if (gets === 1) return Promise.resolve({ status: 'created', guest: mockGuest });
+      return getPending;
+    });
+    let releaseCapture!: (value: { status: string; guest: Guest }) => void;
+    const capturePending = new Promise<{ status: string; guest: Guest }>((resolve) => { releaseCapture = resolve; });
+    const captureSpy = vi.spyOn(api, 'captureOrder').mockReturnValue(capturePending);
+    const onShowToast = vi.fn();
+
+    render(
+      <PublicInviteView
+        slug="test-fiesta"
+        capabilities={mockCapabilities}
+        onShowToast={onShowToast}
+        onNavigateHome={vi.fn()}
+      />,
+    );
+
+    const link = await screen.findByRole('link', { name: /Abrir enlace de aprobación PayPal/i });
+    expect(api.getOrder).toHaveBeenCalledWith('ORD-EXT-1');
+    expect(captureSpy).not.toHaveBeenCalled();
+    expect(onShowToast).not.toHaveBeenCalledWith('success', expect.anything(), expect.anything());
+    fireEvent.click(link);
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    await act(async () => {
+      window.dispatchEvent(new Event('blur'));
+      window.dispatchEvent(new Event('focus'));
+    });
+
+    expect(await screen.findByText(/Comprobando el pago con el servidor/)).toBeInTheDocument();
+    expect(captureSpy).not.toHaveBeenCalled();
+    expect(onShowToast).not.toHaveBeenCalledWith('success', expect.anything(), expect.anything());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Verificar / Continuar Captura' }));
+    await waitFor(() => expect(captureSpy).toHaveBeenCalledTimes(1));
+    expect(captureSpy).toHaveBeenCalledWith('ORD-EXT-1');
+    expect(onShowToast).not.toHaveBeenCalledWith('success', expect.anything(), expect.anything());
+
+    await act(async () => { releaseGet({ status: 'approved', guest: mockGuest }); });
+    expect(captureSpy).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      releaseCapture({ status: 'paid', guest: { ...mockGuest, paidCents: 2500, dueCents: 0 } });
+    });
+    await waitFor(() => expect(onShowToast).toHaveBeenCalledWith(
+      'success',
+      expect.stringContaining('capturado correctamente por el servidor'),
+      expect.stringContaining('Pago confirmado'),
+    ));
+    expect(captureSpy).toHaveBeenCalledTimes(1);
+  });
 });

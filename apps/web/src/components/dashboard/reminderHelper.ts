@@ -1,5 +1,6 @@
 import type { Guest } from '../../types';
 import { usd } from '../../types';
+import { shareableInviteUrl, whatsAppShareUrl } from '../../lib/event-presentation';
 
 export interface ReminderParams {
   guestName: string;
@@ -15,7 +16,8 @@ export function buildGuestReminderMessage({
   inviteUrl,
 }: ReminderParams): string {
   const amountFormatted = usd(dueCents);
-  return `¡Hola ${guestName}! Te recordamos tu confirmación para "${eventTitle}". Tienes una cuota pendiente de ${amountFormatted}. Puedes revisar los detalles y pagar aquí: ${inviteUrl}`;
+  const link = shareableInviteUrl(inviteUrl);
+  return `¡Hola ${guestName}! Te recordamos tu confirmación para "${eventTitle}". Tienes una cuota pendiente de ${amountFormatted}. Puedes revisar los detalles y pagar aquí: ${link}`;
 }
 
 export function buildGuestReminderUrl({
@@ -30,7 +32,7 @@ export function buildGuestReminderUrl({
     dueCents,
     inviteUrl,
   });
-  return `https://wa.me/?text=${encodeURIComponent(message)}`;
+  return whatsAppShareUrl(message);
 }
 
 export function canSendReminder(guest: Guest): boolean {

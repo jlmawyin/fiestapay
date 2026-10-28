@@ -1,3 +1,22 @@
+import type { ThemeKey } from './presentation.js';
+
+export type { ThemeKey, ThemeDefinition, TemplateInviteCopy, ContrastPair } from './presentation.js';
+export {
+  TEMPLATE_THEMES,
+  TEMPLATE_INVITE_COPY,
+  THEMES,
+  ORGANIZER_NAME_MAX,
+  themesForTemplate,
+  defaultThemeFor,
+  themeBelongs,
+  resolveTheme,
+  normalizeOrganizerName,
+  suggestTheme,
+  relativeLuminance,
+  contrastRatio,
+  themeContrastPairs,
+} from './presentation.js';
+
 export type TemplateKind = 'comida' | 'casa' | 'viaje' | 'evento';
 export type RsvpStatus = 'yes' | 'no' | 'maybe';
 export interface AgendaItem { time: string; title: string; speaker?: string }
@@ -6,6 +25,10 @@ export interface EventInput {
   description: string; startsAt: string; endsAt: string; location: string; includes: string[];
   priceCents: number; capacity: number; goalCents: number | null; minimumCents: number | null;
   agenda: AgendaItem[];
+  /** Public display name. Optional. Omitted on update keeps the stored name. */
+  organizerName?: string | null;
+  /** Palette key for this template. Omitted uses the template default. */
+  theme?: ThemeKey;
   /** Write-only. The server stores a hash and never returns the code. */
   accessCode?: string | null;
   /**
@@ -45,6 +68,10 @@ export interface FiestaEvent {
   refundSummary?: RefundSummary;
   /** Net verified cents used at the irreversible decision. Null until then. */
   fundingBasisCents?: number | null;
+  /** Public name of who organizes. Null on rows saved before this field existed. */
+  organizerName?: string | null;
+  /** Resolved theme key. Legacy rows are presented with the template default. */
+  theme?: ThemeKey;
 }
 export interface Guest {
   id: string;

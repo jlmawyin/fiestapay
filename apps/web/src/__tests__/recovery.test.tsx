@@ -247,7 +247,7 @@ describe('recuperacion en el navegador', () => {
     const requestPending = deferred<RequestResult>();
     const request = vi.spyOn(api, 'requestRecovery').mockReturnValueOnce(requestPending.promise);
     render(<OrganizerRecoveryView available />);
-    fireEvent.change(screen.getByLabelText('Identificador de la fiesta'), { target: { value: 'casa-uno' } });
+    fireEvent.change(screen.getByLabelText('Identificador de la invitación'), { target: { value: 'casa-uno' } });
     fireEvent.change(screen.getByLabelText('Correo verificado'), { target: { value: 'fiesta-test@example.test' } });
     fireEvent.click(screen.getByRole('button', { name: 'Solicitar enlace' }));
     expect(request).toHaveBeenCalledWith('casa-uno', 'fiesta-test@example.test');
@@ -270,7 +270,7 @@ describe('recuperacion en el navegador', () => {
     const rejected = deferred<RequestResult>();
     vi.spyOn(api, 'requestRecovery').mockReturnValueOnce(rejected.promise);
     render(<OrganizerRecoveryView available />);
-    fireEvent.change(screen.getByLabelText('Identificador de la fiesta'), { target: { value: 'casa-uno' } });
+    fireEvent.change(screen.getByLabelText('Identificador de la invitación'), { target: { value: 'casa-uno' } });
     fireEvent.change(screen.getByLabelText('Correo verificado'), { target: { value: 'fiesta-test@example.test' } });
     fireEvent.click(screen.getByRole('button', { name: 'Solicitar enlace' }));
     await arrive(`/recover#t=${THIRD}`);
@@ -355,10 +355,10 @@ describe('recuperacion en el navegador', () => {
     render(<OrganizerRecoveryView available />);
     expect(screen.queryByText(/terceros/i)).toBeNull();
     expect(screen.queryByText(/resultado es el mismo/i)).toBeNull();
-    fireEvent.change(screen.getByLabelText('Identificador de la fiesta'), { target: { value: 'casa-uno' } });
+    fireEvent.change(screen.getByLabelText('Identificador de la invitación'), { target: { value: 'casa-uno' } });
     fireEvent.change(screen.getByLabelText('Correo verificado'), { target: { value: 'fiesta-test@example.test' } });
     fireEvent.click(screen.getByRole('button', { name: 'Solicitar enlace' }));
-    expect(await screen.findByText('Si el correo esta verificado para esa fiesta, recibirás instrucciones.')).toBeTruthy();
+    expect(await screen.findByText('Si el correo esta verificado para esa invitación, recibirás instrucciones.')).toBeTruthy();
     expect(screen.queryByText(/resultado es el mismo/i)).toBeNull();
     expect(screen.queryByText(/terceros/i)).toBeNull();
   });

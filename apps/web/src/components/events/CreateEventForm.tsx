@@ -1,5 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { TEMPLATE_INVITE_COPY, themesForTemplate, type ThemeKey } from '@fiestapay/shared';
 import type { EventInput, FiestaEvent, TemplateKind, AgendaItem } from '../../types';
+import { usd } from '../../types';
+import {
+  defaultThemeFor,
+  formatEventRange,
+  organizerLine,
+  resolveTheme,
+  suggestTheme,
+  themeCssVars,
+} from '../../lib/event-presentation';
 import { TemplateCover } from '../illustrations/TemplateCover';
 
 interface CreateEventFormProps {
@@ -37,6 +47,10 @@ const mealForHour = (hour: number): 'desayuno' | 'almuerzo' | 'cena' => {
 
 const dollars = (cents: number | null): string => (cents === null ? '' : (cents / 100).toFixed(2));
 
+// Visible title hint is neutral. The rule string below still says "Nombre de la fiesta"
+// so an unmodified legacy example keeps warning. That leftover phrase is intentional.
+const TITLE_PLACEHOLDER = 'Nombre de la invitación';
+
 const EXAMPLE_FIELDS = [
   { field: 'title', label: 'Título del Evento', example: 'Nombre de la fiesta', inputId: 'event-title' },
   { field: 'location', label: 'Lugar o Dirección', example: 'Lugar o direccion', inputId: 'event-location' },
@@ -54,6 +68,8 @@ const EXAMPLE_FIELDS = [
   },
 ] as const;
 
+const TITLE_EXAMPLE_PHRASES = [EXAMPLE_FIELDS[0].example, TITLE_PLACEHOLDER] as const;
+
 type ExampleFieldKey = (typeof EXAMPLE_FIELDS)[number]['field'];
 
 type ExampleHit = {
@@ -69,6 +85,13 @@ type ExampleReview = {
 };
 
 type Submission = { ok: false; message: string } | { ok: true; payload: EventInput };
+
+type PublishReview = {
+  signature: string;
+  payload: EventInput;
+  hits: ExampleHit[];
+  datesSuggested: boolean;
+};
 
 // Whole-field match only. Folding trim, case, and accents must not treat a
 // longer sentence that merely discusses an example as the placeholder.
@@ -96,7 +119,11 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
   const [description, setDescription] = useState(initial?.description ?? '');
   const [mealTouched, setMealTouched] = useState(Boolean(initial));
   const [meal, setMeal] = useState<'desayuno' | 'almuerzo' | 'cena'>(initial?.meal ?? 'almuerzo');
+  const [organizerName, setOrganizerName] = useState(initial?.organizerName ?? '');
+  const [themeTouched, setThemeTouched] = useState(Boolean(initial?.theme));
+  const [theme, setTheme] = useState<ThemeKey>(initial?.theme ?? defaultThemeFor(initial?.template ?? 'comida').key);
   const [startsAt, setStartsAt] = useState(() => (initial ? toLocalInput(new Date(initial.startsAt)) : defaultStart()));
+  const [startTouched, setStartTouched] = useState(Boolean(initial));
   const [endsTouched, setEndsTouched] = useState(Boolean(initial?.endsAt));
   const [endsAt, setEndsAt] = useState(() => {
     if (initial?.endsAt) return toLocalInput(new Date(initial.endsAt));
@@ -118,16 +145,23 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
   const [deadlineTouched, setDeadlineTouched] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [exampleReview, setExampleReview] = useState<ExampleReview | null>(null);
+  const [publishReview, setPublishReview] = useState<PublishReview | null>(null);
   const exampleWarningRef = useRef<HTMLDivElement>(null);
+  const posting = useRef(false);
   const isEdit = Boolean(initial);
   const isLegacy = initial?.fundingStatus === 'legacy';
   const initialDeadlineAbsent = isEdit && (initial?.fundingDeadlineAt == null);
 
   const handleSelectTemplate = (t: TemplateKind) => {
     setTemplate(t);
+    if (!themesForTemplate(t).some((item) => item.key === theme)) {
+      setTheme(defaultThemeFor(t).key);
+      setThemeTouched(false);
+    }
   };
 
   const handleStartChange = (value: string) => {
+    setStartTouched(true);
     setStartsAt(value);
     if (!endsTouched) setEndsAt(plusHours(value, 4));
     if (!mealTouched) {
@@ -159,7 +193,12 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
 
   const collectExampleHits = (): ExampleHit[] => {
     const values = exampleValues();
-    return EXAMPLE_FIELDS.filter((item) => matchesKnownExample(values[item.field], item.example)).map((item) => ({
+    return EXAMPLE_FIELDS.filter((item) => {
+      if (item.field === 'title') {
+        return TITLE_EXAMPLE_PHRASES.some((phrase) => matchesKnownExample(values.title, phrase));
+      }
+      return matchesKnownExample(values[item.field], item.example);
+    }).map((item) => ({
       field: item.field,
       label: item.label,
       raw: values[item.field],
@@ -172,6 +211,9 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       template,
       title,
       description,
+      organizerName,
+      theme,
+      themeTouched,
       meal,
       mealTouched,
       startsAt,
@@ -191,7 +233,9 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
     });
 
   const liveSignature = reviewSignature();
-  const activeReview = exampleReview && exampleReview.signature === liveSignature ? exampleReview : null;
+  const activeExample = exampleReview && exampleReview.signature === liveSignature ? exampleReview : null;
+  const activePublish = publishReview && publishReview.signature === liveSignature ? publishReview : null;
+  const activeReview = isEdit ? activeExample : activePublish;
 
   useEffect(() => {
     if (!activeReview) return;
@@ -282,6 +326,8 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       title: title.trim(),
       template,
       meal,
+      organizerName: organizerName.trim() ? organizerName.trim() : null,
+      theme,
       description: description.trim(),
       startsAt: new Date(startsAt).toISOString(),
       endsAt: new Date(endsAt).toISOString(),
@@ -318,21 +364,27 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
 
   const rejectSubmission = (message: string) => {
     setExampleReview(null);
+    setPublishReview(null);
     setValidationError(message);
   };
 
   const submitPayload = async (payload: EventInput) => {
+    if (posting.current || isLoading) return;
+    posting.current = true;
     try {
       await onSubmit(payload);
-    } catch (err: any) {
+      setPublishReview(null);
       setExampleReview(null);
-      setValidationError(err.message || 'Error al crear la fiesta');
+    } catch (err: any) {
+      setValidationError(err.message || 'Error al crear la invitación');
+    } finally {
+      posting.current = false;
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoading) return;
+    if (isLoading || posting.current) return;
     setValidationError(null);
 
     const built = buildSubmission();
@@ -342,8 +394,20 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
     }
 
     const hits = collectExampleHits();
+    const signature = reviewSignature();
+    if (!isEdit) {
+      setExampleReview(null);
+      setPublishReview({
+        signature,
+        payload: built.payload,
+        hits,
+        datesSuggested: !startTouched && !endsTouched,
+      });
+      return;
+    }
+
     if (hits.length > 0) {
-      setExampleReview({ signature: reviewSignature(), hits });
+      setExampleReview({ signature, hits });
       return;
     }
 
@@ -352,17 +416,19 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
   };
 
   const handleReviseExamples = () => {
-    if (isLoading || !activeReview) return;
+    if (isLoading || !activeReview || activeReview.hits.length === 0) return;
     const first = activeReview.hits[0];
     setExampleReview(null);
+    setPublishReview(null);
     if (first) document.getElementById(first.inputId)?.focus();
   };
 
   const handlePublishExamples = async () => {
-    if (isLoading || !activeReview) return;
+    if (isLoading || posting.current || !activeReview || activeReview.hits.length === 0) return;
     const signature = reviewSignature();
     if (signature !== activeReview.signature) {
       setExampleReview(null);
+      setPublishReview(null);
       return;
     }
 
@@ -373,25 +439,44 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
     }
     if (collectExampleHits().length === 0 || reviewSignature() !== signature) {
       setExampleReview(null);
+      setPublishReview(null);
+      return;
+    }
+    if (!isEdit && 'payload' in activeReview && JSON.stringify(built.payload) !== JSON.stringify(activeReview.payload)) {
+      setPublishReview(null);
       return;
     }
 
     await submitPayload(built.payload);
   };
 
+  const handlePublishReviewed = async () => {
+    if (isLoading || posting.current || !activePublish || activePublish.hits.length > 0) return;
+    const built = buildSubmission();
+    if (!built.ok) {
+      rejectSubmission(built.message);
+      return;
+    }
+    if (reviewSignature() !== activePublish.signature || JSON.stringify(built.payload) !== JSON.stringify(activePublish.payload)) {
+      setPublishReview(null);
+      return;
+    }
+    await submitPayload(activePublish.payload);
+  };
+
+  const selectedTheme = resolveTheme(template, theme);
+  const themeHint = suggestTheme(template, title);
+  const reviewedPayload = activePublish?.payload ?? null;
+
   return (
-    <form noValidate onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+    <form noValidate onSubmit={handleSubmit} className="event-form" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', ...themeCssVars(selectedTheme) }}>
       {/* Template Selection Tabs */}
       <div>
         <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
-          Plantilla de Fiesta (4 Opciones)
+          Tipo de invitación
         </label>
         <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-            gap: '0.65rem',
-          }}
+          className="template-picker"
           role="radiogroup"
           aria-label="Selecciona una de las 4 plantillas"
         >
@@ -434,8 +519,47 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       </div>
 
       {/* SVG Preview Card */}
-      <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-        <TemplateCover template={template} height="130px" />
+      <div className="theme-scope" data-theme={selectedTheme.key} style={{ ...themeCssVars(selectedTheme), borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+        <TemplateCover template={template} height="130px" accent={selectedTheme.accent} />
+        <p className="theme-phrase" style={{ margin: '0.75rem 1rem' }}>{selectedTheme.phrase}</p>
+      </div>
+
+      <div className="form-group">
+        <label className="form-label" htmlFor="event-theme">Tema</label>
+        <div id="event-theme" className="theme-picker" role="radiogroup" aria-label="Tema de la invitación">
+          {themesForTemplate(template).map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              role="radio"
+              aria-checked={theme === item.key}
+              className="theme-choice"
+              style={{ ['--choice-accent' as string]: item.accent }}
+              onClick={() => {
+                setThemeTouched(true);
+                setTheme(item.key);
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        {themeHint && themeHint.key !== theme ? (
+          <p className="form-label-desc">
+            Sugerencia: {themeHint.label}. El tema actual se mantiene hasta que la uses.
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ marginLeft: '0.5rem', padding: '0.2rem 0.55rem', fontSize: '0.75rem' }}
+              onClick={() => {
+                setThemeTouched(true);
+                setTheme(themeHint.key);
+              }}
+            >
+              Usar {themeHint.label}
+            </button>
+          </p>
+        ) : null}
       </div>
 
       <div
@@ -465,11 +589,28 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
-          placeholder="Nombre de la fiesta"
+          placeholder={TITLE_PLACEHOLDER}
         />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+      <div className="form-group">
+        <label className="form-label" htmlFor="event-organizer">
+          Nombre de quien organiza (opcional)
+        </label>
+        <input
+          id="event-organizer"
+          className="form-input"
+          value={organizerName}
+          maxLength={100}
+          onChange={(e) => setOrganizerName(e.target.value)}
+          placeholder="Como quieres aparecer"
+          autoComplete="off"
+        />
+        <span className="form-label-desc">Nombre público de la invitación. No hace falta un correo.</span>
+      </div>
+
+      <div className="event-form-grid-2">
+        {template === 'comida' ? (
         <div className="form-group">
           <label className="form-label" htmlFor="event-meal">
             Tipo de Comida
@@ -488,6 +629,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
             <option value="cena">Cena</option>
           </select>
         </div>
+        ) : null}
 
         <div className="form-group">
           <label className="form-label" htmlFor="event-date">
@@ -501,6 +643,9 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
             onChange={(e) => handleStartChange(e.target.value)}
             required
           />
+          {!isEdit && !startTouched ? (
+            <span className="form-label-desc">Sugerencia. Confírmala en el resumen antes de publicar.</span>
+          ) : null}
         </div>
       </div>
 
@@ -519,6 +664,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
           }}
           required
         />
+        <span className="form-label-desc">Incluye la fecha. Si termina otro día, elige esa fecha.</span>
       </div>
 
       <div className="form-group">
@@ -606,7 +752,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
                 onChange={(e) => setMinimumDollars(e.target.value)}
               />
             </div>
-            <span className="form-label-desc">Para confirmar fiesta</span>
+            <span className="form-label-desc">Para confirmar la invitación</span>
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
@@ -732,7 +878,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
               setAccessTouched(true);
               setAccessCode(e.target.value);
             }}
-            placeholder={initial ? 'Vacio quita el codigo' : 'Solo si la fiesta es privada'}
+            placeholder={initial ? 'Vacio quita el codigo' : 'Solo si la invitación es privada'}
             autoComplete="off"
           />
         </div>
@@ -786,7 +932,49 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
         </div>
       </div>
 
-      {activeReview ? (
+      {reviewedPayload ? (
+        <section className="publish-review" aria-label="Resumen de la invitación" style={themeCssVars(selectedTheme)}>
+          <h3 style={{ margin: 0 }}>Revisar invitación</h3>
+          <p className="theme-phrase" style={{ fontSize: '1.15rem' }}>{selectedTheme.phrase}</p>
+          {activePublish?.datesSuggested ? (
+            <p>Estas fechas son una sugerencia. Publicar la invitación las confirma.</p>
+          ) : (
+            <p>Estas son las fechas que quedan en la invitación.</p>
+          )}
+          <dl>
+            <dt>Tipo</dt>
+            <dd>{TEMPLATE_INVITE_COPY[reviewedPayload.template].welcome}</dd>
+            <dt>Título</dt>
+            <dd>{reviewedPayload.title}</dd>
+            <dt>Quién organiza</dt>
+            <dd>{organizerLine(reviewedPayload.organizerName) ?? 'Sin nombre público'}</dd>
+            <dt>Cuándo</dt>
+            <dd>{formatEventRange(reviewedPayload.startsAt, reviewedPayload.endsAt)}</dd>
+            <dt>Lugar</dt>
+            <dd>{reviewedPayload.location}</dd>
+            <dt>Cuota por persona</dt>
+            <dd>{usd(reviewedPayload.priceCents)}</dd>
+            {reviewedPayload.template === 'comida' ? (
+              <>
+                <dt>Tipo de comida</dt>
+                <dd style={{ textTransform: 'capitalize' }}>{reviewedPayload.meal}</dd>
+              </>
+            ) : null}
+          </dl>
+          {activePublish && activePublish.hits.length === 0 ? (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setPublishReview(null)} disabled={isLoading}>
+                Seguir editando
+              </button>
+              <button type="button" className="btn btn-primary btn-theme-primary" onClick={() => void handlePublishReviewed()} disabled={isLoading}>
+                Publicar invitación
+              </button>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {activeReview && activeReview.hits.length > 0 ? (
         <div
           ref={exampleWarningRef}
           id="example-values-warning"
@@ -837,8 +1025,8 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
         <button type="button" onClick={onCancel} className="btn btn-secondary" disabled={isLoading}>
           Cancelar
         </button>
-        <button type="submit" className="btn btn-primary" disabled={isLoading}>
-          {isLoading ? 'Guardando...' : submitLabel}
+        <button type="submit" className="btn btn-primary" disabled={isLoading || Boolean(activePublish)}>
+          {isLoading ? 'Guardando...' : isEdit ? submitLabel : 'Revisar invitación'}
         </button>
       </div>
     </form>

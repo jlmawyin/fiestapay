@@ -75,6 +75,10 @@ export function adminHeaderFor(path: string, method: string): string | null {
     (rest === '' && (verb === 'PUT' || verb === 'DELETE')) ||
     (rest === '/recovery' && verb === 'GET') ||
     (rest === '/recovery/contact' && (verb === 'PUT' || verb === 'DELETE')) ||
+    (rest === '/organizer-chat' && verb === 'POST') ||
+    (rest === '/organizer-chat/history' && verb === 'GET') ||
+    (rest === '/organizer-voice/token' && verb === 'POST') ||
+    (rest === '/organizer-voice/tool' && verb === 'POST') ||
     moderationOrganizer(rest, verb);
   if (!organizer) return null;
   return adminKeyFor(slug);

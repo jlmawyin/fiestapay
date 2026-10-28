@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import type { Capabilities, FiestaEvent, ToastMessage } from './types';
 import { api } from './api/client';
-import { captureAdminKeyFromLocation, rememberAdminKey } from './api/admin-key';
+import { adminKeyFor, captureAdminKeyFromLocation, rememberAdminKey } from './api/admin-key';
 import { DemoRibbon } from './components/common/DemoRibbon';
 import { Header } from './components/common/Header';
 import { ToastContainer } from './components/common/Toast';
@@ -117,10 +117,10 @@ export const App: React.FC = () => {
       const res = await api.createDemoEvent();
       if (res.adminKey) rememberAdminKey(res.event.slug, res.adminKey);
       setEvents((prev) => [res.event, ...prev.filter((e) => e.id !== res.event.id)]);
-      showToast('success', `Fiesta "${res.event.title}" creada con éxito (Cuota $25 USD).`, 'Demo Listo');
+      showToast('success', `Demo de comida "${res.event.title}" creada.`, 'Demo Listo');
       navigate({ mode: res.adminKey ? 'dashboard' : 'invite', slug: res.event.slug });
     } catch (err: any) {
-      showToast('error', err.message || 'Error al generar fiesta de demostración', 'Error');
+      showToast('error', err.message || 'Error al generar la demo de comida', 'Error');
     }
   };
 
@@ -136,7 +136,7 @@ export const App: React.FC = () => {
       } catch {
         setEvents([res.event]);
       }
-      showToast('info', 'Demostración reiniciada. Las fiestas reales siguen activas.', 'Reinicio completado');
+      showToast('info', 'Demostración reiniciada. Las invitaciones reales siguen activas.', 'Reinicio completado');
       navigate({ mode: 'home' });
     } catch (err: any) {
       showToast('error', err.message || 'Error al reiniciar la demostración', 'Error');
@@ -205,7 +205,8 @@ export const App: React.FC = () => {
             recoveryAvailable={capabilities?.email === true}
             onEventCreated={(slug) => {
               initApp();
-              navigate({ mode: 'invite', slug });
+              // The create response already stored the organizer key. A missing key stays public.
+              navigate({ mode: adminKeyFor(slug) ? 'dashboard' : 'invite', slug });
             }}
             onCancel={() => navigate({ mode: 'home' })}
             onShowToast={showToast}

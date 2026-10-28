@@ -39,7 +39,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente IA' }));
 
     expect(screen.getByText('Asistente FiestaPay')).toBeInTheDocument();
-    expect(screen.getByText('Consulta sobre tu fiesta')).toBeInTheDocument();
+    expect(screen.getByText('Consulta sobre esta invitación')).toBeInTheDocument();
     expect(screen.queryByText(/gemini/i)).toBeNull();
     expect(screen.queryByLabelText(/gemini/i)).toBeNull();
 
@@ -148,7 +148,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'El proveedor de chat no está disponible en este momento (503). Todas las acciones manuales de la fiesta siguen totalmente funcionales.'
+          'El proveedor de chat no está disponible en este momento (503). Todas las acciones manuales de esta invitación siguen totalmente funcionales.'
         )
       ).toBeInTheDocument();
     });

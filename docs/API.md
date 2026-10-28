@@ -1,5 +1,20 @@
 # Shared implementation contract
 
+## October 28 candidate — publication pending
+
+These additions describe the frozen candidate under final independent review, not the still-published `9a40f26`/0008 release. Migration0009 adds optional public `organizerName` and a validated presentation theme; legacy values remain NULL. The organizer display name grants no authority and never exposes the creator session or administrative key. Creation still returns the public event and a separately minted organizer capability. The review screen confirms current input before publication; invitation, dashboard and WhatsApp draft show start and end times with copy appropriate to the event type.
+
+Migration0010 adds organizer-only conversation storage and a voice-lease audience. All organizer assistant routes below require the current `X-Fiesta-Admin-Key`, including history and voice tool requests. A creator cookie or public invitation alone does not grant organizer assistant access.
+
+- `POST /api/events/:slug/organizer-chat` accepts `{message}` and returns guidance based on authorized server facts. It cannot confirm, cancel, refund, edit or collect money.
+- `GET /api/events/:slug/organizer-chat/history` reads the organizer transcript for this event and browser session. Guest conversation history remains separate, including when both roles use the same browser cookie.
+- `POST /api/events/:slug/organizer-voice/token` accepts microphone consent and reserves a role-bound lease against the same session/global allowances as guest voice.
+- `POST /api/events/:slug/organizer-voice/tool` accepts the lease and an allowed read-only tool call. The event, session, audience, expiry and current key are checked before access; authority is checked again after asynchronous provider/tool work.
+
+The organizer tool can return a bounded attendee list and payment information already visible in that panel, not private recovery contacts, IP addresses, access codes, session identifiers or keys. Deleting/expiring an event clears its organizer display name and organizer transcript while preserving financial references. Guest and organizer text share existing request budgets. Both voice roles share duration reservations; switching roles does not create another allowance. Text uses OpenAI `gpt-6-luna` with low reasoning; the AssemblyAI managed voice engine's internal model is not identified by our configuration.
+
+Both assistants stay within the invitation and FiestaPay context. PayPal capture credits the single Business sandbox recipient immediately; organizer confirmation changes the gathering's status and does not release escrow or execute Payouts. Buyer Protection depends on PayPal eligibility and terms. A refund explanation must reflect the actual event deadline and funding state, rather than promise a refund for legacy events without an active deadline.
+
 ## October 25 current contracts
 
 The current P0–P6 request supersedes incompatible historic P1 rules below. The public invitation is `/e/:slug`; the organizer entry is `/e/:slug/admin?k=:adminKey`. The browser captures the key into localStorage and removes it from the query. The server stores only its SHA-256 digest and compares fixed-length digests with `timingSafeEqual`. Keyed organizer operations require `X-Fiesta-Admin-Key`; the creator cookie alone does not authorize these operations.

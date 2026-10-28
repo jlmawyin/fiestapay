@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import type { Capabilities, Quote, ChatResult, ChatTranscriptMessage, RsvpStatus } from '../../types';
-import { api } from '../../api/client';
+import { ApiError, api } from '../../api/client';
 import { usd } from '../../types';
 
 interface ChatAssistantProps {
@@ -10,8 +10,10 @@ interface ChatAssistantProps {
   onConfirmRsvp?: (status: RsvpStatus, companions: number) => Promise<void>;
   /** Server says this session cannot send. The transcript stays readable. */
   accessRevoked?: boolean;
-  /** Invitation is closed to new messages. */
+  /** Invitation is closed to new messages. Guest only. */
   closed?: boolean;
+  /** Guest keeps the public assistant. Organizer uses the keyed panel routes. */
+  audience?: 'guest' | 'organizer';
 }
 
 function parseRsvpAction(actionStr: string): { status: RsvpStatus; companions: number } | null {
@@ -56,6 +58,9 @@ function applyTranscript(prev: ChatMessage[], incoming: ChatTranscriptMessage[])
   return [...greeting, ...fromServer, ...pending];
 }
 
+const GUEST_GREETING =
+  '¡Hola! Soy tu asistente de FiestaPay para esta invitación. Puedes preguntarme sobre la cuota, sugerirme cambios de acompañantes o consultar dudas sobre la organización.';
+
 export const ChatAssistant: React.FC<ChatAssistantProps> = ({
   slug,
   capabilities,
@@ -63,18 +68,20 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
   onConfirmRsvp,
   accessRevoked = false,
   closed = false,
+  audience = 'guest',
 }) => {
+  const organizer = audience === 'organizer';
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [confirmedActionIds, setConfirmedActionIds] = useState<Set<string>>(new Set());
-  const composerDisabled = accessRevoked || closed || !capabilities?.chat;
+  const composerDisabled = (!organizer && (accessRevoked || closed)) || !capabilities?.chat;
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'init-1',
       sender: 'assistant',
-      text: '¡Hola! Soy tu asistente de fiesta. Puedes preguntarme sobre la cuota, sugerirme cambios de acompañantes o consultar dudas sobre la organización.',
+      text: organizer ? 'Cargando el saludo del servidor…' : GUEST_GREETING,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -82,15 +89,41 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
 
   const chatAvailable = Boolean(capabilities?.chat);
 
+  const forgetOrganizerTranscript = useCallback((notice: string) => {
+    setMessages([
+      {
+        id: GREETING_ID,
+        sender: 'assistant',
+        text: 'La clave de organizador ya no autoriza este asistente. Usa el panel manual.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      },
+    ]);
+    setErrorNotice(notice);
+    setIsLoading(false);
+  }, []);
+
   const pullHistory = useCallback(async () => {
     try {
+      if (organizer) {
+        const page = await api.getOrganizerChatHistory(slug);
+        setMessages((prev) => {
+          const next = applyTranscript(prev, page.messages);
+          return next.map((message) => (message.id === GREETING_ID ? { ...message, text: page.greeting } : message));
+        });
+        return;
+      }
       const page = await api.getChatHistory(slug);
       setMessages((prev) => applyTranscript(prev, page.messages));
     } catch (err) {
+      const status = err instanceof ApiError ? err.status : undefined;
+      if (organizer && status === 403) {
+        forgetOrganizerTranscript(err instanceof Error ? err.message : 'Clave de organizador invalida');
+        return;
+      }
       const message = err instanceof Error ? err.message : 'No se pudo leer el historial.';
       setErrorNotice(message);
     }
-  }, [slug]);
+  }, [forgetOrganizerTranscript, organizer, slug]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -118,13 +151,12 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
     setErrorNotice(null);
 
     try {
-      const res: ChatResult = await api.sendChat(slug, userText);
+      const res: ChatResult = organizer ? await api.sendOrganizerChat(slug, userText) : await api.sendChat(slug, userText);
       const assistantMsg: ChatMessage = {
         id: res.assistantMessageId ?? `pending-assistant-${pendingSerial}`,
         sender: 'assistant',
         text: res.text,
-        quote: res.quote,
-        actions: res.actions,
+        ...(organizer ? {} : { quote: res.quote, actions: res.actions }),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => {
@@ -136,9 +168,13 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
       });
       void pullHistory();
     } catch (err: any) {
-      if (err.status === 503) {
+      if (organizer && err?.status === 403) {
+        forgetOrganizerTranscript(err.message || 'Clave de organizador invalida');
+      } else if (err.status === 503) {
         setErrorNotice(
-          'El proveedor de chat no está disponible en este momento (503). Todas las acciones manuales de la fiesta siguen totalmente funcionales.'
+          organizer
+            ? 'El asistente no esta disponible (503). Usa el panel: editar, compartir y revisar invitados. Nada se confirmo ni se reembolso.'
+            : 'El proveedor de chat no está disponible en este momento (503). Todas las acciones manuales de esta invitación siguen totalmente funcionales.'
         );
       } else {
         setErrorNotice(err.message || 'No se pudo obtener respuesta del asistente.');
@@ -210,9 +246,11 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontSize: '1.1rem' }}>✨</span>
               <div>
-                <strong style={{ fontSize: '0.9rem', display: 'block' }}>Asistente FiestaPay</strong>
+                <strong style={{ fontSize: '0.9rem', display: 'block' }}>
+                  {organizer ? 'Asistente del organizador' : 'Asistente FiestaPay'}
+                </strong>
                 <span style={{ fontSize: '0.72rem', color: 'var(--color-yellow)' }}>
-                  {chatAvailable ? 'Consulta sobre tu fiesta' : 'Chat no disponible'}
+                  {chatAvailable ? (organizer ? 'Consulta el panel. No ejecuta cambios.' : 'Consulta sobre esta invitación') : 'Chat no disponible'}
                 </span>
               </div>
             </div>
@@ -239,7 +277,11 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
             }}
           >
             <span>🎙️</span>
-            <span>Revisa tu cuota antes de abrir PayPal. Asistencia y pago se confirman por separado.</span>
+            <span>
+              {organizer
+                ? 'Solo lectura: el panel confirma, cierra o elimina. Este chat no lo hace.'
+                : 'Revisa tu cuota antes de abrir PayPal. Asistencia y pago se confirman por separado.'}
+            </span>
           </div>
 
           {/* Chat Messages */}
@@ -254,7 +296,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
               backgroundColor: 'var(--color-cloudwhite)',
             }}
           >
-            {(accessRevoked || closed) && (
+            {!organizer && (accessRevoked || closed) && (
               <div className="session-revoked-banner" role="status">
                 {accessRevoked
                   ? 'El organizador revoco el acceso de esta sesion. Puedes leer el historial; el formulario queda cerrado.'
@@ -424,8 +466,10 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                   color: 'var(--color-ink-muted)',
                   border: '1px solid var(--color-border)',
                 }}
+                role="status"
+                aria-live="polite"
               >
-                Asistente FiestaPay está escribiendo...
+                {organizer ? 'Asistente del organizador está escribiendo…' : 'Asistente FiestaPay está escribiendo...'}
               </div>
             )}
 

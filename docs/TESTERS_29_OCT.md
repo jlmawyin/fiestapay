@@ -7,7 +7,7 @@ Para Jorge y sus 3–5 probadores. Duración orientativa: 20 minutos por persona
 - Confirmar la versión a probar y compartir [FiestaPay](https://fiestapay.somospanas.com/). Las correcciones del encargo del28 todavía están en revisión: no afirmar que ya están publicadas.
 - Preparar un enlace público nuevo y, para la prueba de organizador, un enlace de administración separado. No usar ni borrar las fiestas de evidencia anteriores.
 - Asignar comprador de prueba por privado si habrá pago. Nunca pedir una cuenta o tarjeta real. Las cuentas existen; no publicar sus contraseñas en este documento, capturas ni video.
-- Coordinar cada pago con Codex: la campaña técnica del28 tiene tope acumulado de tres capturas nuevas / USD125 ficticios. No repetir cobros a ciegas ni añadir pruebas humanas fuera de ese registro.
+- Registrar qué pagos ficticios harán los probadores y asignar sus cuentas con Jorge. El tope de tres capturas / USD125 corresponde a la campaña técnica automatizada del28; no cuenta como un permiso renovable ni como un límite a la actividad humana legítima. Anotar las operaciones humanas por separado y nunca repetir un cobro a ciegas.
 - Pedir celular, navegador habitual y, si tiene, audífonos. La falta de micrófono no impide probar formularios y texto.
 
 ## Recorrido del probador

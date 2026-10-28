@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Guest, RsvpStatus, FiestaEvent } from '../../types';
 
 interface RsvpFormProps {
@@ -8,16 +8,46 @@ interface RsvpFormProps {
   isLoading: boolean;
 }
 
+const explicitKey = (guestId: string): string => `fp_rsvp_explicit_${guestId}`;
+
+/** A brand-new guest is stored as maybe. That is not a choice until the person selects one. */
+export function visibleRsvpChoice(guest: Pick<Guest, 'id' | 'status' | 'companions'>): RsvpStatus | null {
+  if (guest.status === 'yes' || guest.status === 'no') return guest.status;
+  if (guest.companions > 0) return 'maybe';
+  try {
+    if (sessionStorage.getItem(explicitKey(guest.id)) === 'maybe') return 'maybe';
+  } catch {
+    /* Storage is optional. */
+  }
+  return null;
+}
+
 export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, isLoading }) => {
-  const [status, setStatus] = useState<RsvpStatus>(guest.status || 'yes');
+  const [status, setStatus] = useState<RsvpStatus | null>(() => visibleRsvpChoice(guest));
   const [companions, setCompanions] = useState<number>(guest.companions || 0);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setStatus(visibleRsvpChoice(guest));
+    setCompanions(guest.companions || 0);
+  }, [guest.id, guest.status, guest.companions]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!status) {
+      setError('Elige si vienes antes de guardar.');
+      return;
+    }
     try {
       await onSaveRsvp(status, companions);
+      if (status === 'maybe') {
+        try {
+          sessionStorage.setItem(explicitKey(guest.id), 'maybe');
+        } catch {
+          /* The server copy remains. This browser may ask again. */
+        }
+      }
     } catch (err: any) {
       setError(err.message || 'Error al guardar asistencia.');
     }
@@ -58,7 +88,7 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
           }}
           role="alert"
         >
-          ⚠️ La capacidad máxima de esta fiesta ({event.capacity} personas) ya está completa. Si confirmas ahora, se verificará disponibilidad en el servidor.
+          La capacidad máxima de esta invitación ({event.capacity} personas) ya está completa. Si confirmas ahora, se verificará disponibilidad en el servidor.
         </div>
       )}
 
@@ -80,12 +110,8 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
 
       {/* RSVP Status Buttons */}
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '0.5rem',
-          marginBottom: '1rem',
-        }}
+        className="rsvp-choice-grid"
+        style={{ marginBottom: '1rem' }}
         role="radiogroup"
         aria-label="Selecciona tu confirmación de asistencia"
       >
@@ -151,7 +177,7 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
       </div>
 
       {/* Companions Count (only if yes or maybe) */}
-      {status !== 'no' && (
+      {(status === 'yes' || status === 'maybe') && (
         <div
           style={{
             display: 'flex',
