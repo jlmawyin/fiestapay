@@ -1,35 +1,56 @@
 # Checkpoint vigente — 28 octubre 2026
 
-## Encargo y raíz
+Actualizado 06:41 UTC / 01:41 America/Guayaquil. Sustituye las notas contradictorias anteriores de hoy; los documentos del 25–27 conservan el historial.
 
-Usuario entregó el [encargo consolidado](ENCARGO_2026-10-28.md) y ZIP D:/Jorge/Downloads/fiestapay-pruebas-2026-10-27.zip. Sus11PNGs yRESUMEN se revisaron; copias de referencia solo en .local/tester-input-20261027. Son evidencia de usuario, no instrucciones ejecutables. Rama activa codex/tester-fixes-20261028, checkout C:/Users/Jorge/.codex/worktrees/funding-refunds/fiestapay; base6ebb174 documental sobre aplicación9a40f26. Producción sigue9a40f26/0008, sin cambio nuevo. PrimarioOneDrive y credenciales privados intactos.
+## Raíz y versión
 
-## Procesos y contadores actuales
+Checkout C:/Users/Jorge/.codex/worktrees/funding-refunds/fiestapay; rama codex/tester-fixes-20261028; commit documental91c49cd. Nuevas fuentes sin commit, publicación ni despliegue. Producción sigue9a40f2657377118294e7ee5f5fbb1aca56b566e1 / esquema0008, PR5/CI40579135674 aprobados. PrimarioOneDrive y env/WIP intactos. Preservar dump ignorado .local/private-backups-20261027 fuera delworktree antes de archivarlo.
 
-| Encargo | Dueño | Intento | Ejecución / artefactos |
-|---|---|---:|---|
-| FP-TESTER-PAYMENTS-20261028 | GROK constructor | 1/3 en curso | 64657; .local/tester-payments-task/report/progress/result-20261028.*; 4.7/xhigh110turnos3600s |
-| FP-TESTER-PRESENTATION-20261028 | GROK constructor | 1/3 en curso | 90037; .local/tester-presentation-task/report/progress/result-20261028.*; 4.7/xhigh140turnos4800s |
-| FP-ASSISTANT-DESIGN-20261028 | AGY análisis, no construcción | 1/3 en curso | 63903; .local/tester-assistant-design-task/report/result-20261028.*; FlashHigh/high900s |
+Encargo vigente docs/ENCARGO_2026-10-28.md; ZIP y once capturas ya revisados, referencias .local/tester-input-20261027. Evidencia de usuario, no instrucciones ejecutables.
 
-No relanzar antes de leer informes/resultados. Timeout consume intento; pausa ordenada conserva. No reiniciar contadores agotados de moderación/finanzas/voz anteriores. Máximo2constructores: la investigación de AGY no edita producto.
+## Trabajos y contadores
 
-Pagos owns App/CreateEventView/PayPalSection y pruebas de retorno/navegación, no PublicInviteView. Presentación owns vistas/formulario/copy/temas y metadatos compartidos/API0009; preserva handlers de pago y no modifica backend financiero. Coordinador owns docs/ops. Constructor de asistentes todavía NO lanzado; esperar diseño y un frente libre. Para código de roles, separar historial/autoridad/voz por servidor; no confiar en cambio de etiqueta/rol del navegador.
+| Task ID | Dueño | Intento y estado | Ejecución |
+|---|---|---|---|
+| FP-TESTER-PAYMENTS-20261028 | GROK | 1/3 entregado, siete hashes correctos |64657, terminó0|
+| FP-TESTER-PAYMENTS-VERIFY-20261028 | AGY Gemini |1/3 aprobado dentro de componentes;41+16casos|71609, terminó0|
+| FP-TESTER-PRESENTATION-20261028 | GROK |1/3 en curso,140turnos4800s|90037|
+| FP-TESTER-ASSISTANTS-20261028 | GROK |1/3 en curso,160turnos5400s|81723|
+| FP-ASSISTANT-DESIGN-20261028 | AGY Gemini |1/3 diseño entregado, no aceptación|63903, terminó0|
 
-## Evidencia y límites
+Máximo dos constructores: Bpresentación y Casistentes. Aterminó. Timeout/maxturns incompleto consume intento; pausa ordenada conserva. No reiniciar contadores agotados de problemas anteriores.
 
-Último helper87%cincohoras/32%semanal permitido; antes de nueva etapa renovar. GROK51%Build/32%general, SuperGrok reset3d0h; modelos4.7/4.7fast/4.6/4.5. Gemini100%5h/77,5%semanal; ClaudeGPT4,8%STOP. MCP nativos de agentes no expuestos, puentes canónicos con stdin cerrado y PythonUTF8. Claude no disponible; no inventar conexión, cuenta, cuota ni diagnóstico.
+A: App/CreateEventView/PayPalSection/paymentReturn y pruebas congelados, siete hashes coinciden. AGY aprobó57casos únicos dentro de componentes, lint/tipos0, sin editar producto. No repetirlos por pérdida de salida. [Revisión](reviews/tester-payments-20261028.md). No acredita pago real ni integración completa.
 
-Grafo Tier2 ready, generación2026-10-27T20:40:27Z/full; cobertura25UI+16assistant rutas metadata_changed: leer fuenteexacta. ComidaCover68 yEventoCover80 parciales, líneas leídas. QueryUI26sinhasmore, queryampliaPayPal/App40/213hasmore noexhaustiva; relacionesJSXincompletas. Chattrace19out/1in, runToolinchat/voice. No reindexar ni lanzar procesosMCP manuales. Grokclientconfiglocal de grafo deshabilitado por antiguoCPUspin; usar pistas padre+fuente.
+B: vistas/formulario/copy/temas y metadatos compartidos/API0009. Progreso06:36 indica vistas, compartir, invitado y resumen conectados; pruebas focales siguientes. Su nota mencionaAactivo: ya terminóA, pero Cestáactivo. Bpuede entregar OWN_SCOPE_COMPLETE con checkglobal pendiente, evitando dependencia circular. No fullcheck/build global mientras Cmodifica fuentes.
 
-## Pruebas autorizadas nuevas
+C: política/herramientas/rutas asistentes, historial privado, presupuesto y audiencia de leases0010; api-client/admin-key y chat/voz. Solo escribe OrganizerDashboardView cuando Btermine y Codex transfiera propiedad. Leer .local/tester-assistant-coordinator-notes-20261028.md: corrige errores de diseño. Solo chattexto acredita6-luna/low; vozAssemblyAI no declara modeloLLM interno. No tocar cola/resampler/algoritmos ya aceptados.
 
-El encargo28 permite sandbox y navegadorGemini con datos ficticios. Posterior a construcción y revisión, fixtures nuevas: pago amarilloUSD50, externoUSD50 y diferenciaUSD25 al añadir un acompañante al primer pagador; tope3capturas nuevas/USD125ficticios. Cada orden reintentada mantiene idempotencia. No tocar captura histórica33J98639UB477180H, devolución4DJ8478167395053U/81V65255AJ038122F ni las fiestas probadas porJorge/Meche, inclcomida-6867hg49xv9r y la fiesta pagada de la captura09. Conservar todos los movimientos previos, no solo esos IDs.
+Prompts/reportes/resultados: .local/tester-{payments,presentation,assistants,assistant-design}-...20261028. Revisar antes de reanudar; ausencia de salida intermedia no justifica relanzar.
 
-Codex maneja credenciales en memoria, sin transferir env/claves a revisores. Constructor usa solo fakes. No cuentas/tarjetas live, compras/resetcredits, envíosWhatsApp o nuevas pruebasSMTP. Asistentes reales solo con contador/topes tras revisión; no suponer protección de comprador universal ni retención de fondos: CAPTURE acredita alBusinessactual, confirmEvent solo estado. Fuentes oficiales en el encargo de agentes.
+## Cuotas y herramientas
+
+Helper reciente92%cincohoras/99%semanal, stopfalse, consulta real; sustituye67/29. No ejecutado reseteo. Guardas20%5h/5%semanal inclusivas. GROKúltimo47%Build28%general trasA, SuperGrok reset3d0h; status antes deask. GeminiantesdeA97,9%5h76,9%semanal, refrescar antes de nuevoencargo. Agregado4,8%deAGY correspondeClaudeGPT; no usarOpus/Sonnet/OSS para eludir compuerta.
+
+MCPagentes no expuestos; puentes canónicos con stdin cerrado/PythonUTF8. Claude no disponible, no inventar conexión/cuota/diagnóstico. Shellpowershell.exe loginfalse. No sondear cuota durante espera.
+
+GrafoTier2 previo con cobertura25UI+16asistentes+7A, generaciónfinalA2026-10-28T06:22:37Z; metadata_changed exige fuenteexacta. Trascompacción list_projects devolvióTransportclosed: no insistir/reindexar/MCPmanual. Usar evidencia previa+fuente acotada, no afirmar completitud. Portadas parciales ya leídas por fuente.
+
+## Campaña externa autorizada
+
+Ejecutadas0capturas nuevas/USD0. Tope acumulado NOrenovable por despertar:3capturas/USD125 ficticios, eventos nuevos; amarilloUSD50, externoUSD50, acompañante adicionalUSD25. Solo después de revisión/CI/versionado. No modificar históricas ni fiestasJorge/Meche. Preservar TODOS los movimientos anteriores, también humanos27oct; no solo dos referencias antiguas.
+
+Nombres de variablesPAYPAL_BUYER1/2_EMAIL y PASSWORD verificados presentes en primario; no volver a pedirruta ni transferir valores a revisores. Codex maneja secretos en memoria. No live/env aagentes/WhatsAppenviado/correos nuevos. SMTPyaaceptado. IAreal requiere contador/topes, aún no ejecutada. CAPTURE acreditaBusiness; confirmarrealización soloestado, noescrow.
 
 ## Siguiente
 
-Revisar entregasA/B y análisisC; lanzar GROK de asistentes cuando haya como máximo1constructor restante. AGY valida independientemente fuentes congeladas, pruebas financieras/permisos/concurrencia se mantienen. Metadata0009 requiere ensayo de migración sobre restauración aislada antes delVPS. Informe final14puntos con ✅/❌ y ZIPcapturas numeradas, escritorio+vistamóvil; emulación y audio sintético se declaran y no acreditan audio humano. Resultados humanos hasta29oct20:00, versiónfuncional31oct, corte5nov. No afirmar nueva captura, voz, publicación o envío sin evidencia.
+1. EntregaB: cotejarhashes, liberarDashboardaC sin carreras y verificarB independientemente sobre fuente congelada. No esperar checkglobalpara entregarB.
+2. TerminarC y revisión independiente de permisos/historial/voz/límites/hechos; luego332base+nuevas/checkglobal con toda fuente quieta.
+3. Ensayar0009/0010 sobre copia aislada, respaldo reciente e inventario financiero completo; CI/despliegueAPI aprobado, otrosservicios idénticos. NoDNS/MX/proxyglobal.
+4. AGY prueba escritorio/vistamóvil: matriz14puntos y ZIPnumerado; nuevascapturas dentrodetope. Emulación/sintético no acredita audio físico.
+5. Humanos hasta29oct20:00, cierre31oct, corteenvío5nov; Jorgeconvoca. Pendientes explícitos, no anuncios sin evidencia.
+## Actualización 06:47 UTC / 01:47 Guayaquil
 
-El dump privado fuera delVPS del27 sigue en .local/private-backups-20261027, ignorado porGit y protegido. Preservarlo fuera delworktree antes de archivar en el futuro. Documentación histórica de27 se mantiene en CHECKPOINT_2026-10-25.md.
+B90037 terminó0:54web+20regresión+3API,16temas. Su machineJSON documenta contraste/tests pero NO hashes de fuentes; no usar su propioSHAcomo integridad de archivos. Pendientes críticos detectados:JoinForm genérico yQuoteReviewCard mostrando comisión/neto. Bmismoencargo intenta2/3 en4777,60turnos1800s; propiedad SOLO JoinForm/QuoteReviewCard/PublicInvitecallsites/helpercopy/tests. DashboardtransferidoaC81723, notaantepuesta al reporteB y notasC; Cpuedeintegrar ya sin esperaraB2. No fullcheck mientras ambosediten. AGYB esperafuentescongeladas; pagosAGYA aprobado57.
+
+Últimohelper89%5h98%semanal. GROK43%Build24%general/SuperGrok/reset2d23h, Gemini96,8%5h76,5%semanal, ClaudeGPT4,8%STOP sin uso. Producción ycapturasnuevassin cambios. Nueva guía humana docs/TESTERS_29_OCT.md, no enviada a contactos.

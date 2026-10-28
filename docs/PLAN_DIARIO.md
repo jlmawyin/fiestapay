@@ -10,7 +10,7 @@ El [encargo de Jorge](ENCARGO_2026-10-28.md) y su ZIP de pruebas sustituyen las 
 4. Cuatro temáticas por defecto; tres sugeridas por tipo solo si no retrasan lo anterior, con contraste comprobado.
 5. AGY prueba escritorio y vista móvil, entrega matriz de14puntos y ZIP de capturas numeradas. La emulación no sustituye audio físico.
 
-Dos frentes de construcción actuales: GROK pagos/navegación y GROK presentación/metadatos; AGY investiga arquitectura de asistentes sin editar producto. Máximo dos constructores y tres entregas por problema, sin reiniciar contadores anteriores.
+Situación28oct01:47: pagos/navegación ya entregado y aprobado por AGY dentro de componentes. Dos frentes actuales: GROK presentación intento2/3 y GROK asistentes intento1/3. El diseño de asistentes terminó y fue corregido contra fuente antes de construir. Máximo dos constructores y tres entregas por problema, sin reiniciar contadores anteriores. Compilación y revisión global esperan fuentes quietas; no hay nueva versión publicada todavía.
 
 Las nuevas pruebas sandbox autorizadas usan fixtures nuevas: ventana amarilla USD50, pestaña externa USD50 y diferencia USD25 al pasar de2a3personas en la primera: máximo3capturas nuevas/USD125 ficticios. No tocar operaciones históricas ni la fiesta del reporte de Jorge. IA real solo tras construcción/revisión y con contador de preguntas; ninguna contraseña o clave se transfiere a revisores. WhatsApp solo borrador; SMTP ya aceptado, sin repetir envíos. Las cantidades son topes de esta ronda, no evidencia de operaciones ejecutadas.
 
