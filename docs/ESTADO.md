@@ -1,6 +1,6 @@
 # Estado de implementación
 
-Actualizado el 26 octubre 2026 (America/Guayaquil). El calendario no equivale a progreso real; **aceptación completa pendiente**. No marcar una prueba externa por tests con proveedores simulados.
+Actualizado el 28 octubre 2026 (America/Guayaquil). El calendario no equivale a progreso real; **aceptación completa pendiente**. No marcar una prueba externa por tests con proveedores simulados.
 
 ## Continuación vigente
 
