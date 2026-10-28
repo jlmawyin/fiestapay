@@ -18,6 +18,9 @@
 
 | Encargo/defecto | Responsable | Intento/entrega | Estado |
 |---|---|---:|---|
+| FP-TESTER-PAYMENTS-20261028 | GROK | 1/3 en curso | Sesión64657,4.7/xhigh110turnos3600s. App/CreateView/PayPalSection y pruebas propias; retorno automático o guía clara con progreso, sin cambiar capturas del servidor. |
+| FP-TESTER-PRESENTATION-20261028 | GROK | 1/3 en curso | Sesión90037,4.7/xhigh140turnos4800s. Formulario/vistas/textos/WhatsApp/temas/metadatos0009; sin editar archivos del otro constructor ni lógica financiera. |
+| FP-ASSISTANT-DESIGN-20261028 | AGY Gemini | 1/3 análisis en curso | Sesión63903, FlashHigh/high900s. Investigar roles, privacidad de historial y voz, presupuesto y revocación. Solo informe, sin implementación ni APIs reales. |
 | FP-OPENAI-ONLY-20261027 | GROK | 1/3 entregada | Puente27832 exit0, sesión01a17ee4-6156-77a0-8126-2f7f61f5083a. 332pruebas/32archivos, lint/tipos/build; 35hashes coinciden. Adaptador retirado, fixtures OpenAI portados, casos obsoletos documentados. Sin aprobación independiente ni publicación todavía. |
 | FP-OPENAI-VERIFY-20261027 | AGY Gemini | 1/3 fuente APROBADA; 2/3 documental timeout | AGY1 exit0:201API+131web,14independientes y2Edge/API/PG local;35hashes/tamaños JSON coinciden.35tamaños de tabla en prosa erróneos; no usarla. AGY2 ejecución88043 fallóAGY_TIMEOUT30s del puente, sin entrega ni código; se conserva aprobaciónAGY1 y evidencia máquina cotejada porCodex. UsoAGY1:360054entrada/57747salida/25023razonamiento,total417801/cache9587606. Gemini posterior95%5h76,9%semanal;4,8% agregado esClaudeGPT. |
 | FP-OFFVPS-RESTORE-20261027 | Codex operaciones | 1/3 aprobada | Dump privado de44d2c3c/0008 descargado fuera delVPS, SHA256coincidente y restauración completa enPG16 local nuevo. 24fiestas/20asistentes/3ledger, referencias financieras intactas; scratch eliminado. No source de producto ni llamadas de proveedor. [Evidencia](reviews/off-vps-backup-20261027.md). |

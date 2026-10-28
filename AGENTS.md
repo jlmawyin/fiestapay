@@ -1,5 +1,9 @@
 # FiestaPay implementation rules
 
+- The consolidated October28 request in docs/ENCARGO_2026-10-28.md supersedes incompatible older scope: prioritize payment return/admin navigation, typed fields/times/WhatsApp/copy, role-specific read-only assistants and guest clarity; themes have an authorized four-default fallback if variants jeopardize October31. Gemini is a development/test agent only; runtime remains OpenAI gpt-6-luna/low.
+- Never claim the current captured PayPal funds are held until organizer confirmation. Buyer Protection is subject to PayPal eligibility/terms. Do not change CAPTURE to AUTHORIZE or add platform escrow/Payouts to support that copy.
+- New end-to-end sandbox tests are explicitly authorized for this request. Use new isolated fixtures and preserve historical accepted payments and Jorge's tester event. No live funds/cards, WhatsApp sends or new SMTP tests. Reviewers never receive environment secrets.
+
 - Read docs/PLAN_DIARIO.md and docs/API.md. The October25 P0-P6 priorities and October31 delivery deadline supersede the historic plan. Fixed covers, fixed-price payments and one sandbox receiver remain; open funds/deposits/physical contributions remain out of scope. All financial calculations stay server-side in integer cents.
 - Follow dirigir-agentes as explicitly requested by Jorge: GROK implements assigned packages, AGY verifies independently, Claude handles recovery under the skill rules, and Codex coordinates/integrates. Maximum two construction fronts. Do not revert others or edit outside assigned ownership. No independent git commits/pushes by workers.
 - Use graph discovery first; check coverage. Docs and new files may require exact source fallback. Never claim graph completeness when missing/stale.

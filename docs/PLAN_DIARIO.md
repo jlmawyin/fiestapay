@@ -1,5 +1,21 @@
 # Plan vigente — FiestaPay · entrega máxima 31 octubre 2026
 
+## Encargo consolidado del 28 de octubre — prioridad vigente
+
+El [encargo de Jorge](ENCARGO_2026-10-28.md) y su ZIP de pruebas sustituyen las partes incompatibles del calendario anterior. Cierre funcional sábado31oct; corte interno de envío5nov. Resultados humanos previstos hasta jueves29oct20:00 Guayaquil.
+
+1. Corregir regreso de pago externo sin romper el botón amarillo, progreso de verificación e «Ir al panel».
+2. Campos y textos por tipo, inicio/fin, WhatsApp UTF-8, resumen antes de publicar, nombre del organizador y vista de invitado simple.
+3. Asistentes invitado/organizador con contexto acotado y autorización/historial/voz separados; sin operaciones sensibles ni promesas de retención de fondos inexistente.
+4. Cuatro temáticas por defecto; tres sugeridas por tipo solo si no retrasan lo anterior, con contraste comprobado.
+5. AGY prueba escritorio y vista móvil, entrega matriz de14puntos y ZIP de capturas numeradas. La emulación no sustituye audio físico.
+
+Dos frentes de construcción actuales: GROK pagos/navegación y GROK presentación/metadatos; AGY investiga arquitectura de asistentes sin editar producto. Máximo dos constructores y tres entregas por problema, sin reiniciar contadores anteriores.
+
+Las nuevas pruebas sandbox autorizadas usan fixtures nuevas: ventana amarilla USD50, pestaña externa USD50 y diferencia USD25 al pasar de2a3personas en la primera: máximo3capturas nuevas/USD125 ficticios. No tocar operaciones históricas ni la fiesta del reporte de Jorge. IA real solo tras construcción/revisión y con contador de preguntas; ninguna contraseña o clave se transfiere a revisores. WhatsApp solo borrador; SMTP ya aceptado, sin repetir envíos. Las cantidades son topes de esta ronda, no evidencia de operaciones ejecutadas.
+
+El asistente explicará que PayPal gestiona el checkout y que su protección depende de elegibilidad; la captura actual acredita al receptor Business. Confirmar el encuentro no bloquea ni libera fondos en PayPal. Mantener un solo receptor, sin autorización diferida/escrow/Payouts.
+
 ## Repriorización autorizada el 25 octubre
 
 La petición nueva de Jorge sustituye el alcance y los hitos incompatibles del calendario histórico que se conserva abajo. **Entrega funcional máxima: sábado 31 octubre**, preferiblemente antes para pulir. Jorge fija el 5 noviembre como corte de trabajo/envío. Las [reglas públicas consultadas el 25 octubre](https://paypalaihackathon.devpost.com/rules) todavía indican 12 noviembre, 15:00 ECT; esto no amplía nuestro plazo interno.
