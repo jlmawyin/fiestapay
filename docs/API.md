@@ -1,8 +1,8 @@
 # Shared implementation contract
 
-## October 28 candidate — publication pending
+## October 28 deployed candidate — browser acceptance pending
 
-These additions describe the frozen candidate under final independent review, not the still-published `9a40f26`/0008 release. Migration0009 adds optional public `organizerName` and a validated presentation theme; legacy values remain NULL. The organizer display name grants no authority and never exposes the creator session or administrative key. Creation still returns the public event and a separately minted organizer capability. The review screen confirms current input before publication; invitation, dashboard and WhatsApp draft show start and end times with copy appropriate to the event type.
+These additions are deployed in `6b33b4f` with schema0009–0010; source, infrastructure and preservation checks passed. The new14-point live browser campaign remains pending. Migration0009 adds optional public `organizerName` and a validated presentation theme; legacy values remain NULL. The organizer display name grants no authority and never exposes the creator session or administrative key. Creation still returns the public event and a separately minted organizer capability. The review screen confirms current input before publication; invitation, dashboard and WhatsApp draft show start and end times with copy appropriate to the event type. See [deployment evidence](reviews/tester-deployment-20261028.md).
 
 Migration0010 adds organizer-only conversation storage and a voice-lease audience. All organizer assistant routes below require the current `X-Fiesta-Admin-Key`, including history and voice tool requests. A creator cookie or public invitation alone does not grant organizer assistant access.
 

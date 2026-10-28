@@ -1,6 +1,6 @@
 # Judge walkthrough — draft
 
-October28 candidate instructions. The new presentation and organizer assistant are still under independent review; the public deployment remains9a40f26. Recheck this walkthrough against the final approved release before handing it to judges. Sandbox buyer accounts exist; their private allocation is still a submission preparation item.
+October28 candidate instructions. Presentation and organizer assistant source passed independent review and release6b33b4f is deployed with verified migrations and financial preservation. The new live browser/payment/assistant campaign and physical mobile audio remain pending; recheck this walkthrough against their results before handing it to judges. Sandbox buyer accounts exist; their private allocation is still a submission preparation item.
 
 Open https://fiestapay.somospanas.com on a phone or desktop browser. The interface is Spanish; these instructions explain the key labels. This is a sandbox demonstration: **no real money and no personal Google account**.
 
