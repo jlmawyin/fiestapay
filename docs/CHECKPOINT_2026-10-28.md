@@ -1,5 +1,29 @@
 # Checkpoint vigente — 28 octubre 2026
 
+## Continuación ACTUAL — 07:33 UTC / 02:33 Guayaquil
+
+Esta sección prevalece sobre las notas cronológicas de abajo. Mismo checkout/branch; último commit documental3c4e21f. Producción9a40f26/0008, sin nueva activación ni pago/IA real de esta campaña.
+
+| Encargo | Dueño | Intento y estado | Sesión |
+|---|---|---|---|
+| FP-TESTER-PAYMENTS-20261028 | GROK |1/3 terminado; AGY aprobó componentes57casos|64657 terminó0|
+| FP-TESTER-PAYMENTS-VERIFY-20261028 | AGY |1/3 terminado0; siete hashes correctos|71609|
+| FP-TESTER-PRESENTATION-20261028 | GROK |**3/3 activo**,70turnos2400s; B1 yB2 terminados0|**74528**|
+| FP-TESTER-PRESENTATION-VERIFY-20261028 | AGY |1/3 terminó0, BLOCKED por dos tests antiguos;31hashes correctos,14casos propios y navegador de componentes|20808|
+| FP-TESTER-ASSISTANTS-20261028 | GROK |1/3 terminó0;28nuevas+63regresión,22hashes correctos|81723|
+| FP-TESTER-ASSISTANTS-VERIFY-20261028 | AGY |**1/3 activo**,2700s, fuente C congelada|**84324**|
+| FP-TESTER-PAYPAL-OPERATOR-PREP-20261028 | AGY, arnés propio |**3/3 activo**, cierre de solo lectura600s;2 terminótimeout900s con artefactos escritos|**32237**|
+
+B3 es el único constructor actual. Revisión B1 produjo64pass/2failen66web +3API +12UIpropios +2APIpropios = **83evaluados,81aprobados,2fallidos**; su prosa dice81evaluados/17nuevos, aritmética incorrecta. Casos independientes nuevos14;3API eran del constructor. Dos fallos son literales antiguos en invite-navigation antes del cuerpo de carrera, probado funcional por arnés propio. Cuatro pantallas de componentes fake,64pares computados de contraste0fallos, NO E2E publicado. Nada de captura PayPal real nueva.
+
+Root encontró más textos genéricos mediante búsqueda literal: App/CreateView/Header/Form/Home/Funding/Recovery y CChat/Voice/Dashboard. B3 recoge todos sus textos y mantiene guardas de ejemplo antiguas/nuevas; App/CreateView transferidos **solo copy**, sin navegación/seguridad/pagos. C22 permanece congelado: C2 recibirá su copy restante y organizer_name aún no borrado por tombstone (nota conocida), junto con hallazgos AGY. No tocar C mientras se revisa. Ningún cuarto intento B; si falla tercero aplicar recuperación de skill, Claude no conectado.
+
+Helper de login opcional: AGY1 completó16casos; root detectó aceptación de LoginAndPay. AGY2 corrigió y escribió informe21casos, pero puente acabó AGY_TIMEOUT, no éxito nativo. AGY3 **no edita helper ni suite**, coteja hashes y corre21casos una vez para cerrar; no valores reales introducidos ni red. Reportes propios no prueban autenticación/captura. Si falla3, no cuarto; conservar y usar recuperación autorizada, no saltar compuertas. Canonicalhelper2hash00d75d4c…/suitefc46da0b… en reporte2.
+
+Última guarda Codex64%5h94%semanal, stopfalse; GROK39%Build19%general/SuperGrok/reset2d23h; Gemini83,3%5h72,3%semanal, ClaudeGPT4,8%STOP sin uso. No compras/resets/force. Consultar antes de nuevas etapas, no durante mera espera. Grafo actualTransportclosed tras cobertura previa; exact source fallback y nada de probes.
+
+Siguiente: terminar B3, cotejar diff/hashes y AGYB2 independiente sobre delta+cuerpos originales de tests; esperar AGYC1 y construir C2 con lista completa (máximo2frentes). Fullcheck independiente solo con todas fuentes quietas,332base+ nuevas sin skips. Probar migraciones0009/0010 en copia aislada fresca antes delVPS. Preflight remoto actual29eventos25guests13orders9ledger,8capturas/1refund; preservar TODOS, no viejo inventario24/20/3. La campaña nueva sigue0/3capturas,USD0/125; contador .local/tester-external-budget-20261028.json, no renovarlo.
+
 Actualizado 06:41 UTC / 01:41 America/Guayaquil. Sustituye las notas contradictorias anteriores de hoy; los documentos del 25–27 conservan el historial.
 
 ## Raíz y versión
@@ -69,3 +93,8 @@ GROK presentación2 terminó0 con64casos aprobados/2fallidos/0omitidos; dos prue
 
 AGYoperadorPREP1 terminó90047exit0:16casosoffline. Codex inspeccionó fuente completa y encontró que el patrón de login también acepta un botón combinado 'Log in and pay'; se corrige en el mismo encargo de arnés intento2/3, sin credenciales ni red real. No es constructor adicional de producto ni captura PayPal. Helper solo podrá usarse tras revisar esa corrección. Última guarda74%5h96%semanal; Gemini93,2%5h75,7%semanal, ClaudeGPT4,8%STOP sin uso. GROK despuésB2 reportó40%Build21%general. C1 sigue activo, sin entrega final aún.
 B2 constructor4777 terminóexit0. Fuentes31hashes cotejadas sin diferencia.64pasaron/2fallaron porliteralviejo, cuerposderacejoinnoejecutados: nofalsegreen. AGYB1 sesión20808,1800s, analizaantesdeusarGROK3último (incluirátestmaintenance+hallazgos). C81723únicoconstructoractivoactual. AGYhelperoffline2 sesión44306,900s corrigeLOGIN_APPROVAL_BOUNDARY trasinspecciónCodex:regexaceptabaLoginandPay ycheckoutContinuarpodíatratarsecomologin; sinvaloresrealesusados. No contar como fuenteproducto niotroconstructor. Preliminar116casosoffline se conservarácomohistorial,nocomopruebadelhelper2cambiado.
+## 28oct02:24Guayaquil — C entregado, sin constructores activos
+
+GROKC81723 terminó0, intento1/3 ownscopecomplete:28nuevas+63regresiónsin fallos/skips, tipos/lint0,22hashes confirmados. Su informe esJSONdentrode.md. No globalcheck ni voz/proveedor/navegadorreal. Mantener observaciónprivacidadorganizer_name aúnpendientedeAGY, no parcheCodex. Su frase 'voiceisnotgpt6luna' no es evidencia delmodelointerno; configuraciónsoloUNKNOWNsin campo, texto sígpt6luna/low. Whitelistreal17rutasprevias(8ciclo+9moderación)+4nuevas, no eliminar17porlecturaviejade9.
+
+AGY FP-TESTER-ASSISTANTS-VERIFY-20261028 intento1 lanzado2700s; ejecución registrar deltoolretorno inmediato, informe .local/tester-assistants-review-report-20261028.md yresultadoprefijoigual. AGYB1sigue20808; AGYhelper2sigue44306. Son verificadores/arnés, no3constructores. EsperarBhallazgosantesGROKpresentación3yCverificadorantesC2. Actualhelper68%5h95%semanal, Gemini87,1%5h73,5%semanal; ClaudeGPT4,8STOPno usado. GROK trasC39%Build19%general reportado. Producción9a40f26/0008 ycontadorcapturas0intactos.
