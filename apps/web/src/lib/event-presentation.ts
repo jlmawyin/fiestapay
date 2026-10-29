@@ -28,10 +28,6 @@ const SHARE_TIME_ZONE = 'America/Guayaquil';
 /** Official click-to-chat endpoint. One encodeURIComponent pass, no network call. */
 export const WHATSAPP_SEND_ENDPOINT = 'https://api.whatsapp.com/send';
 
-const CALENDAR = String.fromCodePoint(0x1f4c5);
-const PIN = String.fromCodePoint(0x1f4cd);
-const COIN = String.fromCodePoint(0x1f4b5);
-
 export function stripUnpairedSurrogates(value: string): string {
   let out = '';
   for (let i = 0; i < value.length; i += 1) {
@@ -152,9 +148,9 @@ export function buildInviteShareText(input: InviteShareInput): string {
     theme.phrase,
     greeting,
     plainShareText(input.title),
-    `${CALENDAR} ${when}`,
-    `${PIN} ${plainShareText(input.location)}`,
-    `${COIN} Cuota por persona: ${usd(input.priceCents)}`,
+    `Horario: ${when}`,
+    `Lugar: ${plainShareText(input.location)}`,
+    `Cuota por persona: ${usd(input.priceCents)}`,
     copy.welcome,
     shareableInviteUrl(input.inviteUrl),
   ];

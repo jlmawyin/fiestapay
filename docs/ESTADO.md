@@ -1,5 +1,15 @@
 # Estado de implementación
 
+**28 oct — fuente final aprobada.** DSH3/3 y AGY3/3 cerrados:426/426pruebas,0omisiones, lint/tipos/compilación correctos y26comprobaciones independientes. Oncehashes cotejados; sin cuarta entrega. Conexión MCP nativa comprobada; últimas entregas solo de archivos, sin escalar permisos. Pendientes CI, publicación protegida y revalidación externa autorizada; cero pagos nuevos. [Informe](reviews/recovery-source-final-20261028.md).
+
+**28 oct — MCP nativo y recuperación2/3 entregada.** La conexión nativa DSH responde correctamente. Tras el pedido de continuar, DSH corrigió solo archivos permitidos, sin comandos, escaladas ni cambios de permisos; el bloqueo de sus comandos no se considera resuelto. Once archivos de fuente/pruebas congelados. AGY verificación2/3 corre en59361; no duplicar. Los cuatro archivos visuales conservan sus hashes aprobados y se reutiliza esa evidencia. Ningún pago ni consulta FiestaPay adicional, fuente aún sin publicar.
+
+**28 oct, 20:16 — revisión de la primera recuperación terminada.** DSH y AGY conservan intento1/3; sin trabajos propios activos. AGY: lint/tipos/compilación correctos, suite completa424aprobadas/1fallida,22focalizadas,17casos adicionales aprobados y3hallazgos. Contraste real de16temáticas >=5,297:1 con8capturas locales. Falta corregir una prueba nueva, la guía sobre inscripciones cerradas y los datos de financiación en la herramienta de voz del invitado. DSH reportó permisos EPERM y escalada denegada; no se fuerza ni relanza el constructor hasta aclararlo. Fuente sin publicar, público6b33b4f intacto. Cero uso de la ampliación4texto/2voz y cero pagos nuevos. [Informe](reviews/deepseek-recovery-20261028.md).
+
+**28oct20:10 — DSH1/3 entregada, pendiente de corrección y revisión AGY.** MCP real completó;10hashes coinciden. Informe del constructor: lint/tipos/APIbuild correctos, Vitest/VitewebbloqueadosspawnEPERM y escalada denegada; no suite/buildweb aprobados ni nuevos intentosDSH. Root detectó guía incorrecta para inscripciones cerradas y datos insuficientes de financiación en herramienta de voz invitado. AGYrevisión1/3 en62301 sigue en curso; recoger informe antes de relanzar. Fuente sin publicar; público6b33b4f/10de14intacto. Extensión4texto/2voz autorizada y sin usar, cero pagos nuevos. [Checkpoint](CHECKPOINT_2026-10-28.md).
+
+**28 oct — recuperación autorizada y en curso.** Jorge autorizó expresamente recuperar F05/F12/F13/F14 con DSH y revisión independiente AGY; se conservan agotados los contadores históricos B/C y arnés. FP-TESTER-RECOVERY-20261028 intento1/3; MCP stdio real del servidor existente, modelo solicitado deepseek-flash/low. Alcance: copia WhatsApp, guía IA y contraste; sin cambios de pagos, claves ni motor de audio. Ampliación acumulada registrada: máximo4turnos de texto y2reservas de voz de120s; cero capturas nuevas. Todavía no usada. Fuente pública6b33b4f y evidencia10/14 sin cambios.
+
 Actualizado el 28 octubre 2026 (America/Guayaquil). El calendario no equivale a progreso real; **aceptación completa pendiente**. No marcar una prueba externa por tests con proveedores simulados.
 
 ## Continuación vigente

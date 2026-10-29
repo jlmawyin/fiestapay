@@ -2,7 +2,7 @@
 
 ## Estado28oct: ronda real e integración del constructor
 
-Producto6b33b4f:10/14puntos de navegador aprobados; cuatro grupos de corrección pendientes en el informe. GROKCLIpausado porJorge; constructor temporalDSHprobado conlow, AGYverificaciónindependiente, Claude recuperación segúnhabilidad. Esto no reinicia paquetes3/3. Se solicitó excepción acotada de recuperación y presupuesto de revalidación; no se presume respuesta ni nuevos topes. La campaña3pagos125USD/24texto/8solicitudesvoz ya cerró.
+Producto6b33b4f:10/14puntos de navegador aprobados; cuatro grupos de corrección pendientes en el informe. GROKCLIpausado porJorge; constructor temporalDSHprobado conlow, AGYverificaciónindependiente, Claude recuperación segúnhabilidad. Esto no reinicia paquetes3/3. Jorge autorizó expresamente la recuperación acotada y hasta cuatro turnos de texto y dos reservas de voz de120s adicionales, sin pagos nuevos; ampliación separada y todavía sin usar. DSH2/3 entregó solo ediciones de archivos y AGY verifica2/3, conservando contadores históricos. La campaña3pagos125USD/24texto/8solicitudesvoz ya cerró.
 
 ## Encargo consolidado del 28 de octubre — prioridad vigente
 

@@ -8,6 +8,7 @@ import { isPastRetention, tombstoneEvent } from '../domain/retention.js';
 import { gone } from '../errors.js';
 import type { PoolClient } from '../db/pool.js';
 import {
+  confirmationGuidance,
   factsFromEvent,
   faqText,
   looksLikeEmail,
@@ -201,7 +202,7 @@ function guide(action: z.infer<typeof guideSchema>['action'], facts: ServerFacts
     case 'confirm_realization':
       return publish({
         ok: true,
-        guia: 'En el panel, abre Confirmar realizacion y pulsa "Si, Confirmar Celebracion". Eso anuncia que el encuentro se hara. No mueve ni retiene dinero. Yo no pulso el boton.',
+        guia: confirmationGuidance(facts),
         ya_confirmada: facts.confirmed,
       });
     case 'share_link':

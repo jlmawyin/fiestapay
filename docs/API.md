@@ -1,5 +1,9 @@
 # Shared implementation contract
 
+## October28 recovery candidate — independently approved, publication pending
+
+The read-only guest tool get_collection_progress now also returns funding status, deadline and registered/pending/review refund totals in server integer cents, with guidance based on the actual funding state. All existing fields remain. It returns no identity, session, admin key or provider metadata and performs no payment/refund/RSVP actions. Confirmation guidance treats closed registrations separately from funding eligibility. [Source review](reviews/recovery-source-final-20261028.md).
+
 ## October 28 deployed candidate — live browser findings open
 
 These additions are deployed in `6b33b4f` with schema0009–0010; source, infrastructure and preservation checks passed. The live browser campaign completed10/14points; WhatsApp preview, assistant answers and rendered contrast still require correction. See [browser findings](reviews/tester-browser-20261028.md). Migration0009 adds optional public `organizerName` and a validated presentation theme; legacy values remain NULL. The organizer display name grants no authority and never exposes the creator session or administrative key. Creation still returns the public event and a separately minted organizer capability. The review screen confirms current input before publication; invitation, dashboard and WhatsApp draft show start and end times with copy appropriate to the event type. See [deployment evidence](reviews/tester-deployment-20261028.md).

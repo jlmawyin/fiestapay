@@ -5,6 +5,8 @@ import { buildApp } from '../src/app.js';
 import { migrate } from '../src/db/migrate.js';
 import { createPool, type Pool } from '../src/db/pool.js';
 import { sha256 } from '../src/lib/ids.js';
+import { runTool } from '../src/ai/tools.js';
+import { findGuestBySession, getEventBySlug } from '../src/domain/read.js';
 import type { RespondFn, RespondInput, RespondOutput } from '../src/ai/openai.js';
 import { completed, fnCall, message, scriptedOpenAI } from './openai-script.js';
 import { FakePayPal } from './fake-paypal.js';
@@ -601,6 +603,173 @@ describeDb('asistentes por rol, historial y voz compartida', () => {
       expect(res.statusCode).toBe(403);
       expect(res.body).not.toContain('token-que-no-debe-salir');
       expect(await count('SELECT COUNT(*)::int AS n FROM voice_leases l JOIN events e ON e.id = l.event_id WHERE e.slug = $1', [minted.slug])).toBe(1);
+    });
+  });
+
+  it('responde tarjeta y proteccion juntas y acepta la variante ASR del minimo sin gastar modelo', async () => {
+    let calls = 0;
+    await withApp(async () => {
+      calls += 1;
+      return completed(message('no debe usarse'));
+    }, {}, async (app) => {
+      const { slug } = await demo(app);
+      const guest = new Client(app);
+      await guest.post(`/api/events/${slug}/join`, { name: 'Invitada Proteccion' });
+      const compound = await guest.post(`/api/events/${slug}/chat`, {
+        message: '¿Quién ve mi tarjeta y contraseña al pagar? ¿Qué protección tengo?',
+      });
+      expect(compound.statusCode).toBe(200);
+      const compoundText = body<{ text: string }>(compound).text;
+      expect(compoundText).toMatch(/FiestaPay no te las pide/);
+      expect(compoundText).toMatch(/compras elegibles/);
+      expect(compoundText).toContain('https://www.paypal.com/ec/digital-wallet/security-and-protection?locale.x=en_EC');
+      const asr = await guest.post(`/api/events/${slug}/chat`, {
+        message: '¿Qué pasa si no alcanzamos el mínimo de tiempo?',
+      });
+      expect(asr.statusCode).toBe(200);
+      expect(body<{ text: string }>(asr).text).toMatch(/Minimo:/);
+      expect(calls).toBe(0);
+    });
+  });
+
+  it('explica cuando confirmar y la guia del organizador usa el mismo criterio', async () => {
+    await withApp(script([
+      completed(fnCall('guide', 'guide_organizer_action', '{"action":"confirm_realization"}')),
+      completed(message('Usa la guia del panel.')),
+    ]), {}, async (app, inputs) => {
+      const owner = new Client(app);
+      const created = body<{ event: { slug: string } }>(await owner.post('/api/events', {
+        ...viaje,
+        title: 'Sin minimo para confirmar',
+        minimumCents: null,
+        goalCents: null,
+        fundingDeadlineAt: null,
+      }));
+      const answer = await owner.post(`/api/events/${created.event.slug}/organizer-chat`, {
+        message: '¿Cuándo puedo confirmar la realización y qué cambia al hacerlo?',
+      });
+      expect(answer.statusCode).toBe(200);
+      const answerText = body<{ text: string }>(answer).text;
+      expect(answerText).toMatch(/no tiene un minimo armado/);
+      expect(answerText).toContain('Si, Confirmar Celebracion');
+      expect(answerText).toMatch(/No mueve, retiene ni libera dinero/);
+      expect(inputs).toHaveLength(0);
+
+      const before = await pool.query<{ confirmed: boolean }>(
+        'SELECT confirmed FROM events WHERE slug = $1',
+        [created.event.slug],
+      );
+      const guide = await owner.post(`/api/events/${created.event.slug}/organizer-chat`, {
+        message: 'Necesito los pasos para usar el panel de este evento',
+      });
+      expect(guide.statusCode).toBe(200);
+      expect(inputs).toHaveLength(2);
+      const outputs = inputs[1]!.input.flatMap((item) => (
+        'type' in item && item.type === 'function_call_output' ? [JSON.parse(item.output) as Record<string, unknown>] : []
+      ));
+      expect(outputs).toHaveLength(1);
+      expect(String(outputs[0]!.guia)).toMatch(/no tiene un minimo armado/);
+      expect(String(outputs[0]!.guia)).toContain('Si, Confirmar Celebracion');
+      expect(outputs[0]!.ya_confirmada).toBe(false);
+      const after = await pool.query<{ confirmed: boolean }>(
+        'SELECT confirmed FROM events WHERE slug = $1',
+        [created.event.slug],
+      );
+      expect(after.rows[0]!.confirmed).toBe(before.rows[0]!.confirmed);
+      expect(after.rows[0]!.confirmed).toBe(false);
+    });
+  });
+
+  it('get_collection_progress entrega estado, plazo y reembolsos publicos sin acciones', async () => {
+    await withApp(script([completed(message('no debe usarse'))]), {}, async (app) => {
+      const owner = new Client(app);
+      const created = body<{ event: { slug: string } }>(await owner.post('/api/events', {
+        ...viaje,
+        title: 'Fondos publicos',
+        minimumCents: 5000,
+        goalCents: 10000,
+        fundingDeadlineAt: '2026-12-01T12:00:00.000Z',
+      }));
+      const slug = created.event.slug;
+      const guest = new Client(app);
+      await guest.post(`/api/events/${slug}/join`, { name: 'Invitada Fondos' });
+      const event = await getEventBySlug(pool, slug);
+      const { rows } = await pool.query<{ session_id: string }>(
+        `SELECT g.session_id FROM guests g JOIN events e ON e.id = g.event_id
+          WHERE e.slug = $1 AND g.name = $2`,
+        [slug, 'Invitada Fondos'],
+      );
+      const sessionId = rows[0]!.session_id;
+      const guestRow = await findGuestBySession(pool, event.id, sessionId);
+      if (!guestRow) throw new Error('la invitada de prueba no existe');
+      const guestId = guestRow.id;
+
+      async function progress() {
+        const fresh = await getEventBySlug(pool, slug);
+        const toolGuest = await findGuestBySession(pool, fresh.id, sessionId);
+        const tool = await runTool(
+          { pool, sessionId, event: fresh, guest: toolGuest, quoteTtlSeconds: testConfig().quoteTtlSeconds },
+          'get_collection_progress',
+          {},
+        );
+        expect(tool.quote).toBeUndefined();
+        expect(tool.actions).toBeUndefined();
+        return tool.response;
+      }
+
+      const open = await progress();
+      expect(open.estado_financiamiento).toBe('open');
+      expect(open.fecha_limite).toBe('2026-12-01T12:00:00.000Z');
+      expect(String(open.fecha_limite_guayaquil)).toMatch(/01\/12\/2026/);
+      expect(open.reembolso_registrado_centavos).toBe(0);
+      expect(open.reembolso_pendiente_centavos).toBe(0);
+      expect(open.reembolso_en_revision_centavos).toBe(0);
+      expect(String(open.nota)).toMatch(/devolucion automatica/);
+      expect(String(open.nota)).toContain('antes de comisiones');
+      expect(JSON.stringify(open)).not.toMatch(/session_id|admin_key|paypal_order_id|@/i);
+
+      await pool.query(
+        `UPDATE events SET funding_status = 'legacy', funding_deadline_at = NULL WHERE id = $1`,
+        [event.id],
+      );
+      const legacy = await progress();
+      expect(legacy.estado_financiamiento).toBe('legacy');
+      expect(legacy.fecha_limite).toBeNull();
+      expect(legacy.fecha_limite_guayaquil).toBeNull();
+      expect(legacy.minimo_centavos).toBe(5000);
+      expect(String(legacy.nota)).toMatch(/No puedo prometer/);
+
+      await pool.query(
+        `UPDATE events SET funding_status = 'inactive', minimum_cents = NULL, funding_deadline_at = NULL WHERE id = $1`,
+        [event.id],
+      );
+      const noMinimum = await progress();
+      expect(noMinimum.estado_financiamiento).toBe('inactive');
+      expect(noMinimum.minimo).toBeNull();
+      expect(noMinimum.minimo_centavos).toBeNull();
+      expect(String(noMinimum.nota)).toMatch(/no tiene un minimo armado/);
+
+      await pool.query(
+        `UPDATE events SET funding_status = 'failed', minimum_cents = 5000, funding_deadline_at = $2, funding_decided_at = clock_timestamp(), funding_basis_cents = 0 WHERE id = $1`,
+        [event.id, '2026-12-01T12:00:00.000Z'],
+      );
+      const pendingId = randomUUID();
+      const reviewId = randomUUID();
+      await pool.query(
+        `INSERT INTO funding_refund_tasks
+           (id, event_id, order_id, guest_id, capture_id, amount_cents, request_id, request_body, status)
+         VALUES ($1, $2, $3, $4, 'CAP-PENDING', 345, $5, '{}', 'pending'),
+                ($6, $2, $7, $4, 'CAP-REVIEW', 678, $8, '{}', 'needs_review')`,
+        [pendingId, event.id, randomUUID(), guestId, `fp-pending-${pendingId}`, reviewId, randomUUID(), `fp-review-${reviewId}`],
+      );
+      const failed = await progress();
+      expect(failed.estado_financiamiento).toBe('failed');
+      expect(failed.reembolso_registrado_centavos).toBe(0);
+      expect(failed.reembolso_pendiente_centavos).toBe(345);
+      expect(failed.reembolso_en_revision_centavos).toBe(678);
+      expect(String(failed.nota)).toMatch(/Reembolso pendiente: \$3,45/);
+      expect(String(failed.nota)).toMatch(/Reembolso en revision: \$6,78/);
+      expect(String(failed.nota)).toMatch(/no es un reembolso completado/);
     });
   });
 

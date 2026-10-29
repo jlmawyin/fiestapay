@@ -451,14 +451,14 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
           {/* Practical Logistics Details */}
           <div className="invite-facts">
             <div>
-              <span style={{ color: 'var(--color-ink-light)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
+              <span style={{ color: 'var(--color-ink-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
                 INICIO Y FIN
               </span>
               <strong style={{ color: 'var(--color-ink)' }}>{whenLabel}</strong>
             </div>
 
             <div>
-              <span style={{ color: 'var(--color-ink-light)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
+              <span style={{ color: 'var(--color-ink-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
                 LUGAR
               </span>
               <strong style={{ color: 'var(--color-ink)' }}>{event.location}</strong>
@@ -466,7 +466,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
 
             {event.template === 'comida' ? (
               <div>
-                <span style={{ color: 'var(--color-ink-light)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
+                <span style={{ color: 'var(--color-ink-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
                   TIPO DE COMIDA
                 </span>
                 <strong style={{ textTransform: 'capitalize', color: 'var(--color-ink)' }}>{event.meal}</strong>
@@ -474,7 +474,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
             ) : null}
 
             <div>
-              <span style={{ color: 'var(--color-ink-light)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
+              <span style={{ color: 'var(--color-ink-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
                 ASISTENCIA
               </span>
               <strong style={{ color: 'var(--color-ink)' }}>

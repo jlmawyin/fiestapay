@@ -5,7 +5,7 @@ import { MAX_COMPANIONS } from '../lib/schemas.js';
 import { assertSessionMayAct } from '../domain/moderation.js';
 import { createQuoteForSession } from '../domain/quotes.js';
 import { eventTotals, guestPaidCents, obligationCents, type EventRow, type GuestRow } from '../domain/read.js';
-import { formatInGuayaquil, mealForTemplate } from './assistant-policy.js';
+import { factsFromEvent, formatInGuayaquil, mealForTemplate, minimumRefundText } from './assistant-policy.js';
 
 /** JSON-schema-ish declaration shared by the Responses function tools. */
 export interface FunctionDeclaration {
@@ -53,7 +53,8 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   },
   {
     name: 'get_collection_progress',
-    description: 'Progreso de recaudacion del evento: recaudado bruto verificado, meta, minimo y personas confirmadas.',
+    description:
+      'Progreso de recaudacion del evento en solo lectura: recaudado bruto verificado, meta, minimo, personas confirmadas, estado de financiamiento, fecha limite y reembolsos registrados, pendientes o en revision.',
   },
   {
     name: 'prepare_quote',
@@ -153,21 +154,31 @@ export async function runTool(ctx: ToolContext, name: string, rawArgs: unknown):
 
     case 'get_collection_progress': {
       const totals = await eventTotals(ctx.pool, ctx.event.id);
-      const minimum = ctx.event.minimum_cents;
-      const goal = ctx.event.goal_cents;
+      const facts = factsFromEvent(ctx.event, totals, null);
+      const minimum = facts.minimumCents;
+      const goal = facts.goalCents;
       return {
         response: {
-          recaudado_bruto: usd(totals.collectedCents),
-          recaudado_bruto_centavos: totals.collectedCents,
+          recaudado_bruto: usd(facts.collectedCents),
+          recaudado_bruto_centavos: facts.collectedCents,
           meta: goal === null ? null : usd(goal),
           meta_centavos: goal,
-          meta_faltante_centavos: goal === null ? null : Math.max(0, goal - totals.collectedCents),
+          meta_faltante_centavos: goal === null ? null : Math.max(0, goal - facts.collectedCents),
           minimo: minimum === null ? null : usd(minimum),
           minimo_centavos: minimum,
-          minimo_faltante_centavos: minimum === null ? null : Math.max(0, minimum - totals.collectedCents),
-          minimo_alcanzado: minimum !== null && totals.collectedCents >= minimum,
+          minimo_faltante_centavos: minimum === null ? null : Math.max(0, minimum - facts.collectedCents),
+          minimo_alcanzado: minimum !== null && facts.collectedCents >= minimum,
           personas_confirmadas: totals.confirmedPeople,
-          nota: 'El recaudado (antes de comisiones), el minimo y la meta salen del servidor. El minimo y la meta no son el mismo numero.',
+          estado_financiamiento: facts.fundingStatus,
+          fecha_limite: facts.fundingDeadlineAt,
+          fecha_limite_guayaquil: facts.fundingDeadlineLabel,
+          reembolso_registrado: usd(facts.refundedCents),
+          reembolso_registrado_centavos: facts.refundedCents,
+          reembolso_pendiente: usd(facts.pendingRefundCents),
+          reembolso_pendiente_centavos: facts.pendingRefundCents,
+          reembolso_en_revision: usd(facts.needsReviewRefundCents),
+          reembolso_en_revision_centavos: facts.needsReviewRefundCents,
+          nota: `${minimumRefundText(facts)} El recaudado (antes de comisiones), el minimo y la meta salen del servidor. El minimo y la meta no son el mismo numero.`,
         },
       };
     }

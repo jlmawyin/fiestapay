@@ -108,6 +108,12 @@ describe('presentation copy, contrast, and WhatsApp roundtrip', () => {
     expect(text).toContain(grin);
     expect(text).toContain('¿Te unes al viaje?');
     expect(text).toContain('La montaña nos espera.');
+    expect(text).toContain('Horario:');
+    expect(text).toContain('Lugar:');
+    expect(text).toContain('Cuota por persona:');
+    expect(text).not.toContain(String.fromCodePoint(0x1f4c5));
+    expect(text).not.toContain(String.fromCodePoint(0x1f4cd));
+    expect(text).not.toContain(String.fromCodePoint(0x1f4b5));
     expect(text).toContain('America/Guayaquil');
     expect(text).toContain('15');
     expect(text).toContain('16');
@@ -118,6 +124,27 @@ describe('presentation copy, contrast, and WhatsApp roundtrip', () => {
     expect(href).not.toContain(encodeURIComponent(encodeURIComponent(reserved)));
     expect(formatEventRange('2026-12-15T19:00:00.000Z', '2026-12-16T15:00:00.000Z')).toContain('Fin:');
     expect(formatEventRange('2026-12-15T19:00:00.000Z', '2026-12-15T23:00:00.000Z')).not.toContain('16');
+  });
+
+  it('uses ordinary readable labels for every generated WhatsApp field', () => {
+    const text = buildInviteShareText({
+      template: 'comida',
+      theme: 'huerto',
+      title: 'Cena & conversación',
+      location: 'Salón principal',
+      startsAt: '2026-12-15T19:00:00.000Z',
+      endsAt: '2026-12-15T23:00:00.000Z',
+      priceCents: 2500,
+      inviteUrl: 'https://example.com/e/cena-demo?adminKey=secret#x',
+    });
+    expect(text).toContain('Horario:');
+    expect(text).toContain('Lugar: Salón principal');
+    expect(text).toContain('Cuota por persona: $25,00');
+    expect(text).toContain('https://example.com/e/cena-demo');
+    expect(text).not.toContain('adminKey');
+    for (const char of text) {
+      expect(char.codePointAt(0), char).toBeLessThanOrEqual(0xffff);
+    }
   });
 
   it('labels people without recalculating money and keeps 4999 under the minimum', () => {
