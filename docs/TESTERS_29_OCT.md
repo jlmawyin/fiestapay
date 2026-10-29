@@ -1,4 +1,4 @@
-> Estado28oct: pagos50+50+25 verificados en la ronda automática, pero quedan defectos conocidos en la vista previa de WhatsApp, algunas respuestas IA y contraste. No los cuentes como funciones ya aprobadas. La prueba de voz en tu celular sigue siendo necesaria; registra lo que oyes y si el inicio se corta. Jorge convoca; los agentes no envían invitaciones. [Informe actual](reviews/tester-browser-20261028.md).
+> Estado de referencia 29 oct: fuente 8e13ae6, 12/14 puntos aceptados. Las correcciones de WhatsApp, texto y contraste ya tienen evidencia; voz conserva casos inconclusos y necesita un celular real. La campaña automática y su ampliación terminaron; no se repiten sus pagos/consultas. Jorge asigna por separado las pruebas humanas y sus compradores. [Informe actual](reviews/revalidation-20261029.md).
 
 # Prueba humana de FiestaPay — 29 octubre
 
@@ -6,10 +6,10 @@ Para Jorge y sus 3–5 probadores. Duración orientativa: 20 minutos por persona
 
 ## Preparación de Jorge
 
-- Probar la versión `6b33b4f`, publicada el28octubre en [FiestaPay](https://fiestapay.somospanas.com/). Actualizar la página para cargar los cambios. Fuente, migraciones y conservación de datos están comprobadas; la nueva ronda completa de navegador y el audio físico aún necesitan resultados.
+- Usar como referencia la última versión verificada `8e13ae6` de [FiestaPay](https://fiestapay.somospanas.com/). Actualizar la página y anotar la versión que asigne Jorge. La matriz actual tiene 12/14 puntos aceptados; no se afirma aceptación completa ni audio físico aprobado.
 - Preparar un enlace público nuevo y, para la prueba de organizador, un enlace de administración separado. No usar ni borrar las fiestas de evidencia anteriores.
 - Asignar comprador de prueba por privado si habrá pago. Nunca pedir una cuenta o tarjeta real. Las cuentas existen; no publicar sus contraseñas en este documento, capturas ni video.
-- Registrar qué pagos ficticios harán los probadores y asignar sus cuentas con Jorge. El tope de tres capturas / USD125 corresponde a la campaña técnica automatizada del28; no cuenta como un permiso renovable ni como un límite a la actividad humana legítima. Anotar las operaciones humanas por separado y nunca repetir un cobro a ciegas.
+- Registrar qué pagos ficticios harán los probadores y asignar sus cuentas con Jorge. El tope de tres capturas / USD 125 corresponde a la campaña técnica automatizada del28; no cuenta como un permiso renovable ni como un límite a la actividad humana legítima. Anotar las operaciones humanas por separado y nunca repetir un cobro a ciegas.
 - Pedir celular, navegador habitual y, si tiene, audífonos. La falta de micrófono no impide probar formularios y texto.
 
 ## Recorrido del probador
@@ -17,7 +17,7 @@ Para Jorge y sus 3–5 probadores. Duración orientativa: 20 minutos por persona
 1. Abrir el enlace público. Sin ayuda, explicar qué encuentro es, dónde/cuándo empieza y termina, cuánto cuesta por persona y qué incluye. Anotar cualquier duda.
 2. Entrar con un nombre ficticio. Elegir asistir y un acompañante. Comprobar que son dos personas y que nadie aparece pagado por confirmar asistencia.
 3. Consultar al asistente por precio, horario y mínimo. Hacer también una pregunta de clima: debe redirigir a la invitación. No introducir datos personales, claves ni instrucciones para pagar automáticamente.
-4. Si Jorge asignó la prueba, revisar 2 × USD25 = USD50 y aprobar con el comprador de prueba. Indicar si se usó botón amarillo o pestaña externa; medir aproximadamente la espera y describir qué se ve al volver. Ante error, consultar el estado antes de reintentar.
+4. Si Jorge asignó la prueba, revisar 2 × USD 25 = USD 50 y aprobar con el comprador de prueba. Indicar si se usó botón amarillo o pestaña externa; medir aproximadamente la espera y describir qué se ve al volver. Ante error, consultar el estado antes de reintentar.
 5. Abrir compartir por WhatsApp. Revisar nombre, emojis, inicio/fin y enlace público. Cerrar el borrador **sin enviarlo**.
 6. Como organizador, crear una invitación de otro tipo, revisar sus datos antes de publicarla y guardar el enlace de administración. «Ir al panel» debe mostrar edición y pagos. El enlace público debe abrir solo la invitación.
 7. En el panel, explicar cuántos invitados se registraron, cuántas personas pagaron, cuánto se recaudó y qué falta para el mínimo. Preguntar eso al asistente del organizador, si está disponible en la versión asignada.

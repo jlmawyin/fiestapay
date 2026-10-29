@@ -2,7 +2,7 @@
 
 An AI host for shared gatherings: understand the invitation, confirm attendance, review a server-calculated contribution, and pay with **PayPal sandbox**.
 
-**Work in progress.** This repository implements the approved hackathon P1. A deployed page, passing fake-provider tests, or an OAuth token do not prove a completed sandbox payment. See [implementation evidence](docs/ESTADO.md) for verified results and remaining work.
+**Hackathon preview.** Deployed source `8e13ae6` has 426 passing database-backed tests and a browser matrix with 12/14 accepted points. Verified historical PayPal sandbox captures total USD 125; one separate USD 1 automatic refund is documented. Physical Spanish mobile audio and parts of voice-answer verification remain pending. See the [current evidence and limits](docs/reviews/revalidation-20261029.md); these results do not claim a payment in a new judge session.
 
 - Running demo: https://fiestapay.somospanas.com
 - No Google sign-in or real personal information. Use a fictional alias and a sandbox buyer.
@@ -56,6 +56,8 @@ Database integration tests require a dedicated `DATABASE_URL` (for example, data
 
 - [Contabo deployment and recovery](docs/OPERATIONS.md)
 - [Judge walkthrough](docs/JUDGES.md)
+- [90-second storyboard — not yet recorded](docs/DEMO_90_SECONDS.md)
+- [Devpost text draft and submission gates](docs/DEVPOST_DRAFT.md)
 - [Architecture and trust boundaries](docs/ARCHITECTURE.md)
 - [API contract](docs/API.md)
 - [Approved daily plan](docs/PLAN_DIARIO.md)
