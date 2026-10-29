@@ -1,5 +1,7 @@
 # Shared implementation contract
 
+Current deployment is source8e13ae6 / schema0009–0010. Recovery verification closed with12/14 browser points accepted; guest minimum voice and organizer final-response correlation remain unverified. The four new UI text requests returned200; no new payments or app changes were made during revalidation. See [final evidence](reviews/revalidation-20261029.md). Earlier candidate/publication-pending notes below are historical.
+
 ## October28 recovery candidate — independently approved, publication pending
 
 The read-only guest tool get_collection_progress now also returns funding status, deadline and registered/pending/review refund totals in server integer cents, with guidance based on the actual funding state. All existing fields remain. It returns no identity, session, admin key or provider metadata and performs no payment/refund/RSVP actions. Confirmation guidance treats closed registrations separately from funding eligibility. [Source review](reviews/recovery-source-final-20261028.md).
