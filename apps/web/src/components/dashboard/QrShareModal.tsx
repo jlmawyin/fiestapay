@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Modal } from '../common/Modal';
+import { shareableInviteUrl, whatsAppShareUrl } from '../../lib/event-presentation';
 
 interface QrShareModalProps {
   isOpen: boolean;
   onClose: () => void;
   inviteUrl: string;
   eventTitle: string;
+  /** Plain WhatsApp draft. The link is not opened from this component. */
+  shareText?: string;
 }
 
 export const QrShareModal: React.FC<QrShareModalProps> = ({
@@ -14,12 +17,21 @@ export const QrShareModal: React.FC<QrShareModalProps> = ({
   onClose,
   inviteUrl,
   eventTitle,
+  shareText,
 }) => {
   const [copied, setCopied] = useState(false);
+  const publicUrl = (() => {
+    try {
+      return shareableInviteUrl(inviteUrl);
+    } catch {
+      return inviteUrl;
+    }
+  })();
+  const draftUrl = shareText ? whatsAppShareUrl(shareText) : null;
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(inviteUrl);
+      await navigator.clipboard.writeText(publicUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch {
@@ -47,7 +59,7 @@ export const QrShareModal: React.FC<QrShareModalProps> = ({
           }}
         >
           <QRCodeSVG
-            value={inviteUrl}
+            value={publicUrl}
             size={220}
             level="M"
             fgColor="#12263A"
@@ -64,7 +76,7 @@ export const QrShareModal: React.FC<QrShareModalProps> = ({
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <input
               readOnly
-              value={inviteUrl}
+              value={publicUrl}
               className="form-input"
               style={{ fontSize: '0.85rem', backgroundColor: 'var(--color-surface-subtle)' }}
               aria-label="Enlace de invitación para copiar"
@@ -78,6 +90,30 @@ export const QrShareModal: React.FC<QrShareModalProps> = ({
             </button>
           </div>
         </div>
+
+        {shareText && draftUrl ? (
+          <div style={{ width: '100%', marginBottom: '1rem', textAlign: 'left' }}>
+            <p style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.35rem' }}>Borrador para WhatsApp</p>
+            <pre
+              aria-label="Borrador para WhatsApp"
+              style={{
+                whiteSpace: 'pre-wrap',
+                overflowWrap: 'anywhere',
+                fontFamily: 'var(--font-body)',
+                fontSize: '0.8rem',
+                background: 'var(--color-surface-subtle)',
+                borderRadius: 'var(--radius-md)',
+                padding: '0.75rem',
+                margin: '0 0 0.5rem',
+              }}
+            >
+              {shareText}
+            </pre>
+            <a className="btn btn-teal" href={draftUrl} target="_blank" rel="noreferrer" style={{ width: '100%' }}>
+              Abrir borrador en WhatsApp
+            </a>
+          </div>
+        ) : null}
 
         <button onClick={onClose} className="btn btn-secondary" style={{ width: '100%' }}>
           Cerrar

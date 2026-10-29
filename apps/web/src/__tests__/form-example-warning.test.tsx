@@ -38,7 +38,9 @@ function fillExactExamples() {
 }
 
 function submitCreate() {
-  fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
+  fireEvent.click(screen.getByRole('button', { name: 'Revisar invitación' }));
+  const publish = screen.queryByRole('button', { name: 'Publicar invitación' });
+  if (publish) fireEvent.click(publish);
 }
 
 function exampleAlert() {
@@ -103,8 +105,8 @@ describe('example placeholder warning', () => {
   it('keeps every input when the organizer chooses to revise and focuses the first field', () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     render(<CreateEventForm onSubmit={onSubmit} onCancel={vi.fn()} isLoading={false} />);
-    fireEvent.click(screen.getByRole('radio', { name: /Viaje/i }));
     fireEvent.change(screen.getByLabelText(/Tipo de Comida/i), { target: { value: 'cena' } });
+    fireEvent.click(screen.getByRole('radio', { name: /Viaje/i }));
     fillExactExamples();
     fireEvent.change(screen.getByLabelText(/Mínimo requerido/i), { target: { value: '50.00' } });
     fireEvent.change(screen.getByLabelText(/Meta ideal/i), { target: { value: '80.00' } });
@@ -130,7 +132,8 @@ describe('example placeholder warning', () => {
     expect(screen.getByLabelText(/Capacidad máxima/i)).toHaveValue(6);
     expect(screen.getByLabelText(/Mínimo requerido/i)).toHaveValue(50);
     expect(screen.getByLabelText(/Meta ideal/i)).toHaveValue(80);
-    expect(screen.getByLabelText(/Tipo de Comida/i)).toHaveValue('cena');
+    expect(screen.queryByLabelText(/Tipo de Comida/i)).toBeNull();
+    expect(screen.queryByText(/TIPO DE COMIDA/i)).toBeNull();
     expect(screen.getByRole('radio', { name: /Viaje/i })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByLabelText(/Codigo de acceso/i)).toHaveValue('mesa-3');
     expect(screen.getByLabelText(/Hora actividad 1/i)).toHaveValue('19:00');
@@ -197,8 +200,8 @@ describe('example placeholder warning', () => {
   it('submits genuine prose and keeps the meal override without a warning', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     render(<CreateEventForm onSubmit={onSubmit} onCancel={vi.fn()} isLoading={false} />);
-    fireEvent.click(screen.getByRole('radio', { name: /Evento/i }));
     fireEvent.change(screen.getByLabelText(/Tipo de Comida/i), { target: { value: 'desayuno' } });
+    fireEvent.click(screen.getByRole('radio', { name: /Evento/i }));
     const start = screen.getByLabelText(/Fecha y Hora/i) as HTMLInputElement;
     const evening = new Date(start.value);
     evening.setHours(20, 30, 0, 0);
@@ -217,7 +220,7 @@ describe('example placeholder warning', () => {
     expect(payload.meal).toBe('desayuno');
     expect(payload.description).toContain('ejemplo');
     expect(payload.includes).toEqual(['Música', 'lugar']);
-    expect(screen.getByLabelText(/Tipo de Comida/i)).toHaveValue('desayuno');
+    expect(screen.queryByLabelText(/Tipo de Comida/i)).toBeNull();
   });
 
   it('still blocks invalid fields before any example prompt', () => {

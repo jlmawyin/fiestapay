@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
-import type { EventInput, FiestaEvent } from '@fiestapay/shared';
+import { defaultThemeFor, normalizeOrganizerName, themeBelongs, type EventInput, type FiestaEvent } from '@fiestapay/shared';
 import { withTransaction, type Pool, type PoolClient } from '../db/pool.js';
-import { conflict, forbidden, gone, notFound } from '../errors.js';
+import { badRequest, conflict, forbidden, gone, notFound } from '../errors.js';
 import { newAdminKey, newId, newSlug, sha256 } from '../lib/ids.js';
 import { assertAdminKey, digestMatches, rememberUnlock, revokeUnlocks } from './access.js';
 import { audit } from './audit.js';
@@ -30,6 +30,16 @@ const sameHash = (left: Buffer | null, right: Buffer | null): boolean => {
   return left.length === right.length && timingSafeEqual(left, right);
 };
 
+const presentationOf = (input: EventInput): { organizerName: string | null; theme: string } => {
+  if (input.theme !== undefined && !themeBelongs(input.template, input.theme)) {
+    throw badRequest('theme: Tema invalido para esta plantilla');
+  }
+  return {
+    organizerName: normalizeOrganizerName(input.organizerName),
+    theme: input.theme ?? defaultThemeFor(input.template).key,
+  };
+};
+
 export async function insertEvent(
   db: Queryable,
   sessionId: string,
@@ -42,11 +52,13 @@ export async function insertEvent(
     const slug = newSlug(input.template);
     try {
       const funding = fundingForNewEvent(input, fundingNow());
+      const presentation = presentationOf(input);
       const { rows } = await db.query<EventRow>(
         `INSERT INTO events (id, slug, organizer_session_id, generation, title, template, meal, description,
            starts_at, ends_at, location, includes, agenda, price_cents, capacity, goal_cents, minimum_cents,
-           is_demo, admin_key_hash, access_code_hash, funding_deadline_at, funding_status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+           is_demo, admin_key_hash, access_code_hash, funding_deadline_at, funding_status,
+           organizer_name, theme)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
          RETURNING ${EVENT_COLUMNS}`,
         [
           newId(),
@@ -71,6 +83,8 @@ export async function insertEvent(
           opts.accessCodeHash,
           funding.deadline ? funding.deadline.toISOString() : null,
           funding.status,
+          presentation.organizerName,
+          presentation.theme,
         ],
       );
       return rows[0]!;
@@ -307,13 +321,22 @@ export async function updateEvent(
     const changeCode = accessCodeHash !== undefined;
     const nextHash: Buffer | null = accessCodeHash === undefined ? event.access_code_hash : accessCodeHash;
     const codeChanged = changeCode && !sameHash(event.access_code_hash, nextHash);
+    const nextName = input.organizerName === undefined ? normalizeOrganizerName(event.organizer_name) : normalizeOrganizerName(input.organizerName);
+    const requestedTheme = input.theme ?? (themeBelongs(input.template, event.theme) ? event.theme : undefined);
+    if (input.theme !== undefined && !themeBelongs(input.template, input.theme)) {
+      throw badRequest('theme: Tema invalido para esta plantilla');
+    }
+    const nextTheme = requestedTheme && themeBelongs(input.template, requestedTheme)
+      ? requestedTheme
+      : defaultThemeFor(input.template).key;
     const { rows } = await client.query<EventRow>(
       `UPDATE events SET
          title = $2, template = $3, meal = $4, description = $5, starts_at = $6, ends_at = $7,
          location = $8, includes = $9::jsonb, agenda = $10::jsonb, price_cents = $11, capacity = $12,
          goal_cents = $13, minimum_cents = $14,
          access_code_hash = CASE WHEN $15::boolean THEN $16::bytea ELSE access_code_hash END,
-         funding_deadline_at = $17, funding_status = $18
+         funding_deadline_at = $17, funding_status = $18,
+         organizer_name = $19, theme = $20
        WHERE id = $1
        RETURNING ${EVENT_COLUMNS}`,
       [
@@ -335,6 +358,8 @@ export async function updateEvent(
         nextHash,
         terms.deadline ? terms.deadline.toISOString() : null,
         terms.status,
+        nextName,
+        nextTheme,
       ],
     );
     const updated = rows[0]!;

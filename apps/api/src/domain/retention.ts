@@ -31,7 +31,8 @@ export async function concealExpired(pool: Pool, event: EventRow, now = new Date
 const PURGE_BATCH = 25;
 
 /**
- * Wipes public content and chat, keeps the event row and every order or ledger row.
+ * Wipes public content, the optional organizer name, and chat.
+ * Keeps the event row and every order or ledger row.
  * Idempotent: a second call on an already purged event does nothing.
  */
 export async function tombstoneEvent(db: Queryable, eventId: string, action: AuditAction): Promise<boolean> {
@@ -40,6 +41,7 @@ export async function tombstoneEvent(db: Queryable, eventId: string, action: Aud
        purged_at = now(),
        closed_at = COALESCE(closed_at, now()),
        title = 'Eliminado',
+       organizer_name = NULL,
        description = '',
        location = '',
        includes = '[]'::jsonb,
@@ -54,6 +56,7 @@ export async function tombstoneEvent(db: Queryable, eventId: string, action: Aud
   if ((updated.rowCount ?? 0) === 0) return false;
   await db.query('UPDATE guests SET name = \'\' WHERE event_id = $1', [eventId]);
   await db.query('DELETE FROM chat_messages WHERE event_id = $1', [eventId]);
+  await db.query('DELETE FROM organizer_chat_messages WHERE event_id = $1', [eventId]);
   await audit(db, eventId, action);
   return true;
 }

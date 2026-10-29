@@ -24,7 +24,7 @@ export const OrganizerLinkCard: React.FC<OrganizerLinkCardProps> = ({ slug, admi
   };
 
   return (
-    <section className="panel" aria-label="Enlaces de la fiesta">
+    <section className="panel" aria-label="Enlaces de la invitación">
       <h2 style={{ fontSize: '1.15rem', marginBottom: '0.35rem' }}>Guarda el enlace de organizador</h2>
       <p style={{ fontSize: '0.875rem', color: 'var(--color-ink-muted)', marginBottom: '1rem' }}>
         Este enlace abre el panel en otro navegador. No lo compartas con invitados. El enlace publico es otro.

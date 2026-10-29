@@ -9,9 +9,10 @@ import { assertActive } from '../domain/events.js';
 import { concealExpired } from '../domain/retention.js';
 import { reserveAiRequest } from './budget.js';
 import { findGuestBySession, getEventBySlug, loadGuest, type EventRow, type GuestRow } from '../domain/read.js';
+import { decideAssistantTurn, guestSystemInstruction, loadServerFacts, policyAnswer } from './assistant-policy.js';
 import type { HistoryRole, StoredPart, StoredTurn } from './history.js';
 import { createResponse, openaiCallsOf, openaiTextOf, toOpenAIInput, toOpenAITools, type RespondFn } from './openai.js';
-import { TOOL_NAMES, TOOL_DECLARATIONS, runTool, type ToolOutcome } from './tools.js';
+import { TOOL_NAMES, TOOL_DECLARATIONS, runTool, type FunctionDeclaration, type ToolOutcome } from './tools.js';
 
 /** Hard ceiling per (event, session) conversation, so one visitor cannot drain the AI budget. */
 export const MAX_MESSAGES_PER_SCOPE = 60;
@@ -48,8 +49,13 @@ export interface ProviderAdapter {
   responses(answers: { call: ToolCall; response: Record<string, unknown> }[]): StoredTurn;
 }
 
-export function openaiAdapter(config: OpenAIConfig, instruction: string, respond: RespondFn): ProviderAdapter {
-  const tools = toOpenAITools(TOOL_DECLARATIONS);
+export function openaiAdapter(
+  config: OpenAIConfig,
+  instruction: string,
+  respond: RespondFn,
+  declarations: FunctionDeclaration[] = TOOL_DECLARATIONS,
+): ProviderAdapter {
+  const tools = toOpenAITools(declarations);
   return {
     maxToolRounds: config.maxToolRounds,
     async round(history) {
@@ -88,7 +94,9 @@ export async function converse(
   history: StoredTurn[],
   execute: (name: string, args: unknown) => Promise<ToolOutcome>,
   persist: (turn: StoredTurn) => Promise<void>,
+  options?: { allowedTools?: ReadonlySet<string>; rethrow?: (err: unknown) => boolean },
 ): Promise<ConversationResult> {
+  const allowedTools = options?.allowedTools ?? TOOL_NAMES;
   let quote: ToolOutcome['quote'];
   const actions = new Set<string>();
   let text = '';
@@ -111,7 +119,7 @@ export async function converse(
         answers.push({ call, response: { ok: false, motivo: 'Demasiadas herramientas en un solo paso' } });
         continue;
       }
-      if (!TOOL_NAMES.has(call.name)) {
+      if (!allowedTools.has(call.name)) {
         answers.push({ call, response: { ok: false, motivo: 'Herramienta no disponible' } });
         continue;
       }
@@ -123,9 +131,9 @@ export async function converse(
       try {
         outcome = await execute(call.name, call.args);
       } catch (err) {
-        // A block or a deletion that landed while the model was running must not be stored
-        // as a tool answer. Other domain refusals stay information for the model.
-        if (err instanceof ModerationHold) throw err;
+        // A block, a revoked organizer key, or a deletion that landed while the model was
+        // running must not be stored as a tool answer. Other domain refusals stay information.
+        if (err instanceof ModerationHold || options?.rethrow?.(err)) throw err;
         const motivo = err instanceof HttpError ? err.message : 'No se pudo ejecutar la herramienta';
         outcome = { response: { ok: false, motivo } };
       }
@@ -143,22 +151,12 @@ export async function converse(
 }
 
 function systemInstruction(event: EventRow, guest: GuestRow | null): string {
-  return [
-    'Eres el asistente de FiestaPay, una demo que organiza encuentros y cobra cuotas con PayPal en sandbox.',
-    `Solo puedes hablar del evento "${event.title}" (enlace ${event.slug}). Si preguntan por otro evento, explica que no tienes acceso.`,
-    guest
-      ? `Conversas con ${guest.name}, invitado de este evento.`
-      : 'La persona todavia no se unio a la invitacion; invitala a unirse desde la pagina.',
-    'Responde en espanol, breve y concreto.',
-    'Reglas que no puedes romper:',
-    '1. Los importes, el precio y el estado de pago vienen solo de las herramientas del servidor. Nunca inventes cifras ni las calcules de memoria.',
-    '2. No puedes cobrar, aprobar ni confirmar pagos. Solo preparas una cotizacion y pides confirmacion explicita en la interfaz; el pago lo aprueba la persona en PayPal.',
-    '3. Nunca afirmes que un pago quedo hecho. Si preguntan, consulta el estado con las herramientas y repite lo que digan.',
-    '4. No cambias la asistencia por tu cuenta: propon el cambio con propose_rsvp y di que debe confirmarlo en la pagina.',
-    '5. Si falta un dato del evento, di que el organizador no lo registro. No supongas menu, horarios ni expositores.',
-    '6. Antes de una cotizacion repite la cuenta del servidor, por ejemplo "2 personas por $25,00, total $50,00. Confirmo?".',
-    '7. Son pagos de prueba en el sandbox de PayPal; nunca prometas reservas reales ni servicios de terceros.',
-  ].join('\n');
+  return guestSystemInstruction({
+    title: event.title,
+    slug: event.slug,
+    template: event.template,
+    guestName: guest?.name ?? null,
+  });
 }
 
 /** OpenAI only. A missing key is a 503, never another model. */
@@ -187,10 +185,13 @@ async function loadHistory(pool: Pool, eventId: string, sessionId: string, limit
   }));
 }
 
-async function scopeMessageCount(pool: Pool, eventId: string, sessionId: string): Promise<number> {
+/** User turns of both roles share one ceiling for the same event and browser session. */
+export async function countScopedUserMessages(pool: Pool, eventId: string, sessionId: string): Promise<number> {
   const { rows } = await pool.query<{ count: string }>(
-    `SELECT COUNT(*)::text AS count FROM chat_messages
-       WHERE event_id = $1 AND session_id = $2 AND role = 'user'`,
+    `SELECT (
+       (SELECT COUNT(*) FROM chat_messages WHERE event_id = $1 AND session_id = $2 AND role = 'user')
+       + (SELECT COUNT(*) FROM organizer_chat_messages WHERE event_id = $1 AND session_id = $2 AND role = 'user')
+     )::text AS count`,
     [eventId, sessionId],
   );
   return Number(rows[0]?.count ?? '0');
@@ -220,7 +221,7 @@ export async function chatWithAssistant(
   await assertSessionMayAct(pool, event.id, sessionId);
   const provider = selectProvider(config, providers);
 
-  if ((await scopeMessageCount(pool, event.id, sessionId)) >= MAX_MESSAGES_PER_SCOPE) {
+  if ((await countScopedUserMessages(pool, event.id, sessionId)) >= MAX_MESSAGES_PER_SCOPE) {
     throw new HttpError(429, 'Alcanzaste el limite de mensajes del asistente en este evento');
   }
 
@@ -228,6 +229,19 @@ export async function chatWithAssistant(
   const userTurn: StoredTurn = { role: 'user', parts: [{ text: message }] };
   const storedUser = await appendChatTurn(pool, event.id, sessionId, 'user', userTurn.parts);
   await audit(pool, event.id, 'chat_message');
+  const decision = decideAssistantTurn(message);
+  if (decision.kind !== 'model') {
+    const facts = decision.kind === 'faq' ? await loadServerFacts(pool, event, config.publicOrigin) : null;
+    const text = policyAnswer('guest', decision, facts);
+    const saved = await appendChatTurn(pool, event.id, sessionId, 'model', [{ text }], storedUser.revision);
+    const freshGuest = guest ? await loadGuest(pool, guest, event) : undefined;
+    return {
+      text,
+      ...(freshGuest ? { guest: freshGuest } : {}),
+      userMessageId: storedUser.id,
+      assistantMessageId: saved.id,
+    };
+  }
   const history = await loadHistory(pool, event.id, sessionId, provider.maxHistoryMessages);
   const assistantIds: string[] = [];
 

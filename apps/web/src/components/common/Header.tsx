@@ -70,7 +70,7 @@ export const Header: React.FC<HeaderProps> = ({
               FiestaPay
             </div>
             <div style={{ fontSize: '0.725rem', color: 'var(--color-teal)', fontWeight: 700, letterSpacing: '0.02em' }}>
-              Fiestas organizadas, pagos claros
+              Invitaciones con pagos claros
             </div>
           </div>
         </button>
@@ -82,14 +82,14 @@ export const Header: React.FC<HeaderProps> = ({
             className="btn btn-secondary"
             style={{ padding: '0.45rem 0.85rem', fontSize: '0.875rem' }}
           >
-            Mis Fiestas
+            Mis invitaciones
           </button>
           <button
             onClick={onNavigateCreate}
             className="btn btn-primary"
             style={{ padding: '0.45rem 1rem', fontSize: '0.875rem' }}
           >
-            + Nueva Fiesta
+            + Nueva invitación
           </button>
         </nav>
       </div>

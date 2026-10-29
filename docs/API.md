@@ -1,5 +1,26 @@
 # Shared implementation contract
 
+Current deployment is source8e13ae6 / schema0009–0010. Recovery verification closed with12/14 browser points accepted; guest minimum voice and organizer final-response correlation remain unverified. The four new UI text requests returned200; no new payments or app changes were made during revalidation. See [final evidence](reviews/revalidation-20261029.md). Earlier candidate/publication-pending notes below are historical.
+
+## October28 recovery candidate — independently approved, publication pending
+
+The read-only guest tool get_collection_progress now also returns funding status, deadline and registered/pending/review refund totals in server integer cents, with guidance based on the actual funding state. All existing fields remain. It returns no identity, session, admin key or provider metadata and performs no payment/refund/RSVP actions. Confirmation guidance treats closed registrations separately from funding eligibility. [Source review](reviews/recovery-source-final-20261028.md).
+
+## October 28 deployed candidate — live browser findings open
+
+These additions are deployed in `6b33b4f` with schema0009–0010; source, infrastructure and preservation checks passed. The live browser campaign completed10/14points; WhatsApp preview, assistant answers and rendered contrast still require correction. See [browser findings](reviews/tester-browser-20261028.md). Migration0009 adds optional public `organizerName` and a validated presentation theme; legacy values remain NULL. The organizer display name grants no authority and never exposes the creator session or administrative key. Creation still returns the public event and a separately minted organizer capability. The review screen confirms current input before publication; invitation, dashboard and WhatsApp draft show start and end times with copy appropriate to the event type. See [deployment evidence](reviews/tester-deployment-20261028.md).
+
+Migration0010 adds organizer-only conversation storage and a voice-lease audience. All organizer assistant routes below require the current `X-Fiesta-Admin-Key`, including history and voice tool requests. A creator cookie or public invitation alone does not grant organizer assistant access.
+
+- `POST /api/events/:slug/organizer-chat` accepts `{message}` and returns guidance based on authorized server facts. It cannot confirm, cancel, refund, edit or collect money.
+- `GET /api/events/:slug/organizer-chat/history` reads the organizer transcript for this event and browser session. Guest conversation history remains separate, including when both roles use the same browser cookie.
+- `POST /api/events/:slug/organizer-voice/token` accepts microphone consent and reserves a role-bound lease against the same session/global allowances as guest voice.
+- `POST /api/events/:slug/organizer-voice/tool` accepts the lease and an allowed read-only tool call. The event, session, audience, expiry and current key are checked before access; authority is checked again after asynchronous provider/tool work.
+
+The organizer tool can return a bounded attendee list and payment information already visible in that panel, not private recovery contacts, IP addresses, access codes, session identifiers or keys. Deleting/expiring an event clears its organizer display name and organizer transcript while preserving financial references. Guest and organizer text share existing request budgets. Both voice roles share duration reservations; switching roles does not create another allowance. Text uses OpenAI `gpt-6-luna` with low reasoning; the AssemblyAI managed voice engine's internal model is not identified by our configuration.
+
+Both assistants stay within the invitation and FiestaPay context. PayPal capture credits the single Business sandbox recipient immediately; organizer confirmation changes the gathering's status and does not release escrow or execute Payouts. Buyer Protection depends on PayPal eligibility and terms. A refund explanation must reflect the actual event deadline and funding state, rather than promise a refund for legacy events without an active deadline.
+
 ## October 25 current contracts
 
 The current P0–P6 request supersedes incompatible historic P1 rules below. The public invitation is `/e/:slug`; the organizer entry is `/e/:slug/admin?k=:adminKey`. The browser captures the key into localStorage and removes it from the query. The server stores only its SHA-256 digest and compares fixed-length digests with `timingSafeEqual`. Keyed organizer operations require `X-Fiesta-Admin-Key`; the creator cookie alone does not authorize these operations.

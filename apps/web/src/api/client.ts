@@ -21,6 +21,10 @@ import type {
 } from '../types';
 import { adminHeaderFor } from './admin-key';
 
+export interface OrganizerChatTranscript extends ChatTranscript {
+  greeting: string;
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -289,5 +293,35 @@ export const api = {
         body: JSON.stringify(payload),
       }
     );
+  },
+
+  async sendOrganizerChat(slug: string, message: string): Promise<ChatResult> {
+    return request<ChatResult>(`/api/events/${encodeURIComponent(slug)}/organizer-chat`, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    });
+  },
+
+  async getOrganizerChatHistory(slug: string): Promise<OrganizerChatTranscript> {
+    return request<OrganizerChatTranscript>(`/api/events/${encodeURIComponent(slug)}/organizer-chat/history`);
+  },
+
+  async getOrganizerVoiceToken(
+    slug: string,
+  ): Promise<{ token: string; sessionConfig: Record<string, unknown>; maxSeconds: number; leaseId: string }> {
+    return request(`/api/events/${encodeURIComponent(slug)}/organizer-voice/token`, {
+      method: 'POST',
+      body: JSON.stringify({ consent: true }),
+    });
+  },
+
+  async executeOrganizerVoiceTool(
+    slug: string,
+    payload: { leaseId: string; name: string; arguments: Record<string, unknown> },
+  ): Promise<{ response: unknown }> {
+    return request(`/api/events/${encodeURIComponent(slug)}/organizer-voice/tool`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 };

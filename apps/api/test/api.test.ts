@@ -166,7 +166,13 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
       expect(view.event.slug).toBe(event.slug);
       expect(view.guest).toBeNull();
       expect(Object.keys(view)).toEqual(['event', 'guest']);
-      expect(JSON.stringify(view.event)).not.toContain('organizer');
+      // organizerName is an intentional public display name, not creator authority.
+      expect(view.event).toHaveProperty('organizerName', null);
+      for (const privateField of ['organizer', 'organizer_session_id', 'organizerSessionId', 'admin_key_hash', 'adminKeyHash', 'adminKey']) {
+        expect(view.event).not.toHaveProperty(privateField);
+      }
+      const storedEvent = await getEventBySlug(pool, event.slug);
+      expect(JSON.stringify(view.event)).not.toContain(storedEvent.organizer_session_id);
       expect(JSON.stringify(view.event)).not.toContain('Invitada Ana');
 
       // The organizer sees their own dashboard; nobody else does.

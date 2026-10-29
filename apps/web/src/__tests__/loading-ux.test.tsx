@@ -56,6 +56,12 @@ function fillCreateForm() {
   fireEvent.change(screen.getByLabelText(/Capacidad máxima/i), { target: { value: '10' } });
 }
 
+function submitCreate() {
+  fireEvent.click(screen.getByRole('button', { name: 'Revisar invitación' }));
+  const publish = screen.queryByRole('button', { name: 'Publicar invitación' });
+  if (publish) fireEvent.click(publish);
+}
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -141,29 +147,30 @@ describe('create event pending progress and duplicate protection', () => {
     );
 
     fillCreateForm();
-    const submit = screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i });
-    fireEvent.click(submit);
-    fireEvent.click(submit);
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar invitación' }));
+    const publish = screen.getByRole('button', { name: 'Publicar invitación' });
+    fireEvent.click(publish);
+    fireEvent.click(publish);
 
-    expect(await screen.findByRole('status')).toHaveTextContent(/Creando la fiesta/);
+    expect(await screen.findByRole('status')).toHaveTextContent(/Creando la invitación/);
     expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite');
     expect(screen.queryByText(/\d+\s*%/)).toBeNull();
     expect(screen.queryByText(/paso\s+\d/i)).toBeNull();
     expect(createEvent).toHaveBeenCalledTimes(1);
     expect(sendChat).not.toHaveBeenCalled();
     expect(onEventCreated).not.toHaveBeenCalled();
-    expect(screen.queryByLabelText('Enlaces de la fiesta')).toBeNull();
+    expect(screen.queryByLabelText('Enlaces de la invitación')).toBeNull();
 
     await act(async () => {
       pending.resolve(createdEvent);
     });
 
-    expect(await screen.findByLabelText('Enlaces de la fiesta')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Enlaces de la invitación')).toBeInTheDocument();
     expect(localStorage.getItem('fp_admin_fiesta-nueva')).toBe('admin-key-1');
     expect(onShowToast).toHaveBeenCalledWith(
       'success',
-      '¡Fiesta "Fiesta de prueba" creada con éxito!',
-      'Fiesta Creada',
+      '¡Invitación "Fiesta de prueba" creada con éxito!',
+      'Invitación creada',
     );
     expect(createEvent).toHaveBeenCalledTimes(1);
     expect(sendChat).not.toHaveBeenCalled();
@@ -180,17 +187,17 @@ describe('create event pending progress and duplicate protection', () => {
     );
 
     fillCreateForm();
-    fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
+    submitCreate();
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Servidor ocupado');
     expect(onShowToast).toHaveBeenCalledWith('error', 'Servidor ocupado', 'Error al crear');
     expect(screen.queryByRole('status')).toBeNull();
-    expect(screen.queryByLabelText('Enlaces de la fiesta')).toBeNull();
+    expect(screen.queryByLabelText('Enlaces de la invitación')).toBeNull();
     expect(onEventCreated).not.toHaveBeenCalled();
     expect(localStorage.getItem('fp_admin_fiesta-nueva')).toBeNull();
     expect(createEvent).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
+    submitCreate();
     expect(await screen.findByRole('alert')).toHaveTextContent('Servidor ocupado');
     expect(createEvent).toHaveBeenCalledTimes(2);
 
@@ -209,8 +216,8 @@ describe('create event pending progress and duplicate protection', () => {
     );
 
     fillCreateForm();
-    fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
-    expect(await screen.findByRole('status')).toHaveTextContent(/Creando la fiesta/);
+    submitCreate();
+    expect(await screen.findByRole('status')).toHaveTextContent(/Creando la invitación/);
     second.unmount();
 
     await act(async () => {
@@ -219,7 +226,7 @@ describe('create event pending progress and duplicate protection', () => {
 
     expect(onEventCreatedLate).not.toHaveBeenCalled();
     expect(onShowToastLate).not.toHaveBeenCalled();
-    expect(screen.queryByLabelText('Enlaces de la fiesta')).toBeNull();
+    expect(screen.queryByLabelText('Enlaces de la invitación')).toBeNull();
     expect(localStorage.getItem('fp_admin_fiesta-nueva')).toBe('admin-key-1');
   });
 });

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Capabilities, Guest, Quote, RsvpStatus } from '../../types';
-import { api } from '../../api/client';
+import { ApiError, api } from '../../api/client';
 import { ContinuousResampler } from '../../voice/resampler';
 import { floatToPCM16, pcm16ToBase64 } from '../../voice/pcm';
 import { PlaybackQueue, type PlaybackFault } from '../../voice/playback';
@@ -14,8 +14,10 @@ interface VoiceInvitationAgentProps {
   onShowToast: (type: 'success' | 'error' | 'info' | 'warning', message: string, title?: string) => void;
   /** This session cannot start or continue voice. Existing playback is stopped. */
   accessRevoked?: boolean;
-  /** The invitation is closed to new voice sessions. */
+  /** The invitation is closed to new guest voice sessions. */
   eventClosed?: boolean;
+  /** Guest uses the public voice routes. Organizer uses the keyed routes and does not need an alias. */
+  audience?: 'guest' | 'organizer';
 }
 
 interface AccumulatedToolCall {
@@ -75,7 +77,9 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   onShowToast,
   accessRevoked = false,
   eventClosed = false,
+  audience = 'guest',
 }) => {
+  const organizer = audience === 'organizer';
   const [isOpen, setIsOpen] = useState(false);
   const [consentGranted, setConsentGranted] = useState(false);
   const [sessionState, setSessionState] = useState<
@@ -186,7 +190,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     };
   }, [cleanupSession]);
 
-  const voiceStopped = accessRevoked || eventClosed;
+  const voiceStopped = organizer ? accessRevoked : accessRevoked || eventClosed;
   useEffect(() => {
     if (!voiceStopped) return;
     cleanupSession();
@@ -204,8 +208,8 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
       );
       return;
     }
-    if (!guest) {
-      onShowToast('info', 'Debes unirte a la fiesta primero para hablar con el asistente de voz.', 'Identificación requerida');
+    if (!organizer && !guest) {
+      onShowToast('info', 'Debes unirte a esta invitación primero para hablar con el asistente de voz.', 'Identificación requerida');
       return;
     }
     if (!voiceAvailable) {
@@ -265,7 +269,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
 
       // 2. Request voice token from server
       setSessionState('connecting');
-      const tokenData = await api.getVoiceToken(slug);
+      const tokenData = organizer ? await api.getOrganizerVoiceToken(slug) : await api.getVoiceToken(slug);
       if (!isCurrentSession()) return;
       leaseIdRef.current = tokenData.leaseId;
 
@@ -540,11 +544,17 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                   for (const tool of toolsToExecute) {
                     if (!isCurrentTurn()) return;
                     try {
-                      const toolRes = await api.executeVoiceTool(slug, {
-                        leaseId: tokenData.leaseId,
-                        name: tool.name,
-                        arguments: tool.arguments,
-                      });
+                      const toolRes = organizer
+                        ? await api.executeOrganizerVoiceTool(slug, {
+                            leaseId: tokenData.leaseId,
+                            name: tool.name,
+                            arguments: tool.arguments,
+                          })
+                        : await api.executeVoiceTool(slug, {
+                            leaseId: tokenData.leaseId,
+                            name: tool.name,
+                            arguments: tool.arguments,
+                          });
                       if (!isCurrentTurn()) return;
 
                       // Send tool result back over WebSocket
@@ -559,15 +569,14 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                         );
                       }
 
-                      // Handle suggested quote
-                      if (toolRes.quote) {
-                        setSuggestedQuote(toolRes.quote);
-                        onApplyQuote?.(toolRes.quote);
-                      }
-
-                      // Handle action proposals (e.g. rsvp:yes:1)
-                      if (toolRes.actions && Array.isArray(toolRes.actions)) {
-                        for (const act of toolRes.actions) {
+                      // Guest quotes stay human-confirmed. Organizer voice never applies a quote or an RSVP.
+                      if (!organizer) {
+                        const guestRes = toolRes as Awaited<ReturnType<typeof api.executeVoiceTool>>;
+                        if (guestRes.quote) {
+                          setSuggestedQuote(guestRes.quote);
+                          onApplyQuote?.(guestRes.quote);
+                        }
+                        for (const act of guestRes.actions ?? []) {
                           const parsedAction = parseRsvpAction(act);
                           if (parsedAction) {
                             setActionProposals((prev) => [
@@ -584,6 +593,13 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                       }
                     } catch (toolErr: any) {
                       if (!isCurrentTurn()) return;
+                      if (toolErr instanceof ApiError && toolErr.status === 403) {
+                        cleanupSession();
+                        setSessionState('error');
+                        setErrorMessage('La voz se detuvo: la clave o la sesion ya no autoriza esta herramienta. Continua por el panel o el formulario.');
+                        onShowToast('error', 'La voz se detuvo. Puedes seguir en el panel o en el formulario.', 'Voz detenida');
+                        return;
+                      }
                       if (ws.readyState === WebSocket.OPEN) {
                         ws.send(
                           JSON.stringify({
@@ -733,7 +749,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontSize: '1.2rem' }}>🎙️</span>
               <div>
-                <strong style={{ fontSize: '0.9rem', display: 'block' }}>Asistente de Voz</strong>
+                <strong style={{ fontSize: '0.9rem', display: 'block' }}>{organizer ? 'Voz del organizador' : 'Asistente de Voz'}</strong>
                 <span style={{ fontSize: '0.72rem', opacity: 0.9 }}>
                   AssemblyAI Real-Time Voice Agent
                 </span>
@@ -764,7 +780,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
             }}
           >
             {/* Guest requirement warning */}
-            {!guest ? (
+            {!organizer && !guest ? (
               <div
                 style={{
                   backgroundColor: 'var(--color-yellow-tint)',
@@ -811,7 +827,10 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                   }}
                 >
                   <p>
-                    🔒 <strong>Aviso de Privacidad y Consentimiento:</strong> El audio del micrófono se procesa en tiempo real mediante <strong>AssemblyAI Voice Agent</strong>. Tu sesión usa tu alias público <strong>"{guest.name}"</strong>. No transmitas información financiera confidencial por este canal.
+                    🔒 <strong>Aviso de Privacidad y Consentimiento:</strong> El audio del micrófono se procesa en tiempo real mediante <strong>AssemblyAI Voice Agent</strong>.{' '}
+                    {organizer
+                      ? 'Esta voz es del panel y exige la clave en el servidor. No digas la clave, correos ni datos de tarjeta.'
+                      : <>Tu sesión usa tu alias público <strong>"{guest?.name}"</strong>. No transmitas información financiera confidencial por este canal.</>}
                   </p>
                   {!consentGranted && (
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>
@@ -915,7 +934,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                       {userTranscript && (
                         <div>
                           <span style={{ fontSize: '0.72rem', color: 'var(--color-blue)', fontWeight: 700, display: 'block' }}>
-                            Tú ({guest.name}):
+                            Tú ({organizer ? 'organizador' : guest?.name}):
                           </span>
                           <span style={{ color: 'var(--color-ink)' }}>{userTranscript}</span>
                         </div>

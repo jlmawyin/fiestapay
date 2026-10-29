@@ -1,3 +1,4 @@
+import { ORGANIZER_NAME_MAX, TEMPLATE_THEMES, themeBelongs } from '@fiestapay/shared';
 import { z } from 'zod';
 import { badRequest } from '../errors.js';
 
@@ -28,6 +29,13 @@ export const agendaItemSchema = z.object({
   speaker: trimmed(80).optional(),
 });
 
+const THEME_KEYS = [
+  ...TEMPLATE_THEMES.comida,
+  ...TEMPLATE_THEMES.casa,
+  ...TEMPLATE_THEMES.viaje,
+  ...TEMPLATE_THEMES.evento,
+] as const;
+
 export const eventInputSchema = z
   .object({
     title: requiredText(120),
@@ -43,8 +51,14 @@ export const eventInputSchema = z
     goalCents: cents(MAX_GOAL_CENTS).nullable(),
     minimumCents: cents(MAX_GOAL_CENTS).nullable(),
     agenda: z.array(agendaItemSchema).max(50),
+    organizerName: z.string().trim().max(ORGANIZER_NAME_MAX).nullable().optional(),
+    theme: z.string().trim().pipe(z.enum(THEME_KEYS)).optional(),
     accessCode: z.string().trim().min(4).max(64).nullable().optional(),
     fundingDeadlineAt: isoDate.nullable().optional(),
+  })
+  .refine((v) => v.theme === undefined || themeBelongs(v.template, v.theme), {
+    message: 'Tema invalido para esta plantilla',
+    path: ['theme'],
   })
   .refine(
     (v) => v.minimumCents === null || v.goalCents === null || v.minimumCents <= v.goalCents,

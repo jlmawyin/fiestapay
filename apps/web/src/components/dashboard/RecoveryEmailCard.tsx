@@ -70,12 +70,12 @@ export const RecoveryEmailCard: React.FC<RecoveryEmailCardProps> = ({ slug, avai
       <h2 style={{ fontSize: '1.15rem', marginBottom: '0.35rem' }}>Correo opcional</h2>
       {!available ? (
         <p style={{ fontSize: '0.875rem', color: 'var(--color-ink-muted)' }}>
-          El correo de recuperacion no esta disponible en este servidor. La fiesta se crea igual y el enlace de organizador sigue siendo el acceso.
+          El correo de recuperacion no esta disponible en este servidor. La invitación se crea igual y el enlace de organizador sigue siendo el acceso.
         </p>
       ) : (
         <>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-ink-muted)', marginBottom: '0.75rem' }}>
-            No hace falta un correo para crear la fiesta. Si lo guardas, primero hay que confirmarlo. Despues puede servir para pedir un enlace nuevo.
+            No hace falta un correo para crear la invitación. Si lo guardas, primero hay que confirmarlo. Despues puede servir para pedir un enlace nuevo.
           </p>
           <p style={{ fontSize: '0.875rem', marginBottom: '0.75rem' }}>{contact ? stateLabel(contact) : 'Leyendo estado...'}</p>
           <form onSubmit={(event) => void save(event)} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>

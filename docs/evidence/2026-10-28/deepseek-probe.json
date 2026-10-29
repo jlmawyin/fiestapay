@@ -1,0 +1,39 @@
+{
+  "bridge": "dsh-codex-bridge@0.1.0",
+  "dshVersion": "0.2.1-rc.3",
+  "authMode": "account",
+  "requestedModel": "deepseek-flash",
+  "requestedEffort": "low",
+  "checks": [
+    "MCP handshake",
+    "four tools",
+    "account credential presence",
+    "real no-op",
+    "same-session continuation",
+    "real file tools",
+    "13 independent cents/boundary cases",
+    "no extra files"
+  ],
+  "noop": {
+    "status": "completed",
+    "answer": "PUENTE-OK",
+    "elapsedSeconds": 5.3
+  },
+  "continuation": {
+    "sameSession": true,
+    "status": "completed",
+    "elapsedSeconds": 11.4
+  },
+  "independentTests": {
+    "cases": 13,
+    "passed": 13,
+    "failed": 0
+  },
+  "unexpectedFiles": [],
+  "limits": [
+    "No FiestaPay product code delegated",
+    "No secrets or env files provided",
+    "Native MCP exposure in this chat still absent",
+    "No quota or billed token count supplied by this bridge"
+  ]
+}

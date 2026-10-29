@@ -1,4 +1,5 @@
 import type { AgendaItem, FiestaEvent, FundingStatus, Guest, RefundSummary, RsvpStatus, TemplateKind } from '@fiestapay/shared';
+import { normalizeOrganizerName, resolveTheme } from '@fiestapay/shared';
 import { sumToCents, type Pool, type PoolClient } from '../db/pool.js';
 import { notFound } from '../errors.js';
 
@@ -34,6 +35,10 @@ export interface EventRow {
   funding_status: FundingStatus;
   funding_decided_at: Date | null;
   funding_basis_cents: number | null;
+  /** Null on rows created before presentation metadata. */
+  organizer_name?: string | null;
+  /** Null on rows created before presentation metadata. */
+  theme?: string | null;
 }
 
 export interface GuestRow {
@@ -52,7 +57,8 @@ export interface GuestRow {
 export const EVENT_COLUMNS = `id, slug, organizer_session_id, generation, archived, title, template, meal,
   description, starts_at, location, includes, agenda, price_cents, capacity, goal_cents, minimum_cents,
   confirmed, created_at, ends_at, closed_at, purged_at, is_demo, admin_key_hash, access_code_hash,
-  funding_deadline_at, funding_status, funding_decided_at, funding_basis_cents`;
+  funding_deadline_at, funding_status, funding_decided_at, funding_basis_cents,
+  organizer_name, theme`;
 
 export const GUEST_COLUMNS =
   'id, event_id, session_id, name, status, companions, obligation_version, blocked_at, removed_at';
@@ -216,6 +222,8 @@ export function toFiestaEvent(row: EventRow, totals: EventTotals): FiestaEvent {
     paidPeople: totals.paidPeople,
     refundSummary: totals.refundSummary,
     fundingBasisCents: row.funding_basis_cents,
+    organizerName: normalizeOrganizerName(row.organizer_name),
+    theme: resolveTheme(row.template, row.theme).key,
   };
 }
 

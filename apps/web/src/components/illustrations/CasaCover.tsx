@@ -3,9 +3,10 @@ import React from 'react';
 interface CoverProps {
   className?: string;
   height?: number | string;
+  accent?: string;
 }
 
-export const CasaCover: React.FC<CoverProps> = ({ className = '', height = '180px' }) => {
+export const CasaCover: React.FC<CoverProps> = ({ className = '', height = '180px', accent }) => {
   return (
     <svg
       viewBox="0 0 500 200"
@@ -18,6 +19,7 @@ export const CasaCover: React.FC<CoverProps> = ({ className = '', height = '180p
     >
       {/* Background warm home evening atmosphere */}
       <rect width="500" height="200" fill="#12263A" />
+      {accent ? <rect width="500" height="14" fill={accent} /> : null}
       <circle cx="150" cy="90" r="120" fill="#125FE6" fillOpacity="0.15" />
       <circle cx="380" cy="110" r="110" fill="#FFC85A" fillOpacity="0.12" />
 

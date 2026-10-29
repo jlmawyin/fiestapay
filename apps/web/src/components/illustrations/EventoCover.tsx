@@ -3,9 +3,10 @@ import React from 'react';
 interface CoverProps {
   className?: string;
   height?: number | string;
+  accent?: string;
 }
 
-export const EventoCover: React.FC<CoverProps> = ({ className = '', height = '180px' }) => {
+export const EventoCover: React.FC<CoverProps> = ({ className = '', height = '180px', accent }) => {
   return (
     <svg
       viewBox="0 0 500 200"
@@ -13,11 +14,12 @@ export const EventoCover: React.FC<CoverProps> = ({ className = '', height = '18
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       style={{ width: '100%', height, display: 'block', objectFit: 'cover' }}
-      aria-label="Ilustración de gran evento festivo, fiesta y celebración con luces"
+      aria-label="Ilustración de gran evento formal y celebración con luces"
       role="img"
     >
       {/* Background night stage */}
       <rect width="500" height="200" fill="#12263A" />
+      {accent ? <rect width="500" height="14" fill={accent} /> : null}
 
       {/* Spotlights cones */}
       <polygon points="60,0 120,200 20,200" fill="#FFC85A" fillOpacity="0.12" />

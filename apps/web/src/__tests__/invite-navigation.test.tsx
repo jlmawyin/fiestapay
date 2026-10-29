@@ -162,7 +162,7 @@ describe('Navigation between invitations with in-flight mutations (Join/RSVP/Cre
 
     const input = screen.getByLabelText(/Alias del invitado/i);
     fireEvent.change(input, { target: { value: 'Carlos' } });
-    const joinBtn = screen.getByRole('button', { name: /Entrar a la fiesta/i });
+    const joinBtn = screen.getByRole('button', { name: /Unirme a comer/i });
     fireEvent.click(joinBtn);
 
     expect(api.joinEvent).toHaveBeenCalledWith('fiesta-uno', 'Carlos');
@@ -188,8 +188,8 @@ describe('Navigation between invitations with in-flight mutations (Join/RSVP/Cre
     // Controls on the new fiesta must not be blocked (not in loading state)
     const inputDos = screen.getByLabelText(/Alias del invitado/i) as HTMLInputElement;
     expect(inputDos).not.toBeDisabled();
-    const joinBtnDos = screen.getByRole('button', { name: /Entrar a la fiesta/i });
-    expect(joinBtnDos).toHaveTextContent('Entrar a la fiesta');
+    const joinBtnDos = screen.getByRole('button', { name: /Unirme al evento/i });
+    expect(joinBtnDos).toHaveTextContent('Unirme al evento');
     fireEvent.change(inputDos, { target: { value: 'NuevoAlias' } });
     expect(joinBtnDos).not.toBeDisabled();
   });
@@ -213,7 +213,7 @@ describe('Navigation between invitations with in-flight mutations (Join/RSVP/Cre
 
     const input = screen.getByLabelText(/Alias del invitado/i);
     fireEvent.change(input, { target: { value: 'Daniel' } });
-    const joinBtn = screen.getByRole('button', { name: /Entrar a la fiesta/i });
+    const joinBtn = screen.getByRole('button', { name: /Unirme a comer/i });
     fireEvent.click(joinBtn);
 
     // Navigate to fiesta-dos
@@ -236,8 +236,8 @@ describe('Navigation between invitations with in-flight mutations (Join/RSVP/Cre
     // Controls in fiesta-dos must be interactive
     const inputDos = screen.getByLabelText(/Alias del invitado/i) as HTMLInputElement;
     expect(inputDos).not.toBeDisabled();
-    const joinBtnDos = screen.getByRole('button', { name: /Entrar a la fiesta/i });
-    expect(joinBtnDos).toHaveTextContent('Entrar a la fiesta');
+    const joinBtnDos = screen.getByRole('button', { name: /Unirme al evento/i });
+    expect(joinBtnDos).toHaveTextContent('Unirme al evento');
     fireEvent.change(inputDos, { target: { value: 'DanielDos' } });
     expect(joinBtnDos).not.toBeDisabled();
   });

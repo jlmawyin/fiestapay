@@ -1,5 +1,27 @@
 # Plan vigente — FiestaPay · entrega máxima 31 octubre 2026
 
+## Estado vigente — 29 octubre
+
+Aplicación `8e13ae6` publicada; 426 pruebas sin omisiones + 26 comprobaciones independientes aceptadas. Navegador: **12/14 puntos aceptados; voz 12 y 13 parciales**, no aceptación total ni freeze. Construcción y revisión de recuperación cerradas en 3/3; sin cuarto intento. [Evidencia](reviews/revalidation-20261029.md).
+
+Guía inglesa de jueces, guion 90 s, borrador Devpost y declaración de IA preparados y aprobados **como borradores** por AGY, entrega2/3; [revisión](reviews/judges-materials-20261029.md). No hay grabación/publicación de video, envío ni recorrido humano acreditado por esos documentos. No se repite suite ni despliegue por cambios de Markdown.
+
+Siguiente ruta:
+
+1. Recibir resultados humanos que Jorge convoca hasta **29 oct20:00 ECT** y clasificar fallos nuevos con evidencia. No enviar invitaciones ni confundir emulación con teléfono físico.
+2. Preparar acceso privado de compradores ficticios para jueces; revisar las preguntas de voz pendientes en español/teléfono. Las rondas automáticas de pago, texto y voz están **cerradas sin remanente autorizado**; una nueva acción externa requiere autorización acotada y contador propio aprobado, no cambiar fixture para eludir topes.
+3. Ensayar/grabar el guion de90s con una única invitación/orden y evidencia real; usar texto si la voz sigue sin verificar. Publicar video y completar Devpost hasta el **corte interno5nov**. Entrega funcional máxima **31oct**; luego solo correcciones y presentación.
+
+Método vigente: OpenCode `opencode/deepseek-v4.1-flash-free` prioritario **solo con MCP nativo/raíz/preflight efectivos**; su instalación y lectura aislada no prueban construcción disponible. DSH directo solo tras agotamiento gratuito confirmado, nunca por ausencia de MCP ni para reiniciar contadores. Saldo OpenCode reservado a emergencia futura; sin gasto actual. AGY verifica, Claude diagnostica según habilidad, Codex coordina. GROK pausado; retorno tras estado real/acuerdo. Máximo2constructores y3entregas persistentes; guardas inclusivas20%5h/5%semanal detienen a todos. Los calendarios históricos siguientes no autorizan repetir pagos, SMTP ni pruebas ya aceptadas.
+
+## Encargo consolidado del 28 octubre — alcance vigente
+
+El [encargo de Jorge](ENCARGO_2026-10-28.md) sustituyó las partes incompatibles del calendario original: regreso de PayPal/panel; campos, horarios y WhatsApp legibles; resumen previo; vista simple de invitado; asistentes de lectura separados por rol; temas con contraste. La implementación y su evidencia están registradas; solo reabrir defectos nuevos según contadores/recuperación, no reconstruir módulos aprobados.
+
+La campaña histórica cerró3capturas/USD125,24textos y7reservas de voz de120s (octava solicitud429 sin reserva). La ampliación separada cerró4textos y2reservas de120s, sin pagos nuevos. **Cero nuevas consultas/capturas/reservas autorizadas para esa ronda.** SMTP Banahosting ya aceptado, sin repetir envíos. Preservar fiestas de probadores e historia de pagos.
+
+CAPTURE acredita un Business sandbox único; confirmar el encuentro no retiene ni libera fondos. La protección PayPal depende de elegibilidad. Sin escrow, Payouts, fondos abiertos, anticipos, aportes físicos ni descuentos.
+
 ## Repriorización autorizada el 25 octubre
 
 La petición nueva de Jorge sustituye el alcance y los hitos incompatibles del calendario histórico que se conserva abajo. **Entrega funcional máxima: sábado 31 octubre**, preferiblemente antes para pulir. Jorge fija el 5 noviembre como corte de trabajo/envío. Las [reglas públicas consultadas el 25 octubre](https://paypalaihackathon.devpost.com/rules) todavía indican 12 noviembre, 15:00 ECT; esto no amplía nuestro plazo interno.
@@ -18,7 +40,7 @@ Las etiquetas P0–P6 de esta etapa son prioridades nuevas; «P2 cero horas» de
 
 **35 horas humanas disponibles; no son una estimación garantizada del trabajo nuevo.** Recuperación, reembolsos automáticos y audio móvil concentran el riesgo. Los agentes ejecutan paquetes acotados; Codex integra. No prometemos compensar desviaciones con jornadas humanas más largas. El 31 queda para corrección, sin funciones nuevas. El recorrido de 90 segundos es una meta de presentación, no una garantía de duración de PayPal o de la red.
 
-Orden técnico: (1) cerrar evidencia del pago/OpenAI ya construido, (2) persistencia y autorización, (3) ciclo de vida y recuperación, (4) devolución y cierre financiero, (5) moderación/formulario/audio, (6) aceptación y presentación. Se puede investigar en paralelo, máximo dos frentes de construcción. GROK construye; AGY verifica independientemente; Claude interviene solo en recuperación conforme a `dirigir-agentes`. Tres entregas evaluadas por problema como máximo, contadores persistentes.
+Orden técnico: (1) cerrar evidencia del pago/OpenAI ya construido, (2) persistencia y autorización, (3) ciclo de vida y recuperación, (4) devolución y cierre financiero, (5) moderación/formulario/audio, (6) aceptación y presentación. Se puede investigar en paralelo, máximo dos frentes de construcción. La ruta de constructores vigente es OpenCode gratuito con preflight, DSH solo tras agotamiento confirmado y GROK pausado; AGY verifica independientemente y Claude interviene en recuperación conforme a `dirigir-agentes`. Tres entregas evaluadas por problema como máximo, contadores persistentes.
 
 Puntos de diseño: asistencia («va») y pago («pagó» solo tras captura) separados; DB conserva referencias financieras mínimas aunque la fiesta y su contenido dejen de estar disponibles; clave de administración de 32 bytes, hash en DB y comparación constante; toda autorización del servidor; el enlace público jamás permite editar. No usar nombres reales de jueces obligatoriamente: la prueba usa identidades ficticias; el producto permite nombre del asistente/pagador.
 

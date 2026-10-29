@@ -3,9 +3,10 @@ import React from 'react';
 interface CoverProps {
   className?: string;
   height?: number | string;
+  accent?: string;
 }
 
-export const ComidaCover: React.FC<CoverProps> = ({ className = '', height = '180px' }) => {
+export const ComidaCover: React.FC<CoverProps> = ({ className = '', height = '180px', accent }) => {
   return (
     <svg
       viewBox="0 0 500 200"
@@ -18,6 +19,7 @@ export const ComidaCover: React.FC<CoverProps> = ({ className = '', height = '18
     >
       {/* Background with warm terracotta / dark ink depth */}
       <rect width="500" height="200" fill="#12263A" />
+      {accent ? <rect width="500" height="14" fill={accent} /> : null}
       <circle cx="250" cy="100" r="140" fill="#FFC85A" fillOpacity="0.12" />
       <circle cx="80" cy="40" r="80" fill="#E85D4A" fillOpacity="0.15" />
       <circle cx="420" cy="160" r="90" fill="#0B8075" fillOpacity="0.15" />

@@ -57,6 +57,12 @@ function fillBasics(price = '50.00', capacity = '10') {
   fireEvent.change(screen.getByLabelText(/Capacidad máxima/i), { target: { value: capacity } });
 }
 
+function submitCreate() {
+  fireEvent.click(screen.getByRole('button', { name: 'Revisar invitación' }));
+  const publish = screen.queryByRole('button', { name: 'Publicar invitación' });
+  if (publish) fireEvent.click(publish);
+}
+
 const feeEstimate: NonNullable<Quote['feeEstimate']> = {
   estimate: true,
   feeCents: 300,
@@ -112,7 +118,7 @@ describe('CreateEventForm funding deadline', () => {
     render(<CreateEventForm onSubmit={onSubmit} onCancel={vi.fn()} isLoading={false} />);
     fillBasics();
     fireEvent.change(screen.getByLabelText(/Mínimo requerido/i), { target: { value: '100.00' } });
-    fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
+    submitCreate();
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     const payload = onSubmit.mock.calls[0][0] as EventInput;
     expect(payload.minimumCents).toBe(10000);
@@ -127,7 +133,7 @@ describe('CreateEventForm funding deadline', () => {
     fireEvent.change(screen.getByLabelText(/Mínimo requerido/i), { target: { value: '100.00' } });
     const deadline = localStamp(3, 11);
     fireEvent.change(screen.getByLabelText(/Fecha límite de aportes/i), { target: { value: deadline } });
-    fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
+    submitCreate();
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     const payload = onSubmit.mock.calls[0][0] as EventInput;
     expect(payload.fundingDeadlineAt).toBe(new Date(deadline).toISOString());
@@ -139,14 +145,14 @@ describe('CreateEventForm funding deadline', () => {
     fillBasics();
     fireEvent.change(screen.getByLabelText(/Mínimo requerido/i), { target: { value: '100.00' } });
     fireEvent.change(screen.getByLabelText(/Fecha límite de aportes/i), { target: { value: localStamp(20, 10) } });
-    fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
+    submitCreate();
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'La fecha limite debe ser posterior a ahora y no posterior al inicio.',
     );
     expect(onSubmit).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByLabelText(/Fecha límite de aportes/i), { target: { value: localStamp(-2, 10) } });
-    fireEvent.click(screen.getByRole('button', { name: /Crear y Obtener Enlace de Invitación/i }));
+    submitCreate();
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'La fecha limite debe ser posterior a ahora y no posterior al inicio.',
     );
@@ -222,7 +228,7 @@ describe('CreateEventForm funding deadline', () => {
 });
 
 describe('QuoteReviewCard fee estimate', () => {
-  it('shows the server fee estimate and keeps the guest charge at USD 50', () => {
+  it('keeps the guest charge at USD 50 and does not show a fee or net', () => {
     render(
       <QuoteReviewCard
         quote={{ ...quote50, feeEstimate }}
@@ -232,15 +238,18 @@ describe('QuoteReviewCard fee estimate', () => {
         isCreatingOrder={false}
       />,
     );
-    expect(screen.getByText('Saldo a Pagar:').parentElement).toHaveTextContent('$50,00');
-    expect(screen.getByLabelText(/Estimación de comisión de pasarela/i)).toHaveTextContent('$3,00');
-    expect(screen.getByLabelText(/Estimación de comisión de pasarela/i)).toHaveTextContent('$47,00');
-    expect(screen.getByText(/La asume quien organiza/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Confirmar y Generar Pago \(\$50,00\)/ })).toBeInTheDocument();
-    expect(screen.queryByText(/\$53,00/)).not.toBeInTheDocument();
+    const card = screen.getByRole('region', { name: 'Revisa tu pago' });
+    expect(within(card).getByText('Diferencia a pagar:').parentElement).toHaveTextContent('$50,00');
+    expect(within(card).queryByLabelText(/Estimación de comisión de pasarela/i)).not.toBeInTheDocument();
+    expect(within(card).queryByText(/\$3,00/)).not.toBeInTheDocument();
+    expect(within(card).queryByText(/\$47,00/)).not.toBeInTheDocument();
+    expect(within(card).queryByText(/comisión|neto|pasarela/i)).not.toBeInTheDocument();
+    expect(within(card).queryByText(/Estimación de comisión no disponible/i)).not.toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: /Confirmar y Generar Pago \(\$50,00\)/ })).toBeInTheDocument();
+    expect(within(card).queryByText(/\$53,00/)).not.toBeInTheDocument();
   });
 
-  it('does not fabricate a zero fee when the quote has no estimate', () => {
+  it('does not show an unavailable fee placeholder when the quote has no estimate', () => {
     render(
       <QuoteReviewCard
         quote={quote50}
@@ -250,25 +259,25 @@ describe('QuoteReviewCard fee estimate', () => {
         isCreatingOrder={false}
       />,
     );
-    expect(screen.getByText('Estimación de comisión no disponible.')).toBeInTheDocument();
-    expect(screen.queryByLabelText(/Estimación de comisión de pasarela/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Confirmar y Generar Pago \(\$50,00\)/ })).toBeInTheDocument();
-    const breakdown = screen.getByText('Saldo a Pagar:').closest('div')?.parentElement;
-    expect(breakdown?.textContent).not.toMatch(/comisión PayPal:\s*\$0,00/i);
+    const card = screen.getByRole('region', { name: 'Revisa tu pago' });
+    expect(within(card).queryByText(/Estimación de comisión no disponible/i)).not.toBeInTheDocument();
+    expect(within(card).queryByLabelText(/Estimación de comisión de pasarela/i)).not.toBeInTheDocument();
+    expect(within(card).queryByText(/comisión|neto/i)).not.toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: /Confirmar y Generar Pago \(\$50,00\)/ })).toBeInTheDocument();
   });
 });
 
 describe('Funding status display', () => {
   it('does not fabricate a paid count of zero when paidPeople is absent', () => {
     render(<FundingStatusPanel event={eventFixture()} />);
-    expect(screen.getByText('Pagados: por consultar')).toBeInTheDocument();
+    expect(screen.getByText('Personas pagadas: por consultar')).toBeInTheDocument();
     expect(screen.queryByText(/^0 pagados/)).not.toBeInTheDocument();
-    expect(screen.getByText(/2 confirmados \(asistencia\)/)).toBeInTheDocument();
+    expect(screen.getByText(/2 personas con asistencia confirmada/)).toBeInTheDocument();
   });
 
   it('shows an explicit zero paidPeople value from the server', () => {
     render(<FundingStatusPanel event={eventFixture({ paidPeople: 0 })} />);
-    expect(screen.getByText('0 pagados (cuota verificada)')).toBeInTheDocument();
+    expect(screen.getByText('0 personas pagadas')).toBeInTheDocument();
     expect(screen.queryByText('Pagados: por consultar')).not.toBeInTheDocument();
   });
 
@@ -301,7 +310,8 @@ describe('Funding status display', () => {
     render(<FundingStatusPanel event={eventFixture({ fundingStatus: 'funded', confirmed: false })} />);
     expect(screen.getByText('Umbral de financiamiento alcanzado')).toBeInTheDocument();
     expect(screen.getByText('Sin confirmación del organizador')).toBeInTheDocument();
-    expect(screen.queryByText('Fiesta confirmada por el organizador')).not.toBeInTheDocument();
+    expect(screen.queryByText('Comida confirmada por el organizador')).not.toBeInTheDocument();
+    expect(screen.getByText(/no confirma la comida por sí solo/)).toBeInTheDocument();
   });
 });
 
@@ -328,8 +338,10 @@ describe('Public invite failed and closed states', () => {
     expect(screen.getByText(/No se admiten nuevas asistencias ni pagos/i)).toBeInTheDocument();
     expect(screen.queryByText(/¿Vienes a la fiesta/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Desglose de Cuota/i)).not.toBeInTheDocument();
-    expect(screen.getAllByText('Pagados: por consultar').length).toBeGreaterThan(0);
-    expect(screen.getByText(/aún NO es un reembolso completado/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Personas pagadas: por consultar/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/aún NO es un reembolso completado/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/cuota verificada/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Mínimo no alcanzado. Devolución en proceso./)).toBeInTheDocument();
     expect(quote).not.toHaveBeenCalled();
   });
 
@@ -351,7 +363,8 @@ describe('Public invite failed and closed states', () => {
     await screen.findByText('Ana');
     expect(screen.queryByRole('radio', { name: /¡Sí, voy!/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Desglose de Cuota/i)).not.toBeInTheDocument();
-    expect(screen.getAllByText('1 pagados (cuota verificada)').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/1 persona pagada/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/cuota verificada/i)).not.toBeInTheDocument();
     expect(api.getQuote).not.toHaveBeenCalled();
   });
 
@@ -400,8 +413,8 @@ describe('Organizer dashboard funding labels', () => {
       />,
     );
     await screen.findByRole('heading', { name: 'Fiesta de prueba' });
-    expect(screen.getAllByText('3 pagados (cuota verificada)').length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/2 confirmados \(asistencia\)/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/3 personas pagadas/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/2 personas con asistencia confirmada/).length).toBeGreaterThan(0);
     expect(screen.getByText(/aún NO es dinero devuelto/)).toBeInTheDocument();
     expect(screen.getByText(/aún NO es un reembolso completado/)).toBeInTheDocument();
     expect(screen.queryByText(/Comisión estimada pasarela/i)).not.toBeInTheDocument();
@@ -425,7 +438,7 @@ describe('Organizer dashboard funding labels', () => {
       />,
     );
     await screen.findByRole('heading', { name: 'Fiesta de prueba' });
-    expect(screen.getAllByText('Pagados: por consultar').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Personas pagadas: por consultar/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/^0 pagados/)).not.toBeInTheDocument();
   });
 });

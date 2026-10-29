@@ -126,7 +126,7 @@ export const OrganizerRecoveryView: React.FC<OrganizerRecoveryViewProps> = ({ av
       await api.requestRecovery(slug.trim(), email.trim());
       if (!stillCurrent(gen)) return;
       setEmail('');
-      setMessage('Si el correo esta verificado para esa fiesta, recibirás instrucciones.');
+      setMessage('Si el correo esta verificado para esa invitación, recibirás instrucciones.');
     } catch (err: unknown) {
       if (!stillCurrent(gen)) return;
       setMessage(err instanceof Error ? err.message : 'No se pudo solicitar el enlace');
@@ -173,9 +173,9 @@ export const OrganizerRecoveryView: React.FC<OrganizerRecoveryViewProps> = ({ av
           available ? (
             <form onSubmit={(event) => void requestLink(event)} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <p style={{ fontSize: '0.875rem', color: 'var(--color-ink-muted)' }}>
-                Si perdiste el enlace, pide otro con el identificador de la fiesta y el correo verificado.
+                Si perdiste el enlace, pide otro con el identificador de la invitación y el correo verificado.
               </p>
-              <label className="form-label" htmlFor="recovery-slug">Identificador de la fiesta</label>
+              <label className="form-label" htmlFor="recovery-slug">Identificador de la invitación</label>
               <input id="recovery-slug" className="form-input" value={slug} onChange={(event) => setSlug(event.target.value)} required maxLength={80} autoComplete="off" />
               <label className="form-label" htmlFor="recovery-request-email">Correo verificado</label>
               <input id="recovery-request-email" className="form-input" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required maxLength={254} />

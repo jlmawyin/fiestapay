@@ -1,9 +1,11 @@
 # FiestaPay: alcance y plan para el hackathon
 
+> **Prioridad vigente28oct:** [encargo consolidado](ENCARGO_2026-10-28.md). Cierre funcional31oct; corte interno5nov. Pagos/navegación, claridad por tipo, asistentes separados y después temáticas. Cambios nuevos aún en revisión, producción9a40f26. El [estado](ESTADO.md) distingue propuestas, pruebas locales y aceptación externa. Las secciones históricas de expansión no comprometen fondo abierto, anticipos, ayuda social ni Payouts.
+
 > **Actualización 25 octubre:** [PLAN_DIARIO.md](PLAN_DIARIO.md) prevalece sobre el historial: entrega máxima 31 octubre. P0 persistencia; P1 administración por enlace/recuperación; P2 integridad y devolución al no alcanzar mínimo; P3 identidad/moderación; P4 formulario; P5 solo OpenAI y audio; P6 pulido. Portadas fijas, cuota íntegra y receptor sandbox único se mantienen mientras se resuelve el alcance de «payout». Fondo abierto y anticipos siguen fuera.
 
 > Decisiones de Jorge Mawyín consolidadas el 13 oct 2026.
-> Entrega prevista: 11 nov. Cierre oficial: 12 nov 2026, 15:00 ECT.
+> Entrega funcional máxima31oct2026; presentación y correcciones hasta el corte interno5nov. Las fechas oficiales históricas no amplían el plazo.
 > Referencia del alcance vigente: sustituye propuestas anteriores incompatibles. Es un plan; no acredita una demo ya construida.
 
 ## 1. Demo centrada en PayPal, voz y chat
@@ -120,16 +122,15 @@ Mostrar «Entrega verificada» solo tras comprobar el ítem de Payouts en `SUCCE
 ### IA de la aplicación
 
 - Voz: AssemblyAI, reutilizando Sparring y los créditos restantes. Verificar saldo y vencimiento; USD 149 era una referencia histórica, no un saldo comprobado hoy.
-- Chat y herramientas de texto: Gemini API desde el backend con clave del proyecto. Fijar el modelo después de verificar acceso, límites y function calling. Los alias de AGY no acreditan disponibilidad en Gemini API.
-- AssemblyAI Voice Agent API gestiona su cadena de voz. No asumir que acepta nuestra clave Gemini como LLM interno: comprobar compatibilidad antes de cambiar esa integración. Voz y chat comparten handlers y autorización del servidor.
-- Google AI Pro publica USD 10 mensuales de créditos Cloud mediante sus beneficios de desarrollador. Comprobar activación, proyecto y elegibilidad; no significa API ilimitada ni saldo ya disponible.
-- Si aplicar créditos requiere prepago nuevo, no comprarlo automáticamente. Usar Free Tier si el modelo/cupo lo permite; registrar la limitación si no sostiene la demo. No activar recargas ni nuevos gastos.
-- La clave Gemini queda solo en servidor, nunca en Git, navegador, capturas o conversación. Su creación/configuración y primera prueba siguen pendientes.
+- Texto y herramientas: OpenAI Responses gpt-6-luna, esfuerzo low, publicado como9a40f26; sin adaptador ni configuración del proveedor retirado. Las herramientas de desarrollo de AGY no forman parte del producto.
+- AssemblyAI Voice Agent API gestiona voz; la configuración no identifica su modelo LLM interno. No afirmar que utiliza el mismo modelo del texto. Canales y roles comparten permisos del servidor y el presupuesto que corresponda.
+- OPENAI_API_KEY y claves de voz/PayPal solo en el entorno privado del servicio VPS. Nada de secretos en Git, bundle, logs, capturas o conversación.
+- Las nuevas pruebas reales requieren contador y presupuesto acotado. No activar compras, recargas ni reseteos; fallos del proveedor dejan disponibles formularios y pago.
 - Límites por sesión, evento y presupuesto global. Registrar consumo sin guardar audio ni secretos. Ante fallo de audio, texto; si falla también el LLM, formularios operativos.
 
 ### Equipo y loops
 
-Codex dirige e integra; Claude colabora. AGY Gemini `gemini-3.8-flash-high` atiende contexto amplio, módulos y revisión general; AGY Opus `claude-opus-5-5-high`, esfuerzo `high`, verifica dinero y concurrencia; Flash Low hace tareas breves. Grok 4.7 con `xhigh` realiza revisión adversarial. Son herramientas de desarrollo, separadas de las APIs de ejecución de la aplicación.
+Codex coordina e integra; GROK construye y AGY Gemini verifica independientemente. Claude diagnostica recuperación y revisiones de solo lectura cuando conexión y cuota lo permiten. Seguir dirigir-agentes: máximo dos constructores y tres entregas evaluadas por problema, sin reiniciar contadores ni cambiar agente/modelo para saltar límites. Las cuotas se consultan por el bucket real; no usar Opus mientras el suyo esté detenido. Gemini en AGY es herramienta de desarrollo, separada de OpenAI/AssemblyAI en el producto.
 
 Máximo tres entregas evaluadas por problema. Si siguen fallando: registrar evidencia, consultar hasta tres fuentes primarias y formular una nueva hipótesis con prueba antes de otro ciclo. No repetir cambios a ciegas.
 
@@ -157,7 +158,7 @@ Pruebas mínimas:
 6. Dos jueces y reinicio de una sesión: no modificar datos ajenos; conservar trazabilidad de pagos anteriores.
 7. Cambios de acompañantes antes/durante/después del pago, sin duplicar cobros ni devolver automáticamente. En gasto total los RSVP no reescriben cuotas aceptadas; nuevas cotizaciones requieren revisar el reparto afectado.
 8. Voz: permiso denegado, interrupción, desconexión y tool result tardío, sin dobles operaciones y con salida por texto/formulario.
-9. Gemini: autenticar y ejecutar una llamada breve y una herramienta de lectura con la clave del proyecto; comprobar consumo y manejar límites sin inventar confirmaciones.
+9. OpenAI: conservar evidencia previa sin repetirla. La nueva política de contexto y el rol organizador requieren casos válidos, fuera de tema, PayPal e inyección, con contador de llamadas. Validar revocación de clave durante respuestas e historial separado, sin falsas confirmaciones.
 10. «Confirmado, sin pagar» visible y recordatorio por wa.me con envío humano. P2: vaca/reparto sin mezclar obligaciones; fondo abierto muestra «sin aporte», no deuda.
 11. Contabo: persistencia, restauración de copia de prueba, DB privada, HTTPS/voz/PayPal y servicios existentes operativos.
 12. Cuatro portadas fijas, accesibles y con procedencia registrada; sin controles de subida o reemplazo.
@@ -173,9 +174,9 @@ Pruebas mínimas:
 
 ## 5. Pasos y entrega
 
-El calendario aprobado completo está en [PLAN_DIARIO.md](PLAN_DIARIO.md): 145 horas, 100 de construcción P1, 35 de entrega P1 y 10 de contingencia. P2 y extras: cero horas comprometidas. Pago sandbox el 17 oct, P1 el 2 nov, buffers 3–4 nov, freeze 5 nov, video 8 nov y envío 11 nov antes de 15:00 ECT.
+El calendario vigente está en [PLAN_DIARIO.md](PLAN_DIARIO.md) y el encargo28oct: resultados humanos hasta29oct20:00, versión funcional31oct y corte interno5nov. El presupuesto145h y fechas2–11nov conservados en el plan original son antecedentes, sustituidos en lo incompatible. Fondo abierto, anticipos y extras siguen sin compromiso.
 
-Jorge convoca tres probadores y dos suplentes antes del 16 oct. El video muestra únicamente funciones verificadas tras el freeze. La prueba de voz del 16 oct usa Sparring, audio real y una herramienta de lectura. Estado y evidencia en [ESTADO.md](ESTADO.md).
+Jorge convoca3–5probadores; guía en [TESTERS_29_OCT.md](TESTERS_29_OCT.md). Prueba de audio en celulares físicos y demo90s pendientes de evidencia. La nueva ronda técnica entrega matriz14puntos y ZIP de capturas numeradas; simular móvil no sustituye escuchar en un celular. El video muestra solo funciones verificadas.
 
 ## Fuentes verificadas el 13 oct 2026
 

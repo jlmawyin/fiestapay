@@ -42,12 +42,12 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
         const res = await api.createEvent(input);
         if (res.adminKey) rememberAdminKey(res.event.slug, res.adminKey);
         if (!mountedRef.current) return;
-        onShowToast('success', `¡Fiesta "${res.event.title}" creada con éxito!`, 'Fiesta Creada');
+        onShowToast('success', `¡Invitación "${res.event.title}" creada con éxito!`, 'Invitación creada');
         if (res.adminKey) setCreated({ slug: res.event.slug, adminKey: res.adminKey });
         else onEventCreated(res.event.slug);
       } catch (err: any) {
         if (!mountedRef.current) return;
-        onShowToast('error', err.message || 'No se pudo crear la fiesta', 'Error al crear');
+        onShowToast('error', err.message || 'No se pudo crear la invitación', 'Error al crear');
         throw err;
       } finally {
         if (mountedRef.current) setIsLoading(false);
@@ -67,9 +67,9 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
       <div className="panel" style={{ padding: '1.75rem' }}>
         <div style={{ marginBottom: '1.25rem' }}>
           <span className="badge badge-blue" style={{ marginBottom: '0.35rem' }}>
-            Nueva Fiesta
+            Nueva invitación
           </span>
-          <h1 style={{ fontSize: '1.75rem', color: 'var(--color-ink)' }}>Crea tu Próxima Fiesta</h1>
+          <h1 style={{ fontSize: '1.75rem', color: 'var(--color-ink)' }}>Crea tu próxima invitación</h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-ink-muted)' }}>
             Elige una de las 4 plantillas, personaliza la cuota en dólares y comparte el enlace con tus amigos.
           </p>
@@ -79,6 +79,9 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <OrganizerLinkCard slug={created.slug} adminKey={created.adminKey} recoveryAvailable={recoveryAvailable} />
             <RecoveryEmailCard slug={created.slug} available={recoveryAvailable} />
+            <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-ink-muted)' }}>
+              Ir al panel abre esta actividad con la clave ya guardada en el navegador. La invitación pública no se convierte en panel.
+            </p>
             <button type="button" className="btn btn-primary" onClick={() => onEventCreated(created.slug)}>
               Ir al panel
             </button>
@@ -87,7 +90,7 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
           <>
             {isLoading ? (
               <div className="create-event-progress" role="status" aria-live="polite" aria-busy="true">
-                <p>Creando la fiesta…</p>
+                <p>Creando la invitación…</p>
                 <div className="create-event-progress-bar" aria-hidden="true" />
               </div>
             ) : null}

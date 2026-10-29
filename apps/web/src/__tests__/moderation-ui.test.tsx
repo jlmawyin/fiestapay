@@ -156,7 +156,7 @@ describe('moderacion en la interfaz', () => {
     expect(screen.queryByRole('button', { name: 'Actualizar mi Asistencia' })).not.toBeInTheDocument();
     expect(await screen.findByRole('button', { name: '🔍 Verificar Estado' })).toBeInTheDocument();
     expect(screen.queryByText(/Proveedor PayPal no configurado/)).not.toBeInTheDocument();
-    expect(screen.getByText(/13,33/)).toBeInTheDocument();
+    expect(screen.getByText(/13,33/, { selector: 'strong' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente IA' }));
     expect(await screen.findByText('Historial real del servidor')).toBeInTheDocument();

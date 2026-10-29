@@ -2,7 +2,9 @@ import React, { useEffect, useState, useCallback, useLayoutEffect, useRef } from
 import type { FiestaEvent, Guest, Quote, OrderResult, Capabilities, RsvpStatus, AgendaItem } from '../types';
 import { api, ApiError } from '../api/client';
 import { usd } from '../types';
+import { TEMPLATE_INVITE_COPY } from '@fiestapay/shared';
 import { TemplateCover } from '../components/illustrations/TemplateCover';
+import { ThemeScope } from '../components/events/ThemeScope';
 import { TicketCutout } from '../components/common/TicketCutout';
 import { JoinForm } from '../components/invite/JoinForm';
 import { RsvpForm } from '../components/invite/RsvpForm';
@@ -11,7 +13,17 @@ import { PayPalSection } from '../components/invite/PayPalSection';
 import { ChatAssistant } from '../components/chat/ChatAssistant';
 import { QrShareModal } from '../components/dashboard/QrShareModal';
 import { VoiceInvitationAgent } from '../components/voice/VoiceInvitationAgent';
-import { FundingStatusPanel, newGuestActivityBlocked, paidPeopleLabel } from '../components/common/FundingStatusPanel';
+import { FundingStatusPanel, newGuestActivityBlocked } from '../components/common/FundingStatusPanel';
+import {
+  attendanceSummary,
+  buildInviteShareText,
+  formatEventRange,
+  namedGreeting,
+  organizerLine,
+  publicInviteUrl,
+  resolveTheme,
+  shareableInviteUrl,
+} from '../lib/event-presentation';
 
 interface PublicInviteViewProps {
   slug: string;
@@ -126,7 +138,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         setEvent(null);
         return;
       }
-      onShowToast('error', err.message || 'No se pudo cargar la fiesta', 'Error de carga');
+      onShowToast('error', err.message || 'No se pudo cargar la invitación', 'Error de carga');
     } finally {
       if (scope === scopeVersion.current) setIsLoading(false);
     }
@@ -325,7 +337,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   if (isLoading) {
     return (
       <div className="panel" style={{ textAlign: 'center', padding: '4rem 1rem' }}>
-        <p style={{ color: 'var(--color-ink-muted)' }}>Cargando detalles de la fiesta...</p>
+        <p style={{ color: 'var(--color-ink-muted)' }}>Cargando la invitación...</p>
       </div>
     );
   }
@@ -347,7 +359,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   if (needsCode && !event) {
     return (
       <form className="panel" onSubmit={(e) => void submitCode(e)} style={{ maxWidth: '420px', margin: '2rem auto' }}>
-        <h2>Esta fiesta es privada</h2>
+        <h2>Esta invitación es privada</h2>
         <p style={{ color: 'var(--color-ink-muted)', margin: '0.5rem 0 1rem' }}>Escribe el codigo que te dio quien organiza.</p>
         <label className="form-label" htmlFor="private-code">Codigo de acceso</label>
         <input id="private-code" className="form-input" value={accessCode} onChange={(e) => setAccessCode(e.target.value)} autoComplete="off" />
@@ -361,9 +373,9 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   if (!event) {
     return (
       <div className="panel" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-        <h3>Fiesta no encontrada</h3>
+        <h3>Invitación no encontrada</h3>
         <p style={{ color: 'var(--color-ink-muted)', margin: '0.75rem 0 1.5rem 0' }}>
-          El enlace de la invitación no corresponde a ninguna fiesta activa.
+          El enlace no corresponde a ninguna invitación activa.
         </p>
         <button onClick={onNavigateHome} className="btn btn-primary">
           Ir al Inicio
@@ -372,26 +384,40 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
     );
   }
 
-  const dateFormatted = new Date(event.startsAt).toLocaleDateString('es-EC', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+  const theme = resolveTheme(event.template, event.theme);
+  const copy = TEMPLATE_INVITE_COPY[event.template];
+  const whenLabel = formatEventRange(event.startsAt, event.endsAt);
+  const hostLine = organizerLine(event.organizerName);
+  const greeting = namedGreeting(event.organizerName);
+  const publicUrl = (() => {
+    try {
+      return publicInviteUrl(window.location.origin, event.slug);
+    } catch {
+      return shareableInviteUrl(window.location.href);
+    }
+  })();
+  const shareText = buildInviteShareText({
+    template: event.template,
+    theme: theme.key,
+    title: event.title,
+    location: event.location,
+    startsAt: event.startsAt,
+    endsAt: event.endsAt,
+    priceCents: event.priceCents,
+    inviteUrl: publicUrl,
+    organizerName: event.organizerName,
   });
-
-  const inviteUrl = window.location.href;
   const activityBlocked = newGuestActivityBlocked(event);
   const sessionRevoked = Boolean(guest?.blockedAt || guest?.removedAt);
   const formsClosed = activityBlocked || sessionRevoked;
 
   return (
-    <div style={{ maxWidth: '680px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <ThemeScope theme={theme}>
+    <div className="invite-shell">
       {/* Main Signature Invitation Ticket */}
-      <article className="ticket-card" aria-label={`Invitación a la fiesta: ${event.title}`}>
+      <article className="ticket-card" aria-label={`Invitación: ${event.title}`}>
         {/* Cover illustration */}
-        <TemplateCover template={event.template} height="200px" />
+        <TemplateCover template={event.template} accent={theme.accent} height="200px" />
 
         {/* Header Section */}
         <div style={{ padding: '1.5rem' }}>
@@ -400,11 +426,19 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
             {event.fundingStatus === 'failed' ? (
               <span className="badge badge-coral">Mínimo no alcanzado a tiempo</span>
             ) : event.confirmed ? (
-              <span className="badge badge-teal">Fiesta Confirmada ✓</span>
+              <span className="badge badge-teal">Invitación confirmada ✓</span>
             ) : event.fundingStatus === 'funded' ? (
               <span className="badge badge-blue">Umbral de financiamiento alcanzado</span>
             ) : null}
           </div>
+
+          <p className="theme-phrase" style={{ margin: '0 0 0.35rem' }}>{copy.welcome}</p>
+          {greeting ? (
+            <p style={{ margin: '0 0 0.35rem', color: 'var(--theme-muted, var(--color-ink-muted))' }}>{greeting}</p>
+          ) : null}
+          {hostLine ? (
+            <p style={{ margin: '0 0 0.5rem', fontWeight: 700 }}>{hostLine}</p>
+          ) : null}
 
           <h1 style={{ fontSize: '1.85rem', marginBottom: '0.5rem', color: 'var(--color-ink)' }}>
             {event.title}
@@ -415,48 +449,37 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
           </p>
 
           {/* Practical Logistics Details */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '0.75rem',
-              backgroundColor: 'var(--color-surface-subtle)',
-              padding: '1rem',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.875rem',
-            }}
-          >
+          <div className="invite-facts">
             <div>
-              <span style={{ color: 'var(--color-ink-light)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
-                FECHA Y HORA
+              <span style={{ color: 'var(--color-ink-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
+                INICIO Y FIN
               </span>
-              <strong style={{ color: 'var(--color-ink)' }}>{dateFormatted}</strong>
+              <strong style={{ color: 'var(--color-ink)' }}>{whenLabel}</strong>
             </div>
 
             <div>
-              <span style={{ color: 'var(--color-ink-light)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
+              <span style={{ color: 'var(--color-ink-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
                 LUGAR
               </span>
               <strong style={{ color: 'var(--color-ink)' }}>{event.location}</strong>
             </div>
 
-            <div>
-              <span style={{ color: 'var(--color-ink-light)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
-                TIPO DE COMIDA
-              </span>
-              <strong style={{ textTransform: 'capitalize', color: 'var(--color-ink)' }}>{event.meal}</strong>
-            </div>
+            {event.template === 'comida' ? (
+              <div>
+                <span style={{ color: 'var(--color-ink-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
+                  TIPO DE COMIDA
+                </span>
+                <strong style={{ textTransform: 'capitalize', color: 'var(--color-ink)' }}>{event.meal}</strong>
+              </div>
+            ) : null}
 
             <div>
-              <span style={{ color: 'var(--color-ink-light)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
-                ASISTENTES CONFIRMADOS
+              <span style={{ color: 'var(--color-ink-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
+                ASISTENCIA
               </span>
               <strong style={{ color: 'var(--color-ink)' }}>
-                {event.confirmedPeople} confirmados (asistencia) {event.capacity ? `(máx. ${event.capacity})` : ''}
+                {attendanceSummary({ paidPeople: event.paidPeople, capacity: event.capacity })}
               </strong>
-              <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-ink-muted)', marginTop: '0.2rem' }}>
-                {paidPeopleLabel(event.paidPeople)}
-              </span>
             </div>
           </div>
 
@@ -514,7 +537,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
           {event.agenda && event.agenda.length > 0 && (
             <div>
               <h3 style={{ fontSize: '1rem', marginBottom: '0.65rem', color: 'var(--color-ink)' }}>
-                Programa de la Fiesta
+                Programa de la invitación
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {event.agenda.map((ag: AgendaItem, i: number) => (
@@ -535,7 +558,12 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
           )}
 
           <div style={{ marginTop: '1.25rem' }}>
-            <FundingStatusPanel event={event} />
+            <FundingStatusPanel
+              event={event}
+              audience="guest"
+              paidCents={guest?.paidCents}
+              dueCents={guest?.dueCents}
+            />
           </div>
         </div>
 
@@ -559,7 +587,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
             </p>
           )}
           {!guest && !activityBlocked ? (
-            <JoinForm onJoin={handleJoin} isLoading={isJoining} />
+            <JoinForm onJoin={handleJoin} isLoading={isJoining} template={event.template} />
           ) : !guest ? null : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               {/* Guest Greeting Header */}
@@ -598,6 +626,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
                       onRefreshQuote={fetchQuote}
                       onCreateOrder={handleCreateOrder}
                       isCreatingOrder={isCreatingOrder}
+                      template={event.template}
                     />
                   ) : null}
 
@@ -663,8 +692,9 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
       <QrShareModal
         isOpen={showQrModal}
         onClose={() => setShowQrModal(false)}
-        inviteUrl={inviteUrl}
+        inviteUrl={publicUrl}
         eventTitle={event.title}
+        shareText={shareText}
       />
 
       <ChatAssistant
@@ -694,5 +724,6 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         onShowToast={onShowToast}
       />
     </div>
+    </ThemeScope>
   );
 };
