@@ -2,7 +2,7 @@
 
 An AI host for shared gatherings: understand the invitation, confirm attendance, review a server-calculated contribution, and pay with **PayPal sandbox**.
 
-**Hackathon preview.** Deployed source `8e13ae6` has 426 passing database-backed tests and a browser matrix with 12/14 accepted points. Verified historical PayPal sandbox captures total USD 125; one separate USD 1 automatic refund is documented. Physical Spanish mobile audio and parts of voice-answer verification remain pending. See the [current evidence and limits](docs/reviews/revalidation-20261029.md); these results do not claim a payment in a new judge session.
+**Hackathon preview.** Deployed source `60593db` (main) has 486 passing database-backed tests across 52 files with 0 skipped; CI run `41868819343` is green (lint, types and build passed). On 4 November, a live mobile-emulation acceptance used one previously reserved sandbox order: one USD 50 capture (2 × USD 25), two paid people, and the organizer's actual **✓ Confirmar Realización** action returned confirmed. Three fixed deterministic FAQ requests returned HTTP 200 with the typing indicator and made zero upstream model calls for those requests; no new voice lease or physical-phone audio was involved. See the [4 November acceptance report](docs/reviews/jury-ready-20261104.md). The historical October capture campaign totalled USD 125 across three captures; a separate USD 1 refund test used a different fixture and is unrelated. Neither is part of this capture. Pending: private sandbox-buyer handoff, physical-phone Spanish voice, video publication and Devpost submission. No claim of 180-second measured runtime, neural entitlement, physical-phone audio, video or submission success.
 
 - Running demo: https://fiestapay.somospanas.com
 - [Three-minute judge walkthrough](docs/JUDGES.md) · [AI tools and contributions](docs/AI_TOOLS.md)
@@ -11,7 +11,7 @@ An AI host for shared gatherings: understand the invitation, confirm attendance,
 - Attendance and payment are separate states. A confirmed guest can still be unpaid.
 - Example: two attendees at USD 25 each → USD 50. The human reviews the quote and approves PayPal checkout.
 - Organizer dashboard uses AG Grid Community, collected amount before fees, a funding minimum, and a manually sent WhatsApp reminder.
-- OpenAI chat (`gpt-6-luna`, Responses API, low reasoning) and AssemblyAI voice share server tools. Tools propose attendance and prepare quotes; they cannot approve a payment.
+- OpenAI chat (`gpt-6-luna`, Responses API, low reasoning) and AssemblyAI voice share server tools. A public informational voice agent is available before joining; guest and organizer voice remain role-scoped. Tools propose attendance and prepare quotes; they cannot approve a payment.
 
 ## Run locally
 
@@ -57,6 +57,7 @@ Database integration tests require a dedicated `DATABASE_URL` (for example, data
 
 - [Contabo deployment and recovery](docs/OPERATIONS.md)
 - [Judge walkthrough](docs/JUDGES.md)
+- [4 November jury-ready acceptance](docs/reviews/jury-ready-20261104.md)
 - [90-second storyboard — not yet recorded](docs/DEMO_90_SECONDS.md)
 - [Devpost text draft and submission gates](docs/DEVPOST_DRAFT.md)
 - [Architecture and trust boundaries](docs/ARCHITECTURE.md)
