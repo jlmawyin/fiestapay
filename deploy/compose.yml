@@ -1,0 +1,45 @@
+name: fiestapay
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fiestapay
+      POSTGRES_USER: fiestapay
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure private deployment environment}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    networks: [private]
+    mem_limit: 384m
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U fiestapay -d fiestapay"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  api:
+    build: ..
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      PUBLIC_ORIGIN: https://fiestapay.somospanas.com
+      DATABASE_URL: postgres://fiestapay:${POSTGRES_PASSWORD}@db:5432/fiestapay
+    env_file: ../.env.production
+    depends_on:
+      db: {condition: service_healthy}
+    networks:
+      private: {}
+      proxy:
+        aliases: [fiestapay-api]
+    mem_limit: 512m
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+networks:
+  private: {internal: true}
+  proxy: {external: true, name: net-core-services}
+volumes:
+  postgres: {}

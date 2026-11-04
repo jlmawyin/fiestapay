@@ -1,0 +1,16 @@
+# WhatsApp: decisión de viabilidad para FiestaPay
+
+25 octubre 2026. Decisión: mantener compartir y recordatorios manuales mediante WhatsApp en la entrega del 31 octubre. La recuperación automática por WhatsApp es técnicamente viable, pero queda como ampliación evaluada, sin horas ni gasto comprometidos antes de ese corte. La recuperación principal se implementa por SMTP Banahosting. No se ha contratado un proveedor ni enviado mensajes.
+
+| Opción | Costo | Requisitos | Tiempo estimado por Codex |
+|---|---|---|---|
+| Compartir enlace o recordatorio con `wa.me` | Cero llamadas facturables a la API de WhatsApp desde FiestaPay; se usa el WhatsApp del usuario. | El usuario abre WhatsApp y decide enviar. Un enlace público no contiene la clave de organizador. | Función existente; revisión de UX incluida en el recorrido. |
+| Recuperación automática con código de un uso | Meta cobra según destinatario/categoría/volumen; un intermediario puede añadir sus cargos. Costo = códigos entregados × tarifa de autenticación vigente + cargos del proveedor, si lo hay. | Configuración de WhatsApp Business Platform, cuenta/número emisor, credenciales y facturación habilitadas, plantilla de autenticación aceptada y teléfono previamente verificado del organizador. Debe validar también callbacks y límites de consumo. | Estimación propia: 12–24 horas útiles de implementación y pruebas una vez disponibles los accesos; 2–4 jornadas. Activación/revisiones de Meta son externas y no tienen un plazo garantizado aquí. |
+
+`wa.me` abre una conversación; no demuestra por sí mismo la identidad del organizador ni permite que FiestaPay lea respuestas o recupere una clave automáticamente. Esa conclusión deriva del funcionamiento de [click to chat](https://faq.whatsapp.com/5913398998672934). Guardar o enviarse a sí mismo el enlace de organizador al crear sigue siendo una opción manual del dueño.
+
+Meta ofrece explícitamente códigos de un uso para [autenticación y recuperación](https://whatsappbusiness.com/products/conversation-categories/authentication/). El diseño de FiestaPay tendría que vincular y verificar el teléfono cuando el organizador todavía tiene su clave, y luego consumir el código una sola vez para rotarla. Conocer un número o enviar un mensaje libre no sustituye ese vínculo previo.
+
+La [página oficial de precios](https://whatsappbusiness.com/products/platform-pricing/) publica cobro por mensaje entregado y tarifas por mercado/categoría. No se ha obtenido una cotización exacta vigente para todos los números destino: no se presume gratuidad de los códigos de autenticación ni se inventa una tarifa para Ecuador. Para presupuestar 100 recuperaciones se necesita confirmar la tarifa de autenticación de los países de sus destinatarios y aplicar `100 × tarifa`, además de cualquier cargo del intermediario. Ninguna estimación de horas es una promesa de aprobación de Meta.
+
+Para incluir automatización antes del corte harían falta accesos ya activos, plantilla disponible, tarifa confirmada y horas liberadas después de aceptar persistencia, recuperación SMTP, pagos y audio. Hoy esas condiciones no están acreditadas; priorizar SMTP reduce la dependencia externa y conserva WhatsApp manual en la demo.

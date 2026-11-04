@@ -1,0 +1,115 @@
+# Plan vigente — FiestaPay · entrega máxima 31 octubre 2026
+
+## Estado vigente — 29 octubre
+
+Aplicación `8e13ae6` publicada; 426 pruebas sin omisiones + 26 comprobaciones independientes aceptadas. Navegador: **12/14 puntos aceptados; voz 12 y 13 parciales**, no aceptación total ni freeze. Construcción y revisión de recuperación cerradas en 3/3; sin cuarto intento. [Evidencia](reviews/revalidation-20261029.md).
+
+Guía inglesa de jueces, guion 90 s, borrador Devpost y declaración de IA preparados y aprobados **como borradores** por AGY, entrega2/3; [revisión](reviews/judges-materials-20261029.md). No hay grabación/publicación de video, envío ni recorrido humano acreditado por esos documentos. No se repite suite ni despliegue por cambios de Markdown.
+
+Siguiente ruta:
+
+1. Recibir resultados humanos que Jorge convoca hasta **29 oct20:00 ECT** y clasificar fallos nuevos con evidencia. No enviar invitaciones ni confundir emulación con teléfono físico.
+2. Preparar acceso privado de compradores ficticios para jueces; revisar las preguntas de voz pendientes en español/teléfono. Las rondas automáticas de pago, texto y voz están **cerradas sin remanente autorizado**; una nueva acción externa requiere autorización acotada y contador propio aprobado, no cambiar fixture para eludir topes.
+3. Ensayar/grabar el guion de90s con una única invitación/orden y evidencia real; usar texto si la voz sigue sin verificar. Publicar video y completar Devpost hasta el **corte interno5nov**. Entrega funcional máxima **31oct**; luego solo correcciones y presentación.
+
+Método vigente: OpenCode `opencode/deepseek-v4.1-flash-free` prioritario **solo con MCP nativo/raíz/preflight efectivos**; su instalación y lectura aislada no prueban construcción disponible. DSH directo solo tras agotamiento gratuito confirmado, nunca por ausencia de MCP ni para reiniciar contadores. Saldo OpenCode reservado a emergencia futura; sin gasto actual. AGY verifica, Claude diagnostica según habilidad, Codex coordina. GROK pausado; retorno tras estado real/acuerdo. Máximo2constructores y3entregas persistentes; guardas inclusivas20%5h/5%semanal detienen a todos. Los calendarios históricos siguientes no autorizan repetir pagos, SMTP ni pruebas ya aceptadas.
+
+## Encargo consolidado del 28 octubre — alcance vigente
+
+El [encargo de Jorge](ENCARGO_2026-10-28.md) sustituyó las partes incompatibles del calendario original: regreso de PayPal/panel; campos, horarios y WhatsApp legibles; resumen previo; vista simple de invitado; asistentes de lectura separados por rol; temas con contraste. La implementación y su evidencia están registradas; solo reabrir defectos nuevos según contadores/recuperación, no reconstruir módulos aprobados.
+
+La campaña histórica cerró3capturas/USD125,24textos y7reservas de voz de120s (octava solicitud429 sin reserva). La ampliación separada cerró4textos y2reservas de120s, sin pagos nuevos. **Cero nuevas consultas/capturas/reservas autorizadas para esa ronda.** SMTP Banahosting ya aceptado, sin repetir envíos. Preservar fiestas de probadores e historia de pagos.
+
+CAPTURE acredita un Business sandbox único; confirmar el encuentro no retiene ni libera fondos. La protección PayPal depende de elegibilidad. Sin escrow, Payouts, fondos abiertos, anticipos, aportes físicos ni descuentos.
+
+## Repriorización autorizada el 25 octubre
+
+La petición nueva de Jorge sustituye el alcance y los hitos incompatibles del calendario histórico que se conserva abajo. **Entrega funcional máxima: sábado 31 octubre**, preferiblemente antes para pulir. Jorge fija el 5 noviembre como corte de trabajo/envío. Las [reglas públicas consultadas el 25 octubre](https://paypalaihackathon.devpost.com/rules) todavía indican 12 noviembre, 15:00 ECT; esto no amplía nuestro plazo interno.
+
+Las etiquetas P0–P6 de esta etapa son prioridades nuevas; «P2 cero horas» del plan histórico se refería al fondo abierto/anticipos, que siguen fuera. Ahora P2 significa integridad financiera, fecha límite y reembolsos. No confundir ambas listas.
+
+| Fecha | Bloque verificable | Pruebas y dependencia | Presupuesto humano |
+|---|---|---|---:|
+| 25 oct | P0 + P1: persistencia, fin del evento, enlaces público/organizador y autorización por clave | Reinicio sin pérdida, navegador distinto, API pública sin edición, clave incorrecta 403; CI con PostgreSQL | 5 h |
+| 26 oct | P1: privacidad y recuperación por correo; rotación de clave y borrado programado | Código privado sin rutas alternativas; recuperación caduca y se consume una sola vez; SMTP Banahosting con cuenta/variables cargadas por Jorge | 5 h |
+| 27 oct | P2: cierre de recaudación y reembolso automático en sandbox | Carrera captura/cierre, reintento sin duplicados, reembolso completado verificado, importes/estados visibles | 5 h |
+| 28 oct | P3/P4: bloqueo/moderación, identidad, formulario y reglas del servidor | IP limitada, texto script literal, capacidad/meta válidas, nombres visibles solo a organizador | 5 h |
+| 29 oct | P5/P6: OpenAI únicamente, cola de audio, estados de carga | Timeout sin impedir crear, audio listo y secuencial, secretos ausentes del JS, prueba en celular | 5 h |
+| 30 oct | Integración final y demo de 90 s, guía de jueces | Recorrido completo con pago real de prueba, dos navegadores, reinicio/restauración, revisión independiente | 5 h |
+| 31 oct | Margen de corrección y entrega identificada | Solo bloqueantes y regresión; lista explícita de criterios acreditados y pendientes | 5 h |
+
+**35 horas humanas disponibles; no son una estimación garantizada del trabajo nuevo.** Recuperación, reembolsos automáticos y audio móvil concentran el riesgo. Los agentes ejecutan paquetes acotados; Codex integra. No prometemos compensar desviaciones con jornadas humanas más largas. El 31 queda para corrección, sin funciones nuevas. El recorrido de 90 segundos es una meta de presentación, no una garantía de duración de PayPal o de la red.
+
+Orden técnico: (1) cerrar evidencia del pago/OpenAI ya construido, (2) persistencia y autorización, (3) ciclo de vida y recuperación, (4) devolución y cierre financiero, (5) moderación/formulario/audio, (6) aceptación y presentación. Se puede investigar en paralelo, máximo dos frentes de construcción. La ruta de constructores vigente es OpenCode gratuito con preflight, DSH solo tras agotamiento confirmado y GROK pausado; AGY verifica independientemente y Claude interviene en recuperación conforme a `dirigir-agentes`. Tres entregas evaluadas por problema como máximo, contadores persistentes.
+
+Puntos de diseño: asistencia («va») y pago («pagó» solo tras captura) separados; DB conserva referencias financieras mínimas aunque la fiesta y su contenido dejen de estar disponibles; clave de administración de 32 bytes, hash en DB y comparación constante; toda autorización del servidor; el enlace público jamás permite editar. No usar nombres reales de jueces obligatoriamente: la prueba usa identidades ficticias; el producto permite nombre del asistente/pagador.
+
+Actualización al27oct15:38: SMTP, recuperación y devolución automática están aceptados; moderación, formulario y OpenAI-only están publicados en `9a40f26`, con revisión independiente y CIverde. La copia fuera delVPS también se restauró con éxito en PostgreSQL local. Quedan prueba física de audio en celular, recorrido90s y materiales/accesos de jueces. No repetir pagos o envíos aceptados. La demo acredita recepción en el Business único; una transferencia adicional por Payouts o conexión de otros comercios no está incluida. Sin cambios de MX/DNS. Comisiones identificadas como estimación; pagos siempre sandbox. Ver la [aceptación actual](ACEPTACION_31_OCT.md).
+
+Cuotas vigentes: Jorge confirmó mantener la pausa al 20 % de cinco horas. La excepción semanal que dio en una ejecución anterior del 25 octubre no es permanente; en nuevas continuaciones se aplican las guardas de dirigir-agentes y del helper. Se mantienen los límites efectivos y las compuertas de los puentes. Codex no consume el reseteo del usuario.
+
+## Calendario histórico (sustituido en lo incompatible)
+
+14 octubre–11 noviembre 2026. Zona horaria America/Guayaquil. Cinco horas útiles diarias, incluidos fines de semana; revisión e integración incluidas. Construcción/pruebas P1 100h + entrega P1 35h + contingencia 10h =145h. P2 y extras:0h comprometidas.
+
+## Alcance e hitos
+
+P1: cuatro plantillas de cuota fija/pago único, portadas fijas, RSVP separado, cupo por personas, Recaudado (capturas menos devoluciones, antes de comisiones), meta/mínimo y confirmación humana, PayPal sandbox, voz/chat, acceso de jueces sin Google/PII, panel, wa.me y reinicio aislado. No subidas, comisiones/neto detallados, anticipos, fondo abierto, Payouts ni live en P1. Dinero calculado por servidor en centavos. La IA no autoriza pagos.
+
+Voz real de prueba16oct; primer pago17oct; P1aceptado2nov; buffers3–4nov; freeze5nov; video8nov; envío11nov antes15:00ECT; cierre12nov15:00ECT. Mantener demo hasta15dic (operación posterior fuera de145h).
+
+## Calendario
+
+| Día | Prioridad | Horas | Rama/PR propuesto | Entregable verificable |
+|---|---|---:|---|---|
+| 14 oct | P1 | 5 | `chore/bootstrap` | Repo MIT, CI, documentos, sandbox y Gemini; convocatoria de probadores. |
+| 15 oct | P1 | 5 | `infra/contabo` | Servicios/DB aislados, vhost exclusivo, HTTPS/WS y regresión de sitios existentes. |
+| 16 oct | P1 | 5 | `spike/voice` | Voz real reutilizando Sparring, herramienta de lectura, tres intentos, latencia y sesiones básicas. |
+| 17 oct | P1 | 5 | `feat/paypal-orders` | Primera orden aprobada y capturada: 2×25=50 USD. |
+| 18 oct | P1 | 5 | `feat/payment-reconciliation` | Webhook firmado, conciliación e idempotencia. |
+| 19 oct | P1 | 5 | `feat/payment-quotes` | Cotizaciones, reintentos y acompañantes sin doble cobro. |
+| 20 oct | P1 | 5 | `feat/rsvp-capacity` | RSVP separado; cupo atómico por personas. |
+| 21 oct | P1 | 5 | `feat/event-templates` | Cuatro plantillas, inclusiones y agenda sobre un motor. |
+| 22 oct | P1 | 5 | `feat/demo-sessions-covers` | Portadas fijas 1h, sesiones 3h y recuperación de voz 1h. |
+| 23 oct | P1 | 5 | `feat/funding-minimum` | Recaudado/meta/mínimo 3h; voz y herramientas compartidas 2h. |
+| 24 oct | P1 | 5 | `feat/organizer-dashboard` | AG Grid consulta, pendiente visible y wa.me humano. |
+| 25 oct | P1 | 5 | `feat/chat-agent` | OpenAI gpt-6-luna (cambio solicitado 24 oct), herramientas, cotización y confirmación antes de orden. |
+| 26 oct | P1 | 5 | `feat/voice-agent` | Voz conectada al flujo completo y checkout real sandbox. |
+| 27 oct | P1 | 5 | `fix/voice-recovery` | Interrupciones, denegación micrófono y fallback sin duplicados. |
+| 28 oct | P1 | 5 | `feat/demo-reset-audit` | Reinicio aislado, límites, auditoría y webhook antiguo. |
+| 29 oct | P1 | 5 | `feat/mobile-demo` | Móvil, accesibilidad, PWA básica y entrada de jueces. |
+| 30 oct | P1 | 5 | `ops/recovery` | Copia/restauración aislada, persistencia y recuperación. |
+| 31 oct | P1 | 5 | `test/judge-rehearsal` | 3–5 humanos confirmados, sesiones concurrentes y ensayo. |
+| 1 nov | P1 | 5 | `fix/p1-rehearsal` | Resolver bloqueantes y regresión. |
+| 2 nov | P1 | 5 | `release/p1` | Aceptación P1, CI y revisiones; versión identificada. |
+| 3 nov | Reserva P1 | 5 | `fix/<incidente>` | Contingencia pura: ningún feature ni QA rutinario asignado. |
+| 4 nov | Reserva P1 | 5 | `fix/<incidente>` | Contingencia pura: libre si no hay incidencia. |
+| 5 nov | P1 | 5 | `release/freeze` | Freeze de funciones, reversión y guion con evidencia. |
+| 6 nov | P1 | 5 | `docs/judges-en` | README/instrucciones EN, compradores sandbox, licencia y declaración IA. |
+| 7 nov | P1 | 5 | `docs/demo-video` | Grabación real en móvil y corte ~170 s con subtítulos EN. |
+| 8 nov | P1 | 5 | `docs/video-release` | YouTube público <3 min, probado sin iniciar sesión. |
+| 9 nov | P1 | 5 | `docs/devpost` | Descripción EN, capturas, enlaces y herramientas IA. |
+| 10 nov | P1 | 5 | `release/submission-check` | Ensayo final de juez y checklist. |
+| 11 nov | P1 | 5 | `docs/submission-record` | Envío antes de 15:00 ECT y evidencia de recepción. |
+
+Dependencias críticas: credenciales PayPal/Gemini y saldoAssemblyAI acreditados antes16oct; HTTPS aislado antescheckout; ninguna captura se marca pagada por APPROVED. La integración de voz comparte los handlers de web/chat. Las fechas son hitos, no evidencia de tareas cumplidas; consultar ESTADO.md.
+
+## Equipo y revisión
+
+Codex dirige e integra. Claude API, AGY Gemini interfaz y contexto; revisión cruzada. AGY Opus High solo dinero/concurrencia; Grok4.7xhigh adversarial. Dos frentes de construcción, propiedad de archivos explícita, sin revertir trabajo ajeno. CI e informe independiente en PR. Tres entregas evaluadas máximo por problema; luego evidencia e hipótesis nueva.
+
+## Contabo
+
+Vhost exclusivo fiestapay.somospanas.com; no alterar DNS apex ni otros upstreams. Respaldar config, nginx -t, regresión de sitios, reversión del cambio propio. DB y volúmenes dedicados, no acceso público a PostgreSQL.
+
+## Probadores y video
+
+Jorge convoca a sus contactos: tres confirmados y dos suplentes antes16oct para ensayo31oct. Codex prepara guion y registra resultados, agentes no sustituyen humanos.
+
+> Estoy preparando FiestaPay para un hackathon de PayPal. ¿Puedes dedicar unos20minutos el31deoctubre a probarla desde tu celular? Usaremos cuentas de prueba, sin dinero real ni tu Google. Necesito ver si puedes organizar un almuerzo, confirmar asistencia y pagar sin que yo te guíe. Dime qué horario te viene bien.
+
+Video grabado7nov sobre versión postfreeze: solo funciones y capturas verificadas. No revelar datos reales ni secretos. README, descripción e instrucciones EN; video subtítulos EN.
+
+## Protección del margen
+
+3y4nov no tienen funciones ni QA rutinario. Cada jornada perdida consume una reserva; más de10h de desvío exige reestimación, no más horas implícitas. Fondo abierto solo si P1aceptado30oct y ocho horas realmente liberadas, probado/integrado antes2nov, sin tocar reservas ni presentación. Portadas reemplazables, comisiones/neto, anticipos, ayuda social y gastos posteriores quedan en backlog P2.

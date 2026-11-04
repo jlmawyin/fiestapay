@@ -1,10 +1,14 @@
 # FiestaPay — Documento de concepto
 
+> **Encargo vigente, 28 octubre:** [solicitud consolidada](ENCARGO_2026-10-28.md). Cierre funcional 31oct; corte interno de envío5nov. Prioridad: regreso de PayPal y panel, textos/campos por tipo y claridad, asistentes invitados/organizador con permisos separados, y temáticas. Las nuevas pantallas se encuentran en construcción y revisión; el producto público todavía es9a40f26. [Estado y evidencia](ESTADO.md). Una captura acredita recepción en el Business sandbox único; confirmar el evento no retiene ni libera fondos y no ejecuta Payouts.
+
+> **Actualización 25 octubre:** [PLAN_DIARIO.md](PLAN_DIARIO.md) prevalece sobre el historial: entrega máxima 31 octubre, persistencia, dos enlaces con clave de organizador, recuperación por correo, cierre/reembolso sandbox, moderación y audio. Solo OpenAI gpt-6-luna en la aplicación. Las etiquetas P0–P6 nuevas sustituyen las prioridades antiguas; fondo abierto, anticipos, aportes físicos y descuentos siguen fuera. No se da una función por operativa sin evidencia en ESTADO.md.
+
 > Entrada para **PayPal AI Hackathon** (Devpost) · https://paypalaihackathon.devpost.com/
 > Autor: Jorge Mawyín (dev solo, Guayaquil, Ecuador)
 > URL objetivo: `https://fiestapay.somospanas.com`
-> Fecha del documento: 13 oct 2026 · **Deadline: jue 12 nov 2026, 15:00 ECT (UTC-5)** (= 12:00 PST, según las reglas oficiales)
-> Alcance vigente: [RECOMENDACIONES.md](RECOMENDACIONES.md). Demo sin Google, un receptor sandbox, plantillas Comida/Casa/Viaje/Evento con cuota fija y mínimo conjunto P1; condición colaborativa, anticipos configurables y ayuda social P2, voz AssemblyAI y chat Gemini API. Aportes físicos y descuentos se reservan a la versión independiente. Los saldos y el acceso a APIs deben verificarse; no están acreditados por este documento.
+> Documento inicial: 13oct2026; revisado28oct. **Entrega funcional máxima31oct y corte interno de envío5nov**; las fechas oficiales históricas no amplían estos compromisos.
+> Alcance: [RECOMENDACIONES.md](RECOMENDACIONES.md). Sin Google; un receptor sandbox; cuatro plantillas de cuota fija/pago único con mínimo conjunto. Voz AssemblyAI y texto OpenAI gpt-6-luna/low. Fondo abierto, anticipos, ayuda social, aportes físicos y descuentos quedan fuera de esta entrega. Las secciones de expansión posteriores son ideas sin horas comprometidas; no describen funciones operativas.
 > Convención: `[PLACEHOLDER]` = dato por completar · `[verificar]` = confirmar en docs oficiales antes de implementar.
 
 ---
@@ -79,7 +83,7 @@ Principios: español latino primero, cero fricción para invitados (sin registro
 | Viaje conjunto | Destino, salida/regreso, transporte y hospedaje; pago único P1 y anticipo más saldo P2 |
 | Evento | Entrada para evento formal, concierto o charla; cupo máximo y agenda opcionales, horarios y expositores; el organizador agrega actividades |
 
-Cada plantilla tiene una portada de referencia reemplazable por una foto propia del organizador. Identificar la imagen predeterminada como ilustrativa; disponer de permiso de uso o producirla para el proyecto. Permitir restaurarla, mostrarla en invitación/panel con texto alternativo y almacenar reemplazos en Contabo, validando JPEG/PNG/WebP, tamaño y contenido y eliminando metadatos. Solo el organizador de la sesión puede reemplazarla; no pedir fotos personales a jueces.
+Cada plantilla tiene una ilustración original fija, incluida con el proyecto y con texto alternativo. No se permite subir o reemplazar imágenes en P1. No se necesitan fotos personales de jueces. Reemplazo por sesión queda para P2.
 
 En Evento, titular y acompañantes cuentan para el cupo. Un confirmado sin pagar ocupa plaza. Confirmar o ampliar un RSVP reserva todas sus personas atómicamente o rechaza el cambio completo; cancelar libera cupo sin devolución automática. No caduca una plaza por impago de forma silenciosa. Las actividades forman parte de la agenda y no generan cobros adicionales.
 
@@ -94,9 +98,9 @@ El organizador puede activar una meta y un mínimo de recaudación en cualquiera
 | Anticipo individual (P2) | 50% de una cuota de USD 25 = USD 12,50 por persona | Primer pago a cuenta de su cuota; el resto se paga con otra aprobación |
 | Política de inasistencia (P2) | Conservar el anticipo pagado | Debe estar activada y aceptada antes del pago; se destina a financiar el evento |
 
-El servidor valida meta positiva y mínimo mayor que cero y no superior a la meta; un porcentaje se convierte a centavos redondeando hacia arriba. La demo asume participantes puntuales en sus plazos de pago. El mínimo se calcula sobre capturas verificadas menos reembolsos, **antes de comisiones**, y se etiqueta como recaudación bruta. El panel presenta también comisiones y neto disponible; si aún no se conocen, indica que están pendientes de conciliación. No contar órdenes creadas/aprobadas, saldos pendientes ni promesas de aporte. Una captura no se duplica al cruzar el umbral.
+El servidor valida meta positiva y mínimo mayor que cero y no superior a la meta; un porcentaje se convierte a centavos redondeando hacia arriba. La demo asume participantes puntuales en sus plazos de pago. El mínimo se calcula sobre capturas verificadas menos reembolsos, **antes de comisiones**, y se etiqueta como recaudación bruta. En P1 el panel presenta únicamente «Recaudado», con nota «antes de comisiones»; el desglose de comisiones y neto queda en P2. No contar órdenes creadas/aprobadas, saldos pendientes ni promesas de aporte. Una captura no se duplica al cruzar el umbral.
 
-Estados separados: «Recaudando» → «Mínimo alcanzado» → «Evento confirmado» por el organizador. Asistencia y pago de cada invitado conservan sus propios estados. El dinero se captura con cada pago; el umbral no lo retiene ni lo libera, no garantiza fondos netos ni realiza una reserva externa. El organizador revisa el neto para financiar o adaptar el evento. Si un reembolso reduce lo recaudado, actualizar el progreso y avisar al organizador, sin cancelar automáticamente el evento.
+Estados separados: «Recaudando» → «Mínimo alcanzado» → «Evento confirmado» por el organizador. Asistencia y pago de cada invitado conservan sus propios estados. El dinero se captura con cada pago; el umbral no lo retiene ni lo libera, no garantiza fondos netos ni realiza una reserva externa. El organizador decide confirmar el evento; «Recaudado» no se presenta como saldo neto disponible. Si un reembolso reduce lo recaudado, actualizar el progreso y avisar al organizador, sin cancelar automáticamente el evento.
 
 P1 incorpora meta, mínimo y progreso con pago único. El anticipo, saldo y política de inasistencia siguen en P2, como ya se acordó. Cambiar la meta o el presupuesto deja historial y nunca modifica una cuota, un anticipo o una condición ya aceptados.
 
@@ -187,7 +191,7 @@ Mostrar «Entrega verificada» solo tras comprobar el ítem de Payouts en `SUCCE
 | `get_payment_quote(event_id, guest_id, concept, selected_amount?, tranche?)` | Calcula/valida la cotización vigente en servidor; el importe elegido solo se admite para aportes voluntarios | Invitado | Lectura; se revisa el resumen antes de crear orden |
 | `create_payment_order(event_id, guest_id, quote_id)` | Usa una cotización vigente del servidor (concepto, importe, versión y tramo si aplica), crea la orden PayPal y devuelve `order_id` | Invitado | **Sí, siempre**: el monto lo fija el servidor según reglas del evento; el invitado aprueba en la tarjeta UI + en PayPal |
 | `check_payment_status(order_id \| guest_id)` | Consulta estado (DB + `GET /v2/checkout/orders/{id}`) | Invitado / organizador | No |
-| `get_dashboard_summary(event_id)` | Resumen RSVPs/pagos/pendientes, bruto/comisiones/neto, mínimo y entregas P2 | Organizador | No |
+| `get_dashboard_summary(event_id)` | Resumen RSVPs/pagos/pendientes, recaudado antes de comisiones y mínimo; desglose y entregas en P2 | Organizador | No |
 | `add_expense(event_id, payer, amount, description)` | Registra gasto | Organizador | Sí (revisión de la lista) |
 | `split_expenses(event_id)` | Calcula quién debe a quién (código determinista) | Organizador | Sí antes de generar cobros |
 | `prepare_reminder(event_id, guest_ids, channel, message)` | Prepara el recordatorio con link de pago y lo deja cargado; **no envía** | Organizador | El envío lo hace siempre el organizador (toque en `wa.me` / compartir) |
@@ -242,17 +246,17 @@ Ventaja del usuario: ya integró PayPal en mayorpoder.org y visitaremota.com —
 | Backend | Node.js + TypeScript + Fastify | PayPal Agent Toolkit tiene soporte TS |
 | DB | PostgreSQL privado en el VPS Contabo (Ubuntu) | Tablas: events, guests, rsvps, payments, expenses, reminders, audit_log |
 | Voz | **AssemblyAI Voice Agent API**, reutilizando el cliente de Sparring, voz `lola`, español latino | Créditos restantes por verificar (USD 149 era una cifra histórica); reutilizar handlers de Sparring y limitar duración/consumo |
-| LLM | Gemini API para chat/tools de texto; modelo por validar con la clave del proyecto | Backend únicamente. Google AI Pro no equivale a API ilimitada; verificar beneficios y cuota sin nuevas compras. No asumir compatibilidad de la clave con el LLM interno de AssemblyAI |
+| LLM de texto | OpenAI Responses, gpt-6-luna, esfuerzo low | Backend únicamente. Clave privada del servicio VPS. El motor de voz AssemblyAI no declara un modelo LLM interno en la configuración actual; no atribuirle el modelo del chat |
 | Panel | AG Grid Community | RSVPs, pagos, pendientes, vaca y auditoría; sin funciones Enterprise |
 | Recordatorios | Links `wa.me/?text=` + Web Share API + `mailto:` (sin API de WhatsApp ni proveedor de email para recordatorios) | El organizador pulsa enviar |
 | Hosting | **VPS propio en Contabo (Ubuntu)**: Docker, Node + PostgreSQL privados y proxy Nginx existente; HTTPS validado para este dominio, dominio `fiestapay.somospanas.com` | Costo extra $0; mantener en línea hasta el 15 dic 2026 |
 | DNS | Registro A `fiestapay` → IP del VPS en el DNS de somospanas.com | HTTPS obligatorio (micrófono + PayPal) |
 
-Fallback de voz: chat de texto mediante Gemini API. Si también falla el LLM, formularios y PayPal siguen operativos. Misma autorización y handlers de negocio en ambos canales.
+Fallback de voz: chat de texto OpenAI. Si falla también el proveedor de texto, formularios y PayPal siguen operativos. La IA queda fuera de crear/publicar y de la autorización financiera. Asistentes y canales deben respetar permisos del servidor.
 
-SSH a Contabo comprobado el 13 oct: Ubuntu 24.04.3 LTS, Docker y proxy `web-proxy-core` existentes. El dominio todavía sirve otra aplicación; preparar vhost propio, WebSocket, permisos de micrófono y políticas PayPal. Base, usuario, volúmenes y copias exclusivos de FiestaPay, sin puerto público de PostgreSQL.
+Contabo aloja el servicio aislado de FiestaPay y PostgreSQL privado. La ruta pública HTTPS ya sirve FiestaPay; no confundir la inspección histórica del13oct con el estado actual. Mantener proxy y aplicaciones ajenos intactos. Backups/restauración y versión activa se documentan en ESTADO.md.
 
-Gemini: crear/configurar clave solo en servidor y comprobar llamada + tool de lectura. Google publica USD 10 mensuales de créditos Cloud con AI Pro, sujetos a activación/elegibilidad. Algunas cuentas necesitan prepago para aplicarlos: respetar la regla de no hacer recargas; comprobar primero Free Tier o saldo utilizable. Ver fuentes en RECOMENDACIONES.md.
+OpenAI-only está publicado en9a40f26 y conserva evidencia previa de texto/herramientas. No reintroducir el adaptador ni las variables del proveedor retirado. La nueva ronda de asistentes requiere pruebas propias con contador de llamadas, sin compras, recargas ni reseteos.
 
 ---
 
@@ -262,11 +266,11 @@ Gemini: crear/configurar clave solo en servidor y comprobar llamada + tool de le
 
 - Acceso demo sin Google y reinicio aislado por sesión; datos ficticios y compradores sandbox.
 - **Comida completa**, con desayuno/almuerzo/cena como opciones. Demo principal: almuerzo a USD 25 por persona, dos asistentes, USD 50.
-- **Fiesta en casa, Viaje conjunto y Evento** como configuración sobre el mismo motor de cuota fija y pago único. Portadas de referencia reemplazables en las cuatro plantillas.
+- **Fiesta en casa, Viaje conjunto y Evento** como configuración sobre el mismo motor de cuota fija y pago único. portadas de referencia fijas en las cuatro plantillas.
 - Agenda, expositores y actividades editables; cupo opcional en Evento con control de concurrencia.
-- Meta conjunta y mínimo configurables en cualquier plantilla; progreso con capturas verificadas, bruto y neto diferenciados, confirmación del evento por el organizador.
+- Meta conjunta y mínimo configurables en cualquier plantilla; progreso con capturas verificadas menos devoluciones, con nota «antes de comisiones», confirmación del evento por el organizador.
 - Titular y acompañantes pagan tarifa completa. Asistencia y pago separados; «Confirmado, sin pagar» visible y recordatorio por wa.me preparado para envío humano.
-- Voz AssemblyAI y chat Gemini API con tools comunes; cuenta repetida antes de crear orden, servidor autoritativo, aprobación humana y pago sandbox verificado.
+- Voz AssemblyAI y texto OpenAI con herramientas autorizadas por rol; cuenta repetida antes de crear orden, cálculo del servidor y aprobación humana. El nuevo asistente de organizador guía y consulta; no confirma, cancela ni reembolsa.
 - PayPal Buttons + Orders v2 + captura/webhook/conciliación; panel AG Grid, auditoría y pruebas de idempotencia/aislamiento.
 - Contabo/Cloudflare, repo público MIT e instrucciones en inglés.
 
@@ -286,28 +290,17 @@ Gemini: crear/configurar clave solo en servidor y comprobar llamada + tool de le
 
 
 
-## 9. Cronograma (13 oct → 12 nov 2026)
+## 9. Cronograma aprobado
 
-| Semana | Fechas | Objetivo | Hito |
-|---|---|---|---|
-| 0–1 | 13–17 oct | Repo/CI, claves/saldos, acceso demo, Contabo y recorrido pequeño con voz/chat + cuota + PayPal | **H1 (17 oct):** primera prueba humana con proveedores reales |
-| 2 | 18–24 oct | P1: Comida, Casa/Viaje/Evento, portadas, agenda/cupo, acompañantes, PayPal, meta/mínimo, panel, wa.me y reinicio | **H2 (24 oct):** P1 y pruebas de integridad |
-| 3 | 25 oct–4 nov | P2 tras P1: colaboración, anticipos/inasistencia, ayuda social; después vaca/gastos; móvil y presentación | **H3 (4 nov):** P1 estable y P2 validado que alcance el freeze |
-| — | **5 nov** | **Congelar features** (solo bugs, UX, textos) | Feature freeze |
-| 4 | 5–7 nov | Pulido de diseño, pruebas con 3–5 panas reales, README/instrucciones de prueba en inglés, datos de demo | Demo estable |
-| — | **8 nov** | **Grabar video** (< 3 min, subtítulos EN) y subir a YouTube | Video listo |
-| 5 | 9–10 nov | Descripción Devpost (EN + ES), lista de herramientas IA, capturas, revisión final del repo | Borrador Devpost |
-| — | **11 nov** | **Enviar submission** (1 día de colchón) | Enviado |
-| — | 12 nov 15:00 ECT | Deadline oficial | — |
-| — | hasta 15 dic | Mantener demo y sandbox funcionando para jueces | — |
+Ver [PLAN_DIARIO.md](PLAN_DIARIO.md) y el encargo28oct: resultados humanos hasta29oct20:00, cierre funcional31oct, después correcciones y presentación hasta el corte5nov. El calendario14oct–11nov conservado allí es histórico. Las cinco horas diarias son presupuesto humano; no autorizan consumo ilimitado de agentes.
 
 ---
 
 ## 10. Flujo de trabajo: agentes locales + revisión en GitHub
 
-**Idea:** el sistema multiagente local *construye*; la revisión ocurre *online en GitHub* en PRs, separada de los agentes constructores. Resultado: historial de commits y PRs visible y auditable para los jueces.
+**Método:** construcción y verificación independientes; Codex integra y publica el diff y la evidencia en PRs de GitHub con CI. Un informe local no acredita publicación ni una prueba externa.
 
-Codex dirige; Claude colabora. AGY Gemini `gemini-3.8-flash-high` para contexto/módulos; Opus `claude-opus-5-5-high` con esfuerzo `high` para lógica crítica; Flash Low para tareas breves. Grok 4.7 `xhigh` hace revisión adversarial. Máximo tres entregas evaluadas por problema, después evidencia, investigación y nueva hipótesis/prueba. Estas herramientas de desarrollo son independientes de Gemini API/AssemblyAI en la aplicación.
+Codex coordina e integra, GROK construye y AGY Gemini verifica de forma independiente. Claude aporta diagnóstico de recuperación y segunda opinión de solo lectura cuando su conexión y cuota lo permiten. Seguir dirigir-agentes: dos constructores como máximo, tres entregas evaluadas por problema y contadores persistentes. No cambiar modelo, agente ni identificador para eludir una pausa. Gemini en AGY es herramienta de desarrollo, separada de los proveedores de la aplicación.
 
 ### 10.1 Estructura del repo (propuesta)
 ```
@@ -350,7 +343,7 @@ fiestapay/
 **Calidad**
 - [ ] CI verde (lint, typecheck, tests, build).
 - [ ] Pruebas de cuota completa por acompañante, cupo concurrente y cotización antes de orden. Mínimo conjunto basado en capturas verificadas. P2: centavos de gasto total, cuotas publicadas inmutables, fondo abierto sin deuda, anticipo/inasistencia sin duplicados y entrega por campaña conciliada.
-- [ ] Pruebas de reemplazo de imagen autorizado, archivos válidos y conservación de portada por defecto.
+- [ ] Cuatro portadas fijas con texto alternativo y procedencia, sin subida de archivos.
 - [ ] Tests para lógica de dinero (`split_expenses`, idempotencia por obligación/versión/tramo y captura).
 - [ ] Probado manualmente en sandbox (adjuntar captura/GIF si es UI).
 - [ ] Docs/README actualizados si cambia la forma de correr el proyecto.
@@ -403,7 +396,7 @@ fiestapay/
 | Filtración de secretos | `.env` + gitleaks + push protection + revisión en PR; rotación inmediata |
 | Webhooks de sandbox lentos/no llegan | Fallback: `GET /v2/checkout/orders/{id}` al volver de PayPal y en `check_payment_status` |
 | Limitaciones sandbox (Payouts, Invoicing emails) | P1 solo con Orders; probar Payouts antes de ofrecer entrega P2 y mostrar pendiente si falla. Invoicing sigue como extra |
-| Confundir mínimo con dinero neto o reserva externa | Mostrar bruto, comisiones y neto; confirmación humana. Anticipos conservados ya están incluidos en lo recaudado |
+| Confundir mínimo con dinero neto o reserva externa | Mostrar «Recaudado» antes de comisiones en P1; desglose en P2 y confirmación humana. Anticipos conservados ya están incluidos en lo recaudado |
 | Prometer financiación no disponible | Tarjeta según checkout; Pay Later solo elegible y con mensajes oficiales, sin promesas generadas por voz |
 | Jueces no pueden probar | URL hosteada + cuentas sandbox de comprador en README + instrucciones locales completas; mantener online hasta 15 dic |
 | Requisito de inglés | README/descripción en inglés, subtítulos EN en el video |
@@ -429,7 +422,7 @@ Notas: grabar en móvil real (dispositivo objetivo), subtítulos en inglés, sin
 
 ## Pendientes / placeholders
 - `[PLACEHOLDER]` Nombre final de la persona del agente.
-- `[verificar]` Clave de Gemini API, modelo compatible con tools, Free Tier/beneficios AI Pro, límites y saldo utilizable. PostgreSQL en Contabo y acceso demo sin correo ya decididos.
+- OpenAI-only publicado9a40f26; conservar sus pruebas y configuración privada. Nueva política y rol organizador requieren aceptación propia. PostgreSQL en Contabo y acceso demo sin correo ya operativos; estado preciso en ESTADO.md.
 - `[verificar]` Cómo expone tool calls el AssemblyAI Voice Agent API (reutilizar implementación de Sparring).
 - `[verificar]` Permisos de Payouts en nuestra app, beneficiario Personal sandbox preconfigurado, saldo por campaña, comisiones y prueba completa hasta SUCCESS por ítem. No usar datos reales. Invoicing (emails/recordatorios) sigue como extra por verificar.
 - Versión independiente: aportes físicos, Google y PayPal propio por organizador; no condicionan la entrega del hackathon.
