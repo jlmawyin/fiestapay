@@ -1,8 +1,14 @@
 # Plan vigente — FiestaPay · entrega máxima 31 octubre 2026
 
-## Estado vigente — 29 octubre
+## Estado de cierre — 4 noviembre
 
-Aplicación `8e13ae6` publicada; 426 pruebas sin omisiones + 26 comprobaciones independientes aceptadas. Navegador: **12/14 puntos aceptados; voz 12 y 13 parciales**, no aceptación total ni freeze. Construcción y revisión de recuperación cerradas en 3/3; sin cuarto intento. [Evidencia](reviews/revalidation-20261029.md).
+Aplicación `60593db` (main) desplegada. CI `41868819343` en verde con **486 pruebas en 52 archivos, 0 omitidas** (lint, tipos y build correctos). Aceptación live del 4 de noviembre en emulación móvil Edge 390×844, **no teléfono físico**: una orden sandbox previamente reservada, **una captura de USD 50** (2×25), dos personas pagadas, una fila de captura, cero reembolsos y **✓ Confirmar Realización** con HTTP 200 y `confirmed: true`. Tres FAQ deterministas devolvieron HTTP 200 con indicador de escritura, **cero** llamadas al modelo y **cero** nuevas reservas de voz. La imagen desplegada, el esquema hasta `0011`, la restauración aislada, el respaldo offsite, las 37 comprobaciones de operador y la preservación de datos históricos y otros contenedores quedaron verificados, sin secretos coincidentes. La captura acredita el Business sandbox compartido; la confirmación no libera escrow ni ejecuta Payouts. La fuente nueva añade voz pública/sesión y cambios de interfaz; el motor financiero sandbox no cambió.
+
+Esta sección sustituye el estado del 29 de octubre (`8e13ae6`/12 de 14) y las notas de publicación pendientes. Esa matriz y la voz 12/13 son historia. Siguen pendientes: entrega privada del comprador sandbox, recorrido humano y voz física en teléfono (audio español de 3 minutos), video y envío Devpost. Esta documentación se actualizó sin repetir suite, pagos ni reservas de voz; no se afirma audio físico, runtime medido de 180 s ni entitlement neural.
+
+## Estado histórico — 29 octubre
+
+Aplicación `8e13ae6` publicada; 426 pruebas sin omisiones + 26 comprobaciones independientes aceptadas. Navegador: **12/14 puntos aceptados; voz 12 y 13 parciales**, no aceptación total ni freeze. Construcción y revisión de recuperación cerradas en 3/3; sin cuarto intento. [Evidencia](reviews/revalidation-20261029.md). Los calendarios y rutas siguientes se conservan como historia y no autorizan nuevas acciones.
 
 Guía inglesa de jueces, guion 90 s, borrador Devpost y declaración de IA preparados y aprobados **como borradores** por AGY, entrega2/3; [revisión](reviews/judges-materials-20261029.md). No hay grabación/publicación de video, envío ni recorrido humano acreditado por esos documentos. No se repite suite ni despliegue por cambios de Markdown.
 

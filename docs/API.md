@@ -1,12 +1,25 @@
 # Shared implementation contract
 
-Current deployment is source8e13ae6 / schema0009–0010. Recovery verification closed with12/14 browser points accepted; guest minimum voice and organizer final-response correlation remain unverified. The four new UI text requests returned200; no new payments or app changes were made during revalidation. See [final evidence](reviews/revalidation-20261029.md). Earlier candidate/publication-pending notes below are historical.
+Current deployment is source `60593db` (main) / schema through `0011`. CI: 486 tests in 52 files, 0 skipped, run `41868819343` SUCCESS (lint, types and build passed). The earlier Root QA [4 November live acceptance](reviews/jury-ready-20261104.md) used Playwright Edge mobile emulation at 390×844, not a physical phone: one existing reserved order produced one USD 50 sandbox capture, two paid people, one distinct capture row and no refund; `✓ Confirmar Realización` returned HTTP 200 with `confirmed: true`. Three fixed deterministic FAQ requests returned HTTP 200 with the typing indicator, zero new voice leases and zero upstream model calls. The older 12/14 browser matrix for source `8e13ae6` is history, not current status.
 
-## October28 recovery candidate — independently approved, publication pending
+## Current public voice contract — 4 November
+
+Public informational voice is available before creating or joining an event. It uses a session cookie only and exposes no event, guest or tool authority.
+
+- `POST /api/voice/public/token` body `{consent:true}` -> `{token,sessionConfig,maxSeconds,leaseId,audience:"public"}`. Spanish consent is required before any token or lease is created. No event, guest or provider tool is attached.
+- `POST /api/voice/lease/release` body `{leaseId,reason?}` -> `{ok:true,...}`. Owning cookie only; idempotent.
+- `POST /api/voice/lease/activity` body `{leaseId}` -> `{ok:true,active}`. Records real user interaction only and cannot extend `expires_at`.
+- Lease expiry: `expires_at` is initially `created_at + maxSeconds + 60` (240 seconds for a 180-second maximum). The extra 60 seconds is a technical grace window, not additional conversational audio. The owner can release earlier; the server rejects idle activity after 60 seconds and the UI ends an idle session. Activity cannot extend expiry.
+- Limits: one unique active/reserved lease shared across public, guest and organizer roles; five new reservations in a rolling minute; a shared daily reservation budget; release on stop, page exit, WebSocket disconnect or unmount; 15-second Spanish cooldown.
+- Configuration: `maxSeconds` is 180 seconds of conversational audio/reserved duration per session; the shared daily reservation budget is 1,800 seconds. These are configured limits, not a measured runtime, account entitlement or physical-phone audio proof.
+
+## Historical endpoint notes — October 28
+
+### Recovery candidate — independently approved, publication subsequently completed
 
 The read-only guest tool get_collection_progress now also returns funding status, deadline and registered/pending/review refund totals in server integer cents, with guidance based on the actual funding state. All existing fields remain. It returns no identity, session, admin key or provider metadata and performs no payment/refund/RSVP actions. Confirmation guidance treats closed registrations separately from funding eligibility. [Source review](reviews/recovery-source-final-20261028.md).
 
-## October 28 deployed candidate — live browser findings open
+### 28 October deployed candidate — browser findings recorded at that time
 
 These additions are deployed in `6b33b4f` with schema0009–0010; source, infrastructure and preservation checks passed. The live browser campaign completed10/14points; WhatsApp preview, assistant answers and rendered contrast still require correction. See [browser findings](reviews/tester-browser-20261028.md). Migration0009 adds optional public `organizerName` and a validated presentation theme; legacy values remain NULL. The organizer display name grants no authority and never exposes the creator session or administrative key. Creation still returns the public event and a separately minted organizer capability. The review screen confirms current input before publication; invitation, dashboard and WhatsApp draft show start and end times with copy appropriate to the event type. See [deployment evidence](reviews/tester-deployment-20261028.md).
 
@@ -21,9 +34,9 @@ The organizer tool can return a bounded attendee list and payment information al
 
 Both assistants stay within the invitation and FiestaPay context. PayPal capture credits the single Business sandbox recipient immediately; organizer confirmation changes the gathering's status and does not release escrow or execute Payouts. Buyer Protection depends on PayPal eligibility and terms. A refund explanation must reflect the actual event deadline and funding state, rather than promise a refund for legacy events without an active deadline.
 
-## October 25 current contracts
+### October 25 contracts — retained where not superseded
 
-The current P0–P6 request supersedes incompatible historic P1 rules below. The public invitation is `/e/:slug`; the organizer entry is `/e/:slug/admin?k=:adminKey`. The browser captures the key into localStorage and removes it from the query. The server stores only its SHA-256 digest and compares fixed-length digests with `timingSafeEqual`. Keyed organizer operations require `X-Fiesta-Admin-Key`; the creator cookie alone does not authorize these operations.
+The October 25 P0–P6 request supersedes incompatible historic P1 rules below. The public invitation is `/e/:slug`; the organizer entry is `/e/:slug/admin?k=:adminKey`. The browser captures the key into localStorage and removes it from the query. The server stores only its SHA-256 digest and compares fixed-length digests with `timingSafeEqual`. Keyed organizer operations require `X-Fiesta-Admin-Key`; the creator cookie alone does not authorize these operations.
 
 - Create/demo/reset return `CreatedEvent` (`{event, adminKey}`); a newly minted key contains 32 random bytes. An existing demo can return a null key. Never put an organizer key into the public invitation or a guest API request.
 - `PUT /api/events/:slug` validates the complete event input and requires the organizer key.
@@ -69,7 +82,7 @@ Same-origin JSON API under `/api`. Errors `{error: string}` with proper HTTP sta
 - `POST /api/events/:slug/confirm` -> `{event}` organizer only, minimum reached required when configured.
 - `POST /api/demo/reset` -> `{event}` new generation only for organizer, archived invitations cannot create new payments; preserve old refs and reconcile late captures to old generation.
 - `POST /api/events/:slug/chat` body `{message:string}` -> ChatResult. Text + quote card, never executes payment from LLM. The only runtime model is OpenAI Responses `gpt-6-luna` with `reasoning.effort=low` and the same authorized backend tools. `LLM_PROVIDER=openai` is compatibility-only. Every write must be reviewed/confirmed by human UI. If the key is missing or the provider fails, return 503; the UI keeps forms and explains availability.
-- `POST /api/events/:slug/voice/token` body `{consent:true}` -> short-lived `{token,sessionConfig,maxSeconds,leaseId}`. Requires a joined guest. Reserves the full maximum duration against a shared PostgreSQL daily allowance before contacting AssemblyAI; failed requests still consume the reservation.
+- `POST /api/events/:slug/voice/token` body `{consent:true}` -> short-lived `{token,sessionConfig,maxSeconds,leaseId}`. Event-scoped guest voice requires a joined guest; the public pre-event contract above is separate and has no event, guest or tool authority. Reserves the full maximum duration against a shared PostgreSQL daily allowance before contacting AssemblyAI; failed requests still consume the reservation.
 - `POST /api/events/:slug/voice/tool` body `{leaseId,name,arguments}` -> authorized read/proposal tool result. The lease must belong to this session and event and remain unexpired. No tool captures money or saves RSVP without human confirmation.
 - Chat has a shared daily request budget and a per-session cap. New cookies and demo reset do not reset global voice/chat allowances. Provider configuration is not proof of availability; forms remain usable when a provider fails.
 
