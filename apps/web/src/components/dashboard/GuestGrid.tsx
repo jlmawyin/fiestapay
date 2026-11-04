@@ -261,7 +261,7 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
         pagination={true}
         paginationPageSize={10}
         paginationPageSizeSelector={false}
-        localeText={{ page: 'Página', to: 'a', of: 'de', firstPage: 'Primera página', previousPage: 'Página anterior', nextPage: 'Página siguiente', lastPage: 'Última página' }}
+        localeText={{ page: 'Página', to: 'a', of: 'de', firstPage: 'Primera página', previousPage: 'Página anterior', nextPage: 'Página siguiente', lastPage: 'Última página', noRowsToShow: 'Aún no hay aportes' }}
         rowHeight={68}
       />
     </div>
