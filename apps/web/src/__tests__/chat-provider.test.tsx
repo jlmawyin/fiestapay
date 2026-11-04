@@ -230,4 +230,60 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
       expect(screen.getByText('✓ Asistencia Confirmada en el Servidor')).toBeInTheDocument();
     });
   });
+
+  it('renderiza negritas del servidor como strong, conserva cotizacion y acciones y escapa HTML', async () => {
+    const capabilities = {
+      chat: true,
+      llmProvider: 'openai' as const,
+      paypal: true,
+      voice: false,
+      paypalClientId: 'sb-123',
+      sandbox: true as const,
+      email: false,
+    };
+    const mockQuote: Quote = {
+      id: 'quote-bold-1',
+      guestId: 'guest-1',
+      people: 1,
+      unitCents: 2500,
+      totalCents: 2500,
+      paidCents: 0,
+      amountCents: 2500,
+      summary: '1 persona',
+      expiresAt: '2099-01-01T00:00:00Z',
+    };
+
+    vi.spyOn(api, 'sendChat').mockResolvedValue({
+      text: '**Importante:** revisa <script>alert(1)</script> y **tu cuota**\nsegunda linea',
+      quote: mockQuote,
+      actions: ['rsvp:yes:0'],
+    });
+
+    render(
+      <ChatAssistant
+        slug="fiesta-slug"
+        capabilities={capabilities}
+        onApplyQuote={vi.fn()}
+        onConfirmRsvp={vi.fn(async () => undefined)}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente IA' }));
+    const input = screen.getByRole('textbox', { name: /Mensaje para el asistente/i });
+    fireEvent.change(input, { target: { value: 'Resume mi cuota' } });
+    fireEvent.submit(input.closest('form')!);
+
+    const bold = await screen.findByText('Importante:');
+    expect(bold.tagName).toBe('STRONG');
+    expect(screen.getByText('tu cuota').tagName).toBe('STRONG');
+
+    const panel = screen.getByRole('complementary', { name: 'Panel del Asistente FiestaPay' });
+    expect(panel.querySelector('script')).toBeNull();
+    expect(panel.textContent).not.toContain('**');
+    expect(panel.textContent).toContain('<script>alert(1)</script>');
+    expect(panel.textContent).toContain('segunda linea');
+    expect(screen.getByText('🧾 Propuesta de Cotización')).toBeInTheDocument();
+    expect(screen.getByText('📋 Propuesta de Asistencia')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Revisar y Confirmar en Pantalla' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirmar Asistencia' })).toBeInTheDocument();
+  });
 });

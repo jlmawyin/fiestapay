@@ -593,7 +593,7 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
               Cancelar
             </button>
             <button onClick={handleConfirmEvent} className="btn btn-teal" disabled={isConfirming}>
-              {isConfirming ? 'Confirmando...' : 'Sí, Confirmar Celebración'}
+              {isConfirming ? 'Confirmando...' : '✓ Confirmar Realización'}
             </button>
           </div>
         </div>
