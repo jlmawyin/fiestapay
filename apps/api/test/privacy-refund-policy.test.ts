@@ -59,6 +59,7 @@ describe('privacidad deterministica para ambos roles', () => {
       expect(answer).toMatch(/no recibe ni guarda el número de tarjeta ni la contraseña de PayPal en el pago/);
       expect(answer).toMatch(/No pegues tarjeta, contraseña ni claves en este chat/);
       expect(answer).toMatch(/su contenido sí se guarda/);
+      expect(answer).toMatch(/Los mensajes de este chat y el contexto necesario del evento se procesan con OpenAI/i);
       expect(answer).toMatch(/72 horas después de que termina/);
       expect(answer).toMatch(/nombres, contenido público, chats, contactos y tokens/);
       expect(answer).toMatch(/acceso público se oculta al cumplirse ese plazo/);
