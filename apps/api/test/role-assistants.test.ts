@@ -410,7 +410,7 @@ describeDb('asistentes por rol, historial y voz compartida', () => {
       stranger.authorize(slug, key);
       const res = await stranger.post(`/api/events/${slug}/organizer-chat`, { message: 'Que significa por confirmar?' });
       expect(res.statusCode).toBe(200);
-      expect(body<{ text: string }>(res).text).toMatch(/Si, Confirmar Celebracion/);
+      expect(body<{ text: string }>(res).text).toMatch(/✓ Confirmar Realización/);
       const after = await count('SELECT COUNT(*)::int AS n FROM guests g JOIN events e ON e.id = g.event_id WHERE e.slug = $1', [slug]);
       expect(after).toBe(before);
     });
@@ -512,7 +512,7 @@ describeDb('asistentes por rol, historial y voz compartida', () => {
       expect(guestLease.sessionConfig.output.voice).toBe('lola');
       const orgToken = await owner.post(`/api/events/${slug}/organizer-voice/token`, { consent: true });
       expect(orgToken.statusCode).toBe(429);
-      expect(orgToken.body).toMatch(/sesión de voz reservada/);
+      expect(orgToken.body).toMatch(/sesión de voz activa/);
       const crossed = await owner.post(`/api/events/${slug}/organizer-voice/tool`, {
         leaseId: guestLease.leaseId,
         name: 'get_funding_progress',
@@ -550,6 +550,12 @@ describeDb('asistentes por rol, historial y voz compartida', () => {
         [slug],
       );
       const legacyId = randomUUID();
+      // A session may have only one open lease. Close the failed token's lease first;
+      // its reserved seconds stay counted and the legacy row becomes the live lease.
+      await pool.query(
+        "UPDATE voice_leases SET released_at = now(), release_reason = 'test_setup' WHERE session_id = $1 AND released_at IS NULL",
+        [rows[0]!.session_id],
+      );
       await pool.query(
         `INSERT INTO voice_leases (id, session_id, event_id, reserved_seconds, expires_at)
          VALUES ($1, $2, $3, 30, now() + interval '5 minutes')`,
@@ -627,7 +633,7 @@ describeDb('asistentes por rol, historial y voz compartida', () => {
         message: '¿Qué pasa si no alcanzamos el mínimo de tiempo?',
       });
       expect(asr.statusCode).toBe(200);
-      expect(body<{ text: string }>(asr).text).toMatch(/Minimo:/);
+      expect(body<{ text: string }>(asr).text).toMatch(/Mínimo:/);
       expect(calls).toBe(0);
     });
   });
@@ -651,7 +657,7 @@ describeDb('asistentes por rol, historial y voz compartida', () => {
       expect(answer.statusCode).toBe(200);
       const answerText = body<{ text: string }>(answer).text;
       expect(answerText).toMatch(/no tiene un minimo armado/);
-      expect(answerText).toContain('Si, Confirmar Celebracion');
+      expect(answerText).toContain('✓ Confirmar Realización');
       expect(answerText).toMatch(/No mueve, retiene ni libera dinero/);
       expect(inputs).toHaveLength(0);
 
@@ -669,7 +675,7 @@ describeDb('asistentes por rol, historial y voz compartida', () => {
       ));
       expect(outputs).toHaveLength(1);
       expect(String(outputs[0]!.guia)).toMatch(/no tiene un minimo armado/);
-      expect(String(outputs[0]!.guia)).toContain('Si, Confirmar Celebracion');
+      expect(String(outputs[0]!.guia)).toContain('✓ Confirmar Realización');
       expect(outputs[0]!.ya_confirmada).toBe(false);
       const after = await pool.query<{ confirmed: boolean }>(
         'SELECT confirmed FROM events WHERE slug = $1',
@@ -724,7 +730,7 @@ describeDb('asistentes por rol, historial y voz compartida', () => {
       expect(open.reembolso_registrado_centavos).toBe(0);
       expect(open.reembolso_pendiente_centavos).toBe(0);
       expect(open.reembolso_en_revision_centavos).toBe(0);
-      expect(String(open.nota)).toMatch(/devolucion automatica/);
+      expect(String(open.nota)).toMatch(/devolución automática/);
       expect(String(open.nota)).toContain('antes de comisiones');
       expect(JSON.stringify(open)).not.toMatch(/session_id|admin_key|paypal_order_id|@/i);
 
@@ -747,7 +753,7 @@ describeDb('asistentes por rol, historial y voz compartida', () => {
       expect(noMinimum.estado_financiamiento).toBe('inactive');
       expect(noMinimum.minimo).toBeNull();
       expect(noMinimum.minimo_centavos).toBeNull();
-      expect(String(noMinimum.nota)).toMatch(/no tiene un minimo armado/);
+      expect(String(noMinimum.nota)).toMatch(/no tiene un mínimo armado/);
 
       await pool.query(
         `UPDATE events SET funding_status = 'failed', minimum_cents = 5000, funding_deadline_at = $2, funding_decided_at = clock_timestamp(), funding_basis_cents = 0 WHERE id = $1`,
@@ -768,7 +774,7 @@ describeDb('asistentes por rol, historial y voz compartida', () => {
       expect(failed.reembolso_pendiente_centavos).toBe(345);
       expect(failed.reembolso_en_revision_centavos).toBe(678);
       expect(String(failed.nota)).toMatch(/Reembolso pendiente: \$3,45/);
-      expect(String(failed.nota)).toMatch(/Reembolso en revision: \$6,78/);
+      expect(String(failed.nota)).toMatch(/Reembolso en revisión: \$6,78/);
       expect(String(failed.nota)).toMatch(/no es un reembolso completado/);
     });
   });
@@ -793,9 +799,9 @@ describeDb('asistentes por rol, historial y voz compartida', () => {
       });
       expect(current.statusCode).toBe(200);
       const text = body<{ text: string }>(current).text;
-      expect(text).toMatch(/devolucion automatica/);
-      expect(text).toMatch(/no queda en garantia/);
-      expect(text).toMatch(/Minimo:/);
+      expect(text).toMatch(/devolución automática/);
+      expect(text).toMatch(/no queda en garantía/);
+      expect(text).toMatch(/Mínimo:/);
       expect(text).toMatch(/Meta:/);
     });
   });

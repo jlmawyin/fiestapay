@@ -954,6 +954,10 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
             <dd>{reviewedPayload.location}</dd>
             <dt>Cuota por persona</dt>
             <dd>{usd(reviewedPayload.priceCents)}</dd>
+            <dt>Mínimo requerido</dt>
+            <dd>{reviewedPayload.minimumCents === null ? 'Sin mínimo' : usd(reviewedPayload.minimumCents)}</dd>
+            <dt>Meta ideal</dt>
+            <dd>{reviewedPayload.goalCents === null ? 'Sin meta' : usd(reviewedPayload.goalCents)}</dd>
             {reviewedPayload.template === 'comida' ? (
               <>
                 <dt>Tipo de comida</dt>

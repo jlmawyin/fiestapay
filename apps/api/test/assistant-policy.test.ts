@@ -104,6 +104,7 @@ describe('politica de asistentes por rol', () => {
   it('responde PayPal, reintento, escrow y borrado sin inventar un boton de reembolso', () => {
     expect(decideAssistantTurn('PayPal me pide la tarjeta y la contrasena?')).toEqual({ kind: 'faq', topic: 'card' });
     expect(faqText('guest', 'card', facts())).toMatch(/FiestaPay no te las pide/);
+    expect(faqText('guest', 'card', facts())).toMatch(/los mensajes se guardan/);
     expect(decideAssistantTurn('Tienen proteccion al comprador?')).toEqual({ kind: 'faq', topic: 'protection' });
     expect(faqText('organizer', 'protection', facts())).toContain(
       'https://www.paypal.com/ec/digital-wallet/security-and-protection?locale.x=en_EC',
@@ -117,7 +118,7 @@ describe('politica de asistentes por rol', () => {
     expect(faqText('organizer', 'retry', facts())).toMatch(/No conviene crear otra/);
     expect(decideAssistantTurn('Si elimino la invitacion me reembolsan?')).toEqual({ kind: 'faq', topic: 'delete' });
     expect(faqText('organizer', 'delete', facts())).toMatch(/no garantiza/i);
-    expect(faqText('organizer', 'delete', facts())).toMatch(/No hay un boton de reembolso manual/);
+    expect(faqText('organizer', 'delete', facts())).toMatch(/No hay un botón de reembolso manual/);
   });
 
   it('responde tarjeta y Proteccion al Comprador juntas, sin prometer cobertura universal', () => {
@@ -169,11 +170,12 @@ describe('politica de asistentes por rol', () => {
     expect(text).toContain('$12,34');
     expect(text).toContain('$5,67');
     expect(text).toContain('$0,89');
-    expect(text).toMatch(/pendiente o uno en revision no es un reembolso completado/i);
+    expect(text).toMatch(/pendiente o uno en revisión no es un reembolso completado/i);
+    expect(text).not.toMatch(/worker|tareas/i);
   });
 
   it('explica cuando se permite confirmar, incluso con inscripciones cerradas', () => {
-    const label = 'Si, Confirmar Celebracion';
+    const label = '✓ Confirmar Realización';
     const readyWithoutMinimum = confirmationGuidance(facts({
       minimumCents: null,
       minimumRemainingCents: null,
@@ -264,16 +266,16 @@ describe('politica de asistentes por rol', () => {
   it('distingue minimo armado, legado, inactivo y fallido, y no promete escrow', () => {
     expect(decideAssistantTurn('Si no se alcanza el minimo me devuelven?')).toEqual({ kind: 'faq', topic: 'minimum' });
     const armed = minimumRefundText(facts());
-    expect(armed).toMatch(/devolucion automatica/);
-    expect(armed).toMatch(/no queda en garantia/);
+    expect(armed).toMatch(/devolución automática/);
+    expect(armed).toMatch(/no queda en garantía/);
     expect(armed).toMatch(/reembolso pendiente/i);
     expect(minimumRefundText(facts({ fundingStatus: 'legacy', fundingDeadlineAt: null, fundingDeadlineLabel: null }))).toMatch(
       /No puedo prometer/,
     );
     expect(minimumRefundText(facts({ fundingStatus: 'inactive', minimumCents: null, fundingDeadlineAt: null }))).toMatch(
-      /no tiene un minimo armado/,
+      /no tiene un mínimo armado/,
     );
-    expect(minimumRefundText(facts({ fundingStatus: 'failed' }))).toMatch(/programa la devolucion automatica/);
+    expect(minimumRefundText(facts({ fundingStatus: 'failed' }))).toMatch(/programa la devolución automática/);
     expect(minimumRefundText(facts({ fundingStatus: 'funded' }))).toMatch(/no corresponde/);
   });
 

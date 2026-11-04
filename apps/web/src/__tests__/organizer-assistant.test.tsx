@@ -83,7 +83,7 @@ describe('asistente del organizador en texto y voz', () => {
     const input = screen.getByRole('textbox', { name: /Mensaje para el asistente/i });
     fireEvent.change(input, { target: { value: 'Quien falta por pagar?' } });
     fireEvent.submit(input.closest('form')!);
-    expect(screen.getByText('Asistente del organizador está escribiendo…')).toBeInTheDocument();
+    expect(screen.getByText('El asistente está escribiendo…')).toBeInTheDocument();
     expect(api.sendOrganizerChat).toHaveBeenCalledWith('panel', 'Quien falta por pagar?');
     await act(async () => {
       pending.resolve({ text: 'Revisa el panel.', quote, actions: ['rsvp:yes:1'] });
@@ -95,6 +95,28 @@ describe('asistente del organizador en texto y voz', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente de voz' }));
     expect(screen.queryByText('Únete primero')).toBeNull();
     expect(screen.getByText('Voz del organizador')).toBeInTheDocument();
+  });
+
+  it('muestra un solo indicador accesible mientras la peticion sigue pendiente y lo retira al terminar', async () => {
+    vi.spyOn(api, 'getChatHistory').mockResolvedValue({ messages: [] });
+    const pending = deferred<{ text: string }>();
+    vi.spyOn(api, 'sendChat').mockReturnValue(pending.promise);
+    render(<ChatAssistant slug="fiesta-slug" capabilities={capabilities} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente IA' }));
+    const input = screen.getByRole('textbox', { name: /Mensaje para el asistente/i });
+    fireEvent.change(input, { target: { value: '¿Cuánto falta para el mínimo?' } });
+    fireEvent.submit(input.closest('form')!);
+
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent('El asistente está escribiendo…');
+    expect(status.textContent).not.toContain('...');
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+
+    await act(async () => {
+      pending.resolve({ text: 'Faltan $10,00.' });
+    });
+    await screen.findByText('Faltan $10,00.');
+    expect(screen.queryByText('El asistente está escribiendo…')).toBeNull();
   });
 
   it('al 403 olvida el texto privado y al 503 deja el panel manual', async () => {
@@ -170,7 +192,7 @@ describe('asistente del organizador en texto y voz', () => {
       await next.onmessage?.({ data: JSON.stringify({ type: 'tool.call', call_id: 'c1', name: 'get_funding_progress', arguments: {} }) });
       await next.onmessage?.({ data: JSON.stringify({ type: 'reply.done' }) });
     });
-    await screen.findByText(/La voz se detuvo: la clave o la sesion ya no autoriza/);
+    await screen.findByText(/La voz se detuvo: la clave o la sesión ya no autoriza/);
     expect(stopTrack.mock.calls.length).toBeGreaterThan(1);
     expect(toast).toHaveBeenCalledWith('error', expect.stringMatching(/panel o en el formulario/), 'Voz detenida');
   });

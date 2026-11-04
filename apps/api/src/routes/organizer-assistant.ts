@@ -2,7 +2,13 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { chatWithOrganizer, listOrganizerTranscript, organizerGreeting } from '../ai/organizer-chat.js';
 import { ORGANIZER_TOOL_DECLARATIONS, ORGANIZER_TOOL_NAMES, runOrganizerTool } from '../ai/organizer-tools.js';
-import { assemblyVoiceMedia, fetchAssemblyRealtimeToken, requireVoiceLease, reserveVoiceLease } from '../ai/voice-lease.js';
+import {
+  assemblyVoiceMedia,
+  fetchAssemblyRealtimeToken,
+  requireVoiceLease,
+  reserveVoiceLease,
+  touchVoiceLease,
+} from '../ai/voice-lease.js';
 import { presentedAdminKey } from '../domain/access.js';
 import { getEventBySlug, lockEvent } from '../domain/read.js';
 import { concealExpired } from '../domain/retention.js';
@@ -77,7 +83,7 @@ export async function registerOrganizerAssistantRoutes(app: FastifyInstance, dep
 
   app.post(
     '/events/:slug/organizer-voice/token',
-    { config: { rateLimit: { max: 3, timeWindow: '1 minute' } } },
+    { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } },
     async (req, reply) => {
       parseOr400(z.object({ consent: z.literal(true) }), req.body);
       const { slug } = parseOr400(slugParamSchema, req.params);
@@ -100,6 +106,7 @@ export async function registerOrganizerAssistantRoutes(app: FastifyInstance, dep
           assertAdminKey(locked, presentedKey);
         },
       });
+      // A failed provider call keeps the reservation and its reserved seconds.
       const token = await fetchAssemblyRealtimeToken(voice);
       const current = await getEventBySlug(pool, slug);
       if (current.id !== event.id || current.archived) throw gone('Este evento ya no esta disponible');
@@ -138,6 +145,8 @@ export async function registerOrganizerAssistantRoutes(app: FastifyInstance, dep
         audience: 'organizer',
       });
       if (!ORGANIZER_TOOL_NAMES.has(body.name)) throw forbidden('Herramienta o sesión de voz no autorizada');
+      // A tool call is real interaction. Throttled, and it cannot extend expires_at.
+      await touchVoiceLease(pool, { leaseId: body.leaseId, sessionId: session.id });
       const outcome = await runOrganizerTool(
         { pool, eventId: event.id, presentedKey, publicOrigin: config.publicOrigin },
         body.name,

@@ -39,6 +39,13 @@ function deferred<T>() {
   return { promise, resolve };
 }
 const messageOf = (link:HTMLElement) => new URL((link as HTMLAnchorElement).href).searchParams.get('text')!;
+/** The card and the modal share the exact label; the modal action is the last one in the DOM. */
+const clickLastConfirmButton = () => {
+  const buttons = Array.from(document.querySelectorAll('button')).filter(
+    (button) => button.textContent?.trim() === '✓ Confirmar Realización',
+  );
+  fireEvent.click(buttons[buttons.length - 1]!);
+};
 
 describe('Organizer payment status and human WhatsApp reminders', () => {
   it('renders separate attendance/payment states and only eligible reminders; mounting performs no operation', () => {
@@ -86,7 +93,9 @@ describe('Organizer payment status and human WhatsApp reminders', () => {
     fireEvent.click(await screen.findByRole('button',{name:'✓ Confirmar Realización'}));
     expect(confirm).not.toHaveBeenCalled();
     expect(screen.getAllByText(/asistencia y los pagos de cada invitado se gestionan por separado/i).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('button',{name:'Sí, Confirmar Celebración'}));
+    expect(screen.getByText(/Confirmas que "Fiesta a & Amigos" se llevará a cabo/)).toBeInTheDocument();
+    expect(screen.queryByText('Sí, Confirmar Celebración')).toBeNull();
+    clickLastConfirmButton();
     await waitFor(() => expect(confirm).toHaveBeenCalledExactlyOnceWith('a'));
     for (const spy of [rsvp,create,capture]) expect(spy).not.toHaveBeenCalled();
   });
@@ -119,7 +128,7 @@ describe('Organizer payment status and human WhatsApp reminders', () => {
     vi.spyOn(api,'confirmEvent').mockReturnValue(late.promise);
     const {rerender}=render(<OrganizerDashboardView slug="a" {...common} />);
     fireEvent.click(await screen.findByRole('button',{name:'✓ Confirmar Realización'}));
-    fireEvent.click(screen.getByRole('button',{name:'Sí, Confirmar Celebración'}));
+    clickLastConfirmButton();
     rerender(<OrganizerDashboardView slug="b" {...common} />);
     await screen.findByRole('heading',{name:'Fiesta b & Amigos'});
     await act(async()=>late.resolve({event:{...dashboard('a').event,confirmed:true}}));

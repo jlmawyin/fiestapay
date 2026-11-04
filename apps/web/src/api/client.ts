@@ -19,6 +19,7 @@ import type {
   RecoveryRequestResult,
   RecoveryConsumeResult,
 } from '../types';
+import type { VoiceAudience, VoiceLeaseActivityResult, VoiceLeaseReleaseResult } from '@fiestapay/shared';
 import { adminHeaderFor } from './admin-key';
 
 export interface OrganizerChatTranscript extends ChatTranscript {
@@ -272,14 +273,55 @@ export const api = {
 
   async getVoiceToken(
     slug: string
-  ): Promise<{ token: string; sessionConfig: Record<string, unknown>; maxSeconds: number; leaseId: string }> {
-    return request<{ token: string; sessionConfig: Record<string, unknown>; maxSeconds: number; leaseId: string }>(
+  ): Promise<{ token: string; sessionConfig: Record<string, unknown>; maxSeconds: number; leaseId: string; audience?: VoiceAudience }> {
+    return request<{ token: string; sessionConfig: Record<string, unknown>; maxSeconds: number; leaseId: string; audience?: VoiceAudience }>(
       `/api/events/${encodeURIComponent(slug)}/voice/token`,
       {
         method: 'POST',
         body: JSON.stringify({ consent: true }),
       }
     );
+  },
+
+  /**
+   * Public informational voice. No event and no guest are created; only the session
+   * cookie, the shared daily budget and the per-session lease are used.
+   */
+  async getPublicVoiceToken(): Promise<{
+    token: string;
+    sessionConfig: Record<string, unknown>;
+    maxSeconds: number;
+    leaseId: string;
+    audience?: VoiceAudience;
+  }> {
+    return request('/api/voice/public/token', {
+      method: 'POST',
+      body: JSON.stringify({ consent: true }),
+    });
+  },
+
+  /**
+   * Idempotent release, safe from pagehide with keepalive. The server ignores ids owned by
+   * another session. A network failure is the caller's to ignore; budget is not restored.
+   */
+  async releaseVoiceLease(
+    leaseId: string,
+    reason?: string,
+    keepalive = false,
+  ): Promise<VoiceLeaseReleaseResult> {
+    return request<VoiceLeaseReleaseResult>('/api/voice/lease/release', {
+      method: 'POST',
+      body: JSON.stringify({ leaseId, ...(reason ? { reason } : {}) }),
+      ...(keepalive ? { keepalive: true } : {}),
+    });
+  },
+
+  /** Real-interaction signal. `active:false` means the client must stop resources. */
+  async markVoiceActivity(leaseId: string): Promise<VoiceLeaseActivityResult> {
+    return request<VoiceLeaseActivityResult>('/api/voice/lease/activity', {
+      method: 'POST',
+      body: JSON.stringify({ leaseId }),
+    });
   },
 
   async executeVoiceTool(

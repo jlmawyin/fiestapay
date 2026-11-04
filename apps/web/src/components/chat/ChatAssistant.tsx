@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import type { Capabilities, Quote, ChatResult, ChatTranscriptMessage, RsvpStatus } from '../../types';
 import { ApiError, api } from '../../api/client';
 import { usd } from '../../types';
+import { AssistantText } from './AssistantText';
 
 interface ChatAssistantProps {
   slug: string;
@@ -37,6 +38,9 @@ interface ChatMessage {
 
 const GREETING_ID = 'init-1';
 let pendingSerial = 0;
+
+/** One indicator for both audiences, with a real ellipsis and no artificial delay. */
+const TYPING_TEXT = 'El asistente está escribiendo…';
 
 function applyTranscript(prev: ChatMessage[], incoming: ChatTranscriptMessage[]): ChatMessage[] {
   const greeting = prev.filter((message) => message.id === GREETING_ID);
@@ -340,7 +344,9 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                       boxShadow: 'var(--shadow-sm)',
                     }}
                   >
-                    <div style={{ whiteSpace: 'pre-wrap' }}>{m.text}</div>
+                    <div style={{ whiteSpace: 'pre-wrap' }}>
+                      <AssistantText text={m.text} />
+                    </div>
 
                     {/* Quote Action Card returned by assistant */}
                     {m.quote && (
@@ -469,7 +475,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                 role="status"
                 aria-live="polite"
               >
-                {organizer ? 'Asistente del organizador está escribiendo…' : 'Asistente FiestaPay está escribiendo...'}
+                {TYPING_TEXT}
               </div>
             )}
 
