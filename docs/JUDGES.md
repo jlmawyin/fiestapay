@@ -1,5 +1,23 @@
 # Judge walkthrough
 
+**FiestaPay helps an organizer create a gathering, share its invitation, track attendance and collect a fixed contribution per person through PayPal.** Open the [live application](https://fiestapay.somospanas.com/).
+
+**All payments in this demo use PayPal Sandbox. No real money is charged or transferred. Do not use a personal PayPal account or a real card.** A sandbox capture credits the shared Business test account; organizer confirmation does not release held funds or trigger a payout.
+
+## Three-minute walkthrough
+
+Have the privately allocated sandbox buyer ready before starting. The times below are a target for the manual route, not a claim of a completed human test; PayPal login and network latency can take longer.
+
+| Time | Action | What to check |
+| --- | --- | --- |
+| 0:00–0:50 | Open the live app, choose **Nueva invitación** and **Comida**, enter fictional organizer/venue details, USD 25 per person, capacity 2, minimum and goal USD 50, and future start/end/funding-deadline times. Review and publish. | Keep the organizer link private and copy the separate public link. |
+| 0:50–1:10 | Open the public link in a private window or another browser. Join with a fictional name and one companion, then confirm attendance. | There are two people; attendance alone does not show payment. |
+| 1:10–2:15 | Review **2 × USD 25 = USD 50**, confirm the quote and approve the yellow PayPal checkout using only the allocated Personal sandbox buyer. Return to FiestaPay. | Wait for the server to verify capture and show **Pagado**. If unclear, use **Verificar** for the same order before attempting another payment. |
+| 2:15–2:45 | Return through the saved organizer link and inspect the panel. | One guest group, two paid people and USD 50 collected before fees; reaching the minimum does not itself confirm the gathering. |
+| 2:45–3:00 | Use **Confirmar realización** if enabled, then inspect the separate attendance/payment/event states. | Organizer confirmation changes event status. No escrow release or payout is claimed. |
+
+Optional assistant and physical mobile voice checks are described below. A separate three-minute voice acceptance session is not part of the timing of this manual checkout walkthrough.
+
 Prepared against deployed source **8e13ae6** and the [29 October evidence](reviews/revalidation-20261029.md). The browser matrix has 12/14 accepted points; the two assistant points are partially verified because voice evidence remains incomplete. This guide has not yet been followed unassisted by a human judge. Sandbox-buyer allocation must be completed before submission.
 
 Open [FiestaPay](https://fiestapay.somospanas.com/) on a phone or desktop browser. The interface is Spanish; translations appear below. **No Google account, personal email, real PayPal account or real card is required.** Use fictional names throughout.

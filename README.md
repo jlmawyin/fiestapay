@@ -5,6 +5,7 @@ An AI host for shared gatherings: understand the invitation, confirm attendance,
 **Hackathon preview.** Deployed source `8e13ae6` has 426 passing database-backed tests and a browser matrix with 12/14 accepted points. Verified historical PayPal sandbox captures total USD 125; one separate USD 1 automatic refund is documented. Physical Spanish mobile audio and parts of voice-answer verification remain pending. See the [current evidence and limits](docs/reviews/revalidation-20261029.md); these results do not claim a payment in a new judge session.
 
 - Running demo: https://fiestapay.somospanas.com
+- [Three-minute judge walkthrough](docs/JUDGES.md) · [AI tools and contributions](docs/AI_TOOLS.md)
 - No Google sign-in or real personal information. Use a fictional alias and a sandbox buyer.
 - Four fixed-cover templates: Meal, House party, Shared trip, Event.
 - Attendance and payment are separate states. A confirmed guest can still be unpaid.
