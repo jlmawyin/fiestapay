@@ -1,67 +1,221 @@
 import type { Pool, PoolClient } from '../db/pool.js';
-import { HttpError, forbidden, unavailable } from '../errors.js';
+import { HttpError, forbidden, notFound, unavailable } from '../errors.js';
 import { newId } from '../lib/ids.js';
 import { withTransaction } from '../db/pool.js';
 
-export type VoiceAudience = 'guest' | 'organizer';
+export type VoiceAudience = 'guest' | 'organizer' | 'public';
+
+/** Real inactivity window. A lease with no interaction for this long is dead. */
+export const VOICE_IDLE_SECONDS = 60;
+/** New reservations allowed for one browser session in any rolling minute, across roles. */
+export const VOICE_NEW_SESSIONS_PER_MINUTE = 5;
+/** Client-side cooldown after any refusal. Not enforced here; published for the UI/contract. */
+export const VOICE_CLIENT_COOLDOWN_SECONDS = 15;
+/** Minimum separation between client-attested activity writes. Stops a ping loop. */
+export const VOICE_ACTIVITY_MIN_INTERVAL_SECONDS = 5;
+
+const MAX_SECONDS = 300;
+const ACTIVE_LEASE = 'Ya tienes una sesión de voz activa. Espera a que termine o pulsa Detener.';
+const RATE_LIMIT = 'Has iniciado demasiadas sesiones de voz. Espera un minuto antes de intentarlo otra vez.';
+const DAILY_LIMIT = 'Se alcanzó el límite diario de voz; continúa por texto.';
 
 /**
- * Shared voice reservation. The advisory lock stays first, matching the guest route, so a guest
- * lease and an organizer lease cannot invert lock order against each other. An authorize callback
- * may then lock the event row before the lease insert. The lock is never held across the
- * AssemblyAI HTTP call. A failed or ambiguous token request still keeps the reservation.
+ * Shared voice reservation for guest, organizer and public audiences.
+ *
+ * The advisory lock is first and is common to every audience, so a guest, organizer or
+ * public request cannot interleave its unique-active check or its daily total. A partial
+ * unique index on (session_id) WHERE released_at IS NULL is the authoritative guard even
+ * if this function is ever called without the lock. The lock is never held across the
+ * AssemblyAI HTTP call.
+ *
+ * The full reserved duration is charged before the provider token is requested and the
+ * row is kept forever: a failed token, an idle expiry or an explicit release never returns
+ * budget. Only rows created today count toward the UTC daily cap.
  */
 export async function reserveVoiceLease(
   pool: Pool,
   input: {
     sessionId: string;
-    eventId: string;
+    /** Null only for the public informational audience; no fictional event is created. */
+    eventId: string | null;
     reservedSeconds: number;
     dailySeconds: number;
     audience: VoiceAudience;
     authorize: (db: PoolClient) => Promise<void>;
   },
 ): Promise<string> {
+  if (input.audience === 'public' ? input.eventId !== null : input.eventId === null) {
+    throw new HttpError(400, 'Reserva de voz inválida');
+  }
+  const reservedSeconds = Math.floor(input.reservedSeconds);
+  if (!Number.isInteger(reservedSeconds) || reservedSeconds < 1 || reservedSeconds > MAX_SECONDS) {
+    throw new HttpError(400, 'Duración de voz inválida');
+  }
+
   return withTransaction(pool, async (db) => {
     await db.query('SELECT pg_advisory_xact_lock(778899124)');
+
+    // Close this session's own stale reservations before looking for a live one. This is
+    // the only place another lease is touched, and the scope is always session_id + this
+    // caller's own session. Reserved seconds stay counted.
+    await db.query(
+      `UPDATE voice_leases
+          SET released_at = now(),
+              -- An older image only checks expires_at. Expiring the stale row here makes
+              -- the closure visible to that image too; reserved seconds stay charged.
+              expires_at = LEAST(expires_at, now()),
+              release_reason = CASE WHEN expires_at <= now() THEN 'expired' ELSE 'idle' END
+        WHERE session_id = $1
+          AND released_at IS NULL
+          AND (expires_at <= now() OR activity_at <= now() - ($2 * interval '1 second'))`,
+      [input.sessionId, VOICE_IDLE_SECONDS],
+    );
+
     const usage = await db.query<{ seconds: string }>(
       `SELECT COALESCE(SUM(reserved_seconds), 0)::text AS seconds
          FROM voice_leases
         WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`,
     );
     const used = Number(usage.rows[0]?.seconds ?? '0');
-    if (used + input.reservedSeconds > input.dailySeconds) {
-      throw new HttpError(429, 'Se alcanzó el límite diario de voz; continúa por texto');
+    if (!Number.isSafeInteger(used) || used + reservedSeconds > input.dailySeconds) {
+      throw new HttpError(429, DAILY_LIMIT);
     }
+
     const active = await db.query(
-      'SELECT id FROM voice_leases WHERE session_id = $1 AND expires_at > now()',
+      `SELECT id
+         FROM voice_leases
+        WHERE session_id = $1
+          AND released_at IS NULL
+          AND expires_at > now()
+          AND activity_at > now() - ($2 * interval '1 second')
+        LIMIT 1`,
+      [input.sessionId, VOICE_IDLE_SECONDS],
+    );
+    if (active.rowCount) throw new HttpError(429, ACTIVE_LEASE);
+
+    // Persistent across guest, organizer and public: querying, releasing and activity
+    // writes never insert a row, so they never consume this allowance.
+    const recent = await db.query<{ count: number }>(
+      `SELECT count(*)::int AS count
+         FROM voice_leases
+        WHERE session_id = $1
+          AND created_at > now() - interval '60 seconds'`,
       [input.sessionId],
     );
-    if (active.rowCount) throw new HttpError(429, 'Ya tienes una sesión de voz reservada. Espera a que termine');
+    if (Number(recent.rows[0]?.count ?? 0) >= VOICE_NEW_SESSIONS_PER_MINUTE) {
+      throw new HttpError(429, RATE_LIMIT);
+    }
+
     await input.authorize(db);
     const id = newId();
     await db.query(
-      `INSERT INTO voice_leases (id, session_id, event_id, reserved_seconds, expires_at, audience)
-       VALUES ($1, $2, $3, $4, now() + ($4 + 60) * interval '1 second', $5)`,
-      [id, input.sessionId, input.eventId, input.reservedSeconds, input.audience],
+      `INSERT INTO voice_leases (id, session_id, event_id, reserved_seconds, expires_at, audience, activity_at)
+       VALUES ($1, $2, $3, $4, now() + ($4 + 60) * interval '1 second', $5, now())`,
+      [id, input.sessionId, input.eventId, reservedSeconds, input.audience],
     );
     return id;
   });
 }
 
-/** Audience is part of the lease. A guest lease cannot run an organizer tool, or the reverse. */
+/**
+ * Audience and event are part of the lease. A guest lease cannot run an organizer tool or
+ * the reverse, and a released, expired or idle lease is rejected even if its row exists.
+ */
 export async function requireVoiceLease(
   db: Pool | PoolClient,
-  input: { leaseId: string; sessionId: string; eventId: string; audience: VoiceAudience },
+  input: { leaseId: string; sessionId: string; eventId: string | null; audience: VoiceAudience },
 ): Promise<void> {
   const lease = await db.query<{ audience: string }>(
     `SELECT audience
        FROM voice_leases
-      WHERE id = $1 AND session_id = $2 AND event_id = $3 AND expires_at > now()`,
-    [input.leaseId, input.sessionId, input.eventId],
+      WHERE id = $1
+        AND session_id = $2
+        AND event_id IS NOT DISTINCT FROM $3
+        AND released_at IS NULL
+        AND expires_at > now()
+        AND activity_at > now() - ($4 * interval '1 second')`,
+    [input.leaseId, input.sessionId, input.eventId, VOICE_IDLE_SECONDS],
   );
   const row = lease.rows[0];
   if (!row || row.audience !== input.audience) throw forbidden('Herramienta o sesión de voz no autorizada');
+}
+
+/**
+ * Marks real interaction. The endpoint is intentionally not a heartbeat: callers send it
+ * for speech or reply events, the server throttles writes to one every 5 seconds, and it
+ * can never move expires_at. A plain ping therefore cannot keep a lease alive forever.
+ *
+ * @returns true when the lease exists and is still live; false when it is released,
+ * expired or idle. A false result is not an error: the caller must stop the session.
+ */
+export async function touchVoiceLease(
+  pool: Pool,
+  input: { leaseId: string; sessionId: string },
+): Promise<boolean> {
+  const { rows } = await pool.query<{ live: boolean }>(
+    `WITH live AS (
+       SELECT id
+         FROM voice_leases
+        WHERE id = $1
+          AND session_id = $2
+          AND released_at IS NULL
+          AND expires_at > now()
+          AND activity_at > now() - ($3 * interval '1 second')
+     ), touched AS (
+       UPDATE voice_leases AS lease
+          SET activity_at = now()
+         FROM live
+        WHERE lease.id = live.id
+          AND lease.activity_at <= now() - ($4 * interval '1 second')
+        RETURNING lease.id
+     )
+     SELECT EXISTS (SELECT 1 FROM live) AS live`,
+    [input.leaseId, input.sessionId, VOICE_IDLE_SECONDS, VOICE_ACTIVITY_MIN_INTERVAL_SECONDS],
+  );
+  return Boolean(rows[0]?.live);
+}
+
+export interface VoiceReleaseResult {
+  released: boolean;
+  alreadyReleased: boolean;
+}
+
+/**
+ * Idempotent release. Only the owner (same session) can release: a foreign or unknown
+ * lease id answers 404 without changing any row. Repeated calls keep the first timestamp
+ * and reason. `expires_at` is clamped to that timestamp so an older image that only reads
+ * `expires_at` cannot revive the lease. reserved_seconds remain in the daily sum by design.
+ */
+export async function releaseVoiceLease(
+  pool: Pool,
+  input: { leaseId: string; sessionId: string; reason?: string },
+): Promise<VoiceReleaseResult> {
+  const reason = (input.reason ?? 'client').trim().slice(0, 40) || 'client';
+  return withTransaction(pool, async (db) => {
+    const { rows } = await db.query<{ previous: Date | null }>(
+      `WITH target AS (
+         SELECT id, released_at
+           FROM voice_leases
+          WHERE id = $1 AND session_id = $2
+          FOR UPDATE
+       ), updated AS (
+         UPDATE voice_leases AS lease
+            SET released_at = COALESCE(lease.released_at, now()),
+                release_reason = COALESCE(lease.release_reason, $3),
+                -- A previous image only consults expires_at, so a released lease must
+                -- also stop being live there. Repeated calls keep the first timestamp.
+                expires_at = LEAST(lease.expires_at, COALESCE(lease.released_at, now()))
+           FROM target
+          WHERE lease.id = target.id
+          RETURNING lease.id, target.released_at AS previous
+       )
+       SELECT previous FROM updated`,
+      [input.leaseId, input.sessionId, reason],
+    );
+    const row = rows[0];
+    if (!row) throw notFound('Sesión de voz no encontrada');
+    return { released: row.previous === null, alreadyReleased: row.previous !== null };
+  });
 }
 
 /**
@@ -89,7 +243,7 @@ export async function fetchAssemblyRealtimeToken(voice: { key: string; maxSecond
   return data.token;
 }
 
-/** PCM, Spanish, and Lola. Shared so guest and organizer voice stay on the same engine. */
+/** PCM, Spanish, and Lola. Shared so guest, organizer and public voice stay on the same engine. */
 export function assemblyVoiceMedia(): {
   input: { format: { encoding: string }; language_codes: string[]; transcription_mode: string };
   output: { voice: string; format: { encoding: string } };

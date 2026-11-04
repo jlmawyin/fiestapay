@@ -10,6 +10,7 @@ import { CreateEventView } from './views/CreateEventView';
 import { PublicInviteView } from './views/PublicInviteView';
 import { OrganizerDashboardView } from './views/OrganizerDashboardView';
 import { OrganizerRecoveryView } from './views/OrganizerRecoveryView';
+import { VoiceInvitationAgent } from './components/voice/VoiceInvitationAgent';
 
 type ViewMode =
   | { mode: 'home' }
@@ -244,6 +245,19 @@ export const App: React.FC = () => {
 
       {/* Global Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {/*
+        Public informational voice. Available as soon as home/create/recover is open,
+        without creating or joining an event. The invite route keeps its own event-scoped
+        launcher, so this one is rendered only on these three routes and never duplicates it.
+      */}
+      {(currentView.mode === 'home' || currentView.mode === 'create' || currentView.mode === 'recover') && (
+        <VoiceInvitationAgent
+          audience="public"
+          capabilities={capabilities}
+          onShowToast={showToast}
+        />
+      )}
     </div>
   );
 };

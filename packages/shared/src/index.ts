@@ -143,6 +143,27 @@ export interface Capabilities {
   /** True only when the server has SMTP configured. Never implies a message was accepted or delivered. */
   email: boolean;
 }
+/** Voice lease scope. Public is informational and has no event, guest or tools. */
+export type VoiceAudience = 'guest' | 'organizer' | 'public';
+/** One reservation. maxSeconds is the timebox; a released or idle lease is not reusable. */
+export interface VoiceSessionToken {
+  token: string;
+  sessionConfig: Record<string, unknown>;
+  maxSeconds: number;
+  leaseId: string;
+  audience: VoiceAudience;
+}
+/** Idempotent release. Repeating it keeps the first timestamp and never restores budget. */
+export interface VoiceLeaseReleaseResult {
+  ok: true;
+  released: boolean;
+  alreadyReleased: boolean;
+}
+/** Real-interaction activity. active=false means mic, WS and playback must stop. */
+export interface VoiceLeaseActivityResult {
+  ok: true;
+  active: boolean;
+}
 export type RecoveryContactState = 'none' | 'pending' | 'verified';
 export interface RecoveryContactStatus { state: RecoveryContactState; masked: string | null }
 export interface RecoveryStatus { email: boolean; contact: RecoveryContactStatus }

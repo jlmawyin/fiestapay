@@ -2,9 +2,20 @@ import { join } from 'node:path';
 import type { LlmProvider } from '@fiestapay/shared';
 import { normalizeMailbox } from './email/address.js';
 
+/**
+ * Voice timebox. A live session lasts up to 180 seconds by default and the cap admits
+ * 180s for deployments that raised it. The daily total is a UTC calendar-day cap and is
+ * charged in full before the provider token is requested, so a failed token or an early
+ * release never returns budget. No relay/second session is opened by the server.
+ */
 export function voiceConfig(env: NodeJS.ProcessEnv = process.env) {
   const bounded = (v: string | undefined, fallback: number, cap: number) => Math.min(cap, Math.max(1, Number(v) || fallback));
-  return {enabled:env.VOICE_ENABLED === 'true' && Boolean(env.ASSEMBLYAI_API_KEY),key:env.ASSEMBLYAI_API_KEY ?? '',maxSeconds:Math.floor(bounded(env.VOICE_MAX_SECONDS,120,300)),dailySeconds:Math.floor(bounded(env.VOICE_DAILY_SECONDS,1800,3600))};
+  return {
+    enabled: env.VOICE_ENABLED === 'true' && Boolean(env.ASSEMBLYAI_API_KEY),
+    key: env.ASSEMBLYAI_API_KEY ?? '',
+    maxSeconds: Math.floor(bounded(env.VOICE_MAX_SECONDS, 180, 300)),
+    dailySeconds: Math.floor(bounded(env.VOICE_DAILY_SECONDS, 1800, 3600)),
+  };
 }
 
 const SANDBOX_HOSTS = new Set(['api-m.sandbox.paypal.com', 'api.sandbox.paypal.com']);

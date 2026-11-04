@@ -170,7 +170,7 @@ describe('asistente del organizador en texto y voz', () => {
       await next.onmessage?.({ data: JSON.stringify({ type: 'tool.call', call_id: 'c1', name: 'get_funding_progress', arguments: {} }) });
       await next.onmessage?.({ data: JSON.stringify({ type: 'reply.done' }) });
     });
-    await screen.findByText(/La voz se detuvo: la clave o la sesion ya no autoriza/);
+    await screen.findByText(/La voz se detuvo: la clave o la sesión ya no autoriza/);
     expect(stopTrack.mock.calls.length).toBeGreaterThan(1);
     expect(toast).toHaveBeenCalledWith('error', expect.stringMatching(/panel o en el formulario/), 'Voz detenida');
   });

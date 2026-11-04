@@ -512,7 +512,7 @@ describeDb('asistentes por rol, historial y voz compartida', () => {
       expect(guestLease.sessionConfig.output.voice).toBe('lola');
       const orgToken = await owner.post(`/api/events/${slug}/organizer-voice/token`, { consent: true });
       expect(orgToken.statusCode).toBe(429);
-      expect(orgToken.body).toMatch(/sesión de voz reservada/);
+      expect(orgToken.body).toMatch(/sesión de voz activa/);
       const crossed = await owner.post(`/api/events/${slug}/organizer-voice/tool`, {
         leaseId: guestLease.leaseId,
         name: 'get_funding_progress',
@@ -550,6 +550,12 @@ describeDb('asistentes por rol, historial y voz compartida', () => {
         [slug],
       );
       const legacyId = randomUUID();
+      // A session may have only one open lease. Close the failed token's lease first;
+      // its reserved seconds stay counted and the legacy row becomes the live lease.
+      await pool.query(
+        "UPDATE voice_leases SET released_at = now(), release_reason = 'test_setup' WHERE session_id = $1 AND released_at IS NULL",
+        [rows[0]!.session_id],
+      );
       await pool.query(
         `INSERT INTO voice_leases (id, session_id, event_id, reserved_seconds, expires_at)
          VALUES ($1, $2, $3, 30, now() + interval '5 minutes')`,

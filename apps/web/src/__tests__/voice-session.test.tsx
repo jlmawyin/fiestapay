@@ -51,6 +51,8 @@ beforeEach(() => {
   vi.stubGlobal('AudioContext', MockAudioContext);
   Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
   vi.spyOn(api, 'getVoiceToken').mockResolvedValue(token);
+  vi.spyOn(api, 'markVoiceActivity').mockResolvedValue({ ok: true, active: true });
+  vi.spyOn(api, 'releaseVoiceLease').mockResolvedValue({ ok: true, released: true, alreadyReleased: false });
 });
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
@@ -92,6 +94,24 @@ describe('Voice session cancellation and isolation', () => {
     await act(async () => { pendingToken.resolve(token); });
     expect(stopTrack).toHaveBeenCalledOnce();
     expect(MockSocket.instances).toHaveLength(0);
+    // The reserved lease arrived after unmount: release its own id, no socket, no mic.
+    expect(api.releaseVoiceLease).toHaveBeenCalledWith('test-lease', 'late_token', true);
+  });
+
+  it('releases the lease of a token that arrives after Stop without opening a socket', async () => {
+    const pendingToken = deferred<typeof token>();
+    vi.mocked(api.getVoiceToken).mockReturnValueOnce(pendingToken.promise);
+    startVoice();
+    await waitFor(() => expect(api.getVoiceToken).toHaveBeenCalledOnce());
+
+    fireEvent.click(screen.getByRole('button', { name: /Detener y Cerrar/ }));
+    await act(async () => {
+      pendingToken.resolve({ ...token, leaseId: 'orphaned-lease' });
+    });
+
+    expect(api.releaseVoiceLease).toHaveBeenCalledWith('orphaned-lease', 'late_token', true);
+    expect(MockSocket.instances).toHaveLength(0);
+    expect(stopTrack).toHaveBeenCalledOnce();
   });
 
   it('ignores delayed close callbacks from a previous socket after restarting', async () => {
@@ -134,7 +154,7 @@ describe('Voice session cancellation and isolation', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('Permiso de micrófono denegado. Puedes usar el formulario o chat escrito.')
+        screen.getByText('Permiso de micrófono denegado. Puedes usar el formulario o el chat escrito.')
       ).toBeInTheDocument();
     });
     expect(api.getVoiceToken).not.toHaveBeenCalled();
@@ -152,7 +172,7 @@ describe('Voice session cancellation and isolation', () => {
     expect(api.getVoiceToken).toHaveBeenCalledOnce();
     expect(getUserMedia).toHaveBeenCalledTimes(2);
     expect(screen.getByRole('button', { name: /Detener y Cerrar/ })).toBeInTheDocument();
-    expect(screen.queryByText('Permiso de micrófono denegado. Puedes usar el formulario o chat escrito.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Permiso de micrófono denegado. Puedes usar el formulario o el chat escrito.')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Detener y Cerrar/ }));
     expect(stopTrack).toHaveBeenCalledOnce();
@@ -170,7 +190,9 @@ describe('Voice session cancellation and isolation', () => {
     startVoice();
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent('Token generation failed');
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'No se pudo iniciar o continuar la voz. Revisa el micrófono o continúa por texto.'
+      );
     });
     expect(firstStop).toHaveBeenCalledOnce();
     expect(MockSocket.instances).toHaveLength(0);
