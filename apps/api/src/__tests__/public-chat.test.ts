@@ -135,6 +135,35 @@ describe.skipIf(databaseUrl.length === 0)('chat publico informativo (FP-PUBLIC-C
     expect(await countRows('chat_messages')).toBe(0);
   });
 
+  it('envia la guia compartida al proveedor publico sin event data, tools ni historial', async () => {
+    let capturedInput: RespondInput | null = null;
+    let providerCalls = 0;
+    respondImpl = async (_config, input) => {
+      providerCalls += 1;
+      capturedInput = input;
+      return completed('Puedes usar "Ver panel de ejemplo (AG Grid)" o "Probar pago con PayPal".');
+    };
+
+    const response = await postPublic({ message: '¿Cómo empiezo la demo?' });
+    expect(response.statusCode).toBe(200);
+    expect(providerCalls).toBe(1);
+
+    const input = requireValue<RespondInput>(capturedInput);
+    expect(input.tools).toEqual([]);
+    expect(input.instructions).toContain('GUÍA COMPARTIDA FIESTAPAY');
+    expect(input.instructions).toContain('Explora la demo');
+    expect(input.instructions).toContain('Ver panel de ejemplo (AG Grid)');
+    expect(input.instructions).toContain('Probar pago con PayPal');
+    expect(input.instructions).toContain('Recuperar mi enlace');
+    expect(input.instructions).toContain('Detener y Cerrar Micrófono');
+    expect(input.instructions).toMatch(/sin estado/i);
+    expect(input.instructions).toMatch(/Nunca afirmes recordar clics/i);
+    expect(input.instructions).not.toContain('Cena privada de prueba');
+    expect(input.input).toEqual([{ role: 'user', content: '¿Cómo empiezo la demo?' }]);
+    expect(await countRows('chat_messages')).toBe(0);
+    expect(await countRows('events')).toBe(0);
+  });
+
   it('rechaza mensajes vacios, largos o con rol, historial, evento o clave del cliente', async () => {
     let providerCalls = 0;
     respondImpl = async () => {
