@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import type { FiestaEvent } from '../types';
 import { usd } from '../types';
 import { adminKeyFor } from '../api/admin-key';
-import { GatheringTable } from '../components/illustrations/GatheringTable';
 import { TemplateCover } from '../components/illustrations/TemplateCover';
 import { ThemeScope } from '../components/events/ThemeScope';
 import { Modal } from '../components/common/Modal';
@@ -18,6 +17,8 @@ interface OrganizerHomeViewProps {
   onNavigateInvite: (slug: string) => void;
   onNavigateDashboard: (slug: string) => void;
   onCreateDemo: () => Promise<void>;
+  /** Explicit payment demo. It never runs on render. */
+  onStartPaymentDemo?: () => Promise<void>;
   onResetDemo: () => Promise<void>;
   isResetting: boolean;
   /** Opens the read-only fictional AG Grid preview at /demo. */
@@ -25,8 +26,6 @@ interface OrganizerHomeViewProps {
   /** Opens the existing recovery route without weakening dashboard authorization. */
   onNavigateRecover?: () => void;
 }
-
-const journeySteps = ['Crear', 'Compartir', 'Unirse', 'Revisar importe', 'PayPal'];
 
 export const OrganizerHomeView: React.FC<OrganizerHomeViewProps> = ({
   events,
@@ -37,6 +36,7 @@ export const OrganizerHomeView: React.FC<OrganizerHomeViewProps> = ({
   onNavigateInvite,
   onNavigateDashboard,
   onCreateDemo,
+  onStartPaymentDemo,
   onResetDemo,
   isResetting,
   onNavigatePreview,
@@ -44,6 +44,7 @@ export const OrganizerHomeView: React.FC<OrganizerHomeViewProps> = ({
 }) => {
   const [showResetModal, setShowResetModal] = useState(false);
   const [isDemoLoading, setIsDemoLoading] = useState(false);
+  const [isPaymentDemoLoading, setIsPaymentDemoLoading] = useState(false);
 
   const handleDemoClick = async () => {
     if (isDemoLoading) return;
@@ -52,6 +53,16 @@ export const OrganizerHomeView: React.FC<OrganizerHomeViewProps> = ({
       await onCreateDemo();
     } finally {
       setIsDemoLoading(false);
+    }
+  };
+
+  const handlePaymentDemoClick = async () => {
+    if (isPaymentDemoLoading) return;
+    setIsPaymentDemoLoading(true);
+    try {
+      await onStartPaymentDemo?.();
+    } finally {
+      setIsPaymentDemoLoading(false);
     }
   };
 
@@ -66,93 +77,153 @@ export const OrganizerHomeView: React.FC<OrganizerHomeViewProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      {/* Signature Banner with GatheringTable illustration */}
+      {/* Short hero: the first card action must stay clear of the orb on a 390px screen. */}
       <section
         style={{
-          backgroundColor: '#FFFFFF',
+          background: 'linear-gradient(135deg, #FFFFFF 0%, var(--color-blue-tint) 100%)',
           borderRadius: 'var(--radius-xl)',
           border: '1.5px solid var(--color-border)',
-          overflow: 'hidden',
-          boxShadow: 'var(--shadow-ticket)',
+          padding: '1.1rem 1.25rem',
+          boxShadow: 'var(--shadow-md)',
         }}
         aria-label="Panel principal del organizador"
       >
-        <div style={{ maxHeight: '120px', overflow: 'hidden' }}>
-          <GatheringTable height="120px" />
-        </div>
-        <div style={{ padding: '1.5rem' }}>
-          <div style={{ maxWidth: '760px', minWidth: 0 }}>
-            <span className="badge badge-teal" style={{ marginBottom: '0.65rem' }}>
-              PayPal Sandbox · sin dinero real
-            </span>
-            <h1 style={{ fontSize: '1.75rem', marginBottom: '0.35rem' }}>
-              Organiza tus invitaciones, claridad en cada cuota
-            </h1>
-            <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.95rem', marginBottom: '0.75rem' }}>
-              Crea invitaciones públicas con precios fijos, confirma asistencia con amigos y revisa el importe antes de pagar en PayPal Sandbox.
-            </p>
+        <span className="badge badge-teal" style={{ marginBottom: '0.45rem' }}>
+          PayPal Sandbox · sin dinero real
+        </span>
+        <h1 style={{ fontSize: 'clamp(1.45rem, 4vw, 1.9rem)', marginBottom: '0.25rem' }}>
+          Organiza tus invitaciones, claridad en cada cuota
+        </h1>
+        <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.9rem', margin: 0, maxWidth: '720px' }}>
+          Elige una demo para explorar el panel o recorrer un pago, o crea tu propia invitación.
+        </p>
+      </section>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                gap: '0.6rem',
-                marginBottom: '0.9rem',
-              }}
-            >
-              <button onClick={() => onNavigatePreview?.()} className="btn btn-primary">
-                Ver panel de ejemplo (AG Grid)
-              </button>
-              <button
-                onClick={handleDemoClick}
-                className="btn btn-teal"
-                disabled={isDemoLoading}
-              >
-                {isDemoLoading ? 'Creando demo privada...' : 'Crear mi demo privada'}
-              </button>
-              <button onClick={onNavigateCreate} className="btn btn-secondary">
-                + Crear nueva invitación
-              </button>
-              <button onClick={() => onNavigateRecover?.()} className="btn btn-secondary">
-                Recuperar mi enlace
-              </button>
-            </div>
-
-            <div
-              aria-label="Cómo funciona una invitación"
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                gap: '0.35rem',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                color: 'var(--color-ink)',
-                marginBottom: '0.5rem',
-              }}
-            >
-              {journeySteps.map((step, index) => (
-                <React.Fragment key={step}>
-                  <span
-                    style={{
-                      backgroundColor: 'var(--color-blue-tint)',
-                      color: 'var(--color-blue)',
-                      borderRadius: 'var(--radius-full)',
-                      padding: '0.2rem 0.6rem',
-                    }}
-                  >
-                    {step}
-                  </span>
-                  {index < journeySteps.length - 1 ? <span aria-hidden="true" style={{ color: 'var(--color-ink-light)' }}>→</span> : null}
-                </React.Fragment>
-              ))}
-            </div>
-            <p style={{ fontSize: '0.8rem', color: 'var(--color-ink-muted)' }}>
-              El flujo es simple: Crear → Compartir → Unirse → Revisar importe → PayPal. Es una demostración sandbox: no se cobra dinero real.
+      <div
+        className="event-home-grid"
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' }}
+      >
+        <article
+          aria-labelledby="demo-card-title"
+          style={{
+            backgroundColor: '#FFFFFF',
+            border: '1.5px solid var(--color-teal)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '1.15rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.8rem',
+            boxShadow: 'var(--shadow-md)',
+          }}
+        >
+          <div>
+            <span className="badge badge-teal">Datos ficticios</span>
+            <h2 id="demo-card-title" style={{ fontSize: '1.3rem', margin: '0.5rem 0 0.25rem' }}>
+              Explora la demo
+            </h2>
+            <p style={{ margin: 0, color: 'var(--color-ink-muted)', fontSize: '0.88rem' }}>
+              Mira el panel AG Grid o recorre un pago completo sin crear datos reales.
             </p>
           </div>
+
+          <div style={{ display: 'grid', gap: '0.5rem', marginTop: 'auto' }}>
+            <button type="button" onClick={() => onNavigatePreview?.()} className="btn btn-secondary">
+              Ver panel de ejemplo (AG Grid)
+            </button>
+            <button
+              type="button"
+              onClick={handleDemoClick}
+              className="btn btn-teal"
+              disabled={isDemoLoading}
+            >
+              {isDemoLoading ? 'Creando demo privada...' : 'Crear mi demo privada'}
+            </button>
+            <button
+              type="button"
+              onClick={handlePaymentDemoClick}
+              className="btn btn-primary"
+              disabled={isPaymentDemoLoading}
+            >
+              {isPaymentDemoLoading ? 'Preparando pago de prueba...' : 'Probar pago con PayPal'}
+            </button>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-ink-muted)' }}>
+            El pago de prueba crea una comida ficticia y prepara a Invitado Demo con un acompañante.
+            La cotización y la confirmación siguen siendo tuyas.
+          </p>
+        </article>
+
+        <article
+          aria-labelledby="live-card-title"
+          style={{
+            backgroundColor: '#FFFFFF',
+            border: '1.5px solid var(--color-border)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '1.15rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.8rem',
+            boxShadow: 'var(--shadow-md)',
+          }}
+        >
+          <div>
+            <span className="badge badge-blue">Tu propia invitación</span>
+            <h2 id="live-card-title" style={{ fontSize: '1.3rem', margin: '0.5rem 0 0.25rem' }}>
+              Prueba en vivo
+            </h2>
+            <p style={{ margin: 0, color: 'var(--color-ink-muted)', fontSize: '0.88rem' }}>
+              Crea tu propia fiesta, compártela y observa cómo se unen tus invitados.
+            </p>
+          </div>
+
+          <p
+            style={{
+              margin: 0,
+              padding: '0.6rem 0.7rem',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--color-surface-subtle)',
+              fontSize: '0.78rem',
+              color: 'var(--color-ink)',
+            }}
+          >
+            La aplicación es real; PayPal está en modo <strong>SANDBOX</strong>: no se mueve dinero real.
+          </p>
+
+          <button
+            type="button"
+            onClick={onNavigateCreate}
+            className="btn btn-primary"
+            style={{ marginTop: 'auto' }}
+          >
+            + Crear mi propia fiesta
+          </button>
+        </article>
+      </div>
+
+      {/* Recovery remains visible and separate from the collapsed personal history. */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '0.75rem',
+          flexWrap: 'wrap',
+          padding: '0.85rem 1rem',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-md)',
+          backgroundColor: 'var(--color-surface-subtle)',
+        }}
+      >
+        <div>
+          <strong style={{ fontSize: '0.9rem' }}>¿Ya creaste una invitación?</strong>
+          <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-ink-muted)' }}>
+            Recupera tu enlace de organizador con el correo verificado.
+          </p>
         </div>
-      </section>
+        <button type="button" onClick={() => onNavigateRecover?.()} className="btn btn-secondary">
+          Recuperar mi enlace
+        </button>
+      </div>
 
       {/* Personal history stays available but collapsed by default. Nothing is deleted. */}
       <details

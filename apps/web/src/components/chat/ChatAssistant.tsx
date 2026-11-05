@@ -15,6 +15,11 @@ interface ChatAssistantProps {
   closed?: boolean;
   /** Guest keeps the public assistant. Organizer uses the keyed panel routes. */
   audience?: 'guest' | 'organizer';
+  /** Presentation seam: render without its own floating trigger inside a host panel. */
+  embedded?: boolean;
+  /** Optional controlled visibility. Standalone use keeps its internal state. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 function parseRsvpAction(actionStr: string): { status: RsvpStatus; companions: number } | null {
@@ -73,9 +78,18 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
   accessRevoked = false,
   closed = false,
   audience = 'guest',
+  embedded = false,
+  open,
+  onOpenChange,
 }) => {
   const organizer = audience === 'organizer';
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const controlled = open !== undefined;
+  const isOpen = controlled ? open : internalOpen;
+  const setOpen = (next: boolean) => {
+    if (!controlled) setInternalOpen(next);
+    onOpenChange?.(next);
+  };
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [confirmedActionIds, setConfirmedActionIds] = useState<Set<string>>(new Set());
@@ -191,44 +205,48 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
   return (
     <>
       {/* Floating Trigger Button */}
-      <div style={{ position: 'fixed', bottom: '1.5rem', left: '1.5rem', zIndex: 900 }}>
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="btn btn-primary"
-          style={{
-            borderRadius: 'var(--radius-full)',
-            padding: '0.75rem 1.25rem',
-            boxShadow: 'var(--shadow-lg)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.6rem',
-            border: '2px solid #FFFFFF',
-          }}
-          aria-label={isOpen ? 'Cerrar asistente IA' : 'Abrir asistente IA'}
-          aria-expanded={isOpen}
-        >
-          <span style={{ fontSize: '1.2rem' }}>✨</span>
-          <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Chat</span>
-          {isOpen ? '✕' : ''}
-        </button>
-      </div>
+      {!embedded && (
+        <div style={{ position: 'fixed', bottom: '1.5rem', left: '1.5rem', zIndex: 900 }}>
+          <button
+            onClick={() => setOpen(!isOpen)}
+            className="btn btn-primary"
+            style={{
+              borderRadius: 'var(--radius-full)',
+              padding: '0.75rem 1.25rem',
+              boxShadow: 'var(--shadow-lg)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              border: '2px solid #FFFFFF',
+            }}
+            aria-label={isOpen ? 'Cerrar asistente IA' : 'Abrir asistente IA'}
+            aria-expanded={isOpen}
+          >
+            <span style={{ fontSize: '1.2rem' }}>✨</span>
+            <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Chat</span>
+            {isOpen ? '✕' : ''}
+          </button>
+        </div>
+      )}
 
       {/* Drawer / Floating Chat Box */}
       {isOpen && (
         <div
           style={{
-            position: 'fixed',
-            bottom: '5.2rem',
-            left: '1.5rem',
-            width: '360px',
-            maxWidth: 'calc(100vw - 3rem)',
-            height: '480px',
-            maxHeight: 'calc(100dvh - 6.2rem)',
+            position: embedded ? 'relative' : 'fixed',
+            bottom: embedded ? 'auto' : '5.2rem',
+            left: embedded ? 'auto' : '1.5rem',
+            width: embedded ? '100%' : '360px',
+            maxWidth: embedded ? 'none' : 'calc(100vw - 3rem)',
+            height: embedded ? '100%' : '480px',
+            maxHeight: embedded ? 'none' : 'calc(100dvh - 6.2rem)',
+            flex: embedded ? 1 : undefined,
+            minHeight: embedded ? 0 : undefined,
             backgroundColor: '#FFFFFF',
-            borderRadius: 'var(--radius-xl)',
-            border: '1.5px solid var(--color-border)',
-            boxShadow: 'var(--shadow-ticket)',
-            zIndex: 901,
+            borderRadius: embedded ? 0 : 'var(--radius-xl)',
+            border: embedded ? 'none' : '1.5px solid var(--color-border)',
+            boxShadow: embedded ? 'none' : 'var(--shadow-ticket)',
+            zIndex: embedded ? 'auto' : 901,
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
@@ -237,6 +255,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
           aria-label="Panel del Asistente FiestaPay"
         >
           {/* Header */}
+          {!embedded && (
           <div
             style={{
               padding: '0.85rem 1rem',
@@ -259,13 +278,14 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
               </div>
             </div>
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={() => setOpen(false)}
               style={{ background: 'none', border: 'none', color: '#FFFFFF', cursor: 'pointer', fontSize: '1.1rem' }}
               aria-label="Cerrar chat"
             >
               ×
             </button>
           </div>
+          )}
 
           {/* Voice status notice */}
           <div

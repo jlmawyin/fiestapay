@@ -1,5 +1,13 @@
 # Shared implementation contract
 
+## Cards/orb update
+
+The new home has separate demo and own-gathering cards. Payment-demo preparation calls existing create/join/RSVP endpoints only after an explicit click; quotes, human confirmation, orders and capture verification retain their existing contracts. No SQL migration is added. One frontend orb composes the existing public, guest and keyed organizer assistants; closing or switching out of voice runs the existing lease cleanup.
+
+`GET /api/demo/buyer` is an intentionally public disclosure endpoint for the **new dedicated fictitious Personal sandbox buyer only**. It returns `{available:false,sandbox:true}` by default. Only `PAYPAL_DEMO_BUYER_PUBLIC=true`, a complete dedicated pair and exact HTTPS PayPal sandbox configuration permit `{available:true,sandbox:true,email,password}`. Limit: 10 reads/minute/IP; `Cache-Control: no-store`. The browser fetches only on **Ver cuenta de prueba** and keeps values in component memory for copying, never storage or a URL. This explicit exception does not expose Business/API credentials and grants no organizer authority. Do not include actual values in docs, Git, bundle, logs or review payloads.
+
+The existing deployment evidence below is historical; the cards/orb [release report](reviews/demo-orb-20261105.md) records its own source and runtime results.
+
 Current deployment is source `60593db` (main) / schema through `0011`. CI: 486 tests in 52 files, 0 skipped, run `41868819343` SUCCESS (lint, types and build passed). The earlier Root QA [4 November live acceptance](reviews/jury-ready-20261104.md) used Playwright Edge mobile emulation at 390×844, not a physical phone: one existing reserved order produced one USD 50 sandbox capture, two paid people, one distinct capture row and no refund; `✓ Confirmar Realización` returned HTTP 200 with `confirmed: true`. Three fixed deterministic FAQ requests returned HTTP 200 with the typing indicator, zero new voice leases and zero upstream model calls. The older 12/14 browser matrix for source `8e13ae6` is history, not current status.
 
 ## Current public voice contract — 4 November

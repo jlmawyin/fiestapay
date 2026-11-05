@@ -16,6 +16,10 @@ import { OrganizerHomeView } from '../views/OrganizerHomeView';
 import { OrganizerRecoveryView } from '../views/OrganizerRecoveryView';
 import { PublicInviteView } from '../views/PublicInviteView';
 
+vi.mock('../components/assistant/AssistantOrb', () => ({
+  AssistantOrb: () => <div data-testid="assistant-orb" />,
+}));
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -131,7 +135,7 @@ describe('neutral presentation copy', () => {
     expect(onEventCreated).toHaveBeenCalledWith('ruta-banos');
   });
 
-  it('names home actions as invitations and keeps reset inside secondary demo options', () => {
+  it('offers both home cards and keeps reset inside secondary demo options', () => {
     render(
       <OrganizerHomeView
         events={[]}
@@ -145,16 +149,17 @@ describe('neutral presentation copy', () => {
       />,
     );
     expect(screen.getByRole('heading', { name: 'Organiza tus invitaciones, claridad en cada cuota' })).toBeInTheDocument();
-    const hero = screen.getByRole('region', { name: 'Panel principal del organizador' });
-    expect(within(hero).getByRole('button', { name: '+ Crear nueva invitación' })).toBeInTheDocument();
-    expect(within(hero).getByRole('button', { name: 'Crear mi demo privada' })).toBeInTheDocument();
+    const demo = screen.getByRole('article', { name: 'Explora la demo' });
+    const live = screen.getByRole('article', { name: 'Prueba en vivo' });
+    expect(within(demo).getByRole('button', { name: 'Crear mi demo privada' })).toBeInTheDocument();
+    expect(within(live).getByRole('button', { name: '+ Crear mi propia fiesta' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Crear mi demo privada' })).toHaveLength(2);
 
     openDemoOptions();
     fireEvent.click(screen.getByRole('button', { name: 'Reiniciar Demo' }));
     expect(screen.getByText('Esta acción afectará las invitaciones creadas en esta sesión de organizador.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sí, Reiniciar Demo' })).toBeInTheDocument();
-    expect(screen.queryByText(/fiesta/i)).toBeNull();
+    expect(within(live).getByRole('button', { name: '+ Crear mi propia fiesta' })).toBeInTheDocument();
   });
 
   it('prints the fresh demo title without a client amount', async () => {
@@ -170,8 +175,8 @@ describe('neutral presentation copy', () => {
     render(<App />);
     await waitFor(() => expect(api.getOrganizerEvents).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByText(/Cargando tus invitaciones/)).toBeNull());
-    const hero = screen.getByRole('region', { name: 'Panel principal del organizador' });
-    fireEvent.click(within(hero).getByRole('button', { name: 'Crear mi demo privada' }));
+    const demo = screen.getByRole('article', { name: 'Explora la demo' });
+    fireEvent.click(within(demo).getByRole('button', { name: 'Crear mi demo privada' }));
     await waitFor(() => expect(createEvent).toHaveBeenCalledTimes(1));
     expect(await screen.findByText('Demo privada "Ruta a Baños" creada. Ya puedes probar PayPal Sandbox.')).toBeInTheDocument();
     expect(createDemo).not.toHaveBeenCalled();
@@ -188,8 +193,8 @@ describe('neutral presentation copy', () => {
     render(<App />);
     await waitFor(() => expect(api.getOrganizerEvents).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByText(/Cargando tus invitaciones/)).toBeNull());
-    const hero = screen.getByRole('region', { name: 'Panel principal del organizador' });
-    fireEvent.click(within(hero).getByRole('button', { name: 'Crear mi demo privada' }));
+    const demo = screen.getByRole('article', { name: 'Explora la demo' });
+    fireEvent.click(within(demo).getByRole('button', { name: 'Crear mi demo privada' }));
     await waitFor(() => expect(createEvent).toHaveBeenCalled());
     expect(await screen.findByText('No se pudo crear la demo privada. Revisa tu conexión e inténtalo de nuevo.')).toBeInTheDocument();
 

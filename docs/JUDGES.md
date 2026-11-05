@@ -8,15 +8,16 @@
 
 ### See the product immediately
 
-1. On the home page, select **Ver panel de ejemplo (AG Grid)**, or open the [read-only example panel](https://fiestapay.somospanas.com/demo). It uses the real AG Grid component: search for a guest, sort a column and inspect attendance/payment states. All ten rows and amounts are clearly labelled fictional; they are not evidence of captured payments. No organizer key or account is needed for this example.
+1. In the **Explora la demo** card, select **Ver panel de ejemplo (AG Grid)**, or open the [read-only example panel](https://fiestapay.somospanas.com/demo). It uses the real AG Grid component: search for a guest, sort a column and inspect attendance/payment states. All ten rows and amounts are clearly labelled fictional; they are not evidence of captured payments. No organizer key or account is needed for this example.
 2. Select **Crear mi demo privada** to create your own sandbox gathering and open its authorized organizer panel. Save its organizer link, then open the separate public invitation. Existing personal invitations are in the collapsed history; no tester records have been deleted to tidy the home page.
-3. The public invitation shows **Unirse → Asistencia → Revisar importe → PayPal**. **Quiero pagar** takes you to the first missing step; it does not create or charge an order. Follow the payment instructions below with your allocated sandbox buyer.
+3. For the shortest payment route, choose **Probar pago con PayPal**. This explicit action prepares your own fictional meal and a guest with one companion. On the invitation, use **Ver cuenta de prueba**, then **Copiar correo** and **Copiar contraseña** for the dedicated shared **Personal sandbox** buyer. Review the server quote **2 × USD 25 = USD 50**, confirm it and approve checkout personally on PayPal Sandbox. The app never logs in or approves automatically.
+4. The separate **Prueba en vivo** card creates your own gathering with your chosen details. The application works normally; payments still use **Sandbox**, without real money. **Quiero pagar** on any invitation takes you to the first missing step and does not create or charge an order.
 
-The home-page **Chat** answers general questions without requiring an event. Its visible conversation belongs only to the current open window; it is not a shared visitor transcript. Messages are processed by OpenAI, and the server keeps session/consumption metadata without storing public message contents. Event-specific chat remains separate. Organizer-link recovery is unchanged at [Recover access](https://fiestapay.somospanas.com/recover).
+The single **FiestaPay orb** opens **Escribir** (text) or **Hablar** (voice). Public help needs no event. Voice requires consent and an explicit start; switching to text or closing the orb stops voice. The public text conversation belongs only to the current open window. Messages are processed by OpenAI, and the server keeps consumption metadata without storing public message contents. Event-specific and organizer conversations retain their separate permissions. Organizer-link recovery is unchanged at [Recover access](https://fiestapay.somospanas.com/recover).
 
 ### Full sandbox payment route
 
-Have the privately allocated sandbox buyer ready before starting. The times below are a target for the manual route, not a claim of a completed human test; PayPal login and network latency can take longer.
+Use the dedicated shared sandbox buyer shown by **Ver cuenta de prueba** in the payment demo. The times below are a target for the manual route, not a claim of a completed human test; PayPal login and network latency can take longer.
 
 | Time | Action | What to check |
 | --- | --- | --- |
@@ -42,7 +43,7 @@ Open [FiestaPay](https://fiestapay.somospanas.com/) on a phone or desktop browse
 
 ## Before testing checkout
 
-PayPal checkout requires an allocated **Personal sandbox buyer**. The maintainer must provide login instructions through the approved judging-access channel before submission; passwords are never included in this public repository. Without that handoff you can inspect invitations, attendance and assistant guidance, but cannot complete the payment step. A configured badge is not evidence of a payment, and no private buyer password or organizer/admin key belongs in these documents.
+PayPal checkout uses a **Personal sandbox buyer**, deliberately shared for this demo. Choose **Probar pago con PayPal**, then **Ver cuenta de prueba** and the copy buttons. The dedicated fictitious account is public by design; it is separate from the Business receiver and API credentials. Its actual values are supplied by the server and never included in this repository or browser bundle. If the account is unavailable, contact the maintainer and continue exploring the panel; do not substitute a real account or card. A configured badge is not payment evidence. Keep organizer links private.
 
 ## Organizer: create and share
 
@@ -77,4 +78,4 @@ The three historical October campaign captures total USD 125 in their own event.
 
 This demo uses one Business sandbox recipient for all organizers. Earlier release `60593db` added public voice/session and UI changes; the current judge-discovery update adds the public example panel and informational text chat. Neither adds a second merchant or changes the sandbox financial engine. Capture credits the shared Business account. Independent merchant onboarding and PayPal Payouts are outside the demo. PayPal handles checkout credentials; Buyer Protection depends on eligibility and applicable terms rather than automatically covering every payment.
 
-Submission preparation still requires the private buyer handoff, a human walkthrough, physical mobile voice results, video publication and Devpost submission. No completed human test, recording or submission is asserted here.
+Submission preparation still requires a human walkthrough, physical mobile voice results, video publication and Devpost submission. No completed human test, recording or submission is asserted here.

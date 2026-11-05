@@ -10,9 +10,8 @@ import { JoinForm } from '../components/invite/JoinForm';
 import { RsvpForm } from '../components/invite/RsvpForm';
 import { QuoteReviewCard } from '../components/invite/QuoteReviewCard';
 import { PayPalSection } from '../components/invite/PayPalSection';
-import { ChatAssistant } from '../components/chat/ChatAssistant';
+import { AssistantOrb } from '../components/assistant/AssistantOrb';
 import { QrShareModal } from '../components/dashboard/QrShareModal';
-import { VoiceInvitationAgent } from '../components/voice/VoiceInvitationAgent';
 import { FundingStatusPanel, newGuestActivityBlocked } from '../components/common/FundingStatusPanel';
 import {
   attendanceSummary,
@@ -893,30 +892,19 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         shareText={shareText}
       />
 
-      <ChatAssistant
-        slug={slug}
-        capabilities={capabilities}
-        accessRevoked={sessionRevoked}
-        closed={activityBlocked}
-        onApplyQuote={(q) => {
-          setQuote(q);
-          onShowToast('info', 'Cotización sugerida por el asistente cargada. Revisa los detalles en pantalla.', 'Cotización');
-        }}
-        onConfirmRsvp={handleSaveRsvp}
-      />
-
-      {/* Real AssemblyAI Voice Agent */}
-      <VoiceInvitationAgent
+      <AssistantOrb
+        key={`guest:${slug}`}
+        audience="guest"
         slug={slug}
         capabilities={capabilities}
         guest={guest}
         accessRevoked={sessionRevoked}
         eventClosed={activityBlocked}
-        onConfirmRsvp={handleSaveRsvp}
         onApplyQuote={(q) => {
           setQuote(q);
-          onShowToast('info', 'Cotización sugerida por voz recibida. Revisa los detalles en pantalla.', 'Cotización');
+          onShowToast('info', 'Cotización sugerida por el asistente cargada. Revisa los detalles en pantalla.', 'Cotización');
         }}
+        onConfirmRsvp={handleSaveRsvp}
         onShowToast={onShowToast}
       />
     </div>

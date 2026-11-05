@@ -1,6 +1,5 @@
 import type { Capabilities } from '../../types';
-import { ChatAssistant } from './ChatAssistant';
-import { VoiceInvitationAgent } from '../voice/VoiceInvitationAgent';
+import { AssistantOrb } from '../assistant/AssistantOrb';
 
 interface OrganizerAssistantProps {
   slug: string;
@@ -8,18 +7,20 @@ interface OrganizerAssistantProps {
   onShowToast?: (type: 'success' | 'error' | 'info' | 'warning', message: string, title?: string) => void;
 }
 
-/** Panel assistant. Text and voice both require the organizer key on their own routes. */
+/**
+ * Panel assistant: one orb, with the same keyed guest/organizer routes behind it.
+ * The key scopes text and voice history to this organizer slug so a dashboard navigation
+ * can never carry a private conversation into another event.
+ */
 export function OrganizerAssistant({ slug, capabilities, onShowToast = () => {} }: OrganizerAssistantProps) {
   return (
-    <>
-      <ChatAssistant slug={slug} capabilities={capabilities} audience="organizer" />
-      <VoiceInvitationAgent
-        slug={slug}
-        capabilities={capabilities}
-        guest={null}
-        audience="organizer"
-        onShowToast={onShowToast}
-      />
-    </>
+    <AssistantOrb
+      key={`organizer:${slug}`}
+      audience="organizer"
+      slug={slug}
+      capabilities={capabilities}
+      guest={null}
+      onShowToast={onShowToast}
+    />
   );
 }

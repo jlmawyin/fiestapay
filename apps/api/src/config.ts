@@ -42,6 +42,15 @@ export interface OpenAIConfig {
   reasoningEffort: 'low';
 }
 
+/**
+ * Dedicated, fictitious Personal sandbox buyer credentials. These are deliberately
+ * public-disclosure-only fields and are never reused by the PayPal merchant integration.
+ */
+export interface DemoBuyerConfig {
+  email: string;
+  password: string;
+}
+
 export interface EmailConfig {
   /** cPanel outgoing hostname from SMTP_HOST. Never a default invented here. */
   host: string;
@@ -82,6 +91,8 @@ export interface Config {
   openai: OpenAIConfig | null;
   voice: ReturnType<typeof voiceConfig>;
   email: EmailConfig | null;
+  /** Opt-in public disclosure for the dedicated PayPal Personal sandbox buyer only. */
+  demoBuyer?: DemoBuyerConfig | null;
   /** Reason PayPal is unavailable, for honest 503 bodies. */
   paypalDisabledReason: string | null;
   emailDisabledReason: string | null;
@@ -243,6 +254,23 @@ function readOpenAI(env: NodeJS.ProcessEnv): { config: OpenAIConfig | null; reas
   };
 }
 
+/**
+ * Reads only the two dedicated Personal sandbox buyer fields. The default is no disclosure.
+ * The password is preserved verbatim: trimming or normalizing it would change the credential.
+ * Missing, non-string, empty, or CR/LF-bearing values disable the whole pair.
+ */
+function readDemoBuyer(env: NodeJS.ProcessEnv): DemoBuyerConfig | null {
+  if (env.PAYPAL_DEMO_BUYER_PUBLIC !== 'true') return null;
+  const emailRaw = env.PAYPAL_DEMO_BUYER_EMAIL;
+  const password = env.PAYPAL_DEMO_BUYER_PASSWORD;
+  if (typeof emailRaw !== 'string' || typeof password !== 'string') return null;
+  const normalizedEmail = normalizeMailbox(emailRaw);
+  if (!normalizedEmail || password.length === 0) return null;
+  if (password.includes('\r') || password.includes('\n')) return null;
+  // Validate the mailbox with the shared normalizer, but keep the configured spelling.
+  return { email: emailRaw.trim(), password };
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const nodeEnv = str(env.NODE_ENV);
   const resolvedEnv: Config['env'] = nodeEnv === 'production' ? 'production' : nodeEnv === 'test' ? 'test' : 'development';
@@ -283,5 +311,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     voice: voiceConfig(env),
     email: email.config,
     emailDisabledReason: email.reason,
+    demoBuyer: readDemoBuyer(env),
   };
 }

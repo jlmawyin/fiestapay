@@ -6,6 +6,11 @@ import { AssistantText } from './AssistantText';
 
 export interface PublicChatAssistantProps {
   capabilities: Capabilities | null;
+  /** Presentation seam: render without its own floating trigger inside a host panel. */
+  embedded?: boolean;
+  /** Optional controlled visibility. Standalone use keeps its internal state. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface PublicMessage {
@@ -50,8 +55,19 @@ function friendlyError(err: unknown): string {
  * Public informational chat. It only calls the model from an explicit Send; opening the panel,
  * recarga and close/reopen never fetch. All conversation state is local React state.
  */
-export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({ capabilities }) => {
-  const [isOpen, setIsOpen] = useState(false);
+export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
+  capabilities,
+  embedded = false,
+  open,
+  onOpenChange,
+}) => {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const controlled = open !== undefined;
+  const isOpen = controlled ? open : internalOpen;
+  const setOpen = (next: boolean) => {
+    if (!controlled) setInternalOpen(next);
+    onOpenChange?.(next);
+  };
   const [inputMessage, setInputMessage] = useState('');
   const [messages, setMessages] = useState<PublicMessage[]>([
     { id: 'public-assistant-welcome', role: 'assistant', text: WELCOME },
@@ -120,55 +136,60 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({ capabi
 
   return (
     <>
-      <div style={{ position: 'fixed', bottom: '1.5rem', left: '1.5rem', zIndex: 900 }}>
-        <button
-          type="button"
-          onClick={() => setIsOpen((open) => !open)}
-          className="btn btn-secondary"
-          style={{
-            borderRadius: 'var(--radius-full)',
-            padding: '0.75rem 1.25rem',
-            boxShadow: 'var(--shadow-lg)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.55rem',
-            border: '2px solid #FFFFFF',
-            fontWeight: 700,
-          }}
-          aria-label={isOpen ? 'Cerrar chat de FiestaPay' : 'Abrir chat de FiestaPay'}
-          aria-expanded={isOpen}
-          aria-controls="public-chat-panel"
-        >
-          <span aria-hidden="true" style={{ fontSize: '1.1rem' }}>💬</span>
-          <span style={{ fontSize: '0.9rem' }}>Chat</span>
-        </button>
-      </div>
+      {!embedded && (
+        <div style={{ position: 'fixed', bottom: '1.5rem', left: '1.5rem', zIndex: 900 }}>
+          <button
+            type="button"
+            onClick={() => setOpen(!isOpen)}
+            className="btn btn-secondary"
+            style={{
+              borderRadius: 'var(--radius-full)',
+              padding: '0.75rem 1.25rem',
+              boxShadow: 'var(--shadow-lg)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.55rem',
+              border: '2px solid #FFFFFF',
+              fontWeight: 700,
+            }}
+            aria-label={isOpen ? 'Cerrar chat de FiestaPay' : 'Abrir chat de FiestaPay'}
+            aria-expanded={isOpen}
+            aria-controls="public-chat-panel"
+          >
+            <span aria-hidden="true" style={{ fontSize: '1.1rem' }}>💬</span>
+            <span style={{ fontSize: '0.9rem' }}>Chat</span>
+          </button>
+        </div>
+      )}
 
       {isOpen && (
         <section
           id="public-chat-panel"
-          role="dialog"
+          role={embedded ? 'region' : 'dialog'}
           aria-label="Chat público de FiestaPay"
           onKeyDown={(event) => {
-            if (event.key === 'Escape') setIsOpen(false);
+            if (event.key === 'Escape') setOpen(false);
           }}
           style={{
-            position: 'fixed',
-            bottom: '5.2rem',
-            left: '1rem',
-            width: 'min(380px, calc(100vw - 2rem))',
-            maxHeight: 'calc(100dvh - 6.4rem)',
+            position: embedded ? 'relative' : 'fixed',
+            bottom: embedded ? 'auto' : '5.2rem',
+            left: embedded ? 'auto' : '1rem',
+            width: embedded ? '100%' : 'min(380px, calc(100vw - 2rem))',
+            maxHeight: embedded ? 'none' : 'calc(100dvh - 6.4rem)',
+            flex: embedded ? 1 : undefined,
+            minHeight: embedded ? 0 : undefined,
             backgroundColor: '#FFFFFF',
-            borderRadius: 'var(--radius-xl)',
-            border: '1.5px solid var(--color-border)',
-            boxShadow: 'var(--shadow-ticket)',
-            zIndex: 901,
+            borderRadius: embedded ? 0 : 'var(--radius-xl)',
+            border: embedded ? 'none' : '1.5px solid var(--color-border)',
+            boxShadow: embedded ? 'none' : 'var(--shadow-ticket)',
+            zIndex: embedded ? 'auto' : 901,
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
             color: 'var(--color-ink)',
           }}
         >
+          {!embedded && (
           <header
             style={{
               padding: '0.8rem 0.95rem',
@@ -203,7 +224,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({ capabi
             </div>
             <button
               type="button"
-              onClick={() => setIsOpen(false)}
+              onClick={() => setOpen(false)}
               style={{
                 background: 'none',
                 border: 'none',
@@ -218,6 +239,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({ capabi
               ×
             </button>
           </header>
+          )}
 
           <div
             style={{

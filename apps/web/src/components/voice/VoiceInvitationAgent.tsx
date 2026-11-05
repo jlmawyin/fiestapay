@@ -32,6 +32,11 @@ interface VoiceInvitationAgentProps {
    * public: informational voice on home/create/recover; no event, no guest, no tools.
    */
   audience?: VoiceAudience;
+  /** Presentation seam: render without its own floating trigger inside a host panel. */
+  embedded?: boolean;
+  /** Optional controlled visibility. Standalone use keeps its internal state. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface AccumulatedToolCall {
@@ -106,10 +111,19 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   accessRevoked = false,
   eventClosed = false,
   audience = 'guest',
+  embedded = false,
+  open,
+  onOpenChange,
 }) => {
   const organizer = audience === 'organizer';
   const publicAudience = audience === 'public';
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const controlled = open !== undefined;
+  const isOpen = controlled ? open : internalOpen;
+  const setOpen = (next: boolean) => {
+    if (!controlled) setInternalOpen(next);
+    onOpenChange?.(next);
+  };
   const [consentGranted, setConsentGranted] = useState(false);
   const [sessionState, setSessionState] = useState<
     'idle' | 'requesting_permission' | 'connecting' | 'ready' | 'active' | 'error' | 'ended'
@@ -273,6 +287,23 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
       onShowToast('info', msg, 'Sesión de voz');
     }
   }, [cleanupSession, onShowToast]);
+
+  // Controlled hosts (the unified orb) close this panel without unmounting it. Stop the
+  // existing session and release its lease through the same handleStopVoice seam used by
+  // standalone Stop; the generation guard also releases a token that arrives late.
+  const previousControlledOpenRef = useRef<boolean | undefined>(open);
+  useEffect(() => {
+    if (open === undefined) {
+      previousControlledOpenRef.current = undefined;
+      return;
+    }
+    const previous = previousControlledOpenRef.current;
+    previousControlledOpenRef.current = open;
+    if (previous === true && open === false) {
+      handleStopVoice(undefined, 'orb_close');
+      setConsentGranted(false);
+    }
+  }, [open, handleStopVoice]);
 
   useEffect(() => {
     const onHide = () => cleanupSession('pagehide', true);
@@ -944,46 +975,50 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   return (
     <>
       {/* Floating or Embedded Trigger */}
-      <div style={{ position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 900 }}>
-        <button
-          onClick={() => {
-            if (isOpen) handleStopVoice();
-            setIsOpen(!isOpen);
-          }}
-          className="btn btn-teal"
-          style={{
-            borderRadius: 'var(--radius-full)',
-            padding: '0.75rem 1.25rem',
-            boxShadow: 'var(--shadow-lg)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.6rem',
-            border: '2px solid #FFFFFF',
-          }}
-          aria-label={isOpen ? 'Cerrar asistente de voz' : 'Abrir asistente de voz'}
-          aria-expanded={isOpen}
-        >
-          <span style={{ fontSize: '1.2rem' }}>🎙️</span>
-          <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{publicAudience ? 'Hablar con FiestaPay' : 'Hablar'}</span>
-          {isOpen ? '✕' : ''}
-        </button>
-      </div>
+      {!embedded && (
+        <div style={{ position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 900 }}>
+          <button
+            onClick={() => {
+              if (isOpen) handleStopVoice();
+              setOpen(!isOpen);
+            }}
+            className="btn btn-teal"
+            style={{
+              borderRadius: 'var(--radius-full)',
+              padding: '0.75rem 1.25rem',
+              boxShadow: 'var(--shadow-lg)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              border: '2px solid #FFFFFF',
+            }}
+            aria-label={isOpen ? 'Cerrar asistente de voz' : 'Abrir asistente de voz'}
+            aria-expanded={isOpen}
+          >
+            <span style={{ fontSize: '1.2rem' }}>🎙️</span>
+            <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{publicAudience ? 'Hablar con FiestaPay' : 'Hablar'}</span>
+            {isOpen ? '✕' : ''}
+          </button>
+        </div>
+      )}
 
       {/* Voice Assistant Modal/Drawer */}
       {isOpen && (
         <div
           style={{
-            position: 'fixed',
-            bottom: '5.2rem',
-            right: '1.5rem',
-            width: '380px',
-            maxWidth: 'calc(100vw - 3rem)',
-            maxHeight: 'min(520px, calc(100dvh - 6.2rem))',
+            position: embedded ? 'relative' : 'fixed',
+            bottom: embedded ? 'auto' : '5.2rem',
+            right: embedded ? 'auto' : '1.5rem',
+            width: embedded ? '100%' : '380px',
+            maxWidth: embedded ? 'none' : 'calc(100vw - 3rem)',
+            maxHeight: embedded ? 'none' : 'min(520px, calc(100dvh - 6.2rem))',
+            flex: embedded ? 1 : undefined,
+            minHeight: embedded ? 0 : undefined,
             backgroundColor: '#FFFFFF',
-            borderRadius: 'var(--radius-xl)',
-            border: '1.5px solid var(--color-border)',
-            boxShadow: 'var(--shadow-ticket)',
-            zIndex: 901,
+            borderRadius: embedded ? 0 : 'var(--radius-xl)',
+            border: embedded ? 'none' : '1.5px solid var(--color-border)',
+            boxShadow: embedded ? 'none' : 'var(--shadow-ticket)',
+            zIndex: embedded ? 'auto' : 901,
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
@@ -992,6 +1027,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
           aria-label={publicAudience ? 'Asistente de voz informativo de FiestaPay' : 'Panel del Asistente de Voz'}
         >
           {/* Header */}
+          {!embedded && (
           <div
             style={{
               padding: '0.85rem 1rem',
@@ -1016,7 +1052,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
             <button
               onClick={() => {
                 handleStopVoice();
-                setIsOpen(false);
+                setOpen(false);
               }}
               style={{ background: 'none', border: 'none', color: '#FFFFFF', cursor: 'pointer', fontSize: '1.1rem' }}
               aria-label="Cerrar panel de voz"
@@ -1024,6 +1060,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
               ×
             </button>
           </div>
+          )}
 
           {/* Body Content */}
           <div
