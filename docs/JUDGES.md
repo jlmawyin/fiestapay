@@ -6,6 +6,16 @@
 
 ## Three-minute walkthrough
 
+### See the product immediately
+
+1. On the home page, select **Ver panel de ejemplo (AG Grid)**, or open the [read-only example panel](https://fiestapay.somospanas.com/demo). It uses the real AG Grid component: search for a guest, sort a column and inspect attendance/payment states. All ten rows and amounts are clearly labelled fictional; they are not evidence of captured payments. No organizer key or account is needed for this example.
+2. Select **Crear mi demo privada** to create your own sandbox gathering and open its authorized organizer panel. Save its organizer link, then open the separate public invitation. Existing personal invitations are in the collapsed history; no tester records have been deleted to tidy the home page.
+3. The public invitation shows **Unirse → Asistencia → Revisar importe → PayPal**. **Quiero pagar** takes you to the first missing step; it does not create or charge an order. Follow the payment instructions below with your allocated sandbox buyer.
+
+The home-page **Chat** answers general questions without requiring an event. Its visible conversation belongs only to the current open window; it is not a shared visitor transcript. Messages are processed by OpenAI, and the server keeps session/consumption metadata without storing public message contents. Event-specific chat remains separate. Organizer-link recovery is unchanged at [Recover access](https://fiestapay.somospanas.com/recover).
+
+### Full sandbox payment route
+
 Have the privately allocated sandbox buyer ready before starting. The times below are a target for the manual route, not a claim of a completed human test; PayPal login and network latency can take longer.
 
 | Time | Action | What to check |

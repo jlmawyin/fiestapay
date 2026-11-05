@@ -72,6 +72,15 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+/** Current home keeps reset inside the secondary demo options disclosure. */
+function openDemoOptions() {
+  const summary = screen.getByText('Opciones de demostración');
+  const details = summary.closest('details');
+  fireEvent.click(summary);
+  if (details && !details.hasAttribute('open')) details.setAttribute('open', '');
+  return details;
+}
+
 describe('neutral presentation copy', () => {
   it('keeps the brand and names the header actions as invitations', () => {
     render(<Header onNavigateHome={vi.fn()} onNavigateCreate={vi.fn()} />);
@@ -122,7 +131,7 @@ describe('neutral presentation copy', () => {
     expect(onEventCreated).toHaveBeenCalledWith('ruta-banos');
   });
 
-  it('names home actions as invitations and keeps the demo price as a plain label', () => {
+  it('names home actions as invitations and keeps reset inside secondary demo options', () => {
     render(
       <OrganizerHomeView
         events={[]}
@@ -136,49 +145,59 @@ describe('neutral presentation copy', () => {
       />,
     );
     expect(screen.getByRole('heading', { name: 'Organiza tus invitaciones, claridad en cada cuota' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '+ Crear nueva invitación' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '⚡ Generar demo de comida ($25 USD)' })).toBeInTheDocument();
+    const hero = screen.getByRole('region', { name: 'Panel principal del organizador' });
+    expect(within(hero).getByRole('button', { name: '+ Crear nueva invitación' })).toBeInTheDocument();
+    expect(within(hero).getByRole('button', { name: 'Crear mi demo privada' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Crear mi demo privada' })).toHaveLength(2);
+
+    openDemoOptions();
     fireEvent.click(screen.getByRole('button', { name: 'Reiniciar Demo' }));
     expect(screen.getByText('Esta acción afectará las invitaciones creadas en esta sesión de organizador.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sí, Reiniciar Demo' })).toBeInTheDocument();
     expect(screen.queryByText(/fiesta/i)).toBeNull();
   });
 
-  it('prints the demo title without a client amount', async () => {
+  it('prints the fresh demo title without a client amount', async () => {
     vi.spyOn(api, 'getCapabilities').mockResolvedValue(caps);
     vi.spyOn(api, 'getOrganizerEvents').mockResolvedValue({ events: [] });
     const created = event();
-    vi.spyOn(api, 'createDemoEvent').mockResolvedValue({ event: created, adminKey: null });
-    vi.spyOn(api, 'getEventBySlug').mockResolvedValue({ event: created, guest: null });
+    const createEvent = vi.spyOn(api, 'createEvent').mockResolvedValue({ event: created, adminKey: 'clave-demo' });
+    const createDemo = vi.spyOn(api, 'createDemoEvent');
+    vi.spyOn(api, 'getDashboard').mockResolvedValue({ event: created, guests: [], audit: [] });
+    vi.spyOn(api, 'getModerationGuests').mockResolvedValue({ guests: [] });
+    vi.spyOn(api, 'getModerationConversations').mockResolvedValue({ conversations: [] });
 
     render(<App />);
-    const createDemo = vi.mocked(api.createDemoEvent);
     await waitFor(() => expect(api.getOrganizerEvents).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByText(/Cargando tus invitaciones/)).toBeNull());
-    fireEvent.click(screen.getByRole('button', { name: '⚡ Generar demo de comida ($25 USD)' }));
-    await waitFor(() => expect(createDemo).toHaveBeenCalled());
-    expect(await screen.findByText('Demo de comida "Ruta a Baños" creada.', {}, { timeout: 3000 })).toBeInTheDocument();
+    const hero = screen.getByRole('region', { name: 'Panel principal del organizador' });
+    fireEvent.click(within(hero).getByRole('button', { name: 'Crear mi demo privada' }));
+    await waitFor(() => expect(createEvent).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('Demo privada "Ruta a Baños" creada. Ya puedes probar PayPal Sandbox.')).toBeInTheDocument();
+    expect(createDemo).not.toHaveBeenCalled();
     expect(screen.queryByText(/Cuota \$25/)).toBeNull();
     expect(screen.queryByText(/fiesta de demostración/i)).toBeNull();
   });
 
-  it('uses the demo error and reset lines without saying the real invitations were removed', async () => {
+  it('uses the fresh demo error and secondary reset lines without saying real invitations were removed', async () => {
     vi.spyOn(api, 'getCapabilities').mockResolvedValue(caps);
     vi.spyOn(api, 'getOrganizerEvents').mockResolvedValue({ events: [] });
-    vi.spyOn(api, 'createDemoEvent').mockRejectedValue(new Error(''));
-    vi.spyOn(api, 'resetDemo').mockResolvedValue({ event: event(), adminKey: null });
+    const createEvent = vi.spyOn(api, 'createEvent').mockRejectedValue(new Error(''));
+    const resetDemo = vi.spyOn(api, 'resetDemo').mockResolvedValue({ event: event(), adminKey: null });
 
     render(<App />);
-    const createDemo = vi.mocked(api.createDemoEvent);
     await waitFor(() => expect(api.getOrganizerEvents).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByText(/Cargando tus invitaciones/)).toBeNull());
-    fireEvent.click(screen.getByRole('button', { name: '⚡ Generar demo de comida ($25 USD)' }));
-    await waitFor(() => expect(createDemo).toHaveBeenCalled());
-    expect(await screen.findByText('Error al generar la demo de comida', {}, { timeout: 3000 })).toBeInTheDocument();
+    const hero = screen.getByRole('region', { name: 'Panel principal del organizador' });
+    fireEvent.click(within(hero).getByRole('button', { name: 'Crear mi demo privada' }));
+    await waitFor(() => expect(createEvent).toHaveBeenCalled());
+    expect(await screen.findByText('No se pudo crear la demo privada. Revisa tu conexión e inténtalo de nuevo.')).toBeInTheDocument();
 
+    openDemoOptions();
     fireEvent.click(screen.getByRole('button', { name: 'Reiniciar Demo' }));
     fireEvent.click(screen.getByRole('button', { name: 'Sí, Reiniciar Demo' }));
-    expect(await screen.findByText('Demostración reiniciada. Las invitaciones reales siguen activas.', {}, { timeout: 3000 })).toBeInTheDocument();
+    await waitFor(() => expect(resetDemo).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('Demostración reiniciada. Las invitaciones reales siguen activas.')).toBeInTheDocument();
     expect(screen.queryByText(/fiestas reales/i)).toBeNull();
     expect(screen.queryByText(/elimin/i)).toBeNull();
   });

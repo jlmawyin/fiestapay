@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Capabilities, FiestaEvent, ToastMessage } from './types';
 import { api } from './api/client';
 import { adminKeyFor, captureAdminKeyFromLocation, rememberAdminKey } from './api/admin-key';
+import { privateDemoEventInput } from './lib/event-presentation';
 import { DemoRibbon } from './components/common/DemoRibbon';
 import { Header } from './components/common/Header';
 import { ToastContainer } from './components/common/Toast';
@@ -10,10 +11,13 @@ import { CreateEventView } from './views/CreateEventView';
 import { PublicInviteView } from './views/PublicInviteView';
 import { OrganizerDashboardView } from './views/OrganizerDashboardView';
 import { OrganizerRecoveryView } from './views/OrganizerRecoveryView';
+import { JudgePreviewView } from './views/JudgePreviewView';
+import { PublicChatAssistant } from './components/chat/PublicChatAssistant';
 import { VoiceInvitationAgent } from './components/voice/VoiceInvitationAgent';
 
 type ViewMode =
   | { mode: 'home' }
+  | { mode: 'demo' }
   | { mode: 'create' }
   | { mode: 'invite'; slug: string }
   | { mode: 'dashboard'; slug: string }
@@ -24,10 +28,12 @@ export const App: React.FC = () => {
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
   const [events, setEvents] = useState<FiestaEvent[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
+  const [eventsError, setEventsError] = useState<string | null>(null);
   const [isResettingDemo, setIsResettingDemo] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [currentView, setCurrentView] = useState<ViewMode>({ mode: 'home' });
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const demoCreationRef = useRef<Promise<void> | null>(null);
 
   const showToast = useCallback(
     (type: 'success' | 'error' | 'info' | 'warning', message: string, title?: string) => {
@@ -49,6 +55,7 @@ export const App: React.FC = () => {
     setCurrentView(view);
     let path = '/';
     if (view.mode === 'create') path = '/create';
+    else if (view.mode === 'demo') path = '/demo';
     else if (view.mode === 'recover') path = '/recover';
     else if (view.mode === 'invite') path = `/e/${view.slug}`;
     else if (view.mode === 'dashboard') path = `/e/${view.slug}/admin`;
@@ -61,6 +68,10 @@ export const App: React.FC = () => {
   // Parse path on initial load & popstate
   const handleLocationChange = useCallback(() => {
     const path = window.location.pathname;
+    if (path === '/demo' || path === '/demo/') {
+      setCurrentView({ mode: 'demo' });
+      return;
+    }
     if (path === '/recover' || path === '/recover/') {
       setCurrentView({ mode: 'recover' });
       return;
@@ -82,25 +93,27 @@ export const App: React.FC = () => {
     setCurrentView({ mode: 'home' });
   }, []);
 
-  // Initialize capabilities and restore organizer session
+  // Initialize capabilities and restore organizer session. Both reads are bounded by the
+  // API client timeout, so the home loader cannot stay pending forever.
   const initApp = useCallback(async () => {
     setSessionError(null);
-    try {
-      const caps = await api.getCapabilities();
-      setCapabilities(caps);
-    } catch (err: any) {
-      setSessionError(err.message || 'No se pudo conectar con el servidor backend.');
-    }
-
     setIsLoadingEvents(true);
-    try {
-      const res = await api.getOrganizerEvents();
-      setEvents(res.events || []);
-    } catch {
-      // It's normal if cookie has no events yet
-    } finally {
-      setIsLoadingEvents(false);
-    }
+    setEventsError(null);
+    const capabilitiesTask = api
+      .getCapabilities()
+      .then((caps) => setCapabilities(caps))
+      .catch((err: any) => {
+        setSessionError(err.message || 'No se pudo conectar con el servidor backend.');
+      });
+    const eventsTask = api
+      .getOrganizerEvents()
+      .then((res) => setEvents(res.events || []))
+      .catch((err: any) => {
+        // Keep any history already shown. The home view offers a bounded retry.
+        setEventsError(err?.message || 'No se pudieron cargar tus invitaciones.');
+      })
+      .finally(() => setIsLoadingEvents(false));
+    await Promise.allSettled([capabilitiesTask, eventsTask]);
   }, []);
 
   useEffect(() => {
@@ -112,18 +125,43 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('popstate', onPopState);
   }, [handleLocationChange, initApp]);
 
-  // Handle Demo Seed Event
-  const handleCreateDemo = async () => {
-    try {
-      const res = await api.createDemoEvent();
-      if (res.adminKey) rememberAdminKey(res.event.slug, res.adminKey);
-      setEvents((prev) => [res.event, ...prev.filter((e) => e.id !== res.event.id)]);
-      showToast('success', `Demo de comida "${res.event.title}" creada.`, 'Demo Listo');
-      navigate({ mode: res.adminKey ? 'dashboard' : 'invite', slug: res.event.slug });
-    } catch (err: any) {
-      showToast('error', err.message || 'Error al generar la demo de comida', 'Error');
-    }
-  };
+  /**
+   * Fresh private demo. This intentionally calls createEvent with new future dates instead
+   * of resetDemo/startDemo, so a historical demo without a stored key is never reused.
+   * The server mints the key; the browser stores it and only then opens the owner panel.
+   */
+  const handleCreateDemo = useCallback((): Promise<void> => {
+    if (demoCreationRef.current) return demoCreationRef.current;
+
+    const creation = (async () => {
+      try {
+        const res = await api.createEvent(privateDemoEventInput());
+        setEvents((prev) => [res.event, ...prev.filter((event) => event.id !== res.event.id)]);
+        if (!res.adminKey) {
+          showToast(
+            'error',
+            'La demo se creó, pero el servidor no devolvió la clave de organizador. No se abrirá el panel como administrador.',
+            'Demo sin clave',
+          );
+          return;
+        }
+        rememberAdminKey(res.event.slug, res.adminKey);
+        showToast('success', `Demo privada "${res.event.title}" creada. Ya puedes probar PayPal Sandbox.`, 'Demo privada lista');
+        navigate({ mode: 'dashboard', slug: res.event.slug });
+      } catch (err: any) {
+        showToast(
+          'error',
+          err?.message || 'No se pudo crear la demo privada. Revisa tu conexión e inténtalo de nuevo.',
+          'Error al crear demo privada',
+        );
+      } finally {
+        demoCreationRef.current = null;
+      }
+    })();
+
+    demoCreationRef.current = creation;
+    return creation;
+  }, [navigate, showToast]);
 
   // Handle Reset Demo
   const handleResetDemo = async () => {
@@ -192,12 +230,23 @@ export const App: React.FC = () => {
           <OrganizerHomeView
             events={events}
             isLoading={isLoadingEvents}
+            eventsError={eventsError}
+            onRetryEvents={initApp}
             onNavigateCreate={() => navigate({ mode: 'create' })}
             onNavigateInvite={(slug) => navigate({ mode: 'invite', slug })}
             onNavigateDashboard={(slug) => navigate({ mode: 'dashboard', slug })}
             onCreateDemo={handleCreateDemo}
             onResetDemo={handleResetDemo}
             isResetting={isResettingDemo}
+            onNavigatePreview={() => navigate({ mode: 'demo' })}
+            onNavigateRecover={() => navigate({ mode: 'recover' })}
+          />
+        )}
+
+        {currentView.mode === 'demo' && (
+          <JudgePreviewView
+            onCreateDemo={handleCreateDemo}
+            onBack={() => navigate({ mode: 'home' })}
           />
         )}
 
@@ -226,21 +275,19 @@ export const App: React.FC = () => {
 
         {currentView.mode === 'recover' && <OrganizerRecoveryView available={capabilities?.email === true} />}
 
-        {currentView.mode === 'home' && capabilities?.email === true && (
-          <p style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>
-            <a href="/recover" referrerPolicy="no-referrer">Perdi el enlace de organizador</a>
-          </p>
-        )}
-
         {currentView.mode === 'dashboard' && (
           <OrganizerDashboardView
             slug={currentView.slug}
             capabilities={capabilities}
             onNavigateInvite={(slug) => navigate({ mode: 'invite', slug })}
             onNavigateHome={() => navigate({ mode: 'home' })}
+            onNavigateRecover={() => navigate({ mode: 'recover' })}
             onShowToast={showToast}
           />
         )}
+
+        {/* Cross-front contract: builderB supplies this component. Home gets capabilities only. */}
+        {currentView.mode === 'home' && <PublicChatAssistant capabilities={capabilities} />}
       </main>
 
       {/* Global Toast Notifications */}

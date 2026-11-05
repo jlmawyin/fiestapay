@@ -123,7 +123,9 @@ describe('presentation copy, contrast, and WhatsApp roundtrip', () => {
     expect(href).toContain(encodeURIComponent(reserved));
     expect(href).not.toContain(encodeURIComponent(encodeURIComponent(reserved)));
     expect(formatEventRange('2026-12-15T19:00:00.000Z', '2026-12-16T15:00:00.000Z')).toContain('Fin:');
+    expect(formatEventRange('2026-12-15T19:00:00.000Z', '2026-12-16T15:00:00.000Z').match(/America\/Guayaquil/g)).toHaveLength(1);
     expect(formatEventRange('2026-12-15T19:00:00.000Z', '2026-12-15T23:00:00.000Z')).not.toContain('16');
+    expect(formatEventRange('2026-12-15T19:00:00.000Z', '2026-12-15T23:00:00.000Z').match(/America\/Guayaquil/g)).toHaveLength(1);
   });
 
   it('uses ordinary readable labels for every generated WhatsApp field', () => {
