@@ -2,11 +2,16 @@
 
 An AI host for shared gatherings: understand the invitation, confirm attendance, review a server-calculated contribution, and pay with **PayPal sandbox**.
 
-**Hackathon preview.** Deployed source `60593db` (main) has 486 passing database-backed tests across 52 files with 0 skipped; CI run `41868819343` is green (lint, types and build passed). On 4 November, a live mobile-emulation acceptance used one previously reserved sandbox order: one USD 50 capture (2 × USD 25), two paid people, and the organizer's actual **✓ Confirmar Realización** action returned confirmed. Three fixed deterministic FAQ requests returned HTTP 200 with the typing indicator and made zero upstream model calls for those requests; no new voice lease or physical-phone audio was involved. See the [4 November acceptance report](docs/reviews/jury-ready-20261104.md). The historical October capture campaign totalled USD 125 across three captures; a separate USD 1 refund test used a different fixture and is unrelated. Neither is part of this capture. Pending: private sandbox-buyer handoff, physical-phone Spanish voice, video publication and Devpost submission. No claim of 180-second measured runtime, neural entitlement, physical-phone audio, video or submission success.
+**Hackathon preview.** The cards/orb source passed 546 tests in 60 files with zero skips, lint, types and build, with independent AGY source review. See the [cards/orb release report](docs/reviews/demo-orb-20261105.md) for publication and runtime evidence. The [earlier 4 November acceptance](docs/reviews/jury-ready-20261104.md), on source `60593db`, verified one USD 50 sandbox capture (2 × USD 25), two paid people and the organizer's actual **✓ Confirmar Realización** action. That is historical mobile-emulation evidence, not a new payment or physical-phone test for this update. Physical-phone Spanish voice, video publication and Devpost submission still require actual evidence. No escrow, payout, measured 180-second conversation, neural entitlement or submission success is claimed.
 
 - Running demo: https://fiestapay.somospanas.com
 - [Three-minute judge walkthrough](docs/JUDGES.md) · [AI tools and contributions](docs/AI_TOOLS.md)
 - No Google sign-in or real personal information. Use a fictional alias and a sandbox buyer.
+
+The home page separates **Explora la demo** (AG Grid example, private demo, **Probar pago con PayPal**) from **Prueba en vivo** (your own gathering, still sandbox). The payment demo supplies a dedicated shared Personal sandbox account through **Ver cuenta de prueba** and copy buttons. One FiestaPay orb offers **Escribir** or **Hablar**; opening it does not start a microphone or voice reservation.
+
+For that deliberately public test account only, configure `PAYPAL_DEMO_BUYER_PUBLIC=true`, `PAYPAL_DEMO_BUYER_EMAIL` and `PAYPAL_DEMO_BUYER_PASSWORD` in the service's private environment. The endpoint fails closed without the opt-in or exact HTTPS PayPal sandbox configuration. Actual values never belong in Git or the frontend bundle. Business/API credentials remain private. This feature has no SQL migration and does not change the payment engine or organizer-link recovery.
+
 - Four fixed-cover templates: Meal, House party, Shared trip, Event.
 - Attendance and payment are separate states. A confirmed guest can still be unpaid.
 - Example: two attendees at USD 25 each → USD 50. The human reviews the quote and approves PayPal checkout.

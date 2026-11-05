@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Capabilities, FiestaEvent, ToastMessage } from './types';
-import { api } from './api/client';
+import { api, ApiError } from './api/client';
 import { adminKeyFor, captureAdminKeyFromLocation, rememberAdminKey } from './api/admin-key';
 import { privateDemoEventInput } from './lib/event-presentation';
 import { DemoRibbon } from './components/common/DemoRibbon';
@@ -12,8 +12,28 @@ import { PublicInviteView } from './views/PublicInviteView';
 import { OrganizerDashboardView } from './views/OrganizerDashboardView';
 import { OrganizerRecoveryView } from './views/OrganizerRecoveryView';
 import { JudgePreviewView } from './views/JudgePreviewView';
-import { PublicChatAssistant } from './components/chat/PublicChatAssistant';
-import { VoiceInvitationAgent } from './components/voice/VoiceInvitationAgent';
+import { AssistantOrb } from './components/assistant/AssistantOrb';
+import { DemoBuyerAccountCard } from './components/demo/DemoBuyerAccountCard';
+
+const DEMO_PAYMENT_SLUG_KEY = 'fp_demo_payment_slug';
+
+/** UI association only. This marker grants no access and is never sent to the server. */
+function readDemoPaymentSlug(): string | null {
+  try {
+    const value = sessionStorage.getItem(DEMO_PAYMENT_SLUG_KEY);
+    return value && value.length > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberDemoPaymentSlug(slug: string): void {
+  try {
+    sessionStorage.setItem(DEMO_PAYMENT_SLUG_KEY, slug);
+  } catch {
+    // The invitation still works; only the extra account card loses its UI association.
+  }
+}
 
 type ViewMode =
   | { mode: 'home' }
@@ -33,7 +53,11 @@ export const App: React.FC = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [currentView, setCurrentView] = useState<ViewMode>({ mode: 'home' });
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [demoPaymentSlug, setDemoPaymentSlug] = useState<string | null>(() => readDemoPaymentSlug());
   const demoCreationRef = useRef<Promise<void> | null>(null);
+  const paymentDemoRef = useRef<Promise<void> | null>(null);
+  const paymentDemoSlugRef = useRef<string | null>(null);
+  const paymentCreationUncertainRef = useRef(false);
 
   const showToast = useCallback(
     (type: 'success' | 'error' | 'info' | 'warning', message: string, title?: string) => {
@@ -163,6 +187,84 @@ export const App: React.FC = () => {
     return creation;
   }, [navigate, showToast]);
 
+  /**
+   * Explicit payment demo. It creates exactly one future, isolated owned Comida, saves its
+   * organizer key and slug before any guest work, joins "Invitado Demo", prepares an RSVP for
+   * two people, and opens the ordinary invitation. It never opens PayPal, an order, or a quote.
+   */
+  const handleStartPaymentDemo = useCallback((): Promise<void> => {
+    if (paymentDemoRef.current) return paymentDemoRef.current;
+
+    const start = (async () => {
+      let slug = paymentDemoSlugRef.current;
+      try {
+        if (!slug) {
+          if (paymentCreationUncertainRef.current) {
+            showToast(
+              'warning',
+              'No sabemos si la demo de pago llegó a crearse. Revisa "Mis invitaciones" antes de volver a intentarlo. No abriremos otra automáticamente.',
+              'Creación sin confirmar',
+            );
+            return;
+          }
+
+          let created: Awaited<ReturnType<typeof api.createEvent>>;
+          try {
+            created = await api.createEvent(privateDemoEventInput());
+          } catch (err: any) {
+            if (err instanceof ApiError && err.status === 408) {
+              paymentCreationUncertainRef.current = true;
+              showToast(
+                'warning',
+                'No sabemos si la demo de pago llegó a crearse. Revisa "Mis invitaciones" antes de volver a intentarlo; no se abrirá otra automáticamente.',
+                'Creación sin confirmar',
+              );
+            } else {
+              showToast(
+                'error',
+                err?.message || 'No se pudo crear la demo de pago. Revisa tu conexión e inténtalo de nuevo.',
+                'Error al preparar el pago',
+              );
+            }
+            return;
+          }
+
+          slug = created.event.slug;
+          // Remember both facts before the next network call, so a partial join never causes a
+          // second event to be created blindly on retry.
+          paymentDemoSlugRef.current = slug;
+          if (created.adminKey) rememberAdminKey(slug, created.adminKey);
+          setEvents((prev) => [created.event, ...prev.filter((event) => event.id !== created.event.id)]);
+          rememberDemoPaymentSlug(slug);
+          setDemoPaymentSlug(slug);
+        }
+
+        const joined = await api.joinEvent(slug, 'Invitado Demo');
+        // A completed paid session keeps its existing RSVP. Reloading this screen never starts
+        // this flow; this guard only protects an explicit retry after a completed payment.
+        if (!(joined.guest.paidCents > 0)) {
+          await api.rsvp(slug, 'yes', 1);
+        }
+        showToast(
+          'success',
+          'Demo de pago lista: Invitado Demo asistirá con un acompañante. Revisa la cotización y confirma el pago manualmente en PayPal Sandbox.',
+          'Pago de prueba preparado',
+        );
+        navigate({ mode: 'invite', slug });
+      } catch {
+        const where = slug
+          ? `La demo "${slug}" ya está creada y tu enlace de organizador quedó guardado. No se pudo preparar el ingreso/RSVP; vuelve a intentarlo sin crear otra demo.`
+          : 'No se pudo preparar la demo de pago. No se creó ninguna invitación nueva.';
+        showToast('error', where, 'Demo de pago incompleta');
+      } finally {
+        paymentDemoRef.current = null;
+      }
+    })();
+
+    paymentDemoRef.current = start;
+    return start;
+  }, [navigate, showToast]);
+
   // Handle Reset Demo
   const handleResetDemo = async () => {
     setIsResettingDemo(true);
@@ -236,6 +338,7 @@ export const App: React.FC = () => {
             onNavigateInvite={(slug) => navigate({ mode: 'invite', slug })}
             onNavigateDashboard={(slug) => navigate({ mode: 'dashboard', slug })}
             onCreateDemo={handleCreateDemo}
+            onStartPaymentDemo={handleStartPaymentDemo}
             onResetDemo={handleResetDemo}
             isResetting={isResettingDemo}
             onNavigatePreview={() => navigate({ mode: 'demo' })}
@@ -264,13 +367,20 @@ export const App: React.FC = () => {
         )}
 
         {currentView.mode === 'invite' && (
-          <PublicInviteView
-            key={currentView.slug}
-            slug={currentView.slug}
-            capabilities={capabilities}
-            onShowToast={showToast}
-            onNavigateHome={() => navigate({ mode: 'home' })}
-          />
+          <div>
+            {demoPaymentSlug === currentView.slug ? (
+              <div style={{ marginBottom: '1rem' }}>
+                <DemoBuyerAccountCard />
+              </div>
+            ) : null}
+            <PublicInviteView
+              key={currentView.slug}
+              slug={currentView.slug}
+              capabilities={capabilities}
+              onShowToast={showToast}
+              onNavigateHome={() => navigate({ mode: 'home' })}
+            />
+          </div>
         )}
 
         {currentView.mode === 'recover' && <OrganizerRecoveryView available={capabilities?.email === true} />}
@@ -286,25 +396,24 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* Cross-front contract: builderB supplies this component. Home gets capabilities only. */}
-        {currentView.mode === 'home' && <PublicChatAssistant capabilities={capabilities} />}
+        {/*
+          Cross-front contract: builder B supplies the unified orb. Public home/demo/create/
+          recovery get one launcher; invite and dashboard keep their own role-scoped orb.
+        */}
+        {(currentView.mode === 'home' ||
+          currentView.mode === 'demo' ||
+          currentView.mode === 'create' ||
+          currentView.mode === 'recover') && (
+          <AssistantOrb
+            audience="public"
+            capabilities={capabilities}
+            onShowToast={showToast}
+          />
+        )}
       </main>
 
       {/* Global Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-
-      {/*
-        Public informational voice. Available as soon as home/create/recover is open,
-        without creating or joining an event. The invite route keeps its own event-scoped
-        launcher, so this one is rendered only on these three routes and never duplicates it.
-      */}
-      {(currentView.mode === 'home' || currentView.mode === 'create' || currentView.mode === 'recover') && (
-        <VoiceInvitationAgent
-          audience="public"
-          capabilities={capabilities}
-          onShowToast={showToast}
-        />
-      )}
     </div>
   );
 };

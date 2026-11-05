@@ -77,8 +77,8 @@ describe('asistente del organizador en texto y voz', () => {
     vi.spyOn(api, 'sendOrganizerChat').mockReturnValue(pending.promise);
     const onApplyQuote = vi.fn();
     render(<OrganizerAssistant slug="panel" capabilities={capabilities} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente IA' }));
-    expect(screen.getByText('Asistente del organizador')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente FiestaPay' }));
+    expect(screen.getByText(/Asistente del organizador/)).toBeInTheDocument();
     await screen.findByText('Saludo del servidor para el panel.');
     const input = screen.getByRole('textbox', { name: /Mensaje para el asistente/i });
     fireEvent.change(input, { target: { value: 'Quien falta por pagar?' } });
@@ -92,9 +92,9 @@ describe('asistente del organizador en texto y voz', () => {
     expect(screen.queryByText('Propuesta de Cotización')).toBeNull();
     expect(screen.queryByText('Propuesta de Asistencia')).toBeNull();
     expect(onApplyQuote).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente de voz' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Hablar' }));
     expect(screen.queryByText('Únete primero')).toBeNull();
-    expect(screen.getByText('Voz del organizador')).toBeInTheDocument();
+    expect(screen.getByText(/Voz del organizador/)).toBeInTheDocument();
   });
 
   it('muestra un solo indicador accesible mientras la peticion sigue pendiente y lo retira al terminar', async () => {

@@ -23,6 +23,22 @@ import { assertNoClientMoneyState, eventInputSchema, joinSchema, parseOr400, rsv
 import { ensureSession, readSession, requireSession } from '../lib/session.js';
 import type { RouteDeps } from './deps.js';
 
+const DEMO_BUYER_SANDBOX_HOSTS = new Set(['api-m.sandbox.paypal.com', 'api.sandbox.paypal.com']);
+
+type DemoBuyerResponse =
+  | { available: false; sandbox: true }
+  | { available: true; sandbox: true; email: string; password: string };
+
+/** Fail closed unless PayPal itself is configured on the exact HTTPS sandbox origin. */
+function isSandboxPayPalBaseUrl(raw: string): boolean {
+  try {
+    const parsed = new URL(raw);
+    return parsed.protocol === 'https:' && DEMO_BUYER_SANDBOX_HOSTS.has(parsed.host);
+  } catch {
+    return false;
+  }
+}
+
 export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps): Promise<void> {
   const { pool, config } = deps;
 
@@ -39,6 +55,23 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
     sandbox: true,
     email: deps.email !== null,
   }));
+
+  /**
+   * Intentional public disclosure for a NEW dedicated, fictitious Personal sandbox buyer.
+   * No merchant credential, query, body, or fallback source can select what is returned.
+   */
+  app.get(
+    '/demo/buyer',
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (_req, reply): Promise<DemoBuyerResponse> => {
+      reply.header('Cache-Control', 'no-store');
+      const buyer = config.demoBuyer;
+      if (!buyer || !config.paypal || !isSandboxPayPalBaseUrl(config.paypal.baseUrl)) {
+        return { available: false, sandbox: true };
+      }
+      return { available: true, sandbox: true, email: buyer.email, password: buyer.password };
+    },
+  );
 
   app.post(
     '/demo',

@@ -23,8 +23,8 @@ vi.mock('ag-grid-react', () => ({
   ),
 }));
 
-vi.mock('../components/chat/PublicChatAssistant', () => ({
-  PublicChatAssistant: () => <div data-testid="public-chat-assistant" />,
+vi.mock('../components/assistant/AssistantOrb', () => ({
+  AssistantOrb: () => <div data-testid="assistant-orb" />,
 }));
 
 const capabilities: Capabilities = {
@@ -168,23 +168,25 @@ describe('read-only AG Grid discovery preview', () => {
 });
 
 describe('home discovery journey and organizer safety', () => {
-  it('shows the five payment journey steps and the sandbox note early', async () => {
+  it('shows the two home cards, three demo actions, recovery and the sandbox note early', async () => {
     vi.spyOn(api, 'getCapabilities').mockResolvedValue(capabilities);
     vi.spyOn(api, 'getOrganizerEvents').mockResolvedValue({ events: [] });
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /Organiza tus invitaciones/i })).toBeInTheDocument();
-    expect(screen.getByText(/Crear → Compartir → Unirse → Revisar importe → PayPal/)).toBeInTheDocument();
-    const hero = screen.getByRole('region', { name: 'Panel principal del organizador' });
-    expect(within(hero).getByRole('button', { name: 'Ver panel de ejemplo (AG Grid)' })).toBeInTheDocument();
-    expect(within(hero).getByRole('button', { name: 'Crear mi demo privada' })).toBeInTheDocument();
-    expect(within(hero).getByRole('button', { name: 'Recuperar mi enlace' })).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Crear mi demo privada' })).toHaveLength(2);
-    expect(screen.getAllByRole('button', { name: 'Crear mi demo privada' }).some((button) => hero.contains(button))).toBe(true);
+    const demo = screen.getByRole('article', { name: 'Explora la demo' });
+    const live = screen.getByRole('article', { name: 'Prueba en vivo' });
+    expect(within(demo).getByRole('button', { name: 'Ver panel de ejemplo (AG Grid)' })).toBeInTheDocument();
+    expect(within(demo).getByRole('button', { name: 'Crear mi demo privada' })).toBeInTheDocument();
+    expect(within(demo).getByRole('button', { name: 'Probar pago con PayPal' })).toBeInTheDocument();
+    expect(within(live).getByText(/La aplicación es real/i)).toBeInTheDocument();
+    expect(within(live).getByText('SANDBOX')).toBeInTheDocument();
+    expect(within(live).getByRole('button', { name: '+ Crear mi propia fiesta' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Recuperar mi enlace' })).toBeInTheDocument();
     const emptyHistory = screen.getByText('No tienes ninguna invitación creada aún');
     expect(emptyHistory.closest('details')).not.toHaveAttribute('open');
     expect(screen.getByText('Opciones de demostración')).toBeInTheDocument();
-    expect(screen.getByTestId('public-chat-assistant')).toBeInTheDocument();
+    expect(screen.getByTestId('assistant-orb')).toBeInTheDocument();
   });
 
   it('routes a missing admin key to recovery, not to a misleading dashboard error', async () => {
