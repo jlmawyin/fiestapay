@@ -61,6 +61,8 @@ interface OrganizerDashboardViewProps {
   capabilities: Capabilities | null;
   onNavigateInvite: (slug: string) => void;
   onNavigateHome: () => void;
+  /** Existing recovery route. Offered without changing server-side authorization. */
+  onNavigateRecover?: () => void;
   onShowToast: (type: 'success' | 'error' | 'info' | 'warning', message: string, title?: string) => void;
 }
 
@@ -69,10 +71,14 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
   capabilities,
   onNavigateInvite,
   onNavigateHome,
+  onNavigateRecover,
   onShowToast,
 }) => {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [reloadTick, setReloadTick] = useState(0);
   const [showQrModal, setShowQrModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -95,6 +101,8 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
     const version = ++requestVersion.current;
     setDashboard(null);
     setIsLoading(true);
+    setLoadError(null);
+    setAccessDenied(false);
     setShowConfirmModal(false);
     setShowQrModal(false);
     setIsConfirming(false);
@@ -114,13 +122,15 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
       if (requestVersion.current === version) setDashboard(data);
     }).catch((err: Error) => {
       if (requestVersion.current === version) {
-        onShowToast('error', err.message || 'Error al cargar el panel de control', 'Panel');
+        if (err instanceof ApiError && err.status === 403) setAccessDenied(true);
+        setLoadError(err.message || 'No se pudo cargar el panel de control');
+        onShowToast('error', err.message || 'No se pudo cargar el panel de control', 'Panel');
       }
     }).finally(() => {
       if (requestVersion.current === version) setIsLoading(false);
     });
     return () => { requestVersion.current += 1; };
-  }, [slug, onShowToast]);
+  }, [slug, onShowToast, reloadTick]);
 
   const handleConfirmEvent = async () => {
     const version = requestVersion.current;
@@ -210,14 +220,31 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
 
   if (!dashboard) {
     return (
-      <div className="panel" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+      <div className="panel" style={{ textAlign: 'center', padding: '3rem 1rem', maxWidth: '620px', margin: '2rem auto' }}>
         <h3>Error al acceder al panel</h3>
         <p style={{ color: 'var(--color-ink-muted)', margin: '0.75rem 0 1.5rem 0' }}>
-          No tienes permisos de organizador para esta invitación o la invitación no existe.
+          {accessDenied
+            ? 'No pudimos abrir este panel con la clave guardada en este navegador. Puedes recuperar el enlace del organizador o consultar la invitación pública.'
+            : `No se pudo cargar el panel${loadError ? `: ${loadError}` : ''}. Revisa tu conexión e inténtalo de nuevo; no se cambió ningún dato.`}
         </p>
-        <button onClick={onNavigateHome} className="btn btn-primary">
-          Volver a Mis invitaciones
-        </button>
+        <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          {!accessDenied ? (
+            <button type="button" onClick={() => setReloadTick((value) => value + 1)} className="btn btn-primary">
+              Reintentar
+            </button>
+          ) : null}
+          {onNavigateRecover ? (
+            <button type="button" onClick={onNavigateRecover} className="btn btn-secondary">
+              Recuperar mi enlace
+            </button>
+          ) : null}
+          <button type="button" onClick={() => onNavigateInvite(slug)} className="btn btn-secondary">
+            Ver invitación pública
+          </button>
+          <button type="button" onClick={onNavigateHome} className="btn btn-secondary">
+            Volver a Mis invitaciones
+          </button>
+        </div>
       </div>
     );
   }

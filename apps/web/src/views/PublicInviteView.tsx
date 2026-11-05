@@ -41,6 +41,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const [event, setEvent] = useState<FiestaEvent | null>(null);
   const [guest, setGuest] = useState<Guest | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
   const [activeOrder, setActiveOrder] = useState<OrderResult | null>(null);
@@ -53,6 +54,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const [isSavingRsvp, setIsSavingRsvp] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const scopeVersion = useRef(0);
+  const paymentFocusRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     scopeVersion.current += 1;
     return () => { scopeVersion.current += 1; };
@@ -125,6 +127,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const loadEvent = useCallback(async () => {
     const scope = scopeVersion.current;
     setIsLoading(true);
+    setLoadError(null);
     try {
       const data = await api.getEventBySlug(slug);
       if (scope !== scopeVersion.current) return;
@@ -138,6 +141,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         setEvent(null);
         return;
       }
+      setLoadError(err?.message || 'No se pudo cargar la invitación');
       onShowToast('error', err.message || 'No se pudo cargar la invitación', 'Error de carga');
     } finally {
       if (scope === scopeVersion.current) setIsLoading(false);
@@ -342,6 +346,25 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
     );
   }
 
+  if (loadError && !event) {
+    return (
+      <div className="panel" style={{ textAlign: 'center', padding: '3rem 1rem', maxWidth: '560px', margin: '2rem auto' }}>
+        <h3>No se pudo cargar la invitación</h3>
+        <p role="alert" style={{ color: 'var(--color-ink-muted)', margin: '0.75rem 0 1.5rem 0' }}>
+          {loadError}
+        </p>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button type="button" onClick={() => void loadEvent()} className="btn btn-primary">
+            Reintentar
+          </button>
+          <button type="button" onClick={onNavigateHome} className="btn btn-secondary">
+            Ir al Inicio
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const submitCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setUnlocking(true);
@@ -410,6 +433,90 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const activityBlocked = newGuestActivityBlocked(event);
   const sessionRevoked = Boolean(guest?.blockedAt || guest?.removedAt);
   const formsClosed = activityBlocked || sessionRevoked;
+
+  const joined = Boolean(guest);
+  const attendanceConfirmed = guest?.status === 'yes';
+  const quoteReviewed = Boolean(quote);
+  const paidOrCovered = Boolean(
+    guest && guest.status === 'yes' && (quote ? quote.amountCents === 0 : guest.dueCents === 0 && guest.paidCents > 0),
+  ) || activeOrder?.status === 'paid';
+
+  const paymentSteps = [
+    {
+      key: 'join',
+      label: 'Únete con tu nombre',
+      detail: joined ? 'Sesión de invitado lista.' : 'Escribe un alias para crear tu sesión.',
+      done: joined,
+      active: !joined,
+      locked: false,
+    },
+    {
+      key: 'rsvp',
+      label: 'Confirma tu asistencia',
+      detail: attendanceConfirmed ? 'Asistencia confirmada.' : 'Elige si vienes antes de calcular el importe.',
+      done: attendanceConfirmed,
+      active: joined && !attendanceConfirmed,
+      locked: false,
+    },
+    {
+      key: 'quote',
+      label: 'Revisa tu importe',
+      detail: quoteReviewed
+        ? `Importe revisado: ${usd(quote!.amountCents)} pendiente.`
+        : 'El servidor calculará el total y la diferencia.',
+      done: attendanceConfirmed && quoteReviewed,
+      active: attendanceConfirmed && !quoteReviewed,
+      locked: false,
+    },
+    {
+      key: 'paypal',
+      label: 'Paga en PayPal Sandbox',
+      detail: paidOrCovered
+        ? 'Sin saldo pendiente en esta vista.'
+        : activeOrder
+          ? 'Orden creada: revisa y confirma la captura en la tarjeta de PayPal.'
+          : 'Primero revisa y confirma el importe; el botón Quiero pagar no crea órdenes.',
+      done: paidOrCovered,
+      active: attendanceConfirmed && quoteReviewed && !paidOrCovered,
+      locked: formsClosed && !activeOrder,
+    },
+  ];
+
+  /**
+   * This CTA only moves the person to the first missing human step. It deliberately never
+   * calls createOrder, captureOrder or any other payment mutation.
+   */
+  const focusFirstNeededPaymentStep = () => {
+    const root = paymentFocusRef.current;
+    if (!root) return;
+    const focusSelector = (selector: string): boolean => {
+      const element = root.querySelector<HTMLElement>(selector);
+      if (!element) return false;
+      element.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+      element.focus?.({ preventScroll: true });
+      return true;
+    };
+
+    if (!guest) {
+      focusSelector('#attendee-name');
+      return;
+    }
+    if (guest.status !== 'yes') {
+      focusSelector('[role="radio"]');
+      return;
+    }
+    if (!quote) {
+      if (!focusSelector('[data-payment-quote] button')) focusSelector('[data-payment-quote]');
+      return;
+    }
+    if (quote.amountCents > 0 && !activeOrder) {
+      focusSelector('[data-payment-quote] input[type="checkbox"]');
+      return;
+    }
+    if (activeOrder) {
+      focusSelector('[data-paypal-section] button, [data-paypal-section] a');
+    }
+  };
 
   return (
     <ThemeScope theme={theme}>
@@ -571,7 +678,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         <TicketCutout />
 
         {/* Guest RSVP & Payment Stub */}
-        <div style={{ padding: '1.5rem', backgroundColor: '#FAFCFE' }}>
+        <div ref={paymentFocusRef} style={{ padding: '1.5rem', backgroundColor: '#FAFCFE' }}>
           {activityBlocked && (
             <p className="funding-stopped-banner" role="status" style={{ marginBottom: '1rem' }}>
               {event.fundingStatus === 'failed'
@@ -586,6 +693,91 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
                 : 'Esta sesión no puede confirmar asistencia, chatear, usar voz ni iniciar un pago nuevo. Si ya había un cobro en curso, verifica su estado real abajo. El recibo de lo abonado sigue visible.'}
             </p>
           )}
+
+          <section
+            aria-label="Pasos para pagar con PayPal"
+            data-testid="paypal-stepper"
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1.5px solid var(--color-blue)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '1rem',
+              marginBottom: '1rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+            }}
+          >
+            <div>
+              <h3 style={{ fontSize: '1.05rem', color: 'var(--color-ink)', marginBottom: '0.2rem' }}>Tu camino al pago</h3>
+              <p style={{ fontSize: '0.825rem', color: 'var(--color-ink-muted)' }}>
+                PayPal Sandbox, sin dinero real. Cada paso se completa en esta misma invitación.
+              </p>
+            </div>
+            <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: '0.5rem' }}>
+              {paymentSteps.map((step, index) => (
+                <li
+                  key={step.key}
+                  aria-current={step.active ? 'step' : undefined}
+                  data-step-state={step.done ? 'done' : step.active ? 'active' : 'pending'}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '0.65rem',
+                    padding: '0.55rem 0.65rem',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: step.active ? 'var(--color-blue-tint)' : 'var(--color-surface-subtle)',
+                    border: step.active ? '1px solid var(--color-blue)' : '1px solid transparent',
+                    opacity: step.locked ? 0.65 : 1,
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '50%',
+                      flex: '0 0 auto',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 800,
+                      fontSize: '0.75rem',
+                      backgroundColor: step.done ? 'var(--color-teal)' : step.active ? 'var(--color-blue)' : 'var(--color-border-dark)',
+                      color: step.done || step.active ? '#FFFFFF' : 'var(--color-ink)',
+                    }}
+                  >
+                    {step.done ? '✓' : index + 1}
+                  </span>
+                  <span style={{ minWidth: 0 }}>
+                    <strong style={{ display: 'block', fontSize: '0.875rem', color: 'var(--color-ink)' }}>{step.label}</strong>
+                    <span style={{ display: 'block', fontSize: '0.775rem', color: 'var(--color-ink-muted)' }}>{step.detail}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-ink-muted)' }}>
+                Este botón solo te lleva al primer paso pendiente; no crea ni captura una orden.
+              </span>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={focusFirstNeededPaymentStep}
+                disabled={paidOrCovered || (formsClosed && !activeOrder)}
+                aria-describedby="quiero-pagar-help"
+                style={{ flex: '0 0 auto' }}
+              >
+                {paidOrCovered ? 'Sin saldo pendiente' : activeOrder ? 'Revisar pago' : 'Quiero pagar'}
+              </button>
+            </div>
+            <span id="quiero-pagar-help" style={{ fontSize: '0.75rem', color: 'var(--color-ink-muted)' }}>
+              {formsClosed && !activeOrder
+                ? 'Las inscripciones o pagos nuevos están cerrados para esta invitación.'
+                : 'Revisa el importe calculado por el servidor antes de confirmar cualquier pago.'}
+            </span>
+          </section>
+
           {!guest && !activityBlocked ? (
             <JoinForm onJoin={handleJoin} isLoading={isJoining} template={event.template} />
           ) : !guest ? null : (
@@ -620,14 +812,16 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
               {guest.status === 'yes' && (
                 <>
                   {!formsClosed ? (
-                    <QuoteReviewCard
-                      quote={quote}
-                      isLoadingQuote={isLoadingQuote}
-                      onRefreshQuote={fetchQuote}
-                      onCreateOrder={handleCreateOrder}
-                      isCreatingOrder={isCreatingOrder}
-                      template={event.template}
-                    />
+                    <div data-payment-quote tabIndex={-1} style={{ minWidth: 0 }}>
+                      <QuoteReviewCard
+                        quote={quote}
+                        isLoadingQuote={isLoadingQuote}
+                        onRefreshQuote={fetchQuote}
+                        onCreateOrder={handleCreateOrder}
+                        isCreatingOrder={isCreatingOrder}
+                        template={event.template}
+                      />
+                    </div>
                   ) : null}
 
                   {/* Scoped Active Order Notice & Reconciliation */}
@@ -674,12 +868,14 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
 
                   {/* PayPal capture stays hidden once this session is revoked. Verify/GET above remains. */}
                   {activeOrder && !sessionRevoked && (
-                    <PayPalSection
-                      order={activeOrder}
-                      capabilities={capabilities}
-                      onCaptureSuccess={handleCaptureSuccess}
-                      onCancelOrError={handlePaymentCancelOrError}
-                    />
+                    <div data-paypal-section style={{ minWidth: 0 }}>
+                      <PayPalSection
+                        order={activeOrder}
+                        capabilities={capabilities}
+                        onCaptureSuccess={handleCaptureSuccess}
+                        onCancelOrError={handlePaymentCancelOrError}
+                      />
+                    </div>
                   )}
                 </>
               )}

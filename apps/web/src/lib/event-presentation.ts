@@ -6,6 +6,7 @@ import {
   suggestTheme,
   themeContrastPairs,
   usd,
+  type EventInput,
   type FiestaEvent,
   type TemplateKind,
   type ThemeDefinition,
@@ -24,6 +25,42 @@ export {
 };
 
 const SHARE_TIME_ZONE = 'America/Guayaquil';
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Fresh, server-valid private demo. Dates are always relative to the caller and are never
+ * copied from an older demo, so a missing historical organizer key can never be reused.
+ * 13:00/17:00 Ecuador (UTC-5) are written as UTC instants because Ecuador has no DST.
+ */
+export function privateDemoEventInput(now = new Date()): EventInput {
+  const start = new Date(now.getTime() + 7 * DAY_MS);
+  start.setUTCHours(18, 0, 0, 0); // 13:00 in America/Guayaquil
+  const end = new Date(start.getTime() + 4 * 60 * 60 * 1000); // 17:00
+  const deadline = new Date(start.getTime() - DAY_MS);
+  deadline.setUTCHours(1, 0, 0, 0); // 20:00 the day before, still in the future
+  return {
+    title: 'Almuerzo de demostración',
+    template: 'comida',
+    meal: 'almuerzo',
+    description:
+      'Comida ficticia de demostración para probar el panel del organizador y PayPal Sandbox. Ningún importe es un cobro real.',
+    startsAt: start.toISOString(),
+    endsAt: end.toISOString(),
+    location: 'Salón Mirador de los Andes, Quito (lugar ficticio)',
+    includes: ['Almuerzo de prueba', 'Bebida ficticia', 'Postre de ejemplo'],
+    priceCents: 2500,
+    capacity: 8,
+    goalCents: 20000,
+    minimumCents: 5000,
+    agenda: [
+      { time: '13:00', title: 'Bienvenida de demostración' },
+      { time: '14:00', title: 'Almuerzo ficticio' },
+      { time: '16:00', title: 'Cierre y prueba de PayPal Sandbox' },
+    ],
+    organizerName: 'Equipo FiestaPay (demo)',
+    fundingDeadlineAt: deadline.toISOString(),
+  };
+}
 
 /** Official click-to-chat endpoint. One encodeURIComponent pass, no network call. */
 export const WHATSAPP_SEND_ENDPOINT = 'https://api.whatsapp.com/send';
@@ -110,13 +147,18 @@ export function formatInstantInZone(iso: string, timeZone = SHARE_TIME_ZONE): Zo
   return { date: day, time, label: `${day}, ${time} (${timeZone})` };
 }
 
-/** Uses the end instant. A cross-day range keeps both calendar dates. */
+/**
+ * Uses the end instant. A cross-day range keeps both calendar dates. The zone is printed
+ * exactly once for the whole range, including a same-day start and end.
+ */
 export function formatEventRange(startsAt: string, endsAt?: string | null, timeZone = SHARE_TIME_ZONE): string {
   const start = formatInstantInZone(startsAt, timeZone);
-  if (!endsAt) return `Inicio: ${start.label}. Hora de fin no indicada.`;
+  if (!endsAt) return `Inicio: ${start.date}, ${start.time}. Hora de fin no indicada (${timeZone}).`;
   const end = formatInstantInZone(endsAt, timeZone);
-  if (start.date === end.date) return `Inicio: ${start.label}. Fin: ${end.time} (${timeZone}).`;
-  return `Inicio: ${start.label}. Fin: ${end.label}.`;
+  if (start.date === end.date) {
+    return `Inicio: ${start.date}, ${start.time}. Fin: ${end.time} (${timeZone}).`;
+  }
+  return `Inicio: ${start.date}, ${start.time}. Fin: ${end.date}, ${end.time} (${timeZone}).`;
 }
 
 export function eventRangeIsCrossDay(startsAt: string, endsAt?: string | null, timeZone = SHARE_TIME_ZONE): boolean {

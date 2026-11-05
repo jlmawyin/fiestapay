@@ -1,11 +1,16 @@
 import type { ChatResult, ChatTranscript } from '@fiestapay/shared';
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { chatWithAssistant } from '../ai/chat.js';
+import { chatPublic } from '../ai/public-chat.js';
 import { presentedAdminKey } from '../domain/access.js';
 import { listOwnTranscript } from '../domain/moderation.js';
 import { chatSchema, parseOr400, slugParamSchema, transcriptQuerySchema } from '../lib/schemas.js';
 import { ensureSession, readSession } from '../lib/session.js';
 import type { RouteDeps } from './deps.js';
+
+/** Public chat accepts only the current question: no role, history, event or client flags. */
+const publicChatSchema = z.object({ message: z.string().trim().min(1).max(1200) }).strict();
 
 export async function registerChatRoutes(app: FastifyInstance, deps: RouteDeps): Promise<void> {
   const { pool, config } = deps;
@@ -23,6 +28,20 @@ export async function registerChatRoutes(app: FastifyInstance, deps: RouteDeps):
       return chatWithAssistant(pool, config, session.id, slug, message, {
         respond: deps.respond,
       }, presentedAdminKey(req));
+    },
+  );
+
+  // Public informational chat: no event, guest, organizer key, tools or stored transcript.
+  // The session cookie identifies the shared per-session budget; the message itself is not saved.
+  app.post(
+    '/chat/public',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (req, reply): Promise<{ text: string }> => {
+      const { message } = parseOr400(publicChatSchema, req.body);
+      const session = await ensureSession(pool, config, req, reply);
+      return chatPublic(pool, config, session.id, message, {
+        ...(deps.respond ? { respond: deps.respond } : {}),
+      });
     },
   );
 

@@ -3,10 +3,10 @@ import { HttpError } from '../errors.js';
 
 /** Reserve before the model call; timeouts still consume this reservation. Cookie resets and
  * concurrent requests cannot bypass the shared daily cap. Counts are UTC calendar days.
- * Guest chat and organizer chat both call this. A second role or route does not get its own
- * daily total or its own per-session total. */
+ * Guest, organizer and public informational chat all call this. A second role or route does
+ * not get its own daily total or its own per-session total; public has no event id. */
 
-export async function reserveAiRequest(pool: Pool, sessionId: string, eventId: string, dailyLimit = 200) {
+export async function reserveAiRequest(pool: Pool, sessionId: string, eventId: string | null, dailyLimit = 200) {
   await withTransaction(pool, async db => {
     await db.query('SELECT pg_advisory_xact_lock(778899125)');
     const {rows} = await db.query<{total:string,personal:string}>(`SELECT count(*)::text AS total,

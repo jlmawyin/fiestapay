@@ -35,7 +35,25 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+export const REQUEST_TIMEOUT_MS = 30_000;
+
+export const REQUEST_TIMEOUT_MESSAGES = {
+  read: 'La solicitud tardó más de 30 segundos. Revisa tu conexión e inténtalo de nuevo.',
+  mutation:
+    'La operación tardó más de 30 segundos. No sabemos si el servidor alcanzó a procesarla; revisa el estado antes de repetirla.',
+} as const;
+
+function timeoutMessageFor(method: string): string {
+  const verb = method.toUpperCase();
+  return verb === 'GET' || verb === 'HEAD' ? REQUEST_TIMEOUT_MESSAGES.read : REQUEST_TIMEOUT_MESSAGES.mutation;
+}
+
+/**
+ * Single request boundary for every API call. The timeout covers both the HTTP response and
+ * reading its JSON body. A caller-provided signal keeps its own abort semantics; the internal
+ * controller is only an implementation detail and never triggers an automatic retry.
+ */
+export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers || {});
   if (options.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
@@ -43,26 +61,64 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const adminKey = adminHeaderFor(path, options.method ?? 'GET');
   if (adminKey && !headers.has('X-Fiesta-Admin-Key')) headers.set('X-Fiesta-Admin-Key', adminKey);
 
-  const res = await fetch(path, {
-    credentials: 'same-origin',
-    ...options,
-    headers,
-  });
+  const method = options.method ?? 'GET';
+  const externalSignal = options.signal;
+  const controller = new AbortController();
+  let timedOut = false;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
-  if (!res.ok) {
-    let errorMsg = `Error del servidor (${res.status})`;
-    try {
-      const data = await res.json();
-      if (data && typeof data.error === 'string') {
-        errorMsg = data.error;
-      }
-    } catch {
-      // not JSON
-    }
-    throw new ApiError(errorMsg, res.status);
+  const relayExternalAbort = () => controller.abort(externalSignal?.reason);
+  if (externalSignal) {
+    if (externalSignal.aborted) relayExternalAbort();
+    else externalSignal.addEventListener('abort', relayExternalAbort, { once: true });
   }
 
-  return (await res.json()) as T;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+      reject(new ApiError(timeoutMessageFor(method), 408));
+    }, REQUEST_TIMEOUT_MS);
+  });
+
+  try {
+    let responsePromise: Promise<Response>;
+    try {
+      responsePromise = fetch(path, {
+        credentials: 'same-origin',
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
+    } catch (err) {
+      responsePromise = Promise.reject(err);
+    }
+    const res = await Promise.race([responsePromise, timeout]);
+
+    if (!res.ok) {
+      let errorMsg = `Error del servidor (${res.status})`;
+      try {
+        const data = await Promise.race([res.json(), timeout]);
+        if (data && typeof data.error === 'string') {
+          errorMsg = data.error;
+        }
+      } catch (err) {
+        if (timedOut) throw err;
+        // not JSON
+      }
+      throw new ApiError(errorMsg, res.status);
+    }
+
+    return (await Promise.race([res.json(), timeout])) as T;
+  } catch (err) {
+    if (timedOut && !(err instanceof ApiError)) {
+      throw new ApiError(timeoutMessageFor(method), 408);
+    }
+    throw err;
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+    externalSignal?.removeEventListener('abort', relayExternalAbort);
+  }
 }
 
 export const api = {

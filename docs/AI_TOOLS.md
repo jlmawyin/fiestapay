@@ -1,5 +1,7 @@
 # AI contribution disclosure
 
+For the final judge-discovery update, DeepSeek Harness (account profile, low effort) constructed the read-only AG Grid preview, private-demo entry, payment navigation, bounded loading/error states and separate public text chat. Codex checked artifact hashes and integrated the changes. AGY Gemini 3.8 Flash High independently approved the supplied source scopes (three UI reviews and one public-chat review); these were bounded inline source reviews, not physical-phone tests. The public chat reuses OpenAI `gpt-6-luna` with low reasoning and has no tools or access to event data. Development-agent model use is separate from FiestaPay runtime use.
+
 - **Codex:** architecture, shared API contract, integration, deployment, isolated restore and backup execution, offsite hash/ACL verification, preservation checks, provider checks, test evaluation and release coordination. Jorge makes product decisions and supplies accounts.
 - **Claude Code (Opus, high):** API implementation, PostgreSQL model, PayPal adapter, reconciliation and tests; subsequent fixes based on independent findings.
 - **Antigravity / Gemini 3.8 Flash High:** React interface, original SVG covers, mobile flows and browser voice integration.
