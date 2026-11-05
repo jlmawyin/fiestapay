@@ -32,7 +32,9 @@ The 4 November accepted payment reused the existing order's checkout in an exter
 
 ## Current evidence and historical matrix
 
-Prepared against deployed source **60593db**. That source passed 486 database-backed tests in 52 files with 0 skipped (CI run `41868819343`), and had independent AGY source acceptance for screen, voice and chat. The 4 November live check used Playwright Edge mobile emulation at 390×844 — not a physical phone — with one existing reserved order, one USD 50 sandbox capture, two paid people and **✓ Confirmar Realización** confirmed.
+The current judge-discovery application is deployed from **eac09c0**: 521 tests in 56 files, zero skipped, lint, TypeScript and build passed in [main CI](https://github.com/jlmawyin/fiestapay/actions/runs/41965535239), with independent source and operational reviews. New live checks verified public AG Grid filtering/sorting, a private organizer demo, unauthorized dashboard 403, isolated public text chat (one real reply in about 4.7 seconds), and the mobile guest route through the server's **2 × USD 25 = USD 50** quote. They generated no new payment order or capture. See the [release evidence](reviews/judge-discovery-20261104.md).
+
+The earlier accepted payment used source **60593db** (486 tests, CI `41868819343`), with one existing reserved order, one USD 50 sandbox capture, two paid people and **✓ Confirmar Realización** confirmed. Both browser rounds used Playwright Edge mobile emulation at 390×844 — not a physical phone. The new release preserves that financial engine and its historical records.
 
 The earlier 29 October browser matrix for source `8e13ae6` recorded 12/14 accepted points, with voice points 12 and 13 partial. That matrix is historical and does not describe the current source. Physical-phone Spanish voice, including a measured three-minute session, and a full unassisted human walkthrough remain pending.
 
@@ -73,6 +75,6 @@ The three historical October campaign captures total USD 125 in their own event.
 - **Recovery email:** optional and verified separately; no email is needed for the main route. Accepted historical recovery rotated the key and invalidated the old link. No judge mailbox is required.
 - **Funding failure:** a separate [USD 1 sandbox case](reviews/refund-sandbox-20261026.md) verified one automatic refund after a minimum failed. It is not part of this short route. Do not change an existing deadline or refund an evidence transaction to recreate it.
 
-This demo uses one Business sandbox recipient for all organizers. Release `60593db` adds public voice/session and UI changes; it does not add a second merchant or change the sandbox financial engine. Capture credits the shared Business account. Independent merchant onboarding and PayPal Payouts are outside the demo. PayPal handles checkout credentials; Buyer Protection depends on eligibility and applicable terms rather than automatically covering every payment.
+This demo uses one Business sandbox recipient for all organizers. Earlier release `60593db` added public voice/session and UI changes; the current judge-discovery update adds the public example panel and informational text chat. Neither adds a second merchant or changes the sandbox financial engine. Capture credits the shared Business account. Independent merchant onboarding and PayPal Payouts are outside the demo. PayPal handles checkout credentials; Buyer Protection depends on eligibility and applicable terms rather than automatically covering every payment.
 
 Submission preparation still requires the private buyer handoff, a human walkthrough, physical mobile voice results, video publication and Devpost submission. No completed human test, recording or submission is asserted here.
