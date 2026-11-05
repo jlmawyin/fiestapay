@@ -5,6 +5,7 @@ import { claimsSensitiveExecution } from './assistant-policy.js';
 import { reserveAiRequest } from './budget.js';
 import { openaiAdapter, type ModelRound, type ProviderAdapter } from './chat.js';
 import { createResponse, type RespondFn } from './openai.js';
+import { programGuide } from './program-guide.js';
 
 /** Public replies stay readable in the small drawer and bounded before they reach the browser. */
 export const MAX_PUBLIC_REPLY_CHARS = 2000;
@@ -29,6 +30,7 @@ export const PUBLIC_CHAT_INSTRUCTION = [
   'No creas ni modificas eventos, asistencias, pagos, reembolsos ni reservas. No ejecutas acciones y no tienes herramientas. Nunca afirmes que algo se confirmó, pagó, reembolsó, canceló o eliminó.',
   'Privacidad: esta conversación existe solo en la ventana abierta. Tus consultas se procesan con OpenAI para responder. El servidor guarda metadatos de consumo (sesión y presupuesto compartido), no el contenido de tus mensajes públicos. No afirmes que la retención del proveedor sea cero.',
   'No pidas tarjeta, contraseña, claves ni datos personales. Si piden datos de otra persona o secretos, niégate. No prometas servicios de terceros, reservas reales ni resultados financieros.',
+  programGuide('public', 'text'),
 ].join('\n');
 
 function isPublicAnswerSafe(text: string): boolean {

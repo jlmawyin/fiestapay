@@ -2,6 +2,7 @@ import type { FundingStatus } from '@fiestapay/shared';
 import { usd } from '@fiestapay/shared';
 import type { Pool } from '../db/pool.js';
 import { eventTotals, type EventRow } from '../domain/read.js';
+import { isSafeDemoAccountUiQuestion, programGuide } from './program-guide.js';
 
 export type AssistantRole = 'guest' | 'organizer';
 
@@ -228,6 +229,10 @@ function asksAboutMinimumFailure(text: string): boolean {
 export function decideAssistantTurn(message: string): PolicyDecision {
   const text = message.trim();
   if (INJECTION.test(text)) return { kind: 'injection' };
+  if (isSafeDemoAccountUiQuestion(text) && !PRIVACY_QUERY.test(text)
+      && !PRIVACY_OTHERS_QUERY.test(text) && !asksAboutBuyerProtection(text)) {
+    return { kind: 'model' };
+  }
 
   const asksCard = CARD_SAFETY_QUERY.test(text);
   const asksProtection = asksAboutBuyerProtection(text);
@@ -352,7 +357,7 @@ export function refundTimingText(facts: ServerFacts): string {
  */
 export function privacyText(): string {
   return [
-    'Datos que guarda FiestaPay: el alias o nombre que escribes, tu RSVP y acompañantes, los mensajes de este chat y una cookie técnica de sesión para acceso y antiabuso. Si escribiste un correo opcional, se guarda desde que lo envías, aunque todavía no lo verifiques; la verificación es lo que habilita la recuperación del acceso. De cada operación se conservan identificadores, importes y estados para conciliación. FiestaPay no recibe ni guarda el número de tarjeta ni la contraseña de PayPal en el pago. No pegues tarjeta, contraseña ni claves en este chat: su contenido sí se guarda.',
+    'Datos que guarda FiestaPay: el alias o nombre que escribes, tu RSVP y acompañantes, los mensajes de este chat y una cookie técnica de sesión para acceso y antiabuso. Si escribiste un correo opcional, se guarda desde que lo envías, aunque todavía no lo verifiques; la verificación es lo que habilita la recuperación del acceso. De cada operación se conservan identificadores, importes y estados para conciliación. FiestaPay no recibe ni guarda el número de tarjeta ni la contraseña de PayPal en el pago. Esa frase se refiere a las credenciales personales del checkout: la cuenta ficticia compartida de Sandbox configurada intencionalmente para la demo es una cuenta compradora ficticia, distinta de una cuenta personal real y no es tu cuenta real; puede mostrarse mediante la tarjeta de la UI, nunca por este chat ni en sus respuestas. No pegues tarjeta, contraseña ni claves en este chat: su contenido sí se guarda.',
     'Los mensajes de este chat y el contexto necesario del evento se procesan con OpenAI para responder tu consulta.',
     'Para qué: mostrar la invitación, registrar asistencia y pagos, responder este chat y evitar abusos.',
     'Borrado: si el organizador elimina la fiesta, o 72 horas después de que termina, se borran o anonimizan nombres, contenido público, chats, contactos y tokens; el acceso público se oculta al cumplirse ese plazo y una limpieza periódica completa el proceso. Se conservan las órdenes, los registros de pago y las referencias con los datos mínimos necesarios para conciliación: no es un borrado total. Borrar la cookie en tu navegador no borra nada en el servidor.',
@@ -366,7 +371,7 @@ export function privacyOthersText(): string {
 }
 
 const CARD_SAFETY_TEXT =
-  'PayPal pide la contraseña y la tarjeta dentro de PayPal; FiestaPay no te las pide ni las recibe. No las escribas en este chat: los mensajes se guardan.';
+  'PayPal pide la contraseña y la tarjeta dentro de PayPal; FiestaPay no te las pide ni las recibe. No las escribas en este chat: los mensajes se guardan. Esa frase cubre las credenciales personales del checkout; la cuenta ficticia compartida de Sandbox configurada para la demo es una cuenta compradora ficticia, distinta de una cuenta personal real y no es tu cuenta real, y puede mostrarse mediante la tarjeta de la UI, nunca por este chat.';
 const PROTECTION_TEXT = `La Proteccion al Comprador de PayPal cubre solo compras elegibles, segun sus terminos. No todas las compras ni todos los reclamos estan cubiertos. Detalle oficial: ${PAYPAL_PROTECTION_URL}`;
 
 /**
@@ -449,13 +454,13 @@ const POLICY_RULES = [
   'Solo respondes sobre este evento y el uso de FiestaPay, incluido PayPal en este flujo. Ante el clima, una tarea escolar u otra aplicacion, te niegas con amabilidad y vuelves al evento.',
   'No inventes precios, pagado, minimo, meta, cantidades, horarios, lugar, incluye ni expositores. El horario incluye inicio y fin, en hora de Guayaquil, y sale de las herramientas.',
   'Si la plantilla no es comida, no menciones desayuno, almuerzo ni cena.',
-  'PayPal pide la contraseña y la tarjeta dentro de PayPal. FiestaPay no las pide ni las recibe; no las pidas ni las repitas. El contenido del chat se guarda, así que avisa que no peguen tarjeta, contraseña ni claves.',
+  'PayPal pide la contraseña y la tarjeta dentro de PayPal. FiestaPay no las pide ni las recibe; no las pidas ni las repitas. Esa protección cubre las credenciales personales del checkout; la cuenta ficticia compartida de Sandbox configurada para la demo es una cuenta compradora ficticia, distinta de una cuenta personal real y no es tu cuenta real, y puede mostrarse solo mediante su tarjeta de la UI, nunca en el chat. El contenido del chat se guarda, así que avisa que no peguen tarjeta, contraseña ni claves.',
   `La Proteccion al Comprador aplica solo a compras elegibles: ${PAYPAL_PROTECTION_URL}`,
   'La captura acredita ahora la cuenta Business de sandbox. Confirmar la realización anuncia que el encuentro se hará. No es un fideicomiso, no retiene y no libera dinero. No hay retención en garantía ni pagos a terceros.',
   'Si el minimo no se alcanza a una fecha limite armada, hay devolucion automatica. Un evento anterior o sin fecha limite armada no la promete. Un reembolso pendiente no esta completado.',
   'Si un pago en otra pestana falla, primero se consulta la misma orden y luego Verificar / Continuar Captura. No se crea otra orden primero. El boton amarillo confirma solo.',
   'Eliminar la invitacion no garantiza un reembolso. No hay un boton de reembolso manual. No presiones ni prometas financiacion ni reservas reales.',
-  'Privacidad: se guardan el alias o nombre, RSVP y acompañantes, los mensajes del chat, una cookie técnica y el correo opcional desde que se escribe, aunque no se haya verificado; verificarlo habilita la recuperación. Las operaciones conservan identificadores, importes y estados para conciliación; FiestaPay no recibe tarjeta ni contraseña de PayPal en el pago, pero el chat se guarda, así que no se deben pegar secretos. Eliminar la fiesta o esperar 72 horas tras el fin borra o anonimiza contenido personal y chats, pero conserva órdenes, registros de pago y datos mínimos para conciliación: no es un borrado total. Los mensajes y el contexto necesario del evento se procesan con OpenAI para responder. La voz requiere consentimiento y se procesa con AssemblyAI. No reveles datos de otras personas ni claves.',
+  'Privacidad: se guardan el alias o nombre, RSVP y acompañantes, los mensajes del chat, una cookie técnica y el correo opcional desde que se escribe, aunque no se haya verificado; verificarlo habilita la recuperación. Las operaciones conservan identificadores, importes y estados para conciliación; FiestaPay no recibe tarjeta ni contraseña de PayPal en el pago, pero el chat se guarda, así que no se deben pegar secretos. Esa frase cubre las credenciales personales del checkout; la cuenta ficticia compartida de Sandbox configurada para la demo es una cuenta compradora ficticia, distinta de una cuenta personal real y no es tu cuenta real, y puede mostrarse solo mediante su tarjeta de la UI, nunca en el chat. Eliminar la fiesta o esperar 72 horas tras el fin borra o anonimiza contenido personal y chats, pero conserva órdenes, registros de pago y datos mínimos para conciliación: no es un borrado total. Los mensajes y el contexto necesario del evento se procesan con OpenAI para responder. La voz requiere consentimiento y se procesa con AssemblyAI. No reveles datos de otras personas ni claves.',
   'Si preguntan cuanto tarda un reembolso, separa el inicio automatico de FiestaPay de la recepcion en el metodo original. Las referencias de PayPal no son garantias ni plazos medidos en sandbox.',
 ].join('\n');
 
@@ -475,8 +480,9 @@ export function guestSystemInstruction(input: { title: string; slug: string; tem
     '3. Nunca afirmes que un pago quedo hecho. Si preguntan, consulta el estado con las herramientas y repite lo que digan.',
     '4. No cambias la asistencia por tu cuenta: propon el cambio con propose_rsvp y di que debe confirmarlo en la pagina.',
     '5. Si falta un dato del evento, di que el organizador no lo registro. No supongas menu, horarios ni expositores.',
-    '6. Antes de una cotizacion repite la cuenta del servidor, por ejemplo "2 personas por $25,00, total $50,00. Confirmo?".',
+    '6. Antes de una cotizacion repite la cuenta del servidor tal como la devuelva, por ejemplo "2 personas por $25,00, total $50,00. Confirmo?"; ese ejemplo no fija el importe real.',
     '7. Son pagos de prueba en el sandbox de PayPal; nunca prometas reservas reales ni servicios de terceros.',
+    programGuide('guest', 'text'),
     POLICY_RULES,
   ].join('\n');
 }
@@ -490,6 +496,7 @@ export function organizerSystemInstruction(input: { title: string; slug: string;
     'Para explicar el botón "✓ Confirmar Realización", consulta get_funding_progress y guide_organizer_action. No prometas el boton si el financiamiento fallo o si el minimo sigue pendiente; cerrar inscripciones no bloquea la confirmacion. Si ya esta confirmada, explica esa marca.',
     'No muestres la clave de admin, codigos, correos, IP, sesiones, hashes ni metadatos de PayPal. Nombres, estado, personas, pagado y pendiente ya visibles en el panel si estan permitidos.',
     'Responde en espanol, breve y concreto.',
+    programGuide('organizer', 'text'),
     POLICY_RULES,
   ].join('\n');
 }
