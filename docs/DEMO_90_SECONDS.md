@@ -1,15 +1,15 @@
 # FiestaPay — 90-second demonstration draft
 
-Target duration, not a verified benchmark or a recorded video. Prepared against source `8e13ae6` and the [29 October evidence](reviews/revalidation-20261029.md). Current acceptance is 12/14, with voice items partial. The storyboard is ready for rehearsal; recording and publication have not happened. Use text for the planned route while physical Spanish mobile voice remains unverified.
+Target duration, not a verified benchmark or a recorded video. Updated for source `f89aee1` and the [5 November evidence](reviews/demo-orb-20261105.md). The historical 29 October matrix remains 12/14, with voice items partial; later scoped UI evidence is separate. The storyboard is ready for rehearsal; recording and publication have not happened. Use text for the planned route while physical Spanish mobile voice remains unverified.
 
 The autonomous external-test campaign and its extension are closed: no new payment, text request or voice lease may be made under that budget. A future assigned human recording or a separately approved bounded recording run must have its own accounts and operation log. This document authorizes none. Real checkout/login can exceed the target; edit waiting/login time only after recording the actual sequence. Do not splice a historical receipt into a new event as if it were its payment.
 
 | Target time | On screen | English narration |
 | --- | --- | --- |
-| 0–12 s | Create a Meal event with fixed cover, USD 25 per person, capacity 2 and a USD 50 minimum; review its future dates. | “FiestaPay turns a shared meal into a clear invitation and a server-calculated contribution.” |
+| 0–12 s | Show both home cards and the public AG Grid example, then use **Probar pago con PayPal** to prepare a private fictional Meal; inspect its future dates and USD 50 quote. | “FiestaPay turns a shared meal into a clear invitation and a server-calculated contribution.” |
 | 12–22 s | Save the organizer link. Copy the public invitation or open the WhatsApp draft without sending it to anyone. | “The organizer keeps a private management link. Guests use a separate public link, with no Google account.” |
-| 22–35 s | Open the invitation in a second browser, join with a fictional name and one companion, then confirm attendance. | “Two people are attending. Attendance and payment stay separate, so the organizer can see who still needs to pay.” |
-| 35–48 s | Ask about the contribution. Prefer voice only after physical mobile acceptance; otherwise use the working text channel. Show the server quote and human confirmation. | “The assistant uses the event's server tools: two people at twenty-five dollars, fifty dollars total. The guest reviews the amount before checkout.” |
+| 22–35 s | Show that the prepared invitation has a fictional guest and one companion; open the account disclosure off camera and copy only the dedicated sandbox buyer. | “Two people are attending. Attendance and payment stay separate, so the organizer can see who still needs to pay.” |
+| 35–48 s | Ask about the contribution. Prefer voice only after physical mobile acceptance; otherwise open the orb and choose **Escribir**. Do not start voice while preparing the recording. Show the server quote and human confirmation. | “The assistant uses the event's server tools: two people at twenty-five dollars, fifty dollars total. The guest reviews the amount before checkout.” |
 | 48–75 s | Approve the actual order with the allocated sandbox buyer. Wait for server verification, then show the receipt. | “PayPal handles approval. FiestaPay records payment only after verifying the capture, amount, currency and recipient.” |
 | 75–90 s | Return to the organizer dashboard, show attendees, paid state, amount collected before fees and minimum reached. | “The dashboard shows the verified contribution and whether the gathering has reached its minimum.” |
 
@@ -29,7 +29,7 @@ After a truthful recording exists: review every claim, synchronize English narra
 ## Recording conditions
 
 - Use the identified approved release and keep the capture reference privately alongside the recording evidence. The previously accepted USD 50 operation must not be passed off as a newly completed order.
-- Buyer credentials are provided separately for testing; never include passwords, API keys, secret organizer links or email-recovery tokens in the published video or repository.
+- The dedicated Personal sandbox buyer is available through **Probar pago con PayPal → Ver cuenta de prueba**; never include passwords, API keys, secret organizer links or email-recovery tokens in the published video or repository.
 - Show only the public link when demonstrating sharing. An unsent WhatsApp draft is sufficient to demonstrate the integration; do not send invitations to third parties.
 - The single sandbox Business recipient receives the capture. Do not narrate a separate organizer payout or multi-merchant onboarding.
 - If voice has no physical acceptance, use text in the recorded route and report voice as pending. Do not substitute an audio file for a live conversation while describing it as live.
