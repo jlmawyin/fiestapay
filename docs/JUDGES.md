@@ -81,3 +81,7 @@ The three historical October campaign captures total USD 125 in their own event.
 This demo uses one Business sandbox recipient for all organizers. Earlier release `60593db` added public voice/session and UI changes; the current update adds two home cards, the explicit demo-payment entry, a dedicated shared sandbox buyer and one text/voice orb, preserving the public example panel and informational text chat. Neither adds a second merchant or changes the sandbox financial engine. Capture credits the shared Business account. Independent merchant onboarding and PayPal Payouts are outside the demo. PayPal handles checkout credentials; Buyer Protection depends on eligibility and applicable terms rather than automatically covering every payment.
 
 Submission preparation still requires a human walkthrough, physical mobile voice results, video publication and Devpost submission. No completed human test, recording or submission is asserted here.
+
+## In-app navigation help
+
+Open the FiestaPay orb and choose **Escribir** (text) or **Hablar** (voice). Tell it which screen you are on. For example: “Estoy en la portada, ¿qué botón abre AG Grid?” or “Quiero probar el pago de la demo, ¿qué pulso primero?”. It names actual visible buttons and keeps payment confirmation in your hands. The public text assistant does not remember previous clicks; include your current step in the question.
