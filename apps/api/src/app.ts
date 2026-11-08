@@ -15,6 +15,7 @@ import { PayPalSandboxClient } from './paypal/client.js';
 import type { PayPalAdapter } from './paypal/types.js';
 import { registerRecoveryRoutes } from './routes/recovery.js';
 import { registerChatRoutes } from './routes/chat.js';
+import { registerSuggestRoutes } from './routes/suggest.js';
 import { registerOrganizerAssistantRoutes } from './routes/organizer-assistant.js';
 import { registerModerationRoutes } from './routes/moderation.js';
 import { registerVoiceRoutes } from './routes/voice.js';
@@ -153,6 +154,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       await registerRecoveryRoutes(api, deps);
       await registerPaymentRoutes(api, deps);
       await registerChatRoutes(api, deps);
+      await registerSuggestRoutes(api, deps);
       await registerOrganizerAssistantRoutes(api, deps);
       await registerModerationRoutes(api, deps);
       await registerVoiceRoutes(api, deps);
