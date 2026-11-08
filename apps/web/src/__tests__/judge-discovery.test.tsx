@@ -225,8 +225,14 @@ describe('landing journey and organizer safety', () => {
   });
 });
 
-describe('invitation PayPal stepper', () => {
-  it('focuses the join name first and never creates or captures an order from Quiero pagar', async () => {
+describe('invitation payment wizard', () => {
+  function stepItem(title: string): HTMLElement {
+    const item = screen.getByText(title, { selector: '.payment-wizard__step-title' }).closest('li');
+    expect(item).not.toBeNull();
+    return item as HTMLElement;
+  }
+
+  it('opens only the join step for a visitor and never creates or captures an order', async () => {
     vi.spyOn(api, 'getEventBySlug').mockResolvedValue({ event: sampleEvent(), guest: null });
     const createOrder = vi.spyOn(api, 'createOrder');
     const captureOrder = vi.spyOn(api, 'captureOrder');
@@ -240,16 +246,23 @@ describe('invitation PayPal stepper', () => {
     );
 
     expect(await screen.findByText('Tu camino al pago')).toBeInTheDocument();
-    const alias = screen.getByLabelText(/Alias del invitado/i);
-    fireEvent.click(screen.getByRole('button', { name: 'Quiero pagar' }));
-    expect(alias).toHaveFocus();
+    expect(screen.getByLabelText(/Alias del invitado/i)).toBeInTheDocument();
+    expect(stepItem('Únete con tu nombre')).toHaveAttribute('aria-current', 'step');
+    expect(stepItem('Confirma tu asistencia')).toHaveAttribute('aria-disabled', 'true');
+    expect(stepItem('Revisa tu importe')).toHaveAttribute('aria-disabled', 'true');
+    expect(stepItem('Paga en PayPal Sandbox')).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    expect(screen.queryByRole('checkbox', { name: /Confirmar revisión de la cotización/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Quiero pagar' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Quiero pagar/)).not.toBeInTheDocument();
     expect(createOrder).not.toHaveBeenCalled();
     expect(captureOrder).not.toHaveBeenCalled();
   });
 
-  it('moves to the RSVP step for a joined guest who has not chosen attendance', async () => {
+  it('opens the RSVP step for a joined guest who has not chosen attendance', async () => {
     const guest: Guest = { id: 'guest-1', name: 'Invitado Demo', status: 'maybe', companions: 0, paidCents: 0, dueCents: 0 };
     vi.spyOn(api, 'getEventBySlug').mockResolvedValue({ event: sampleEvent(), guest });
+    const getQuote = vi.spyOn(api, 'getQuote');
     render(
       <PublicInviteView
         slug="demo-privada"
@@ -260,8 +273,13 @@ describe('invitation PayPal stepper', () => {
     );
 
     const radios = await screen.findAllByRole('radio');
-    fireEvent.click(screen.getByRole('button', { name: 'Quiero pagar' }));
-    expect(radios[0]).toHaveFocus();
+    expect(radios.length).toBeGreaterThan(0);
+    expect(stepItem('Confirma tu asistencia')).toHaveAttribute('aria-current', 'step');
+    expect(within(stepItem('Únete con tu nombre')).getByText('Invitado Demo')).toBeInTheDocument();
+    expect(stepItem('Revisa tu importe')).toHaveAttribute('aria-disabled', 'true');
+    expect(stepItem('Paga en PayPal Sandbox')).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.queryByRole('button', { name: 'Quiero pagar' })).not.toBeInTheDocument();
+    expect(getQuote).not.toHaveBeenCalled();
   });
 
   it('shows the server quote and keeps the human confirmation before any order', async () => {
@@ -289,10 +307,13 @@ describe('invitation PayPal stepper', () => {
       />,
     );
 
-    const checkbox = await screen.findByRole('checkbox', { name: /Confirmar revisión de la cotización/i });
+    await screen.findByRole('checkbox', { name: /Confirmar revisión de la cotización/i });
     expect(screen.getAllByText(/\$50,00/).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('button', { name: 'Quiero pagar' }));
-    expect(checkbox).toHaveFocus();
+    expect(stepItem('Revisa tu importe')).toHaveAttribute('aria-current', 'step');
+    const proceed = screen.getByRole('button', { name: /Confirmar y Generar Pago/ });
+    expect(proceed).toBeDisabled();
+    fireEvent.click(proceed);
     expect(createOrder).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Quiero pagar' })).not.toBeInTheDocument();
   });
 });

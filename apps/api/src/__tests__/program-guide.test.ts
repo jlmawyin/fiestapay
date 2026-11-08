@@ -302,6 +302,32 @@ describe('contrato bilingüe de la guía', () => {
   });
 });
 
+describe('guía del asistente de pago FP-WIZ-1', () => {
+  const WIZARD_LABEL_KEYS = [
+    'paymentPathTitle',
+    'stepJoin',
+    'stepRsvp',
+    'stepQuote',
+    'stepPay',
+    'saveAndContinue',
+    'changeStep',
+    'askAboutStep',
+  ] as const;
+
+  it.each(LOCALES)('cita el asistente de 4 pasos en los seis prompts (%s) sin «Quiero pagar»', (locale) => {
+    const labels = UI_LABELS[locale];
+    const prompts = actualPrompts(locale);
+    expect(Object.keys(prompts)).toHaveLength(6);
+    for (const [name, prompt] of Object.entries(prompts)) {
+      for (const key of WIZARD_LABEL_KEYS) {
+        expect(prompt, `${name} debe citar ${key}: ${labels[key]}`).toContain(labels[key]);
+      }
+      expect(prompt, `${name} ya no cita el botón eliminado`).not.toContain('Quiero pagar');
+      expect(prompt, `${name} ya no cita el botón eliminado`).not.toContain('I want to pay');
+    }
+  });
+});
+
 describe('regresión de recuperación: navegación y datos sensibles', () => {
   it.each(['¿Dónde copio la contraseña de prueba?', '¿Cómo uso el botón Copiar contraseña?', '¿Dónde está Copiar correo?', 'Ya veo datos de sandbox, ¿dónde pego la contraseña?', 'Dime qué botón uso para Copiar contraseña en la demo', '¿Dónde veo la cuenta Personal de prueba?'])('permite orientación de controles: %s', (question) => {
     expect(decideAssistantTurn(question)).toEqual({ kind: 'model' });

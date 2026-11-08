@@ -10,6 +10,14 @@ import { orbCatalog } from '../../i18n/catalogs/orb';
 export type AssistantAudience = 'public' | 'guest' | 'organizer';
 export type AssistantOrbMode = 'text' | 'voice';
 
+/**
+ * Document event that opens the orb in text mode without sending messages or
+ * starting voice. Dispatch: `document.dispatchEvent(new CustomEvent(
+ * ASSISTANT_OPEN_EVENT, { detail: { step } }))`. The payment wizard uses it
+ * for its per-step "ask the assistant" link.
+ */
+export const ASSISTANT_OPEN_EVENT = 'fiestapay:open-assistant' as const;
+
 export interface AssistantOrbProps {
   /** public: informational only. guest: the invitation routes. organizer: keyed panel routes. */
   audience?: AssistantAudience;
@@ -108,6 +116,15 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isOpen]);
+
+  useEffect(() => {
+    const onOpenRequest = () => {
+      setMode('text');
+      setIsOpen(true);
+    };
+    document.addEventListener(ASSISTANT_OPEN_EVENT, onOpenRequest);
+    return () => document.removeEventListener(ASSISTANT_OPEN_EVENT, onOpenRequest);
+  }, []);
 
   return (
     <>

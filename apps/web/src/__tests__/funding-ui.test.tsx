@@ -335,7 +335,8 @@ describe('Public invite failed and closed states', () => {
       <PublicInviteView slug="fiesta-fallida" capabilities={null} onShowToast={vi.fn()} onNavigateHome={vi.fn()} />,
     );
     await screen.findByText('Fiesta de prueba');
-    expect(screen.getByText(/No se admiten nuevas asistencias ni pagos/i)).toBeInTheDocument();
+    // The banner above the wizard and the open step both show the reason.
+    expect(screen.getAllByText(/No se admiten nuevas asistencias ni pagos/i)).toHaveLength(2);
     expect(screen.queryByText(/¿Vienes a la fiesta/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Desglose de Cuota/i)).not.toBeInTheDocument();
     expect(screen.getAllByText(/Personas pagadas: por consultar/).length).toBeGreaterThan(0);

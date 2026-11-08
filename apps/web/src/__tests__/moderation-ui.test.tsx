@@ -153,7 +153,8 @@ describe('moderacion en la interfaz', () => {
     render(<PublicInviteView slug="fiesta" capabilities={caps} onShowToast={vi.fn()} onNavigateHome={vi.fn()} />);
 
     expect(await screen.findByText(/Esta sesión no puede confirmar asistencia/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Actualizar mi Asistencia' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Guardar y seguir' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cambiar' })).not.toBeInTheDocument();
     expect(await screen.findByRole('button', { name: '🔍 Verificar Estado' })).toBeInTheDocument();
     expect(screen.queryByText(/Proveedor PayPal no configurado/)).not.toBeInTheDocument();
     expect(screen.getByText(/13,33/, { selector: 'strong' })).toBeInTheDocument();

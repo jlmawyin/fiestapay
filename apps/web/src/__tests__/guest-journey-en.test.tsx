@@ -185,9 +185,15 @@ describe('guest invitation in English', () => {
     ).toBeInTheDocument();
     // Guayaquil zone is printed, in the locale format.
     expect(screen.getByText(/America\/Guayaquil/)).toBeInTheDocument();
-    // Stepper and its literal CTA label.
-    expect(screen.getByRole('button', { name: labels.wantToPay })).toBeInTheDocument();
-    expect(screen.getByText(/the I want to pay button creates no orders/)).toBeInTheDocument();
+    // Wizard header, step titles, and strict order: only step 1 is open.
+    expect(screen.getByText(labels.paymentPathTitle)).toBeInTheDocument();
+    expect(screen.getByText(labels.stepJoin, { selector: '.payment-wizard__step-title' })).toBeInTheDocument();
+    expect(screen.getByText(labels.stepRsvp, { selector: '.payment-wizard__step-title' })).toBeInTheDocument();
+    expect(screen.getByText(labels.stepQuote, { selector: '.payment-wizard__step-title' })).toBeInTheDocument();
+    expect(screen.getByText(labels.stepPay, { selector: '.payment-wizard__step-title' })).toBeInTheDocument();
+    expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'I want to pay' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/I want to pay/)).not.toBeInTheDocument();
     // Join form in English.
     expect(screen.getByLabelText('Guest alias')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Join the meal' })).toBeInTheDocument();
@@ -217,7 +223,7 @@ describe('guest invitation in English', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: /Yes, I am coming!/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Add one companion' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Update my attendance' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save and continue' }));
     await waitFor(() => expect(rsvp).toHaveBeenCalledWith('sunday-lunch', 'yes', 1));
 
     const card = await screen.findByRole('region', { name: 'Review your payment' });
