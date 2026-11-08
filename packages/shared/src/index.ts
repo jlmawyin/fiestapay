@@ -74,6 +74,8 @@ export interface FiestaEvent {
   organizerName?: string | null;
   /** Resolved theme key. Legacy rows are presented with the template default. */
   theme?: ThemeKey;
+  /** True for judge-demo events (events.is_demo). Absent means false. */
+  isDemo?: boolean;
 }
 export interface Guest {
   id: string;
@@ -221,8 +223,6 @@ export interface ModerationConversation {
   id: string;
   guestId: string | null;
   guestName: string | null;
-  /** True for judge-demo events (events.is_demo). Sent in the owner's list; absent means false. */
-  isDemo?: boolean;
 }
 export interface ModerationMessage extends ChatTranscriptMessage {
   conversationId: string;
