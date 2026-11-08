@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
+import { Sparkles, X } from 'lucide-react';
 import { UI_LABELS, type AssistantContext } from '@fiestapay/shared';
 import type { Capabilities, Guest, Quote, RsvpStatus } from '../../types';
 import { PublicChatAssistant } from '../chat/PublicChatAssistant';
@@ -160,8 +161,8 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
           lineHeight: 1,
         }}
       >
-        <span aria-hidden="true" style={{ textShadow: '0 1px 2px rgba(18,38,58,0.35)' }}>
-          ✦
+        <span aria-hidden="true" style={{ display: 'inline-flex', filter: 'drop-shadow(0 1px 2px rgba(18,38,58,0.35))' }}>
+          <Sparkles size={26} aria-hidden="true" />
         </span>
         <span
           style={{
@@ -251,13 +252,13 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
               border: 'none',
               color: '#FFFFFF',
               cursor: 'pointer',
-              fontSize: '1.25rem',
               lineHeight: 1,
               padding: '0.2rem',
               flex: '0 0 auto',
+              display: 'inline-flex',
             }}
           >
-            ×
+            <X size={18} aria-hidden="true" />
           </button>
         </header>
 

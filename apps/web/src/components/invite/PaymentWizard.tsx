@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Check, Lock, Search } from 'lucide-react';
 import { UI_LABELS } from '@fiestapay/shared';
 import type {
   Capabilities,
@@ -184,6 +185,7 @@ export const PaymentWizard: React.FC<PaymentWizardProps> = ({
         if (joined) {
           return (
             <p className="payment-wizard__done-line">
+              <Check size={16} aria-hidden="true" style={{ color: 'var(--color-teal)', verticalAlign: '-3px', marginRight: '0.35rem' }} />
               {m.stepJoinedLead} <strong>{guest?.name}</strong>
             </p>
           );
@@ -275,7 +277,12 @@ export const PaymentWizard: React.FC<PaymentWizardProps> = ({
       case 4: {
         if (!rsvpYes || !quoteDone) return null;
         if (payDone) {
-          return <p className="payment-wizard__done-line">{m.stepPayDone}</p>;
+          return (
+            <p className="payment-wizard__done-line">
+              <Check size={16} aria-hidden="true" style={{ color: 'var(--color-teal)', verticalAlign: '-3px', marginRight: '0.35rem' }} />
+              {m.stepPayDone}
+            </p>
+          );
         }
         if (!activeOrder) return null;
         return (
@@ -307,7 +314,14 @@ export const PaymentWizard: React.FC<PaymentWizardProps> = ({
                   className="btn btn-teal"
                   style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
                 >
-                  {isReconcilingOrder ? m.orderChecking : `🔍 ${labels.verifyStatus}`}
+                  {isReconcilingOrder ? (
+                    m.orderChecking
+                  ) : (
+                    <>
+                      <Search size={16} aria-hidden="true" />
+                      <span>{labels.verifyStatus}</span>
+                    </>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -381,7 +395,13 @@ export const PaymentWizard: React.FC<PaymentWizardProps> = ({
             >
               <div className="payment-wizard__step-head">
                 <span aria-hidden="true" className="payment-wizard__badge">
-                  {state === 'done' ? '✓' : state === 'locked' ? '🔒' : step}
+                  {state === 'done' ? (
+                    <Check size={14} aria-hidden="true" />
+                  ) : state === 'locked' ? (
+                    <Lock size={14} aria-hidden="true" />
+                  ) : (
+                    step
+                  )}
                 </span>
                 <strong className="payment-wizard__step-title">{titles[step]}</strong>
               </div>

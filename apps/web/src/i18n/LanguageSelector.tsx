@@ -1,4 +1,5 @@
 import React from 'react';
+import { Globe } from 'lucide-react';
 import { UI_LABELS, type Locale } from '@fiestapay/shared';
 import { useI18n } from './I18nContext';
 
@@ -17,7 +18,7 @@ export const LanguageSelector: React.FC = () => {
 
   return (
     <label className="fp-lang" htmlFor="fp-language-select">
-      <span aria-hidden="true">🌐</span>
+      <Globe size={16} aria-hidden="true" />
       <span>{labels.languageSelector}</span>
       <select
         id="fp-language-select"

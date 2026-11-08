@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Check, X } from 'lucide-react';
 import { UI_LABELS } from '@fiestapay/shared';
 import type { Guest, RsvpStatus, FiestaEvent } from '../../types';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
@@ -137,7 +138,8 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
             fontSize: '0.875rem',
           }}
         >
-          {m.yes}
+          <Check size={16} aria-hidden="true" />
+          <span>{m.yes}</span>
         </button>
 
         <button
@@ -178,7 +180,8 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
             fontSize: '0.875rem',
           }}
         >
-          {m.no}
+          <X size={16} aria-hidden="true" />
+          <span>{m.no}</span>
         </button>
       </div>
 

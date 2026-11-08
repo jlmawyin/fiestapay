@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Check } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Modal } from '../common/Modal';
 import { useMessages } from '../../i18n/I18nContext';
@@ -89,7 +90,14 @@ export const QrShareModal: React.FC<QrShareModalProps> = ({
               className={`btn ${copied ? 'btn-teal' : 'btn-primary'}`}
               style={{ minWidth: '110px', fontSize: '0.85rem' }}
             >
-              {copied ? m.copied : m.copy}
+              {copied ? (
+                <>
+                  <Check size={16} aria-hidden="true" />
+                  <span>{m.copied}</span>
+                </>
+              ) : (
+                m.copy
+              )}
             </button>
           </div>
         </div>

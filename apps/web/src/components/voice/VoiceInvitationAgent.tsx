@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Check, ClipboardList, Lock, Mic, Receipt, X } from 'lucide-react';
 import { UI_LABELS, type VoiceAudience } from '@fiestapay/shared';
 import type { Capabilities, Guest, Quote, RsvpStatus } from '../../types';
 import { ApiError, api } from '../../api/client';
@@ -1006,9 +1007,9 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
             aria-label={isOpen ? m.closeVoice : m.openVoice}
             aria-expanded={isOpen}
           >
-            <span style={{ fontSize: '1.2rem' }}>🎙️</span>
+            <Mic size={20} aria-hidden="true" />
             <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{publicAudience ? m.talkShortPublic : m.talkShort}</span>
-            {isOpen ? '✕' : ''}
+            {isOpen ? <X size={16} aria-hidden="true" /> : null}
           </button>
         </div>
       )}
@@ -1050,7 +1051,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '1.2rem' }}>🎙️</span>
+              <Mic size={20} aria-hidden="true" />
               <div>
                 <strong style={{ fontSize: '0.9rem', display: 'block' }}>
                   {publicAudience ? m.titlePublic : organizer ? m.titleOrg : m.titleGuest}
@@ -1065,10 +1066,10 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                 handleStopVoice();
                 setOpen(false);
               }}
-              style={{ background: 'none', border: 'none', color: '#FFFFFF', cursor: 'pointer', fontSize: '1.1rem' }}
+              style={{ background: 'none', border: 'none', color: '#FFFFFF', cursor: 'pointer', display: 'inline-flex' }}
               aria-label={m.closePanel}
             >
-              ×
+              <X size={18} aria-hidden="true" />
             </button>
           </div>
           )}
@@ -1133,7 +1134,8 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                   }}
                 >
                   <p>
-                    🔒 <strong>{m.privacyTitle}</strong>{' '}
+                    <Lock size={14} aria-hidden="true" style={{ verticalAlign: '-2px', marginRight: '0.3rem' }} />
+                    <strong>{m.privacyTitle}</strong>{' '}
                     {publicAudience ? (
                       <>
                         {m.privacyPublicA}
@@ -1173,7 +1175,8 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                       className="btn btn-teal"
                       style={{ padding: '0.75rem', fontWeight: 700, width: '100%' }}
                     >
-                      <span aria-hidden="true">🎙️ </span>{publicAudience ? labels.listen : labels.startVoice}
+                      <Mic size={18} aria-hidden="true" />
+                      <span>{publicAudience ? labels.listen : labels.startVoice}</span>
                     </button>
                     {startDisabledReason && (
                       <span style={{ fontSize: '0.72rem', color: 'var(--color-ink-light)', textAlign: 'center' }}>
@@ -1293,8 +1296,9 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                             fontSize: '0.825rem',
                           }}
                         >
-                          <div style={{ fontWeight: 700, color: 'var(--color-ink)', marginBottom: '0.25rem' }}>
-                            {m.proposalTitle}
+                          <div style={{ fontWeight: 700, color: 'var(--color-ink)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <ClipboardList size={16} aria-hidden="true" />
+                            <span>{m.proposalTitle}</span>
                           </div>
                           <p style={{ color: 'var(--color-ink-muted)', marginBottom: '0.5rem' }}>
                             {m.proposalSuggests}<strong>{prop.status === 'yes' ? m.attend(totalCount, peopleWord(totalCount, locale)) : prop.status === 'no' ? m.decline : m.maybe}</strong>.
@@ -1305,7 +1309,14 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                             className="btn btn-teal"
                             style={{ width: '100%', fontSize: '0.75rem', padding: '0.4rem' }}
                           >
-                            {prop.confirmed ? m.confirmedServer : m.confirmRsvp}
+                            {prop.confirmed ? (
+                              <>
+                                <Check size={16} aria-hidden="true" />
+                                <span>{m.confirmedServer}</span>
+                              </>
+                            ) : (
+                              m.confirmRsvp
+                            )}
                           </button>
                         </div>
                       );
@@ -1324,7 +1335,10 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                       fontSize: '0.8rem',
                     }}
                   >
-                    <div style={{ fontWeight: 700, color: 'var(--color-teal)' }}>{m.quoteDoneTitle}</div>
+                    <div style={{ fontWeight: 700, color: 'var(--color-teal)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Receipt size={16} aria-hidden="true" />
+                      <span>{m.quoteDoneTitle}</span>
+                    </div>
                     <p style={{ margin: '0.25rem 0' }}>
                       {quoteClientSummary(
                         {

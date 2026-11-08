@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useLayoutEffect, useRef } from 'react';
+import { Check, MapPin, QrCode } from 'lucide-react';
 import type { FiestaEvent, Guest, Quote, OrderResult, Capabilities, RsvpStatus, AgendaItem } from '../types';
 import { api, ApiError } from '../api/client';
 import { useI18n, useMessages } from '../i18n/I18nContext';
@@ -459,7 +460,10 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
             {event.fundingStatus === 'failed' ? (
               <span className="badge badge-coral">{m.badgeFailed}</span>
             ) : event.confirmed ? (
-              <span className="badge badge-teal">{m.badgeConfirmed}</span>
+              <span className="badge badge-teal">
+                <Check size={14} aria-hidden="true" />
+                <span>{m.badgeConfirmed}</span>
+              </span>
             ) : event.fundingStatus === 'funded' ? (
               <span className="badge badge-blue">{m.badgeFunded}</span>
             ) : null}
@@ -525,14 +529,16 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
               className="btn btn-secondary"
               style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
             >
-              {m.mapsCta}
+              <MapPin size={16} aria-hidden="true" />
+              <span>{m.mapsCta}</span>
             </a>
             <button
               onClick={() => setShowQrModal(true)}
               className="btn btn-secondary"
               style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
             >
-              {m.qrCta}
+              <QrCode size={16} aria-hidden="true" />
+              <span>{m.qrCta}</span>
             </button>
           </div>
         </div>
@@ -558,9 +564,13 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
                       borderRadius: 'var(--radius-full)',
                       fontSize: '0.8rem',
                       fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
                     }}
                   >
-                    ✓ {item}
+                    <Check size={14} aria-hidden="true" />
+                    <span>{item}</span>
                   </span>
                 ))}
               </div>

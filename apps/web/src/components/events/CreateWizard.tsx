@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Check, Lock, X } from 'lucide-react';
 import {
   UI_LABELS,
   mealLabel,
@@ -36,6 +37,7 @@ import {
   themeCssVars,
 } from '../../lib/event-presentation';
 import { TemplateCover } from '../illustrations/TemplateCover';
+import { TemplateIcon } from './template-icons';
 
 interface CreateWizardProps {
   onSubmit: (input: EventInput) => Promise<void>;
@@ -689,7 +691,10 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
                 onClick={() => handleSelectTemplate(t)}
                 className="create-wizard__type-card"
               >
-                <span className="create-wizard__type-name">{templateLabels[t]}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <TemplateIcon template={t} size={18} />
+                  <span className="create-wizard__type-name">{templateLabels[t]}</span>
+                </span>
                 <span className="create-wizard__type-example">{typeExample(t)}</span>
               </button>
             );
@@ -1016,7 +1021,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
               style={{ padding: '0.4rem 0.6rem', color: 'var(--color-coral)' }}
               aria-label={m.agendaRemoveAria}
             >
-              ✕
+              <X size={16} aria-hidden="true" />
             </button>
           </div>
         ))}
@@ -1649,7 +1654,13 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
             >
               <div className="create-wizard__step-head">
                 <span aria-hidden="true" className="create-wizard__badge">
-                  {state === 'done' ? '✓' : state === 'locked' ? '🔒' : step}
+                  {state === 'done' ? (
+                    <Check size={14} aria-hidden="true" />
+                  ) : state === 'locked' ? (
+                    <Lock size={14} aria-hidden="true" />
+                  ) : (
+                    step
+                  )}
                 </span>
                 <strong className="create-wizard__step-title">{titles[step]}</strong>
               </div>

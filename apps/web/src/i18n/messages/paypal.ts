@@ -37,7 +37,7 @@ export const paypalCatalog = defineCatalog({
     verifyBusy: 'Verificando...',
     heading: 'Completar Pago Seguro',
     orderBadge: (shortId: string) => `Orden #${shortId}`,
-    approvedTitle: '✓ Autorización recibida en PayPal',
+    approvedTitle: 'Autorización recibida en PayPal',
     approvedBody:
       'Tu orden está autorizada en PayPal. Confirma la captura final para que el servidor verifique la transacción y acredite tu cuota.',
     approvedBusy: 'Verificando y Capturando...',
@@ -49,8 +49,8 @@ export const paypalCatalog = defineCatalog({
     loadingSdk: 'Cargando interfaz oficial de PayPal Sandbox...',
     sdkFallback: 'No se pudo inicializar la pasarela de PayPal.',
     retrySdk: 'Reintentar carga de PayPal',
-    externalApprovalLink: 'Abrir enlace de aprobación PayPal provisto por la orden ↗',
-    externalWindowLink: 'Ir a pagar en PayPal en ventana externa ↗',
+    externalApprovalLink: 'Abrir enlace de aprobación PayPal provisto por la orden',
+    externalWindowLink: 'Ir a pagar en PayPal en ventana externa',
     reconcileHint: '¿Pagaste en otra ventana o necesitas conciliar?',
   },
   en: {
@@ -83,7 +83,7 @@ export const paypalCatalog = defineCatalog({
     verifyBusy: 'Checking...',
     heading: 'Complete Secure Payment',
     orderBadge: (shortId: string) => `Order #${shortId}`,
-    approvedTitle: '✓ Authorization received in PayPal',
+    approvedTitle: 'Authorization received in PayPal',
     approvedBody:
       'Your order is authorized in PayPal. Confirm the final capture so the server verifies the transaction and credits your share.',
     approvedBusy: 'Checking and Capturing...',
@@ -95,8 +95,8 @@ export const paypalCatalog = defineCatalog({
     loadingSdk: 'Loading the official PayPal Sandbox interface...',
     sdkFallback: 'Could not start the PayPal gateway.',
     retrySdk: 'Retry loading PayPal',
-    externalApprovalLink: 'Open the PayPal approval link provided by the order ↗',
-    externalWindowLink: 'Pay in PayPal in an external window ↗',
+    externalApprovalLink: 'Open the PayPal approval link provided by the order',
+    externalWindowLink: 'Pay in PayPal in an external window',
     reconcileHint: 'Did you pay in another window or need to reconcile?',
   },
 });

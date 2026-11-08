@@ -1,4 +1,5 @@
 import React from 'react';
+import { X } from 'lucide-react';
 import type { ToastMessage } from '../../types';
 import { useMessages } from '../../i18n/I18nContext';
 import { toastCatalog } from '../../i18n/catalogs/toast';
@@ -77,12 +78,12 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismis
                 cursor: 'pointer',
                 color: 'var(--color-ink-light)',
                 padding: '0.2rem',
-                fontSize: '1.1rem',
                 lineHeight: 1,
+                display: 'inline-flex',
               }}
               aria-label={m.dismiss}
             >
-              ×
+              <X size={16} aria-hidden="true" />
             </button>
           </div>
         );

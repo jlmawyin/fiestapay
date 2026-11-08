@@ -54,7 +54,7 @@ describe('Organizer payment status and human WhatsApp reminders', () => {
     render(<GuestGrid guests={guests} eventTitle="Fiesta A & Amigos" inviteUrl="https://fiestapay.somospanas.com/e/a" />);
     expect(screen.getByText('Confirmado, sin pagar')).toBeInTheDocument();
     expect(screen.getByText('Confirmado (pago parcial)')).toBeInTheDocument();
-    expect(screen.getByText('✓ Confirmado (pagado)')).toBeInTheDocument();
+    expect(screen.getByText('Confirmado (pagado)')).toBeInTheDocument();
     for (const name of ['Lucía Demo','Roberto Demo','Cero Demo']) {
       expect(within(screen.getByRole('row', {name:new RegExp(name)})).queryByText(/pagado/i)).not.toBeInTheDocument();
     }

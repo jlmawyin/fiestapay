@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Hand } from 'lucide-react';
 import type { TemplateKind } from '../../types';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { inviteCatalog } from '../../i18n/messages/invite';
@@ -54,7 +55,7 @@ export const JoinForm: React.FC<JoinFormProps> = ({
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-        <span style={{ fontSize: '1.3rem' }} aria-hidden="true">👋</span>
+        <Hand size={20} aria-hidden="true" style={{ color: 'var(--color-yellow-dark)' }} />
         <h3 style={{ fontSize: '1.1rem', color: 'var(--color-ink)' }}>{copy.welcome}</h3>
       </div>
       <p style={{ fontSize: '0.85rem', color: 'var(--color-ink-muted)', marginBottom: '1rem' }}>

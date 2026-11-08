@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { TriangleAlert } from 'lucide-react';
 import { DEMO_GUEST_NAME, type AssistantContext } from '@fiestapay/shared';
 import type { Capabilities, FiestaEvent, ToastMessage } from './types';
 import { api, ApiError } from './api/client';
@@ -334,7 +335,10 @@ export const App: React.FC = () => {
           }}
           role="alert"
         >
-          <span>⚠️ {sessionError}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+            <TriangleAlert size={16} aria-hidden="true" />
+            <span>{sessionError}</span>
+          </span>
           <button onClick={initApp} className="btn btn-secondary" style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}>
             {m.retryConnection}
           </button>

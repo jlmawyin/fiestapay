@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Check, MessageCircle, X } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
@@ -57,6 +58,7 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
         cellRenderer: (params: ICellRendererParams<Guest>) => {
           const guest = params.data;
           if (!guest) return <strong>{params.value}</strong>;
+          const payment = getGuestPaymentStatus(guest, locale);
           return (
             <div
               style={{
@@ -70,8 +72,13 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
               <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {guest.name}
               </strong>
-              <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>
-                {getGuestPaymentStatus(guest, locale).label}
+              <span style={{ fontSize: '0.72rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                {payment.badgeClass === 'badge-teal' ? (
+                  <Check size={12} aria-hidden="true" />
+                ) : payment.badgeClass === 'badge-coral' ? (
+                  <X size={12} aria-hidden="true" />
+                ) : null}
+                <span>{payment.label}</span>
               </span>
               {canSendReminder(guest) && (
                 <span
@@ -98,10 +105,20 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
           const guest = params.data;
           if (!guest) return null;
           return guest.status === 'yes'
-            ? <span className="badge badge-teal">{m.attYes}</span>
+            ? (
+              <span className="badge badge-teal">
+                <Check size={12} aria-hidden="true" />
+                <span>{m.attYes}</span>
+              </span>
+            )
             : guest.status === 'maybe'
               ? <span className="badge badge-yellow">{m.attMaybe}</span>
-              : <span className="badge badge-coral">{m.attNo}</span>;
+              : (
+                <span className="badge badge-coral">
+                  <X size={12} aria-hidden="true" />
+                  <span>{m.attNo}</span>
+                </span>
+              );
         },
       },
       {
@@ -183,6 +200,7 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
                 color: 'var(--color-ink)',
               }}
             >
+              <MessageCircle size={14} aria-hidden="true" />
               <span>{m.remindBtn}</span>
             </a>
           );

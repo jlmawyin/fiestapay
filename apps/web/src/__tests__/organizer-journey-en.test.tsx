@@ -248,7 +248,7 @@ describe('organizer dashboard in English', () => {
       'Meal confirmed',
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '📲 QR' }));
+    fireEvent.click(screen.getByRole('button', { name: 'QR' }));
     expect(screen.getByText('Share Invitation')).toBeInTheDocument();
     const draft = screen.getByLabelText('WhatsApp draft');
     expect(draft.textContent).toContain('Coming to eat?');
@@ -435,7 +435,7 @@ describe('organizer assistant chrome in English', () => {
 });
 
 describe('cover badges and share draft', () => {
-  it('shows the badge in the active language without changing the drawing', () => {
+  it('shows the badge in the active language', () => {
     const { unmount } = render(<ComidaCover />);
     expect(document.querySelector('svg text')?.textContent).toBe('COMIDA & ASADO');
     unmount();

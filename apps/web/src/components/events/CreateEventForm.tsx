@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import {
   mealLabel,
   templateInviteCopy,
@@ -35,6 +36,7 @@ import {
   themeCssVars,
 } from '../../lib/event-presentation';
 import { TemplateCover } from '../illustrations/TemplateCover';
+import { TemplateIcon } from './template-icons';
 
 interface CreateEventFormProps {
   onSubmit: (input: EventInput) => Promise<void>;
@@ -345,7 +347,10 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
                   gap: '0.2rem',
                 }}
               >
-                <span>{templateLabels[t]}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <TemplateIcon template={t} size={18} />
+                  <span>{templateLabels[t]}</span>
+                </span>
                 <span style={{ fontSize: '0.7rem', color: 'var(--color-ink-muted)', fontWeight: 500 }}>
                   {m.typeKind}
                 </span>
@@ -757,7 +762,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
                 style={{ padding: '0.4rem 0.6rem', color: 'var(--color-coral)' }}
                 aria-label={m.agendaRemoveAria}
               >
-                ✕
+                <X size={16} aria-hidden="true" />
               </button>
             </div>
           ))}

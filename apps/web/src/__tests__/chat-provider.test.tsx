@@ -86,7 +86,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
     expect(screen.getByText('Chat no disponible')).toBeInTheDocument();
     expect(
       screen.getByText(
-        '⚠️ El servicio de chat no está habilitado en este servidor. Puedes consultar la conversación previa pero las nuevas consultas están pausadas.'
+        'El servicio de chat no está habilitado en este servidor. Puedes consultar la conversación previa pero las nuevas consultas están pausadas.'
       )
     ).toBeInTheDocument();
 
@@ -207,8 +207,8 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
 
     // Wait for the assistant message and proposal cards to appear
     await screen.findByText('He preparado una sugerencia para ti y tu cuota.');
-    expect(screen.getByText('🧾 Propuesta de Cotización')).toBeInTheDocument();
-    expect(screen.getByText('📋 Propuesta de Asistencia')).toBeInTheDocument();
+    expect(screen.getByText('Propuesta de Cotización')).toBeInTheDocument();
+    expect(screen.getByText('Propuesta de Asistencia')).toBeInTheDocument();
 
     // Verify NO side effects happened merely from receiving the message:
     expect(rsvpSpy).not.toHaveBeenCalled();
@@ -227,7 +227,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
     await waitFor(() => {
       expect(onConfirmRsvp).toHaveBeenCalledTimes(1);
       expect(onConfirmRsvp).toHaveBeenCalledWith('yes', 1);
-      expect(screen.getByText('✓ Asistencia Confirmada en el Servidor')).toBeInTheDocument();
+      expect(screen.getByText('Asistencia Confirmada en el Servidor')).toBeInTheDocument();
     });
   });
 
@@ -281,8 +281,8 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
     expect(panel.textContent).not.toContain('**');
     expect(panel.textContent).toContain('<script>alert(1)</script>');
     expect(panel.textContent).toContain('segunda linea');
-    expect(screen.getByText('🧾 Propuesta de Cotización')).toBeInTheDocument();
-    expect(screen.getByText('📋 Propuesta de Asistencia')).toBeInTheDocument();
+    expect(screen.getByText('Propuesta de Cotización')).toBeInTheDocument();
+    expect(screen.getByText('Propuesta de Asistencia')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Revisar y Confirmar en Pantalla' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Confirmar Asistencia' })).toBeInTheDocument();
   });

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { X } from 'lucide-react';
 import { useMessages } from '../../i18n/I18nContext';
 import { modalCatalog } from '../../i18n/catalogs/modal';
 
@@ -69,10 +70,10 @@ export const Modal: React.FC<ModalProps> = ({
           <button
             onClick={onClose}
             className="btn btn-secondary"
-            style={{ padding: '0.25rem 0.6rem', fontSize: '1.1rem', lineHeight: 1 }}
+            style={{ padding: '0.35rem 0.6rem', lineHeight: 1 }}
             aria-label={m.close}
           >
-            ×
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
         <div style={{ padding: '1.5rem' }}>{children}</div>

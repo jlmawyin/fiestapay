@@ -178,7 +178,7 @@ describe('guest invitation in English', () => {
     expect(screen.getByText('Speaker: Ana Torres')).toBeInTheDocument();
     // Organizer content is untouched.
     expect(screen.getByText('A relaxed test lunch')).toBeInTheDocument();
-    expect(screen.getByText(/✓ Starter/)).toBeInTheDocument();
+    expect(screen.getByText('Starter')).toBeInTheDocument();
     // Cover art keeps its decorative text but exposes an English accessible name.
     expect(
       screen.getByRole('img', { name: 'Festive banquet and shared meal illustration' })
@@ -258,7 +258,7 @@ describe('guest invitation in English', () => {
 
     expect(await screen.findByText(/Authorization received in PayPal/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: labels.captureComplete })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: `🔍 ${labels.verifyStatus}` })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: labels.verifyStatus })).toBeInTheDocument();
     expect(capture).not.toHaveBeenCalled();
     await waitFor(() =>
       expect(onShowToast).toHaveBeenCalledWith('info', expect.stringContaining('back from PayPal'), 'PayPal return')
