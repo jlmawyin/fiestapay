@@ -6,7 +6,7 @@
 
 **English or Spanish.** The interface is available in both languages. Use the **Language** selector in the header, or open the [Judges demo in English](https://fiestapay.somospanas.com/demo?lang=en); the choice is remembered in this browser. Spanish is the default. Amounts are always USD and event times are always shown in the event time zone (America/Guayaquil). Text written by organizers and guests is never translated.
 
-> Release note: the bilingual interface and the separate **Judges demo** described in this section ship with the `claude/bilingual-judge-demo-20261107` pull request. Until that release is approved and deployed, the live site keeps the previous Spanish two-card home page described in the historical evidence below.
+> Release note: the bilingual interface and the separate **Judges demo** described in this section are live since 8 November 2026 (release `64465cb`). See the [deployment and live-check evidence](reviews/bilingual-live-20261108.md); the sections further below keep historical evidence from earlier releases.
 
 ## Three-minute walkthrough
 
@@ -22,7 +22,7 @@ The home page explains the product and lets anyone **Create my invitation**. Eve
 
 The public assistant keeps the home-page and Judges-demo conversations separate and has no access to any event's private data. Voice requires consent and an explicit start; switching to text, closing the orb or changing the language stops voice. The public text conversation belongs only to the current open window. Messages are processed by OpenAI, and the server keeps consumption metadata without storing public message contents. Event-specific guest and organizer conversations keep their separate permissions. Organizer-link recovery is unchanged at [Recover access](https://fiestapay.somospanas.com/recover).
 
-**Voice languages.** Voice uses the AssemblyAI Voice Agent API with Spanish recognition and the Spanish voice *lola*, or English recognition and the English voice *jane* when English is selected. Both languages are officially supported by the provider, but English voice has not yet been verified with a live session, and Spanish has only been exercised with a synthetic microphone; physical-phone audio remains unverified.
+**Voice languages.** Voice uses the AssemblyAI Voice Agent API with Spanish recognition and the Spanish voice *lola*, or English recognition and the English voice *jane* when English is selected. Both languages are officially supported by the provider. On 8 November one live public voice session per language (text-injected question, not a microphone) was accepted with the exact configuration and answered in that language with complete audio; microphone recognition and physical-phone audio remain unverified.
 
 ### Full sandbox payment route
 
