@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface CoverProps {
   className?: string;
@@ -7,6 +8,7 @@ interface CoverProps {
 }
 
 export const ViajeCover: React.FC<CoverProps> = ({ className = '', height = '180px', accent }) => {
+  const { locale } = useI18n();
   return (
     <svg
       viewBox="0 0 500 200"
@@ -14,7 +16,11 @@ export const ViajeCover: React.FC<CoverProps> = ({ className = '', height = '180
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       style={{ width: '100%', height, display: 'block', objectFit: 'cover' }}
-      aria-label="Ilustración de viaje grupal, montañas y furgoneta de aventura"
+      aria-label={
+        locale === 'en'
+          ? 'Group trip illustration with mountains and adventure van'
+          : 'Ilustración de viaje grupal, montañas y furgoneta de aventura'
+      }
       role="img"
     >
       {/* Sky and sunrise */}

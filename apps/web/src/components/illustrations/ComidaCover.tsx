@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface CoverProps {
   className?: string;
@@ -7,6 +8,7 @@ interface CoverProps {
 }
 
 export const ComidaCover: React.FC<CoverProps> = ({ className = '', height = '180px', accent }) => {
+  const { locale } = useI18n();
   return (
     <svg
       viewBox="0 0 500 200"
@@ -14,7 +16,11 @@ export const ComidaCover: React.FC<CoverProps> = ({ className = '', height = '18
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       style={{ width: '100%', height, display: 'block', objectFit: 'cover' }}
-      aria-label="Ilustración de banquete festivo y comida compartida"
+      aria-label={
+        locale === 'en'
+          ? 'Festive banquet and shared meal illustration'
+          : 'Ilustración de banquete festivo y comida compartida'
+      }
       role="img"
     >
       {/* Background with warm terracotta / dark ink depth */}

@@ -40,6 +40,55 @@ export const TEMPLATE_INVITE_COPY: Record<PresentationTemplate, TemplateInviteCo
   evento: { welcome: '¿Vienes al evento?', join: 'Unirme al evento', noun: 'evento' },
 };
 
+/** English invitation copy per template. Spanish stays in TEMPLATE_INVITE_COPY. */
+export const TEMPLATE_INVITE_COPY_EN: Record<PresentationTemplate, TemplateInviteCopy> = {
+  comida: { welcome: 'Coming to dinner?', join: 'Join the dinner', noun: 'dinner' },
+  casa: { welcome: 'Coming over?', join: 'Join at home', noun: 'house gathering' },
+  viaje: { welcome: 'Joining the trip?', join: 'Join the trip', noun: 'trip' },
+  evento: { welcome: 'Coming to the event?', join: 'Join the event', noun: 'event' },
+};
+
+export function templateInviteCopy(
+  template: PresentationTemplate,
+  locale: 'es' | 'en' = 'es',
+): TemplateInviteCopy {
+  return locale === 'en' ? TEMPLATE_INVITE_COPY_EN[template] : TEMPLATE_INVITE_COPY[template];
+}
+
+/**
+ * Template display labels per locale. The Spanish side mirrors the historical
+ * TEMPLATE_LABELS in index.ts; the English side is new.
+ */
+export const TEMPLATE_LABELS_EN: Record<PresentationTemplate, string> = {
+  comida: 'Meal',
+  casa: 'House party',
+  viaje: 'Group trip',
+  evento: 'Event',
+};
+
+const TEMPLATE_LABELS_ES: Record<PresentationTemplate, string> = {
+  comida: 'Comida',
+  casa: 'Fiesta en casa',
+  viaje: 'Viaje conjunto',
+  evento: 'Evento',
+};
+
+export function templateLabel(template: PresentationTemplate, locale: 'es' | 'en' = 'es'): string {
+  return locale === 'en' ? TEMPLATE_LABELS_EN[template] : TEMPLATE_LABELS_ES[template];
+}
+
+export type MealKind = 'desayuno' | 'almuerzo' | 'cena';
+
+/** Lowercase meal names; callers capitalize for display. */
+export const MEAL_LABELS: Record<'es' | 'en', Record<MealKind, string>> = {
+  es: { desayuno: 'desayuno', almuerzo: 'almuerzo', cena: 'cena' },
+  en: { desayuno: 'breakfast', almuerzo: 'lunch', cena: 'dinner' },
+};
+
+export function mealLabel(meal: MealKind, locale: 'es' | 'en' = 'es'): string {
+  return MEAL_LABELS[locale][meal];
+}
+
 const theme = (
   key: ThemeKey,
   template: PresentationTemplate,

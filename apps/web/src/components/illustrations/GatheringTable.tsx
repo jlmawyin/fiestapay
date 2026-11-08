@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface IllustrationProps {
   className?: string;
@@ -11,6 +12,7 @@ export const GatheringTable: React.FC<IllustrationProps> = ({
   width = '100%',
   height = 'auto',
 }) => {
+  const { locale } = useI18n();
   return (
     <svg
       viewBox="0 0 600 240"
@@ -18,7 +20,11 @@ export const GatheringTable: React.FC<IllustrationProps> = ({
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       style={{ width, height, display: 'block' }}
-      aria-label="Amigos reunidos alrededor de una mesa festiva compartiendo comida y brindando"
+      aria-label={
+        locale === 'en'
+          ? 'Friends gathered around a festive table sharing food and toasting'
+          : 'Amigos reunidos alrededor de una mesa festiva compartiendo comida y brindando'
+      }
       role="img"
     >
       {/* Background warm festive ambience */}

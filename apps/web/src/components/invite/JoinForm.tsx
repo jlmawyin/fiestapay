@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import type { TemplateKind } from '../../types';
-import { GUEST_ENTRY_COPY, guestEntryCopy } from '../../lib/event-presentation';
+import { useI18n, useMessages } from '../../i18n/I18nContext';
+import { inviteCatalog } from '../../i18n/messages/invite';
+import { guestEntryCopy, guestEntryFormCopy } from '../../lib/event-presentation';
 
 interface JoinFormProps {
   onJoin: (name: string) => Promise<void>;
@@ -19,21 +21,24 @@ export const JoinForm: React.FC<JoinFormProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const copy = guestEntryCopy(template);
+  const { locale } = useI18n();
+  const m = useMessages(inviteCatalog);
+  const copy = guestEntryCopy(template, locale);
+  const form = guestEntryFormCopy(locale);
   const locked = isLoading || Boolean(disabledReason);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (locked) return;
     if (!name.trim()) {
-      setError(GUEST_ENTRY_COPY.aliasError);
+      setError(form.aliasError);
       return;
     }
     setError(null);
     try {
       await onJoin(name.trim());
     } catch (err: any) {
-      setError(err?.message || GUEST_ENTRY_COPY.joinError);
+      setError(err?.message || form.joinError);
     }
   };
 
@@ -53,7 +58,7 @@ export const JoinForm: React.FC<JoinFormProps> = ({
         <h3 style={{ fontSize: '1.1rem', color: 'var(--color-ink)' }}>{copy.welcome}</h3>
       </div>
       <p style={{ fontSize: '0.85rem', color: 'var(--color-ink-muted)', marginBottom: '1rem' }}>
-        {GUEST_ENTRY_COPY.aliasHelp}
+        {form.aliasHelp}
       </p>
 
       {disabledReason && (
@@ -80,7 +85,7 @@ export const JoinForm: React.FC<JoinFormProps> = ({
 
       <form
         onSubmit={handleSubmit}
-        aria-label="Ingreso del invitado"
+        aria-label={m.joinFormName}
         style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', maxWidth: '100%' }}
       >
         <input
@@ -88,8 +93,8 @@ export const JoinForm: React.FC<JoinFormProps> = ({
           style={{ flex: '1 1 11rem', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder={GUEST_ENTRY_COPY.aliasPlaceholder}
-          aria-label={GUEST_ENTRY_COPY.aliasLabel}
+          placeholder={form.aliasPlaceholder}
+          aria-label={form.aliasLabel}
           name="attendee-name"
           id="attendee-name"
           required
@@ -101,7 +106,7 @@ export const JoinForm: React.FC<JoinFormProps> = ({
           style={{ flex: '1 1 8rem', minWidth: 0 }}
           disabled={locked || !name.trim()}
         >
-          {isLoading ? GUEST_ENTRY_COPY.entering : copy.join}
+          {isLoading ? form.entering : copy.join}
         </button>
       </form>
     </div>

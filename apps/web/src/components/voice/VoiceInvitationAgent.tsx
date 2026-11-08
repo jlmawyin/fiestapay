@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import type { VoiceAudience } from '@fiestapay/shared';
+import { UI_LABELS, type VoiceAudience } from '@fiestapay/shared';
 import type { Capabilities, Guest, Quote, RsvpStatus } from '../../types';
 import { ApiError, api } from '../../api/client';
+import { useI18n, useMessages } from '../../i18n/I18nContext';
+import { voiceCatalog } from '../../i18n/messages/voice';
+import { peopleWord, quoteClientSummary } from '../../lib/event-presentation';
 import { ContinuousResampler } from '../../voice/resampler';
 import { floatToPCM16, pcm16ToBase64 } from '../../voice/pcm';
 import { PlaybackQueue, type PlaybackFault } from '../../voice/playback';
@@ -52,19 +55,7 @@ interface ActionProposal {
   confirmed: boolean;
 }
 
-/** Read aloud only when no neural voice is configured or reachable. No private data. */
-const PUBLIC_INFO_SPEECH = [
-  'FiestaPay crea invitaciones con una cuota fija por persona.',
-  'Para empezar, crea una invitación y comparte su enlace.',
-  'Cada persona se une con un alias, confirma su asistencia y paga la cuota fija con PayPal en modo de prueba.',
-  'El organizador ve el avance del financiamiento y las personas asistentes.',
-  'Esta voz solo da información general: no crea eventos, no consulta datos privados y no confirma pagos.',
-  'Cuando quieras usar una invitación concreta, abre su enlace y usa el asistente de esa invitación.',
-].join(' ');
-
-/** Neutral Spanish fallback for guest/organizer when the neural provider is unavailable. */
-const UNAVAILABLE_SPEECH =
-  'La voz del asistente no está disponible en este momento. Puedes continuar por texto en la misma página.';
+/** Speech scripts live in the voice catalog (infoSpeech, unavailableSpeech). */
 
 /** Call AudioContext.resume() now. The returned promise may be awaited later. */
 function invokeResume(ctx: AudioContext): Promise<void> {
@@ -82,14 +73,13 @@ function invokeResume(ctx: AudioContext): Promise<void> {
   }
 }
 
-function playbackFaultMessage(reason: PlaybackFault['reason']): string {
-  if (reason === 'overflow') {
-    return 'No se reprodujo el audio completo. Lee la respuesta del asistente en el texto.';
-  }
-  if (reason === 'resume') {
-    return 'No se pudo reanudar el audio. Lee la respuesta del asistente en el texto.';
-  }
-  return 'No se pudo reproducir el audio. Lee la respuesta del asistente en el texto.';
+function playbackFaultMessage(
+  reason: PlaybackFault['reason'],
+  copy: { faultOverflow: string; faultResume: string; faultGeneric: string },
+): string {
+  if (reason === 'overflow') return copy.faultOverflow;
+  if (reason === 'resume') return copy.faultResume;
+  return copy.faultGeneric;
 }
 
 function parseRsvpAction(actionStr: string): { status: RsvpStatus; companions: number } | null {
@@ -137,6 +127,13 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   const [suggestedQuote, setSuggestedQuote] = useState<Quote | null>(null);
   const [actionProposals, setActionProposals] = useState<ActionProposal[]>([]);
   const [isConfirmingAction, setIsConfirmingAction] = useState(false);
+  const { locale, formatMoney } = useI18n();
+  const m = useMessages(voiceCatalog);
+  const labels = UI_LABELS[locale];
+  const copyRef = useRef(m);
+  copyRef.current = m;
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
 
   // References for cleanup
   const socketRef = useRef<WebSocket | null>(null);
@@ -284,9 +281,24 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     cleanupSession(reason, keepalive);
     setSessionState('ended');
     if (msg) {
-      onShowToast('info', msg, 'Sesión de voz');
+      onShowToast('info', msg, copyRef.current.voiceSessionTitle);
     }
   }, [cleanupSession, onShowToast]);
+
+  // A language change stops an active voice session through the same Stop path
+  // (lease and microphone released) and asks for a restart in the new language.
+  const sessionStateRef = useRef(sessionState);
+  sessionStateRef.current = sessionState;
+  const previousLocaleRef = useRef(locale);
+  useEffect(() => {
+    if (previousLocaleRef.current === locale) return;
+    previousLocaleRef.current = locale;
+    const state = sessionStateRef.current;
+    const active = leaseIdRef.current !== null || state === 'requesting_permission' || state === 'connecting' || state === 'ready' || state === 'active';
+    if (!active) return;
+    handleStopVoice(copyRef.current.localeChanged, 'locale_change');
+    setConsentGranted(false);
+  }, [locale, handleStopVoice]);
 
   // Controlled hosts (the unified orb) close this panel without unmounting it. Stop the
   // existing session and release its lease through the same handleStopVoice seam used by
@@ -332,7 +344,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     if (playbackRef.current?.isBusy) return false;
     const fallback = fallbackSpeech();
     if (!fallback.supported) return false;
-    return fallback.speak(text);
+    return fallback.speak(text, localeRef.current);
   }, [fallbackSpeech]);
 
   const speakPublicFallback = useCallback(() => {
@@ -341,20 +353,21 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     if (!fallback.supported) {
       onShowToast(
         'warning',
-        'Este navegador no puede leer la información en voz alta. Puedes continuar por texto.',
-        'Voz informativa',
+        copyRef.current.publicUnsupported,
+        copyRef.current.publicToastTitle,
       );
       return false;
     }
-    const ok = fallback.speak(PUBLIC_INFO_SPEECH);
+    const script = copyRef.current.infoSpeech;
+    const ok = fallback.speak(script, localeRef.current);
     if (ok) {
-      setAgentTranscript(PUBLIC_INFO_SPEECH);
-      onShowToast('info', 'Te leo la información general de FiestaPay.', 'Voz informativa');
+      setAgentTranscript(script);
+      onShowToast('info', copyRef.current.publicReading, copyRef.current.publicToastTitle);
     } else {
       onShowToast(
         'warning',
-        'No se pudo reproducir la voz informativa. Puedes continuar por texto.',
-        'Voz informativa',
+        copyRef.current.publicFail,
+        copyRef.current.publicToastTitle,
       );
     }
     return ok;
@@ -362,34 +375,32 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
 
   /** Neutral notice for guest/organizer when neural audio is not available. */
   const speakUnavailableFallback = useCallback(() => {
-    speakTextFallback(UNAVAILABLE_SPEECH);
+    speakTextFallback(copyRef.current.unavailableSpeech);
   }, [speakTextFallback]);
 
   const handleStartVoice = async () => {
     if (startingRef.current) return;
     if (cooldownUntilRef.current > Date.now()) {
-      onShowToast('info', 'Espera unos segundos antes de volver a intentar la voz.', 'Voz');
+      onShowToast('info', copyRef.current.cooldownToast, copyRef.current.voiceTitle);
       return;
     }
     if (voiceStopped) {
       onShowToast(
         'info',
-        accessRevoked
-          ? 'El organizador revocó el acceso de esta sesión. La voz queda detenida.'
-          : 'Esta invitación está cerrada. La voz queda detenida.',
-        'Voz',
+        accessRevoked ? copyRef.current.revokedToast : copyRef.current.closedToast,
+        copyRef.current.voiceTitle,
       );
       return;
     }
     if (!publicAudience && !organizer && !guest) {
-      onShowToast('info', 'Debes unirte a esta invitación primero para hablar con el asistente de voz.', 'Identificación requerida');
+      onShowToast('info', copyRef.current.joinFirstToast, copyRef.current.joinFirstToastTitle);
       return;
     }
 
     // Public informational voice with no neural provider: speak locally, create nothing.
     if (publicAudience && !voiceAvailable) {
       if (capabilities === null) {
-        onShowToast('info', 'La voz todavía se está preparando. Inténtalo en un momento.', 'Voz');
+        onShowToast('info', copyRef.current.preparingToast, copyRef.current.voiceTitle);
         return;
       }
       setErrorMessage(null);
@@ -399,15 +410,15 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
       return;
     }
     if (!voiceAvailable) {
-      onShowToast('warning', 'El servicio de voz no está habilitado en este servidor.', 'Voz no disponible');
+      onShowToast('warning', copyRef.current.offToast, copyRef.current.offToastTitle);
       return;
     }
     if (!publicAudience && !organizer && !slug) {
-      onShowToast('info', 'No se encontró la invitación para iniciar la voz.', 'Voz');
+      onShowToast('info', copyRef.current.noInviteToast, copyRef.current.voiceTitle);
       return;
     }
     if (organizer && !slug) {
-      onShowToast('info', 'No se encontró el evento para iniciar la voz.', 'Voz');
+      onShowToast('info', copyRef.current.noEventToast, copyRef.current.voiceTitle);
       return;
     }
 
@@ -422,7 +433,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
       // so browsers leave it suspended and the first samples are clipped.
       const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
       if (typeof AudioContextCtor !== 'function') {
-        setErrorMessage('No se pudo crear el audio del navegador.');
+        setErrorMessage(copyRef.current.audioCreateFail);
         setSessionState('error');
         return;
       }
@@ -430,7 +441,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
       try {
         ctx = new AudioContextCtor();
       } catch {
-        setErrorMessage('No se pudo iniciar la sesión de voz.');
+        setErrorMessage(copyRef.current.audioStartFail);
         setSessionState('error');
         return;
       }
@@ -494,12 +505,12 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
         playbackRef.current = new PlaybackQueue(ctx, {
           onFault: (fault) => {
             if (!isCurrentSession()) return;
-            const message = playbackFaultMessage(fault.reason);
+            const message = playbackFaultMessage(fault.reason, copyRef.current);
             setErrorMessage(message);
             onShowToast(
               fault.reason === 'overflow' ? 'warning' : 'error',
               message,
-              fault.reason === 'overflow' ? 'Audio incompleto' : 'Audio no disponible',
+              fault.reason === 'overflow' ? copyRef.current.faultOverflowTitle : copyRef.current.faultTitle,
             );
             // Nothing left to hear, so the badge must not stay on speaking.
             if (!playbackRef.current?.isBusy) {
@@ -518,7 +529,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
             // The lease already answered inactive while this reply was still being heard.
             // Finish the audio first; the Stop is applied here, never mid-phrase.
             if (leaseInactiveRef.current && !toolsInFlightRef.current) {
-              handleStopVoice('La sesión de voz ya no está activa. Puedes iniciar una nueva o continuar por texto.');
+              handleStopVoice(copyRef.current.leaseDead);
             }
           },
         });
@@ -645,7 +656,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
               // Never cut a reply that is already queued or being heard, and never abort
               // a tool result that is still being applied. The stop waits for the audio.
               if (!replyAudioPending() && !toolsInFlightRef.current) {
-                handleStopVoice('La sesión de voz ya no está activa. Puedes iniciar una nueva o continuar por texto.');
+                handleStopVoice(copyRef.current.leaseDead);
               }
             })
             .catch(() => {
@@ -699,7 +710,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                   const left = Math.max(0, tokenData.maxSeconds - elapsed);
                   setRemainingSeconds(left);
                   if (left <= 0) {
-                    handleStopVoice('Límite de tiempo de sesión alcanzado.', 'limit');
+                    handleStopVoice(copyRef.current.timeLimit, 'limit');
                     return;
                   }
                   // Real 60s inactivity. A reply still playing is never cut. While audio
@@ -711,7 +722,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                     !toolsInFlightRef.current &&
                     Date.now() - lastUserActivityRef.current >= VOICE_IDLE_MS
                   ) {
-                    handleStopVoice('La sesión se cerró por 60 segundos sin actividad.', 'idle');
+                    handleStopVoice(copyRef.current.idle60, 'idle');
                   }
                 }, 1000);
               }
@@ -863,8 +874,8 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                         if (toolErr instanceof ApiError && toolErr.status === 403) {
                           cleanupSession('tool_forbidden');
                           setSessionState('error');
-                          setErrorMessage('La voz se detuvo: la clave o la sesión ya no autoriza esta herramienta. Continúa por el panel o el formulario.');
-                          onShowToast('error', 'La voz se detuvo. Puedes seguir en el panel o en el formulario.', 'Voz detenida');
+                          setErrorMessage(copyRef.current.toolForbidden);
+                          onShowToast('error', copyRef.current.toolForbiddenToast, copyRef.current.toolForbiddenTitle);
                           return;
                         }
                         if (ws.readyState === WebSocket.OPEN) {
@@ -872,7 +883,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                             JSON.stringify({
                               type: 'tool.result',
                               call_id: tool.call_id,
-                              result: JSON.stringify({ error: friendlyVoiceError(toolErr) }),
+                              result: JSON.stringify({ error: friendlyVoiceError(toolErr, localeRef.current) }),
                               is_error: true,
                             })
                           );
@@ -904,7 +915,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                       : '';
               const rateLimited =
                 parsed.code === 'rate_limit_exceeded' || /rate\s*limit/i.test(providerText);
-              setErrorMessage(friendlyVoiceError(rateLimited ? { status: 429 } : null));
+              setErrorMessage(friendlyVoiceError(rateLimited ? { status: 429 } : null, localeRef.current));
               if (rateLimited) startCooldown();
               setSessionState('error');
               cleanupSession('provider_error');
@@ -922,7 +933,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
 
         ws.onerror = () => {
           if (!isCurrentSession()) return;
-          setErrorMessage(friendlyVoiceError(null));
+          setErrorMessage(friendlyVoiceError(null, localeRef.current));
           setSessionState('error');
           cleanupSession('ws_error');
           if (publicAudience) speakPublicFallback();
@@ -937,7 +948,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
       } catch (err: any) {
         if (!isCurrentSession()) return;
         cleanupSession('start_failed');
-        const message = friendlyVoiceError(err);
+        const message = friendlyVoiceError(err, localeRef.current);
         setErrorMessage(message);
         if (isVoiceCooldownError(err)) startCooldown();
         setSessionState('error');
@@ -958,18 +969,18 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
       setActionProposals((prev) =>
         prev.map((p) => (p.id === proposal.id ? { ...p, confirmed: true } : p))
       );
-      onShowToast('success', 'Asistencia confirmada según lo conversado con el asistente.', 'Asistencia confirmada');
+      onShowToast('success', copyRef.current.rsvpVoiceOk, copyRef.current.rsvpVoiceOkTitle);
     } catch {
-      onShowToast('error', 'No se pudo confirmar la propuesta. Revisa la invitación en pantalla.', 'Error');
+      onShowToast('error', copyRef.current.rsvpVoiceFail, copyRef.current.rsvpVoiceFailTitle);
     } finally {
       setIsConfirmingAction(false);
     }
   };
 
   const startDisabledReason = !consentGranted
-    ? 'Debes marcar la casilla de consentimiento para habilitar el botón.'
+    ? m.needConsent
     : cooldownSeconds > 0
-      ? `Espera ${cooldownSeconds} s antes de reintentar.`
+      ? m.cooldownWait(cooldownSeconds)
       : null;
 
   return (
@@ -992,11 +1003,11 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
               gap: '0.6rem',
               border: '2px solid #FFFFFF',
             }}
-            aria-label={isOpen ? 'Cerrar asistente de voz' : 'Abrir asistente de voz'}
+            aria-label={isOpen ? m.closeVoice : m.openVoice}
             aria-expanded={isOpen}
           >
             <span style={{ fontSize: '1.2rem' }}>🎙️</span>
-            <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{publicAudience ? 'Hablar con FiestaPay' : 'Hablar'}</span>
+            <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{publicAudience ? m.talkShortPublic : m.talkShort}</span>
             {isOpen ? '✕' : ''}
           </button>
         </div>
@@ -1024,7 +1035,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
             overflow: 'hidden',
           }}
           role="region"
-          aria-label={publicAudience ? 'Asistente de voz informativo de FiestaPay' : 'Panel del Asistente de Voz'}
+          aria-label={publicAudience ? m.panelPublic : m.panelLabel}
         >
           {/* Header */}
           {!embedded && (
@@ -1042,10 +1053,10 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
               <span style={{ fontSize: '1.2rem' }}>🎙️</span>
               <div>
                 <strong style={{ fontSize: '0.9rem', display: 'block' }}>
-                  {publicAudience ? 'Asistente de voz de FiestaPay' : organizer ? 'Voz del organizador' : 'Asistente de Voz'}
+                  {publicAudience ? m.titlePublic : organizer ? m.titleOrg : m.titleGuest}
                 </strong>
                 <span style={{ fontSize: '0.72rem', opacity: 0.9 }}>
-                  {publicAudience ? 'Información general · sin datos del evento' : 'AssemblyAI Real-Time Voice Agent'}
+                  {publicAudience ? m.subtitlePublic : m.subtitleAgent}
                 </span>
               </div>
             </div>
@@ -1055,7 +1066,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                 setOpen(false);
               }}
               style={{ background: 'none', border: 'none', color: '#FFFFFF', cursor: 'pointer', fontSize: '1.1rem' }}
-              aria-label="Cerrar panel de voz"
+              aria-label={m.closePanel}
             >
               ×
             </button>
@@ -1085,9 +1096,9 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                   fontSize: '0.85rem',
                 }}
               >
-                <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>Únete primero</div>
+                <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>{m.joinFirstTitle}</div>
                 <p style={{ color: 'var(--color-ink-muted)' }}>
-                  Para comenzar la conversación por voz, ingresa un alias ficticio en la invitación principal.
+                  {m.joinFirstBody}
                 </p>
               </div>
             ) : !voiceAvailable && !publicAudience ? (
@@ -1101,10 +1112,10 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                 }}
               >
                 <div style={{ fontWeight: 700, marginBottom: '0.25rem', color: 'var(--color-ink)' }}>
-                  Voz no habilitada en el servidor
+                  {m.voiceOffTitle}
                 </div>
                 <p style={{ color: 'var(--color-ink-muted)' }}>
-                  Las credenciales de voz no están activas en este entorno. Puedes interactuar mediante el chat escrito o con el formulario.
+                  {m.voiceOffBody}
                 </p>
               </div>
             ) : (
@@ -1122,25 +1133,19 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                   }}
                 >
                   <p>
-                    🔒 <strong>Aviso de Privacidad y Consentimiento:</strong>{' '}
+                    🔒 <strong>{m.privacyTitle}</strong>{' '}
                     {publicAudience ? (
                       <>
-                        Esta voz es informativa y funciona sin crear ni unirte a un evento. No tiene herramientas, no consulta
-                        datos de organizadores, invitados ni pagos.{' '}
-                        {voiceAvailable
-                          ? 'El audio del micrófono se procesa en tiempo real mediante AssemblyAI Voice Agent.'
-                          : 'La información se lee con la voz del navegador; no se envía audio a ningún proveedor.'}
+                        {m.privacyPublicA}
+                        {voiceAvailable ? m.privacyPublicOn : m.privacyPublicOff}
                       </>
                     ) : organizer ? (
                       <>
-                        El audio del micrófono se procesa en tiempo real mediante <strong>AssemblyAI Voice Agent</strong>. Esta voz
-                        es del panel y exige la clave en el servidor. No digas la clave, correos ni datos de tarjeta.
+                        {m.privacyOrgA}<strong>AssemblyAI Voice Agent</strong>{m.privacyOrgB}
                       </>
                     ) : (
                       <>
-                        El audio del micrófono se procesa en tiempo real mediante <strong>AssemblyAI Voice Agent</strong>. Tu
-                        sesión usa tu alias público <strong>&quot;{guest?.name}&quot;</strong>. No transmitas información
-                        financiera confidencial por este canal.
+                        {m.privacyGuestA}<strong>AssemblyAI Voice Agent</strong>{m.privacyGuestB1}<strong>&quot;{guest?.name}&quot;</strong>{m.privacyGuestB2}
                       </>
                     )}
                   </p>
@@ -1150,16 +1155,14 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                       checked={consentGranted}
                       onChange={(e) => setConsentGranted(e.target.checked)}
                     />
-                    <span>{voiceAvailable ? 'Acepto procesar mi audio con AssemblyAI' : 'Entiendo el aviso de voz'}</span>
+                    <span>{voiceAvailable ? m.consentOn : m.consentOff}</span>
                   </label>
                 </div>
 
                 {/* Session controls */}
                 {voiceStopped && (
                   <p className="session-revoked-banner" role="status">
-                    {accessRevoked
-                      ? 'El organizador revocó el acceso de esta sesión. No se inicia voz nueva.'
-                      : 'Esta invitación está cerrada. No se inicia voz nueva.'}
+                    {accessRevoked ? m.stoppedRevoked : m.stoppedClosed}
                   </p>
                 )}
                 {sessionState === 'idle' || sessionState === 'ended' || sessionState === 'error' ? (
@@ -1170,7 +1173,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                       className="btn btn-teal"
                       style={{ padding: '0.75rem', fontWeight: 700, width: '100%' }}
                     >
-                      🎙️ {publicAudience ? 'Escuchar información por voz' : 'Iniciar Conversación por Voz'}
+                      <span aria-hidden="true">🎙️ </span>{publicAudience ? labels.listen : labels.startVoice}
                     </button>
                     {startDisabledReason && (
                       <span style={{ fontSize: '0.72rem', color: 'var(--color-ink-light)', textAlign: 'center' }}>
@@ -1210,14 +1213,14 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                         />
                         <strong style={{ textTransform: 'capitalize' }}>
                           {sessionState === 'requesting_permission'
-                            ? 'Solicitando micrófono...'
+                            ? m.statusMic
                             : sessionState === 'connecting'
-                            ? 'Conectando con la voz...'
+                            ? m.statusConnecting
                             : agentStatus === 'speaking'
-                            ? 'Asistente hablando...'
+                            ? m.statusSpeaking
                             : agentStatus === 'processing'
-                            ? 'Procesando acción...'
-                            : 'Escuchando tu voz...'}
+                            ? m.statusProcessing
+                            : m.statusListening}
                         </strong>
                       </div>
                       {remainingSeconds !== null && (
@@ -1244,7 +1247,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                       {userTranscript && (
                         <div>
                           <span style={{ fontSize: '0.72rem', color: 'var(--color-blue)', fontWeight: 700, display: 'block' }}>
-                            Tú ({publicAudience ? 'visitante' : organizer ? 'organizador' : guest?.name}):
+                            {m.youPrefix} ({publicAudience ? m.visitor : organizer ? m.organizerRole : guest?.name}):
                           </span>
                           <span style={{ color: 'var(--color-ink)' }}>{userTranscript}</span>
                         </div>
@@ -1252,26 +1255,24 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                       {agentTranscript && (
                         <div>
                           <span style={{ fontSize: '0.72rem', color: 'var(--color-teal)', fontWeight: 700, display: 'block' }}>
-                            Asistente {publicAudience ? '(FiestaPay)' : '(AssemblyAI)'}:
+                            {publicAudience ? m.assistantIsPublic : m.assistantIs}
                           </span>
                           <span style={{ color: 'var(--color-ink)' }}>{agentTranscript}</span>
                         </div>
                       )}
                       {!userTranscript && !agentTranscript && (
                         <div style={{ color: 'var(--color-ink-muted)', fontStyle: 'italic', textAlign: 'center', padding: '1rem' }}>
-                          {publicAudience
-                            ? 'Pregunta cómo funcionan las invitaciones, la cuota fija o el pago de prueba. No se consultan datos privados.'
-                            : 'Habla por el micrófono. Puedes decir: "¿Cuánto cuesta la cuota?", "Confirmo mi asistencia con 1 amigo", etc.'}
+                          {publicAudience ? m.emptyPublic : m.emptyGuest}
                         </div>
                       )}
                     </div>
 
                     <button
-                      onClick={() => handleStopVoice('Sesión detenida por el usuario.')}
+                      onClick={() => handleStopVoice(copyRef.current.stopToast)}
                       className="btn btn-secondary"
                       style={{ padding: '0.5rem', fontSize: '0.8rem', color: 'var(--color-coral)' }}
                     >
-                      ⏹️ Detener y Cerrar Micrófono
+                      <span aria-hidden="true">⏹️ </span>{labels.stopVoice}
                     </button>
                   </div>
                 )}
@@ -1293,10 +1294,10 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                           }}
                         >
                           <div style={{ fontWeight: 700, color: 'var(--color-ink)', marginBottom: '0.25rem' }}>
-                            📋 Propuesta de Asistencia (Voz)
+                            {m.proposalTitle}
                           </div>
                           <p style={{ color: 'var(--color-ink-muted)', marginBottom: '0.5rem' }}>
-                            El asistente sugiere marcar tu asistencia como: <strong>{prop.status === 'yes' ? `Asistir (${totalCount} ${totalCount === 1 ? 'persona' : 'personas'})` : prop.status === 'no' ? 'No asistir' : 'Tal vez'}</strong>.
+                            {m.proposalSuggests}<strong>{prop.status === 'yes' ? m.attend(totalCount, peopleWord(totalCount, locale)) : prop.status === 'no' ? m.decline : m.maybe}</strong>.
                           </p>
                           <button
                             onClick={() => handleConfirmActionProposal(prop)}
@@ -1304,7 +1305,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                             className="btn btn-teal"
                             style={{ width: '100%', fontSize: '0.75rem', padding: '0.4rem' }}
                           >
-                            {prop.confirmed ? '✓ Asistencia Confirmada en el Servidor' : 'Confirmar Asistencia'}
+                            {prop.confirmed ? m.confirmedServer : m.confirmRsvp}
                           </button>
                         </div>
                       );
@@ -1323,17 +1324,27 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                       fontSize: '0.8rem',
                     }}
                   >
-                    <div style={{ fontWeight: 700, color: 'var(--color-teal)' }}>🧾 Cotización Calculada</div>
+                    <div style={{ fontWeight: 700, color: 'var(--color-teal)' }}>{m.quoteDoneTitle}</div>
                     <p style={{ margin: '0.25rem 0' }}>
-                      {suggestedQuote.summary}
+                      {quoteClientSummary(
+                        {
+                          people: suggestedQuote.people,
+                          unit: formatMoney(suggestedQuote.unitCents),
+                          total: formatMoney(suggestedQuote.totalCents),
+                          paid: formatMoney(suggestedQuote.paidCents),
+                          due: formatMoney(suggestedQuote.amountCents),
+                        },
+                        suggestedQuote.amountCents,
+                        locale,
+                      )}
                     </p>
                     <span style={{ fontSize: '0.72rem', color: 'var(--color-ink-muted)' }}>
-                      Revisa y confirma la orden de pago en la tarjeta de cotización de la invitación.
+                      {m.quoteDoneHint}
                     </span>
                   </div>
                 )}
 
-                {/* Error Banner. Always Spanish, never provider text. */}
+                {/* Error Banner. Always in the locale, never provider text. */}
                 {errorMessage && (
                   <div
                     style={{
@@ -1346,7 +1357,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                     }}
                     role="alert"
                   >
-                    <strong>Aviso:</strong> {errorMessage}
+                    <strong>{m.errorPrefix}</strong> {errorMessage}
                   </div>
                 )}
               </>

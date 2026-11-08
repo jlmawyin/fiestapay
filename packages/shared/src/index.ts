@@ -1,9 +1,15 @@
 import type { ThemeKey } from './presentation.js';
 
-export type { ThemeKey, ThemeDefinition, TemplateInviteCopy, ContrastPair } from './presentation.js';
+export type { ThemeKey, ThemeDefinition, TemplateInviteCopy, ContrastPair, MealKind } from './presentation.js';
 export {
   TEMPLATE_THEMES,
   TEMPLATE_INVITE_COPY,
+  TEMPLATE_INVITE_COPY_EN,
+  templateInviteCopy,
+  TEMPLATE_LABELS_EN,
+  templateLabel,
+  MEAL_LABELS,
+  mealLabel,
   THEMES,
   ORGANIZER_NAME_MAX,
   themesForTemplate,

@@ -4,11 +4,14 @@ import {
   defaultThemeFor,
   formatMoney,
   intlLocale,
+  mealLabel,
   resolveTheme,
   suggestTheme,
+  templateInviteCopy,
   themeContrastPairs,
   type FiestaEvent,
   type Locale,
+  type MealKind,
   type TemplateKind,
   type ThemeDefinition,
   type ThemeKey,
@@ -18,9 +21,12 @@ export {
   TEMPLATE_INVITE_COPY,
   contrastRatio,
   defaultThemeFor,
+  mealLabel,
   resolveTheme,
   suggestTheme,
+  templateInviteCopy,
   themeContrastPairs,
+  type MealKind,
   type ThemeDefinition,
   type ThemeKey,
 };
@@ -349,12 +355,43 @@ export const GUEST_ENTRY_COPY = {
   entering: 'Entrando...',
 } as const;
 
-export function guestEntryCopy(template?: TemplateKind | null): { welcome: string; join: string } {
+export const GUEST_ENTRY_COPY_EN: Record<keyof typeof GUEST_ENTRY_COPY, string> = {
+  aliasLabel: 'Guest alias',
+  aliasPlaceholder: 'E.g. Demo Guest',
+  aliasHelp:
+    'Use a fictional alias to try your attendance and your share. No personal data, password, or prior signup needed.',
+  aliasError: 'Please enter a fictional alias.',
+  joinError: 'Could not complete the check-in.',
+  entering: 'Joining...',
+};
+
+export const NEUTRAL_GUEST_ENTRY_EN = {
+  welcome: 'Joining us?',
+  join: 'Join',
+} as const;
+
+export function guestEntryCopy(
+  template?: TemplateKind | null,
+  locale: Locale = 'es',
+): { welcome: string; join: string } {
   if (template && TEMPLATE_INVITE_COPY[template]) {
-    const copy = TEMPLATE_INVITE_COPY[template];
+    const copy = templateInviteCopy(template, locale);
     return { welcome: copy.welcome, join: copy.join };
   }
-  return { welcome: NEUTRAL_GUEST_ENTRY.welcome, join: NEUTRAL_GUEST_ENTRY.join };
+  return locale === 'en'
+    ? { welcome: NEUTRAL_GUEST_ENTRY_EN.welcome, join: NEUTRAL_GUEST_ENTRY_EN.join }
+    : { welcome: NEUTRAL_GUEST_ENTRY.welcome, join: NEUTRAL_GUEST_ENTRY.join };
+}
+
+/** Alias form copy (label, placeholder, help, errors, busy state) in the locale. */
+export function guestEntryFormCopy(locale: Locale = 'es'): Record<keyof typeof GUEST_ENTRY_COPY, string> {
+  return locale === 'en' ? GUEST_ENTRY_COPY_EN : { ...GUEST_ENTRY_COPY };
+}
+
+/** "persona/personas" or "person/people" for a headcount. */
+export function peopleWord(count: number, locale: Locale = 'es'): string {
+  if (locale === 'en') return count === 1 ? 'person' : 'people';
+  return count === 1 ? 'persona' : 'personas';
 }
 
 export const GUEST_PAYMENT_COPY = {
@@ -378,6 +415,34 @@ export const GUEST_PAYMENT_COPY = {
   confirmName: 'Confirmar revisión de la cotización',
 } as const;
 
+export const GUEST_PAYMENT_COPY_EN: Record<keyof typeof GUEST_PAYMENT_COPY, string> = {
+  heading: 'Review your payment',
+  calculating: 'Calculating your payment',
+  empty: 'There is no payment to review yet.',
+  refresh: 'Calculate my payment',
+  update: 'Update my payment',
+  people: 'People',
+  unit: 'Share per person',
+  total: 'Total',
+  paid: 'Already paid',
+  due: 'Balance to pay',
+  confirmLead: 'I confirm I reviewed',
+  proceed: 'Confirm and Create Payment',
+  preparing: 'Preparing your payment...',
+  mustConfirm: 'Check the box to confirm you reviewed this payment.',
+  orderError: 'Could not prepare the payment.',
+  confirmName: 'Confirm quote review',
+};
+
+/**
+ * Quote card copy in the locale. The confirmation checkbox name, its lead,
+ * and the proceed button intentionally match UI_LABELS quoteReview,
+ * quoteReviewLead and generatePayment; call sites render those labels literally.
+ */
+export function guestPaymentCopy(locale: Locale = 'es'): Record<keyof typeof GUEST_PAYMENT_COPY, string> {
+  return locale === 'en' ? GUEST_PAYMENT_COPY_EN : { ...GUEST_PAYMENT_COPY };
+}
+
 const COVERED_WHEN_PAID: Record<TemplateKind, string> = {
   comida: 'Tu pago de esta comida ya está cubierto. Eso no confirma la comida ni reserva un lugar.',
   casa: 'Tu pago para esta casa ya está cubierto. Eso no confirma la reunión ni reserva un lugar.',
@@ -396,6 +461,47 @@ const COVERED_NEUTRAL = 'Tu pago ya está cubierto. Eso no confirma el encuentro
 const COVERED_NEUTRAL_EN = 'Your payment is already covered. That does not confirm the gathering or reserve a seat.';
 const NOTHING_DUE = 'No hay saldo pendiente. Eso no confirma el encuentro ni reserva un lugar.';
 const NOTHING_DUE_EN = 'No balance due. That does not confirm the gathering or reserve a seat.';
+
+export interface QuoteMoneyLines {
+  people: number;
+  /** Preformatted with formatMoney in the locale. */
+  unit: string;
+  total: string;
+  paid: string;
+  due: string;
+}
+
+/**
+ * Human-confirmation sentence for the quote checkbox. Spanish output matches
+ * the historical inline sentence; the lead ("Confirmo que revisé") is rendered
+ * separately from UI_LABELS at the call site.
+ */
+export function quoteConfirmSentence(lines: QuoteMoneyLines, locale: Locale = 'es'): string {
+  const pw = peopleWord(lines.people, locale);
+  if (locale === 'en') {
+    return ` ${lines.people} ${pw}, the ${lines.unit} per-person share and the ${lines.total} total. I want to prepare the ${lines.due} payment.`;
+  }
+  return ` ${lines.people} ${pw}, la cuota ${lines.unit} y el total ${lines.total}. Quiero preparar el pago de ${lines.due}.`;
+}
+
+/**
+ * Client-composed quote summary from server numbers (people x price = total).
+ * Used where the stored Spanish quote.summary must not leak into English.
+ */
+export function quoteClientSummary(
+  lines: QuoteMoneyLines,
+  dueCents: number,
+  locale: Locale = 'es',
+): string {
+  const pw = peopleWord(lines.people, locale);
+  const head = `${lines.people} ${pw} × ${lines.unit} = ${lines.total}`;
+  if (!(dueCents > 0)) {
+    return locale === 'en' ? `${head}. No balance due.` : `${head}. Sin saldo pendiente.`;
+  }
+  return locale === 'en'
+    ? `${head}. Paid ${lines.paid}. Missing ${lines.due}.`
+    : `${head}. Abonado ${lines.paid}. Falta ${lines.due}.`;
+}
 
 /** Honest zero-due status. It does not say the gathering is confirmed or reserved. */
 export function guestCoveredCopy(

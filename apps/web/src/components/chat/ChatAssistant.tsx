@@ -1,7 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { EVENT_TIME_ZONE, intlLocale, type Locale } from '@fiestapay/shared';
 import type { Capabilities, Quote, ChatResult, ChatTranscriptMessage, RsvpStatus } from '../../types';
 import { ApiError, api } from '../../api/client';
-import { usd } from '../../types';
+import { useI18n, useMessages } from '../../i18n/I18nContext';
+import { guestChatCatalog } from '../../i18n/messages/guestChat';
+import { peopleWord } from '../../lib/event-presentation';
 import { AssistantText } from './AssistantText';
 
 interface ChatAssistantProps {
@@ -32,6 +35,15 @@ function parseRsvpAction(actionStr: string): { status: RsvpStatus; companions: n
 }
 
 
+/** Message clock in the event zone, formatted in the locale. */
+function stampMessage(when: string | number | Date, locale: Locale): string {
+  return new Date(when).toLocaleTimeString(intlLocale(locale), {
+    timeZone: EVENT_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 interface ChatMessage {
   id: string;
   sender: 'user' | 'assistant';
@@ -44,10 +56,11 @@ interface ChatMessage {
 const GREETING_ID = 'init-1';
 let pendingSerial = 0;
 
-/** One indicator for both audiences, with a real ellipsis and no artificial delay. */
-const TYPING_TEXT = 'El asistente está escribiendo…';
-
-function applyTranscript(prev: ChatMessage[], incoming: ChatTranscriptMessage[]): ChatMessage[] {
+function applyTranscript(
+  prev: ChatMessage[],
+  incoming: ChatTranscriptMessage[],
+  locale: Locale,
+): ChatMessage[] {
   const greeting = prev.filter((message) => message.id === GREETING_ID);
   const fromServer: ChatMessage[] = incoming.map((message) => {
     const previous = prev.find((item) => item.id === message.id);
@@ -55,7 +68,7 @@ function applyTranscript(prev: ChatMessage[], incoming: ChatTranscriptMessage[])
       id: message.id,
       sender: message.role === 'user' ? 'user' : 'assistant',
       text: message.text,
-      timestamp: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: stampMessage(message.createdAt, locale),
       ...(previous?.quote ? { quote: previous.quote } : {}),
       ...(previous?.actions ? { actions: previous.actions } : {}),
     };
@@ -66,9 +79,6 @@ function applyTranscript(prev: ChatMessage[], incoming: ChatTranscriptMessage[])
   );
   return [...greeting, ...fromServer, ...pending];
 }
-
-const GUEST_GREETING =
-  '¡Hola! Soy tu asistente de FiestaPay para esta invitación. Puedes preguntarme sobre la cuota, sugerirme cambios de acompañantes o consultar dudas sobre la organización.';
 
 export const ChatAssistant: React.FC<ChatAssistantProps> = ({
   slug,
@@ -94,13 +104,19 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [confirmedActionIds, setConfirmedActionIds] = useState<Set<string>>(new Set());
   const composerDisabled = (!organizer && (accessRevoked || closed)) || !capabilities?.chat;
+  const { locale, formatMoney } = useI18n();
+  const m = useMessages(guestChatCatalog);
+  const copyRef = useRef(m);
+  copyRef.current = m;
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'init-1',
       sender: 'assistant',
-      text: organizer ? 'Cargando el saludo del servidor…' : GUEST_GREETING,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      text: organizer ? m.orgLoading : m.greeting,
+      timestamp: stampMessage(new Date(), locale),
     },
   ]);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
@@ -112,8 +128,8 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
       {
         id: GREETING_ID,
         sender: 'assistant',
-        text: 'La clave de organizador ya no autoriza este asistente. Usa el panel manual.',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        text: copyRef.current.orgKeyDead,
+        timestamp: stampMessage(new Date(), localeRef.current),
       },
     ]);
     setErrorNotice(notice);
@@ -125,20 +141,20 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
       if (organizer) {
         const page = await api.getOrganizerChatHistory(slug);
         setMessages((prev) => {
-          const next = applyTranscript(prev, page.messages);
+          const next = applyTranscript(prev, page.messages, localeRef.current);
           return next.map((message) => (message.id === GREETING_ID ? { ...message, text: page.greeting } : message));
         });
         return;
       }
       const page = await api.getChatHistory(slug);
-      setMessages((prev) => applyTranscript(prev, page.messages));
+      setMessages((prev) => applyTranscript(prev, page.messages, localeRef.current));
     } catch (err) {
       const status = err instanceof ApiError ? err.status : undefined;
       if (organizer && status === 403) {
-        forgetOrganizerTranscript(err instanceof Error ? err.message : 'Clave de organizador invalida');
+        forgetOrganizerTranscript(err instanceof Error ? err.message : copyRef.current.orgKeyInvalid);
         return;
       }
-      const message = err instanceof Error ? err.message : 'No se pudo leer el historial.';
+      const message = err instanceof Error ? err.message : copyRef.current.historyError;
       setErrorNotice(message);
     }
   }, [forgetOrganizerTranscript, organizer, slug]);
@@ -160,7 +176,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
       id: `pending-user-${pendingSerial}`,
       sender: 'user',
       text: userText,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: stampMessage(new Date(), localeRef.current),
     };
 
     setMessages((prev) => [...prev, userMsg]);
@@ -175,7 +191,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
         sender: 'assistant',
         text: res.text,
         ...(organizer ? {} : { quote: res.quote, actions: res.actions }),
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: stampMessage(new Date(), localeRef.current),
       };
       setMessages((prev) => {
         const withoutPending = prev.map((message) =>
@@ -187,15 +203,11 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
       void pullHistory();
     } catch (err: any) {
       if (organizer && err?.status === 403) {
-        forgetOrganizerTranscript(err.message || 'Clave de organizador invalida');
+        forgetOrganizerTranscript(err.message || copyRef.current.orgKeyInvalid);
       } else if (err.status === 503) {
-        setErrorNotice(
-          organizer
-            ? 'El asistente no esta disponible (503). Usa el panel: editar, compartir y revisar invitados. Nada se confirmo ni se reembolso.'
-            : 'El proveedor de chat no está disponible en este momento (503). Todas las acciones manuales de esta invitación siguen totalmente funcionales.'
-        );
+        setErrorNotice(organizer ? copyRef.current.org503 : copyRef.current.error503);
       } else {
-        setErrorNotice(err.message || 'No se pudo obtener respuesta del asistente.');
+        setErrorNotice(err.message || copyRef.current.errorGeneric);
       }
     } finally {
       setIsLoading(false);
@@ -219,11 +231,11 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
               gap: '0.6rem',
               border: '2px solid #FFFFFF',
             }}
-            aria-label={isOpen ? 'Cerrar asistente IA' : 'Abrir asistente IA'}
+            aria-label={isOpen ? m.closeAssistant : m.openAssistant}
             aria-expanded={isOpen}
           >
             <span style={{ fontSize: '1.2rem' }}>✨</span>
-            <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Chat</span>
+            <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{m.chatShort}</span>
             {isOpen ? '✕' : ''}
           </button>
         </div>
@@ -252,7 +264,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
             overflow: 'hidden',
           }}
           role="complementary"
-          aria-label="Panel del Asistente FiestaPay"
+          aria-label={m.panelLabel}
         >
           {/* Header */}
           {!embedded && (
@@ -270,17 +282,17 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
               <span style={{ fontSize: '1.1rem' }}>✨</span>
               <div>
                 <strong style={{ fontSize: '0.9rem', display: 'block' }}>
-                  {organizer ? 'Asistente del organizador' : 'Asistente FiestaPay'}
+                  {organizer ? m.orgTitle : m.title}
                 </strong>
                 <span style={{ fontSize: '0.72rem', color: 'var(--color-yellow)' }}>
-                  {chatAvailable ? (organizer ? 'Consulta el panel. No ejecuta cambios.' : 'Consulta sobre esta invitación') : 'Chat no disponible'}
+                  {chatAvailable ? (organizer ? m.orgSubtitle : m.subtitle) : m.chatOff}
                 </span>
               </div>
             </div>
             <button
               onClick={() => setOpen(false)}
               style={{ background: 'none', border: 'none', color: '#FFFFFF', cursor: 'pointer', fontSize: '1.1rem' }}
-              aria-label="Cerrar chat"
+              aria-label={m.closeChat}
             >
               ×
             </button>
@@ -302,9 +314,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
           >
             <span>🎙️</span>
             <span>
-              {organizer
-                ? 'Solo lectura: el panel confirma, cierra o elimina. Este chat no lo hace.'
-                : 'Revisa tu cuota antes de abrir PayPal. Asistencia y pago se confirman por separado.'}
+              {organizer ? m.orgNotice : m.notice}
             </span>
           </div>
 
@@ -322,9 +332,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
           >
             {!organizer && (accessRevoked || closed) && (
               <div className="session-revoked-banner" role="status">
-                {accessRevoked
-                  ? 'El organizador revoco el acceso de esta sesion. Puedes leer el historial; el formulario queda cerrado.'
-                  : 'Esta invitacion esta cerrada. Puedes leer el historial; no se envian mensajes nuevos.'}
+                {accessRevoked ? m.revokedBanner : m.closedBanner}
               </div>
             )}
 
@@ -339,15 +347,15 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                   color: 'var(--color-ink)',
                 }}
               >
-                ⚠️ El servicio de chat no está habilitado en este servidor. Puedes consultar la conversación previa pero las nuevas consultas están pausadas.
+                {m.disabledBox}
               </div>
             )}
 
-            {messages.map((m) => {
-              const isUser = m.sender === 'user';
+            {messages.map((msg) => {
+              const isUser = msg.sender === 'user';
               return (
                 <div
-                  key={m.id}
+                  key={msg.id}
                   style={{
                     alignSelf: isUser ? 'flex-end' : 'flex-start',
                     maxWidth: '85%',
@@ -365,11 +373,11 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                     }}
                   >
                     <div style={{ whiteSpace: 'pre-wrap' }}>
-                      <AssistantText text={m.text} />
+                      <AssistantText text={msg.text} />
                     </div>
 
                     {/* Quote Action Card returned by assistant */}
-                    {m.quote && (
+                    {msg.quote && (
                       <div
                         style={{
                           marginTop: '0.65rem',
@@ -382,14 +390,14 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                         }}
                       >
                         <div style={{ fontWeight: 700, color: 'var(--color-blue)', marginBottom: '0.25rem' }}>
-                          🧾 Propuesta de Cotización
+                          {m.quoteTitle}
                         </div>
                         <div>
-                          {m.quote.people} personas • Saldo: <strong>{usd(m.quote.amountCents)}</strong>
+                          {m.quoteLine(msg.quote.people)}<strong>{formatMoney(msg.quote.amountCents)}</strong>
                         </div>
                         {onApplyQuote && !accessRevoked && !closed && (
                           <button
-                            onClick={() => onApplyQuote(m.quote!)}
+                            onClick={() => onApplyQuote(msg.quote!)}
                             className="btn btn-teal"
                             style={{
                               marginTop: '0.5rem',
@@ -398,27 +406,27 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                               width: '100%',
                             }}
                           >
-                            Revisar y Confirmar en Pantalla
+                            {m.reviewOnScreen}
                           </button>
                         )}
                       </div>
                     )}
 
                     {/* Action Proposals returned by assistant (e.g. rsvp:yes:1) */}
-                    {m.actions && m.actions.length > 0 && (
+                    {msg.actions && msg.actions.length > 0 && (
                       <div style={{ marginTop: '0.65rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                        {m.actions.map((act, actIdx) => {
+                        {msg.actions.map((act, actIdx) => {
                           const rsvpAction = parseRsvpAction(act);
                           if (!rsvpAction) return null;
-                          const actionKey = `${m.id}-${actIdx}`;
+                          const actionKey = `${msg.id}-${actIdx}`;
                           const isConfirmed = confirmedActionIds.has(actionKey);
                           const totalPeople = rsvpAction.status === 'yes' ? 1 + rsvpAction.companions : 0;
                           const statusLabel =
                             rsvpAction.status === 'yes'
-                              ? `Asistir (${totalPeople} ${totalPeople === 1 ? 'persona' : 'personas'})`
+                              ? m.attend(totalPeople, peopleWord(totalPeople, locale))
                               : rsvpAction.status === 'no'
-                              ? 'No asistir'
-                              : 'Tal vez';
+                              ? m.decline
+                              : m.maybe;
 
                           return (
                             <div
@@ -433,10 +441,10 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                               }}
                             >
                               <div style={{ fontWeight: 700, color: 'var(--color-ink)', marginBottom: '0.2rem' }}>
-                                📋 Propuesta de Asistencia
+                                {m.rsvpTitle}
                               </div>
                               <div style={{ fontSize: '0.78rem', color: 'var(--color-ink-muted)', marginBottom: '0.4rem' }}>
-                                Sugerencia: <strong>{statusLabel}</strong>
+                                {m.suggestion}<strong>{statusLabel}</strong>
                               </div>
                               {onConfirmRsvp && !accessRevoked && !closed && (
                                 <button
@@ -458,7 +466,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                                     fontWeight: 700,
                                   }}
                                 >
-                                  {isConfirmed ? '✓ Asistencia Confirmada en el Servidor' : 'Confirmar Asistencia'}
+                                  {isConfirmed ? m.confirmedServer : m.confirmRsvp}
                                 </button>
                               )}
                             </div>
@@ -475,7 +483,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                       textAlign: isUser ? 'right' : 'left',
                     }}
                   >
-                    {m.timestamp}
+                    {msg.timestamp}
                   </div>
                 </div>
               );
@@ -495,7 +503,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                 role="status"
                 aria-live="polite"
               >
-                {TYPING_TEXT}
+                {m.typing}
               </div>
             )}
 
@@ -530,9 +538,9 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
               style={{ fontSize: '0.85rem', padding: '0.5rem 0.75rem' }}
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Escribe un mensaje o pregunta..."
+              placeholder={m.placeholder}
               disabled={isLoading || composerDisabled}
-              aria-label="Mensaje para el asistente"
+              aria-label={m.composerAria}
             />
             <button
               type="button"
@@ -540,7 +548,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
               style={{ padding: '0.5rem 0.7rem', fontSize: '0.75rem' }}
               onClick={() => void pullHistory()}
             >
-              Actualizar
+              {m.refresh}
             </button>
             <button
               type="submit"
@@ -548,7 +556,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
               style={{ padding: '0.5rem 0.85rem', fontSize: '0.85rem' }}
               disabled={isLoading || !inputMessage.trim() || composerDisabled}
             >
-              Enviar
+              {m.send}
             </button>
           </form>
         </div>
