@@ -151,7 +151,7 @@ describe.skipIf(databaseUrl.length === 0)('chat publico informativo (FP-PUBLIC-C
     const input = requireValue<RespondInput>(capturedInput);
     expect(input.tools).toEqual([]);
     expect(input.instructions).toContain('GUÍA COMPARTIDA FIESTAPAY');
-    expect(input.instructions).toContain('Explora la demo');
+    expect(input.instructions).toContain('Demo para jueces');
     expect(input.instructions).toContain('Ver panel de ejemplo (AG Grid)');
     expect(input.instructions).toContain('Probar pago con PayPal');
     expect(input.instructions).toContain('Recuperar mi enlace');

@@ -1,16 +1,20 @@
-import type { ChatResult, ChatTranscript } from '@fiestapay/shared';
+import { ASSISTANT_CONTEXTS, type ChatResult, type ChatTranscript } from '@fiestapay/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { chatWithAssistant } from '../ai/chat.js';
 import { chatPublic } from '../ai/public-chat.js';
 import { presentedAdminKey } from '../domain/access.js';
 import { listOwnTranscript } from '../domain/moderation.js';
+import { requestLocale } from '../lib/locale.js';
 import { chatSchema, parseOr400, slugParamSchema, transcriptQuerySchema } from '../lib/schemas.js';
 import { ensureSession, readSession } from '../lib/session.js';
 import type { RouteDeps } from './deps.js';
 
-/** Public chat accepts only the current question: no role, history, event or client flags. */
-const publicChatSchema = z.object({ message: z.string().trim().min(1).max(1200) }).strict();
+/** Public chat accepts the current question and an optional public context: no role, history, event or client flags. */
+const publicChatSchema = z.object({
+  message: z.string().trim().min(1).max(1200),
+  context: z.enum(ASSISTANT_CONTEXTS).optional(),
+}).strict();
 
 export async function registerChatRoutes(app: FastifyInstance, deps: RouteDeps): Promise<void> {
   const { pool, config } = deps;
@@ -27,7 +31,7 @@ export async function registerChatRoutes(app: FastifyInstance, deps: RouteDeps):
       const session = await ensureSession(pool, config, req, reply);
       return chatWithAssistant(pool, config, session.id, slug, message, {
         respond: deps.respond,
-      }, presentedAdminKey(req));
+      }, presentedAdminKey(req), requestLocale(req));
     },
   );
 
@@ -37,11 +41,11 @@ export async function registerChatRoutes(app: FastifyInstance, deps: RouteDeps):
     '/chat/public',
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
     async (req, reply): Promise<{ text: string }> => {
-      const { message } = parseOr400(publicChatSchema, req.body);
+      const { message, context } = parseOr400(publicChatSchema, req.body);
       const session = await ensureSession(pool, config, req, reply);
       return chatPublic(pool, config, session.id, message, {
         ...(deps.respond ? { respond: deps.respond } : {}),
-      });
+      }, { locale: requestLocale(req), context: context ?? 'landing' });
     },
   );
 

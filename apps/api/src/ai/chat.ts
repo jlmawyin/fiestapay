@@ -1,4 +1,5 @@
 import type { ChatResult } from '@fiestapay/shared';
+import type { Locale } from '@fiestapay/shared';
 import type { Config, OpenAIConfig } from '../config.js';
 import type { Pool } from '../db/pool.js';
 import { HttpError, unavailable } from '../errors.js';
@@ -20,8 +21,14 @@ export const MAX_MESSAGES_PER_SCOPE = 60;
 /** Calls beyond this in a single model round are answered as refused and never executed. */
 export const MAX_TOOL_CALLS_PER_ROUND = 5;
 
-const FALLBACK_TEXT =
+const FALLBACK_TEXT_ES =
   'No pude redactar una respuesta. Puedes seguir con los formularios de la pagina: asistencia, cotizacion y pago funcionan sin el asistente.';
+const FALLBACK_TEXT_EN =
+  'I could not draft an answer. You can continue with the page forms: attendance, quote and payment work without the assistant.';
+
+function fallbackText(locale: Locale): string {
+  return locale === 'en' ? FALLBACK_TEXT_EN : FALLBACK_TEXT_ES;
+}
 
 /** Test seam: a scripted model replaces the OpenAI HTTP round trip. */
 export interface ChatProviders {
@@ -150,12 +157,13 @@ export async function converse(
   return { text, ...(quote ? { quote } : {}), actions: [...actions] };
 }
 
-function systemInstruction(event: EventRow, guest: GuestRow | null): string {
+function systemInstruction(event: EventRow, guest: GuestRow | null, locale: Locale): string {
   return guestSystemInstruction({
     title: event.title,
     slug: event.slug,
     template: event.template,
     guestName: guest?.name ?? null,
+    locale,
   });
 }
 
@@ -163,9 +171,14 @@ function systemInstruction(event: EventRow, guest: GuestRow | null): string {
 function selectProvider(
   config: Config,
   providers: ChatProviders,
+  locale: Locale = 'es',
 ): { maxHistoryMessages: number; adapter: (instruction: string) => ProviderAdapter } {
   const openai = config.openai;
-  if (!openai) throw unavailable(config.openaiDisabledReason ?? 'El asistente no esta configurado');
+  if (!openai) {
+    throw unavailable(locale === 'en'
+      ? 'The assistant is not configured'
+      : (config.openaiDisabledReason ?? 'El asistente no esta configurado'));
+  }
   const respond = providers.respond ?? createResponse;
   return { maxHistoryMessages: openai.maxHistoryMessages, adapter: (instruction) => openaiAdapter(openai, instruction, respond) };
 }
@@ -210,6 +223,7 @@ export async function chatWithAssistant(
   message: string,
   providers: ChatProviders = {},
   presentedKey: string | null = null,
+  locale: Locale = 'es',
 ): Promise<ChatResult> {
   const event = await getEventBySlug(pool, slug);
   await concealExpired(pool, event);
@@ -219,10 +233,12 @@ export async function chatWithAssistant(
   // Before provider selection, the credit row, and any provider HTTP. A block that lands
   // during the round is checked again under the chat scope lock, never held across the call.
   await assertSessionMayAct(pool, event.id, sessionId);
-  const provider = selectProvider(config, providers);
+  const provider = selectProvider(config, providers, locale);
 
   if ((await countScopedUserMessages(pool, event.id, sessionId)) >= MAX_MESSAGES_PER_SCOPE) {
-    throw new HttpError(429, 'Alcanzaste el limite de mensajes del asistente en este evento');
+    throw new HttpError(429, locale === 'en'
+      ? 'You reached the assistant message limit for this event'
+      : 'Alcanzaste el limite de mensajes del asistente en este evento');
   }
 
   await reserveAiRequest(pool, sessionId, event.id);
@@ -232,7 +248,7 @@ export async function chatWithAssistant(
   const decision = decideAssistantTurn(message);
   if (decision.kind !== 'model') {
     const facts = decision.kind === 'faq' ? await loadServerFacts(pool, event, config.publicOrigin) : null;
-    const text = policyAnswer('guest', decision, facts);
+    const text = policyAnswer('guest', decision, facts, locale);
     const saved = await appendChatTurn(pool, event.id, sessionId, 'model', [{ text }], storedUser.revision);
     const freshGuest = guest ? await loadGuest(pool, guest, event) : undefined;
     return {
@@ -246,7 +262,7 @@ export async function chatWithAssistant(
   const assistantIds: string[] = [];
 
   const result = await converse(
-    provider.adapter(systemInstruction(event, guest)),
+    provider.adapter(systemInstruction(event, guest, locale)),
     history,
     async (name, args) => {
       await assertChatRevision(pool, event.id, sessionId, storedUser.revision);
@@ -261,7 +277,7 @@ export async function chatWithAssistant(
   const freshGuest = guest ? await loadGuest(pool, guest, event) : undefined;
   const assistantMessageId = assistantIds[assistantIds.length - 1];
   return {
-    text: result.text.length > 0 ? result.text : FALLBACK_TEXT,
+    text: result.text.length > 0 ? result.text : fallbackText(locale),
     ...(result.quote ? { quote: result.quote } : {}),
     ...(freshGuest ? { guest: freshGuest } : {}),
     ...(result.actions.length > 0 ? { actions: result.actions } : {}),
