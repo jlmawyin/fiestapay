@@ -192,7 +192,14 @@ export const obligationCents = (event: EventRow, guest: GuestRow): number =>
 
 export const peopleOf = (guest: GuestRow): number => (guest.status === 'yes' ? 1 + guest.companions : 0);
 
-export function toFiestaEvent(row: EventRow, totals: EventTotals): FiestaEvent {
+/**
+ * A `FiestaEvent` plus the demo flag the API publishes. The shared contract in index.ts does not
+ * declare `isDemo` yet; this local intersection keeps the response typed without widening any
+ * other column into the payload.
+ */
+export type FiestaEventWithDemo = FiestaEvent & { isDemo: boolean };
+
+export function toFiestaEvent(row: EventRow, totals: EventTotals): FiestaEventWithDemo {
   const minimumCents = row.minimum_cents;
   return {
     id: row.id,
@@ -224,10 +231,11 @@ export function toFiestaEvent(row: EventRow, totals: EventTotals): FiestaEvent {
     fundingBasisCents: row.funding_basis_cents,
     organizerName: normalizeOrganizerName(row.organizer_name),
     theme: resolveTheme(row.template, row.theme).key,
+    isDemo: row.is_demo,
   };
 }
 
-export async function loadFiestaEvent(db: Queryable, row: EventRow): Promise<FiestaEvent> {
+export async function loadFiestaEvent(db: Queryable, row: EventRow): Promise<FiestaEventWithDemo> {
   return toFiestaEvent(row, await eventTotals(db, row.id));
 }
 

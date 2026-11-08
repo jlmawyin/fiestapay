@@ -7,6 +7,7 @@ import {
   bootstrapAdminKey,
   closeEvent,
   confirmEvent,
+  createDemoEvent,
   createEvent,
   deleteEvent,
   listOwnedEvents,
@@ -16,10 +17,20 @@ import {
   updateEvent,
 } from '../domain/events.js';
 import { createQuoteForSession } from '../domain/quotes.js';
-import { findGuestBySession, getEventBySlug, loadFiestaEvent, loadGuest } from '../domain/read.js';
+import { findGuestBySession, getEventBySlug, loadFiestaEvent, loadGuest, type FiestaEventWithDemo } from '../domain/read.js';
 import { concealExpired } from '../domain/retention.js';
 import { joinEvent, setRsvp } from '../domain/rsvp.js';
-import { assertNoClientMoneyState, eventInputSchema, joinSchema, parseOr400, rsvpSchema, slugParamSchema, unlockSchema } from '../lib/schemas.js';
+import {
+  assertNoClientMoneyState,
+  demoBodySchema,
+  eventInputSchema,
+  joinSchema,
+  parseOr400,
+  rsvpSchema,
+  slugParamSchema,
+  unlockSchema,
+} from '../lib/schemas.js';
+import { requestLocale } from '../lib/locale.js';
 import { ensureSession, readSession, requireSession } from '../lib/session.js';
 import type { RouteDeps } from './deps.js';
 
@@ -78,7 +89,10 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
     async (req, reply): Promise<CreatedEvent> => {
       const session = await ensureSession(pool, config, req, reply);
-      return startDemo(pool, session.id);
+      // No body (or an empty object) keeps the historical reuse behaviour untouched.
+      const { kind } = parseOr400(demoBodySchema, req.body ?? {});
+      if (!kind) return startDemo(pool, session.id);
+      return createDemoEvent(pool, session.id, requestLocale(req));
     },
   );
 
@@ -87,11 +101,11 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
     { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
     async (req): Promise<CreatedEvent> => {
       const session = await requireSession(pool, config, req);
-      return resetDemo(pool, session.id);
+      return resetDemo(pool, session.id, requestLocale(req));
     },
   );
 
-  app.get('/events', async (req): Promise<{ events: FiestaEvent[] }> => {
+  app.get('/events', async (req): Promise<{ events: FiestaEventWithDemo[] }> => {
     const session = await readSession(pool, config, req);
     if (!session) return { events: [] };
     return { events: await listOwnedEvents(pool, session.id) };

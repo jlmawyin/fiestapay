@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { LOCALE_HEADER, type Locale } from '@fiestapay/shared';
 import { loadConfig } from '../src/config.js';
 
 export const DATABASE_URL = process.env.DATABASE_URL;
@@ -44,7 +45,11 @@ export class Client {
   cookie: string | undefined;
   private readonly adminKeys = new Map<string, string>();
 
-  constructor(private readonly app: FastifyInstance) {}
+  constructor(
+    private readonly app: FastifyInstance,
+    /** When set, every request carries `x-fiesta-locale`. */
+    public locale?: Locale,
+  ) {}
 
   /** Sends X-Fiesta-Admin-Key on later calls for this slug. No session cookie is required. */
   authorize(slug: string, key: string): void {
@@ -55,6 +60,7 @@ export class Client {
     const headers: Record<string, string> = {};
     if (origin !== null) headers.origin = origin ?? ORIGIN;
     if (this.cookie) headers.cookie = this.cookie;
+    if (this.locale) headers[LOCALE_HEADER] = this.locale;
     const match = url.split('?')[0]?.match(/\/api\/events\/([^/]+)/);
     const slug = match?.[1] ? decodeURIComponent(match[1]) : null;
     const key = slug ? this.adminKeys.get(slug) : undefined;
