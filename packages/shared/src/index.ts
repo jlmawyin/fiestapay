@@ -190,6 +190,25 @@ export interface RecoveryConsumeRecovered { purpose: 'recover'; slug: string; ad
 export type RecoveryConsumeResult = RecoveryConsumeVerified | RecoveryConsumeRecovered;
 /** adminKey is returned once, on create. Later reads omit it. */
 export interface CreatedEvent { event: FiestaEvent; adminKey: string | null }
+/**
+ * Optional AI help at the end of the creation assistant (POST /api/ai/suggest-presentation).
+ * Only describes the gathering; never money, dates or capacity. The server always answers with a
+ * theme that belongs to the template; it falls back to deterministic rules when AI is unavailable.
+ */
+export interface PresentationSuggestionInput {
+  template: TemplateKind;
+  title: string;
+  meal?: 'desayuno' | 'almuerzo' | 'cena';
+  location?: string;
+  /** Free hints such as a food style ("asado") or trip extras ("hotel"). Max 10 x 60 chars. */
+  hints?: string[];
+}
+export interface PresentationSuggestion {
+  theme: ThemeKey;
+  /** Short invitation text in the request language, or null when only rules answered. */
+  description: string | null;
+  source: 'ai' | 'rules';
+}
 export interface ChatResult {
   text: string;
   quote?: Quote;
