@@ -16,6 +16,8 @@ export {
   contrastRatio,
   themeContrastPairs,
 } from './presentation.js';
+export * from './i18n.js';
+export * from './server-errors.js';
 
 export type TemplateKind = 'comida' | 'casa' | 'viaje' | 'evento';
 export type RsvpStatus = 'yes' | 'no' | 'maybe';
@@ -219,6 +221,8 @@ export interface ModerationConversation {
   id: string;
   guestId: string | null;
   guestName: string | null;
+  /** True for judge-demo events (events.is_demo). Sent in the owner's list; absent means false. */
+  isDemo?: boolean;
 }
 export interface ModerationMessage extends ChatTranscriptMessage {
   conversationId: string;
