@@ -5,12 +5,27 @@ import {
   themeLabel,
   themePhrase,
   themesForTemplate,
-  type Locale,
   type ThemeKey,
 } from '@fiestapay/shared';
 import type { EventInput, FiestaEvent, TemplateKind, AgendaItem } from '../../types';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { createEventCatalog } from '../../i18n/messages/organizerCreate';
+import {
+  buildEventInput,
+  capitalLabel,
+  collectExampleHits,
+  defaultStart,
+  dollars,
+  mealForHour,
+  plusHours,
+  reviewSignatureOf,
+  toLocalInput,
+  type ExampleFieldKey,
+  type ExampleHit,
+  type ExampleReview,
+  type PublishReview,
+  type Submission,
+} from './event-form-model';
 import {
   defaultThemeFor,
   formatEventRange,
@@ -28,105 +43,6 @@ interface CreateEventFormProps {
   initial?: FiestaEvent | null;
   submitLabel?: string;
 }
-
-function capitalLabel(value: string, locale: Locale): string {
-  if (value.length === 0) return value;
-  return value.charAt(0).toLocaleUpperCase(locale === 'en' ? 'en-US' : 'es-EC') + value.slice(1);
-}
-
-const pad = (n: number): string => String(n).padStart(2, '0');
-
-const toLocalInput = (d: Date): string =>
-  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-
-const defaultStart = (): string => {
-  const d = new Date();
-  d.setDate(d.getDate() + 5);
-  d.setHours(14, 0, 0, 0);
-  return toLocalInput(d);
-};
-
-const plusHours = (local: string, hours: number): string => {
-  const d = new Date(local);
-  if (Number.isNaN(d.getTime())) return '';
-  d.setHours(d.getHours() + hours);
-  return toLocalInput(d);
-};
-
-const mealForHour = (hour: number): 'desayuno' | 'almuerzo' | 'cena' => {
-  if (hour < 11) return 'desayuno';
-  if (hour < 17) return 'almuerzo';
-  return 'cena';
-};
-
-const dollars = (cents: number | null): string => (cents === null ? '' : (cents / 100).toFixed(2));
-
-// Detection always covers both languages: a legacy Spanish example still
-// warns in English and an English placeholder still warns in Spanish.
-// Display labels and placeholders come from the catalog.
-const EXAMPLE_FIELDS = [
-  {
-    field: 'title',
-    labelKey: 'exampleLabelTitle',
-    examples: ['Nombre de la fiesta', 'Nombre de la invitación', 'Party name', 'Invitation name'],
-    inputId: 'event-title',
-  },
-  {
-    field: 'location',
-    labelKey: 'exampleLabelLocation',
-    examples: ['Lugar o direccion', 'Place or address'],
-    inputId: 'event-location',
-  },
-  {
-    field: 'description',
-    labelKey: 'exampleLabelDescription',
-    examples: ['Que van a hacer', 'What you will do'],
-    inputId: 'event-desc',
-  },
-  {
-    field: 'includes',
-    labelKey: 'exampleLabelIncludes',
-    examples: ['Separa con comas', 'Separate with commas'],
-    inputId: 'event-includes',
-  },
-] as const;
-
-type ExampleFieldKey = (typeof EXAMPLE_FIELDS)[number]['field'];
-
-type ExampleHit = {
-  field: ExampleFieldKey;
-  label: string;
-  raw: string;
-  inputId: string;
-};
-
-type ExampleReview = {
-  signature: string;
-  hits: ExampleHit[];
-};
-
-type Submission = { ok: false; message: string } | { ok: true; payload: EventInput };
-
-type PublishReview = {
-  signature: string;
-  payload: EventInput;
-  hits: ExampleHit[];
-  datesSuggested: boolean;
-};
-
-// Whole-field match only. Folding trim, case, and accents must not treat a
-// longer sentence that merely discusses an example as the placeholder.
-const foldExampleText = (value: string): string =>
-  value
-    .trim()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-
-const matchesKnownExample = (value: string, example: string): boolean => {
-  const folded = foldExampleText(value);
-  return folded.length > 0 && folded === foldExampleText(example);
-};
 
 export const CreateEventForm: React.FC<CreateEventFormProps> = ({
   onSubmit,
@@ -215,20 +131,10 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
     includes: includesText,
   });
 
-  const collectExampleHits = (): ExampleHit[] => {
-    const values = exampleValues();
-    return EXAMPLE_FIELDS.filter((item) =>
-      item.examples.some((phrase) => matchesKnownExample(values[item.field], phrase)),
-    ).map((item) => ({
-      field: item.field,
-      label: m[item.labelKey],
-      raw: values[item.field],
-      inputId: item.inputId,
-    }));
-  };
+  const currentExampleHits = (): ExampleHit[] => collectExampleHits(exampleValues(), (key) => m[key]);
 
   const reviewSignature = (): string =>
-    JSON.stringify({
+    reviewSignatureOf({
       template,
       title,
       description,
@@ -263,125 +169,35 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
     exampleWarningRef.current?.focus();
   }, [activeReview]);
 
-  const buildSubmission = (): Submission => {
-    if (!title.trim()) {
-      return { ok: false, message: m.errTitle };
-    }
-    if (!location.trim()) {
-      return { ok: false, message: m.errLocation };
-    }
-    const startMs = new Date(startsAt).getTime();
-    const endMs = new Date(endsAt).getTime();
-    if (!Number.isFinite(startMs) || startMs <= Date.now()) {
-      return { ok: false, message: m.errStartFuture };
-    }
-    if (!Number.isFinite(endMs) || endMs <= startMs) {
-      return { ok: false, message: m.errEndAfterStart };
-    }
-    const priceNum = parseFloat(priceDollars);
-    if (!Number.isFinite(priceNum) || priceNum <= 0) {
-      return { ok: false, message: m.errPrice };
-    }
-    const priceCents = Math.round(priceNum * 100);
-    const parsedCapacity = Number.parseInt(capacity, 10);
-    if (!Number.isInteger(parsedCapacity) || parsedCapacity < 1) {
-      return { ok: false, message: m.errCapacity };
-    }
-
-    let goalCents: number | null = null;
-    if (goalDollars.trim()) {
-      const g = parseFloat(goalDollars);
-      if (!Number.isFinite(g) || g <= 0) {
-        return { ok: false, message: m.errGoal };
-      }
-      goalCents = Math.round(g * 100);
-    }
-
-    let minimumCents: number | null = null;
-    if (minimumDollars.trim()) {
-      const mm = parseFloat(minimumDollars);
-      if (!Number.isFinite(mm) || mm <= 0) {
-        return { ok: false, message: m.errMinimum };
-      }
-      minimumCents = Math.round(mm * 100);
-    }
-    if (minimumCents !== null && goalCents !== null && minimumCents > goalCents) {
-      return { ok: false, message: m.errMinOverGoal };
-    }
-    const ceiling = priceCents * parsedCapacity;
-    if ((goalCents !== null && ceiling < goalCents) || (minimumCents !== null && ceiling < minimumCents)) {
-      return { ok: false, message: m.errCeiling };
-    }
-
-    const deadlineFilled = deadlineLocal.trim().length > 0;
-    if (deadlineFilled) {
-      const deadlineMs = new Date(deadlineLocal).getTime();
-      if (!Number.isFinite(deadlineMs)) {
-        return { ok: false, message: m.errDeadlineInvalid };
-      }
-      if (deadlineMs <= Date.now()) {
-        return { ok: false, message: m.errDeadlineRange };
-      }
-      if (deadlineMs > startMs) {
-        return { ok: false, message: m.errDeadlineRange };
-      }
-      if (minimumCents === null) {
-        return { ok: false, message: m.errDeadlineNoMin };
-      }
-      if (isLegacy) {
-        return { ok: false, message: m.errDeadlineLegacy };
-      }
-    } else if (isEdit && deadlineTouched && minimumCents !== null) {
-      return {
-        ok: false,
-        message: m.errDeadlineCleared,
-      };
-    }
-
-    const includes = includesText
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    const payload: EventInput = {
-      title: title.trim(),
-      template,
-      meal,
-      organizerName: organizerName.trim() ? organizerName.trim() : null,
-      theme,
-      description: description.trim(),
-      startsAt: new Date(startsAt).toISOString(),
-      endsAt: new Date(endsAt).toISOString(),
-      location: location.trim(),
-      includes,
-      priceCents,
-      capacity: parsedCapacity,
-      goalCents,
-      minimumCents,
-      agenda: agenda
-        .filter((a) => a.title.trim() && a.time.trim())
-        .map((a) => {
-          const item: AgendaItem = {
-            time: a.time.trim(),
-            title: a.title.trim(),
-          };
-          if (a.speaker && a.speaker.trim()) {
-            item.speaker = a.speaker.trim().slice(0, 80);
-          }
-          return item;
-        }),
-    };
-    if (accessTouched) payload.accessCode = accessCode.trim() ? accessCode.trim() : null;
-    if (isEdit) {
-      if (deadlineTouched) {
-        payload.fundingDeadlineAt = deadlineFilled ? new Date(deadlineLocal).toISOString() : null;
-      }
-    } else if (deadlineFilled) {
-      payload.fundingDeadlineAt = new Date(deadlineLocal).toISOString();
-    }
-
-    return { ok: true, payload };
-  };
+  const buildSubmission = (): Submission =>
+    buildEventInput(
+      {
+        template,
+        title,
+        description,
+        organizerName,
+        theme,
+        meal,
+        startsAt,
+        endsAt,
+        location,
+        includes: includesText
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
+        priceDollars,
+        capacity,
+        goalDollars,
+        minimumDollars,
+        agenda,
+        accessCode,
+        accessTouched,
+        deadlineLocal,
+        deadlineTouched,
+      },
+      { isEdit, isLegacy },
+      m,
+    );
 
   const rejectSubmission = (message: string) => {
     setExampleReview(null);
@@ -414,7 +230,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       return;
     }
 
-    const hits = collectExampleHits();
+    const hits = currentExampleHits();
     const signature = reviewSignature();
     if (!isEdit) {
       setExampleReview(null);
@@ -458,7 +274,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       rejectSubmission(built.message);
       return;
     }
-    if (collectExampleHits().length === 0 || reviewSignature() !== signature) {
+    if (currentExampleHits().length === 0 || reviewSignature() !== signature) {
       setExampleReview(null);
       setPublishReview(null);
       return;

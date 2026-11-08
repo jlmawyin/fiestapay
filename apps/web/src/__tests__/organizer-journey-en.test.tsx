@@ -359,8 +359,22 @@ describe('create/edit form in English', () => {
     const onShowToast = vi.fn();
     renderEn(<CreateEventView onEventCreated={vi.fn()} onCancel={vi.fn()} onShowToast={onShowToast} recoveryAvailable={false} />);
     expect(screen.getByText('Create your next invitation')).toBeInTheDocument();
-    fillBasicsEn();
-    fireEvent.click(screen.getByRole('button', { name: 'Review invitation' }));
+    const save = () => fireEvent.click(screen.getByRole('button', { name: 'Save and continue' }));
+    fireEvent.change(screen.getByLabelText('Event Title *'), { target: { value: 'Sunday dinner' } });
+    save();
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-12-10' } });
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '14:00' } });
+    save();
+    fireEvent.change(screen.getByLabelText('Place or Address *'), { target: { value: 'Main hall' } });
+    fireEvent.change(screen.getByLabelText('Description for guests'), { target: { value: 'Real description here' } });
+    fireEvent.change(screen.getByLabelText('What does the share include? (Comma separated)'), {
+      target: { value: 'Snack, juice' },
+    });
+    save();
+    fireEvent.change(screen.getByLabelText('Share per person *'), { target: { value: '25.00' } });
+    fireEvent.change(screen.getByLabelText('Maximum capacity *'), { target: { value: '8' } });
+    save();
+    save();
     fireEvent.click(screen.getByRole('button', { name: 'Publish invitation' }));
     await waitFor(() => expect(api.createEvent).toHaveBeenCalledTimes(1));
     expect(onShowToast).toHaveBeenCalledWith(

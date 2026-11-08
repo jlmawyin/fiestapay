@@ -250,6 +250,193 @@ export function suggestTheme(template: PresentationTemplate, title: string): The
   return null;
 }
 
+export interface ThemeSuggestionInput {
+  template: PresentationTemplate;
+  title?: string;
+  location?: string;
+  includes?: string[];
+  meal?: MealKind | null;
+  /**
+   * Event-zone wall-clock hour (0-23). Out-of-range values are ignored.
+   * Only used when keywords and an explicit meal say nothing.
+   */
+  hour?: number | null;
+  /** Free food-style hint such as "asado" or "vegetariano". */
+  foodStyle?: string | null;
+}
+
+interface ThemeKeywordRule {
+  key: ThemeKey;
+  words: string[];
+}
+
+/**
+ * Keyword tables for the creation assistant. All words are pre-folded
+ * (lowercase, no accents) to match `fold()` output with substring rules,
+ * the same matching the title hint already uses. First match wins.
+ */
+const THEME_KEYWORD_RULES: Record<PresentationTemplate, ThemeKeywordRule[]> = {
+  comida: [
+    {
+      key: 'fogata',
+      words: ['fogata', 'bonfire', 'asado', 'parrilla', 'parrillada', 'bbq', 'grill', 'churrasco', 'carbon', 'ahumado'],
+    },
+    {
+      key: 'huerto',
+      words: [
+        'huerto', 'orchard', 'vegetariano', 'vegetarian', 'vegano', 'vegan', 'ensalada', 'salad',
+        'brunch', 'desayuno', 'breakfast', 'cosecha', 'harvest', 'huerta', 'saludable', 'healthy',
+        'manana', 'morning', 'frutas', 'pancakes',
+      ],
+    },
+    {
+      key: 'brindis',
+      words: [
+        'brindis', 'toast', 'vino', 'wine', 'champagne', 'postre', 'dessert', 'dulce', 'torta',
+        'cake', 'pastel', 'cupcake', 'cumple', 'birthday', 'aniversario', 'anniversary', 'boda',
+        'wedding', 'graduacion', 'graduation',
+      ],
+    },
+    {
+      key: 'mesa',
+      words: [
+        'mariscos', 'seafood', 'ceviche', 'pescado', 'fish', 'camaron', 'shrimp', 'pulpo', 'tipico',
+        'traditional', 'pizza', 'pasta', 'sushi', 'encebollado', 'fritada', 'hornado', 'bolon',
+        'mesa', 'table', 'almuerzo', 'lunch', 'menu',
+      ],
+    },
+  ],
+  casa: [
+    {
+      key: 'jardin',
+      words: ['jardin', 'garden', 'flores', 'flowers', 'plantas', 'plants', 'patio trasero', 'verde', 'picnic', 'parque'],
+    },
+    { key: 'terraza', words: ['terraza', 'terrace', 'balcon', 'rooftop', 'azotea'] },
+    {
+      key: 'sala',
+      words: [
+        'sala', 'living', 'cine', 'cinema', 'movie', 'pelicula', 'juegos', 'games', 'karaoke',
+        'noche', 'night', 'trasnoche', 'gala', 'indoor', 'adentro', 'maraton',
+      ],
+    },
+    {
+      key: 'patio',
+      words: [
+        'patio', 'parrilla', 'asado', 'bbq', 'musica', 'music', 'baile', 'dance', 'fiesta',
+        'party', 'cumple', 'birthday', 'reencuentro', 'reunion',
+      ],
+    },
+  ],
+  viaje: [
+    {
+      key: 'montana',
+      words: [
+        'cuenca', 'sierra', 'montana', 'mountain', 'andes', 'volcan', 'volcano', 'banos',
+        'chimborazo', 'cotopaxi', 'senderismo', 'hiking', 'nevado', 'paramo', 'caminata', 'cumbre',
+      ],
+    },
+    {
+      key: 'costa',
+      words: [
+        'playa', 'beach', 'costa', 'coast', 'mar', 'sea', 'ocean', 'oceano', 'manta', 'salinas',
+        'montanita', 'olas', 'surf', 'isla', 'island', 'galapagos', 'crucero', 'cruise', 'malecon',
+      ],
+    },
+    {
+      key: 'ciudad',
+      words: ['quito', 'guayaquil', 'ciudad', 'city', 'centro', 'downtown', 'urbano', 'urban', 'casco antiguo'],
+    },
+    {
+      key: 'camino',
+      words: [
+        'camino', 'trail', 'ruta', 'route', 'carretera', 'road', 'transporte', 'transport', 'bus',
+        'hotel', 'hospedaje', 'lodging', 'viaje', 'trip', 'tour', 'aventura', 'adventure', 'mochila', 'camping',
+      ],
+    },
+  ],
+  evento: [
+    {
+      key: 'galeria',
+      words: [
+        'galeria', 'gallery', 'museo', 'museum', 'expo', 'arte', 'art', 'exposicion', 'exhibition',
+        'feria', 'fair', 'foto', 'photo', 'pintura', 'paint', 'dibujo', 'escultura',
+      ],
+    },
+    {
+      key: 'taller',
+      words: [
+        'taller', 'workshop', 'curso', 'course', 'clase', 'class', 'capacitacion', 'training',
+        'seminario', 'seminar', 'meetup', 'conferencia', 'conference', 'charla', 'talk',
+        'emprendimiento', 'startup', 'emprendedor', 'networking', 'hackathon', 'codigo', 'code',
+        'lectura', 'libro', 'book',
+      ],
+    },
+    {
+      key: 'noche',
+      words: [
+        'noche', 'night', 'gala', 'after', 'fiesta', 'party', 'concierto', 'concert', 'baile',
+        'dance', 'show', 'festival', 'estreno', 'premiere', 'dj', 'graduacion', 'premios',
+      ],
+    },
+    { key: 'escenario', words: ['escenario', 'stage', 'teatro', 'theater', 'auditorio'] },
+  ],
+};
+
+function haystackFor(input: ThemeSuggestionInput): string {
+  const parts: string[] = [];
+  if (input.title) parts.push(input.title);
+  if (input.location) parts.push(input.location);
+  if (input.foodStyle) parts.push(input.foodStyle);
+  if (input.includes) {
+    for (const item of input.includes.slice(0, 20)) parts.push(item.slice(0, 200));
+  }
+  return fold(parts.join('\n'));
+}
+
+function themeFromKeywords(template: PresentationTemplate, haystack: string): ThemeKey | null {
+  if (!haystack) return null;
+  for (const rule of THEME_KEYWORD_RULES[template]) {
+    if (rule.words.some((word) => haystack.includes(word))) return rule.key;
+  }
+  return null;
+}
+
+function themeFromMealHour(
+  template: PresentationTemplate,
+  meal: MealKind | null,
+  hour: number | null,
+): ThemeKey | null {
+  const h = hour !== null && Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : null;
+  if (template === 'comida') {
+    if (meal === 'desayuno' || (meal == null && h !== null && h < 11)) return 'huerto';
+    if (meal === 'cena' || (meal == null && h !== null && h >= 18)) return 'brindis';
+    return null;
+  }
+  if (template === 'casa') {
+    if (h !== null && h >= 20) return 'sala';
+    return null;
+  }
+  if (template === 'evento') {
+    if (h !== null && (h >= 19 || h < 5)) return 'noche';
+    return null;
+  }
+  return null;
+}
+
+/**
+ * Rule-based theme suggestion for the creation assistant. Keywords over the
+ * title, location, includes and food style win; then meal/hour; then the
+ * title hint; then the template default. Always returns a theme of the
+ * template. Callers must not replace a theme the person already chose.
+ */
+export function suggestThemeFor(input: ThemeSuggestionInput): ThemeDefinition {
+  const byKeyword = themeFromKeywords(input.template, haystackFor(input));
+  if (byKeyword) return resolveTheme(input.template, byKeyword);
+  const byTime = themeFromMealHour(input.template, input.meal ?? null, input.hour ?? null);
+  if (byTime) return resolveTheme(input.template, byTime);
+  return suggestTheme(input.template, input.title ?? '') ?? defaultThemeFor(input.template);
+}
+
 function channel(hex: string, index: number): number {
   const raw = hex.replace('#', '');
   const pair = raw.slice(index * 2, index * 2 + 2);

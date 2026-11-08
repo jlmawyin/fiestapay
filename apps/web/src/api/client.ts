@@ -21,6 +21,8 @@ import type {
 } from '../types';
 import type {
   DemoKind,
+  PresentationSuggestion,
+  PresentationSuggestionInput,
   VoiceAudience,
   VoiceLeaseActivityResult,
   VoiceLeaseReleaseResult,
@@ -300,6 +302,18 @@ export const api = {
   async confirmEvent(slug: string): Promise<{ event: FiestaEvent }> {
     return request<{ event: FiestaEvent }>(`/api/events/${encodeURIComponent(slug)}/confirm`, {
       method: 'POST',
+    });
+  },
+
+  /**
+   * Optional AI help at the end of the creation assistant. The caller sends
+   * no personal data (no organizer name, no access code); on any failure it
+   * keeps the rule-based suggestion and never blocks publishing.
+   */
+  async suggestPresentation(input: PresentationSuggestionInput): Promise<PresentationSuggestion> {
+    return request<PresentationSuggestion>('/api/ai/suggest-presentation', {
+      method: 'POST',
+      body: JSON.stringify(input),
     });
   },
 

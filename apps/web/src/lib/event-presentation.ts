@@ -585,3 +585,9 @@ export function fundedIsNotConfirmationNote(template?: TemplateKind | null, loca
   })();
   return `El umbral de financiamiento se cumplió. Eso no confirma ${subject} por sí solo: la confirmación del organizador es independiente.`;
 }
+
+// Rule-based theme suggestion for the creation assistant. It lives in the
+// shared presentation module; the web imports that module directly because
+// the package entry (index.ts) is frozen by the assistant contract.
+export { suggestThemeFor } from '../../../../packages/shared/src/presentation';
+export type { ThemeSuggestionInput } from '../../../../packages/shared/src/presentation';

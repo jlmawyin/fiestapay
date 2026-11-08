@@ -7,8 +7,8 @@ vi.mock('ag-grid-react', () => ({
   AgGridReact: () => <div data-testid="guest-grid" />,
 }));
 
-vi.mock('../components/events/CreateEventForm', () => ({
-  CreateEventForm: ({ onSubmit, isLoading }: { onSubmit: (input: unknown) => Promise<void>; isLoading?: boolean }) => (
+vi.mock('../components/events/CreateWizard', () => ({
+  CreateWizard: ({ onSubmit, isLoading }: { onSubmit: (input: unknown) => Promise<void>; isLoading?: boolean }) => (
     <button
       type="button"
       disabled={Boolean(isLoading)}

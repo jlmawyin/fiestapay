@@ -125,10 +125,15 @@ describe('neutral presentation copy', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: /Viaje/i }));
     fireEvent.change(screen.getByLabelText(/Título del Evento/i), { target: { value: 'Ruta a Baños' } });
+    const save = () => fireEvent.click(screen.getByRole('button', { name: 'Guardar y seguir' }));
+    save();
+    save();
     fireEvent.change(screen.getByLabelText(/Lugar o Dirección/i), { target: { value: 'Baños' } });
+    save();
     fireEvent.change(screen.getByLabelText(/Cuota por persona/i), { target: { value: '25.00' } });
     fireEvent.change(screen.getByLabelText(/Capacidad máxima/i), { target: { value: '8' } });
-    reviewInvitation();
+    save();
+    save();
     fireEvent.click(screen.getByRole('button', { name: 'Publicar invitación' }));
 
     expect(await screen.findByRole('status')).toHaveTextContent('Creando la invitación…');
