@@ -3,8 +3,15 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { badRequest, unavailable } from '../errors.js';
 import { presentedAdminKey } from '../domain/access.js';
 import { audit } from '../domain/audit.js';
-import { captureOwnOrder, createOrderForSession, markOrderApproved, readOwnOrder, requirePayPal } from '../domain/orders.js';
-import { convergeCapture, convergeRefund, isApplied } from '../domain/payments.js';
+import {
+  captureOwnOrder,
+  createOrderForSession,
+  markOrderApproved,
+  markOrderDeclined,
+  readOwnOrder,
+  requirePayPal,
+} from '../domain/orders.js';
+import { convergeCapture, convergeRefund, isApplied, type CaptureOutcome } from '../domain/payments.js';
 import { findOrderByAnyId } from '../domain/read.js';
 import { assertNoClientMoneyState, orderIdParamSchema, orderSchema, parseOr400, slugParamSchema } from '../lib/schemas.js';
 import { requireSession } from '../lib/session.js';
@@ -15,6 +22,7 @@ interface WebhookBody {
   event_type?: unknown;
   resource?: {
     id?: unknown;
+    custom_id?: unknown;
     supplementary_data?: { related_ids?: { order_id?: unknown } };
   };
 }
@@ -136,7 +144,11 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
       if (seen.rows.length > 0) return { ok: true, duplicate: true };
 
       const resourceId = asString(body.resource?.id);
-      const relatedOrderId = asString(body.resource?.supplementary_data?.related_ids?.order_id);
+      // `supplementary_data` is the documented order reference, but PayPal does not guarantee it
+      // on every capture delivery. `custom_id` carries the same order.id we sent at creation, so
+      // it is a safe fallback: the capture is still verified against PayPal before being applied.
+      const relatedOrderId =
+        asString(body.resource?.supplementary_data?.related_ids?.order_id) ?? asString(body.resource?.custom_id);
       const merchantId = config.paypal.merchantId;
       const paypal = deps.paypal;
 
@@ -176,10 +188,20 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
           case 'PAYMENT.CAPTURE.DECLINED': {
             const order = relatedOrderId ? await findOrderByAnyId(pool, relatedOrderId) : null;
             if (!order) return retry('orden desconocida todavia');
-            // A decline never marks anything paid. It also says nothing about another attempt
-            // on the same order, so the safe reconciliation still runs: it can only ever apply
-            // a capture that PayPal itself reports as settled.
-            await convergeCapture(pool, paypal, merchantId, order, null).catch(() => undefined);
+            // A decline never marks anything paid. Reconcile first: if PayPal reports a settled
+            // capture anyway, it is applied and the order is not released. If reconciliation
+            // cannot reach PayPal, ask for redelivery instead of guessing about the money.
+            let reconciled: CaptureOutcome;
+            try {
+              reconciled = await convergeCapture(pool, paypal, merchantId, order, null);
+            } catch {
+              return retry('Notificacion aun no aplicable; reintenta');
+            }
+            if (isApplied(reconciled)) return done();
+            // A definitive decline must not leave the obligation frozen in `capturing`: release
+            // the one-open-order slot so the guest can retry the same payment. The update is
+            // guarded under the same locks and never touches an order with a recorded capture.
+            await markOrderDeclined(pool, order);
             await audit(pool, order.event_id, 'payment_capture_declined');
             return done();
           }

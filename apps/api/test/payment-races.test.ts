@@ -471,6 +471,85 @@ describeDb('carreras de pago y notificaciones fuera de orden', () => {
       expect(await collected(org, event.slug)).toBe(5000);
     });
 
+    race('una captura sin supplementary_data se resuelve por custom_id sin duplicar el ledger', async () => {
+      const { client: org, event } = await organizer();
+      const guest = await guestOn(event.slug, 'SinSuplementaria', 1);
+      const order = await quoteAndOrder(guest, event.slug);
+      const local = await orderOf(event.slug, 'SinSuplementaria');
+
+      await fake.captureOrder({ paypalOrderId: order.orderId, requestId: 'externo' });
+      const captureId = fake.captureIdOf(order.orderId);
+      const hookId = nextWebhookId();
+
+      // PayPal's capture body without supplementary_data, but carrying our custom_id (order.id).
+      const completed = await webhook(
+        guest,
+        'PAYMENT.CAPTURE.COMPLETED',
+        { id: captureId, custom_id: local.id },
+        hookId,
+      );
+      expect(completed.statusCode).toBe(200);
+      expect(await webhookRecorded(hookId)).toBe(true);
+      expect((await orderOf(event.slug, 'SinSuplementaria')).status).toBe('paid');
+      expect(await ledger('capture', order.orderId)).toEqual({ rows: 1, cents: 5000 });
+      expect(await collected(org, event.slug)).toBe(5000);
+
+      // A redelivery under another notification id is a duplicate, not a second payment.
+      const again = await webhook(guest, 'PAYMENT.CAPTURE.COMPLETED', { id: captureId, custom_id: local.id });
+      expect(again.statusCode).toBe(200);
+      expect(await ledger('capture', order.orderId)).toEqual({ rows: 1, cents: 5000 });
+      expect(await collected(org, event.slug)).toBe(5000);
+    });
+
+    race('PAYMENT.CAPTURE.DECLINED libera una orden en capturing y permite reintentar el pago', async () => {
+      const { client: org, event } = await organizer();
+      const guest = await guestOn(event.slug, 'RechazadaEnVuelo', 1);
+      const order = await quoteAndOrder(guest, event.slug);
+
+      // The capture request is rejected; the durable claim deliberately keeps the order
+      // frozen because the caller cannot yet prove no money moved.
+      fake.failCapture = 'reject';
+      expect((await guest.post(`/api/orders/${order.orderId}/capture`)).statusCode).toBe(502);
+      fake.failCapture = null;
+      expect((await orderOf(event.slug, 'RechazadaEnVuelo')).status).toBe('capturing');
+
+      const hookId = nextWebhookId();
+      const declined = await webhook(
+        guest,
+        'PAYMENT.CAPTURE.DECLINED',
+        captureResource('CAP-DECLINADA-EN-VUELO', order.orderId),
+        hookId,
+      );
+      expect(declined.statusCode).toBe(200);
+      expect(await webhookRecorded(hookId)).toBe(true);
+      expect((await orderOf(event.slug, 'RechazadaEnVuelo')).status).toBe('failed');
+      expect(await ledger('capture', order.orderId)).toEqual({ rows: 0, cents: 0 });
+      expect(await collected(org, event.slug)).toBe(0);
+      expect(await auditOf(event.slug)).toContain('payment_capture_declined');
+
+      // A redelivery under another notification id neither revives nor double-applies anything.
+      expect(
+        (await webhook(guest, 'PAYMENT.CAPTURE.DECLINED', captureResource('CAP-DECLINADA-EN-VUELO', order.orderId)))
+          .statusCode,
+      ).toBe(200);
+      expect((await orderOf(event.slug, 'RechazadaEnVuelo')).status).toBe('failed');
+      expect(await ledger('capture', order.orderId)).toEqual({ rows: 0, cents: 0 });
+
+      // The guest is no longer blocked: the same obligation can be paid again with a new order.
+      const retried = await quoteAndOrder(guest, event.slug);
+      expect(retried.orderId).not.toBe(order.orderId);
+      expect((await guest.post(`/api/orders/${retried.orderId}/capture`)).statusCode).toBe(200);
+      expect(await ledger('capture', retried.orderId)).toEqual({ rows: 1, cents: 5000 });
+      expect(await collected(org, event.slug)).toBe(5000);
+
+      const statuses = await pool.query<{ status: string }>(
+        `SELECT o.status FROM orders o JOIN guests g ON g.id = o.guest_id JOIN events e ON e.id = g.event_id
+          WHERE e.slug = $1 AND g.name = $2 ORDER BY o.created_at`,
+        [event.slug, 'RechazadaEnVuelo'],
+      );
+      expect(statuses.rows.map((r) => r.status)).toEqual(['failed', 'paid']);
+    });
+
     race('PAYMENT.CAPTURE.DECLINED no marca pagado y concilia de forma segura', async () => {
       const { client: org, event } = await organizer();
       const guest = await guestOn(event.slug, 'Declinada', 1);
