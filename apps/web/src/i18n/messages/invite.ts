@@ -1,9 +1,10 @@
 import { defineCatalog } from '../catalog';
 
 /**
- * Public invitation view: loading, private code, stepper, facts, banners and
- * every guest toast. The "I want to pay" CTA and the order buttons render
- * UI_LABELS literally at the call site. Spanish stays byte-identical.
+ * Public invitation view: loading, private code, payment wizard, facts, banners and
+ * every guest toast. Step titles and controls render UI_LABELS literally at the
+ * call site; this catalog holds the wizard explanations, folded summaries and
+ * locked hints. Spanish stays byte-identical.
  */
 export const inviteCatalog = defineCatalog({
   es: {
@@ -88,29 +89,26 @@ export const inviteCatalog = defineCatalog({
     revokedBlocked:
       'Esta sesión no puede confirmar asistencia, chatear, usar voz ni iniciar un pago nuevo. Si ya había un cobro en curso, verifica su estado real abajo. El recibo de lo abonado sigue visible.',
     stepperAria: 'Pasos para pagar con PayPal',
-    stepperTitle: 'Tu camino al pago',
     stepperSub: 'PayPal Sandbox, sin dinero real. Cada paso se completa en esta misma invitación.',
-    stepJoin: 'Únete con tu nombre',
-    stepJoinDone: 'Sesión de invitado lista.',
     stepJoinTodo: 'Escribe un alias para crear tu sesión.',
-    stepRsvp: 'Confirma tu asistencia',
-    stepRsvpDone: 'Asistencia confirmada.',
+    stepJoinedLead: '✓ Te uniste como',
     stepRsvpTodo: 'Elige si vienes antes de calcular el importe.',
-    stepQuote: 'Revisa tu importe',
-    stepQuoteDone: (money: string) => `Importe revisado: ${money} pendiente.`,
+    stepRsvpSummary: (companions: number, people: number) =>
+      companions > 0
+        ? `Vas tú + ${companions} acompañante${companions === 1 ? '' : 's'} · ${people} personas`
+        : 'Vas tú · 1 persona',
+    stepRsvpMaybe: 'Respondiste «Tal vez». Si vienes, cambia tu respuesta para abrir el importe y el pago.',
+    stepRsvpNo: 'Respondiste «No podré ir». El importe y el pago solo aplican si asistes.',
     stepQuoteTodo: 'El servidor calculará el total y la diferencia.',
-    stepPay: 'Paga en PayPal Sandbox',
-    stepPayDone: 'Sin saldo pendiente en esta vista.',
-    stepPayOrder: 'Orden creada: revisa y confirma la captura en la tarjeta de PayPal.',
-    stepPayTodo: (wantLabel: string) =>
-      `Primero revisa y confirma el importe; el botón ${wantLabel} no crea órdenes.`,
-    ctaNote: 'Este botón solo te lleva al primer paso pendiente; no crea ni captura una orden.',
-    ctaPaid: 'Sin saldo pendiente',
-    ctaReview: 'Revisar pago',
-    ctaHelpClosed: 'Las inscripciones o pagos nuevos están cerrados para esta invitación.',
-    ctaHelpOpen: 'Revisa el importe calculado por el servidor antes de confirmar cualquier pago.',
-    sessionActive: 'Sesión activa:',
-    paidBack: 'Abonado:',
+    stepQuoteDone: (money: string) => `Importe revisado: ${money}`,
+    stepPayExplain:
+      'Confirma la captura de tu orden de PayPal Sandbox aquí mismo. Nada queda pagado hasta que el servidor lo verifique.',
+    stepPayDone: '✓ Pagado',
+    stepLockedHint: (prevTitle: string) => `Se abre al completar: ${prevTitle}`,
+    stepNeedsAttendance: 'Solo aplica si confirmas tu asistencia.',
+    wizardPaidLead: 'Abonado',
+    wizardDueLead: 'Falta',
+    wizardPaidDone: 'Pagado',
     activeOrder: 'Orden activa registrada: ',
     orderChecking: 'Consultando...',
     orderDismiss: 'Descartar',
@@ -198,29 +196,26 @@ export const inviteCatalog = defineCatalog({
     revokedBlocked:
       'This session cannot confirm attendance, chat, use voice, or start a new payment. If a charge was already in progress, check its real status below. The receipt of what was paid stays visible.',
     stepperAria: 'Steps to pay with PayPal',
-    stepperTitle: 'Your path to payment',
     stepperSub: 'PayPal Sandbox, no real money. Every step completes on this same invitation.',
-    stepJoin: 'Join with your name',
-    stepJoinDone: 'Guest session ready.',
     stepJoinTodo: 'Type an alias to create your session.',
-    stepRsvp: 'Confirm your attendance',
-    stepRsvpDone: 'Attendance confirmed.',
+    stepJoinedLead: '✓ You joined as',
     stepRsvpTodo: 'Choose whether you are coming before calculating the amount.',
-    stepQuote: 'Review your amount',
-    stepQuoteDone: (money: string) => `Amount reviewed: ${money} pending.`,
+    stepRsvpSummary: (companions: number, people: number) =>
+      companions > 0
+        ? `You + ${companions} companion${companions === 1 ? '' : 's'} · ${people} people`
+        : 'Just you · 1 person',
+    stepRsvpMaybe: 'You answered “Maybe”. If you are coming, change your answer to open the amount and payment.',
+    stepRsvpNo: 'You answered “I cannot make it”. The amount and payment only apply if you attend.',
     stepQuoteTodo: 'The server will calculate the total and the difference.',
-    stepPay: 'Pay in PayPal Sandbox',
-    stepPayDone: 'No pending balance in this view.',
-    stepPayOrder: 'Order created: review and confirm the capture on the PayPal card.',
-    stepPayTodo: (wantLabel: string) =>
-      `First review and confirm the amount; the ${wantLabel} button creates no orders.`,
-    ctaNote: 'This button only takes you to the first pending step; it creates or captures no order.',
-    ctaPaid: 'No pending balance',
-    ctaReview: 'Review payment',
-    ctaHelpClosed: 'New registrations or payments are closed for this invitation.',
-    ctaHelpOpen: 'Review the server-calculated amount before confirming any payment.',
-    sessionActive: 'Active session:',
-    paidBack: 'Paid:',
+    stepQuoteDone: (money: string) => `Amount reviewed: ${money}`,
+    stepPayExplain:
+      'Confirm the capture of your PayPal Sandbox order right here. Nothing counts as paid until the server verifies it.',
+    stepPayDone: '✓ Paid',
+    stepLockedHint: (prevTitle: string) => `Opens after completing: ${prevTitle}`,
+    stepNeedsAttendance: 'Only applies if you confirm your attendance.',
+    wizardPaidLead: 'Paid',
+    wizardDueLead: 'Remaining',
+    wizardPaidDone: 'Paid',
     activeOrder: 'Active order on record: ',
     orderChecking: 'Checking...',
     orderDismiss: 'Dismiss',

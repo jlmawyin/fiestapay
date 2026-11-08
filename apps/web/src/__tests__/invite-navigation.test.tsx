@@ -261,7 +261,8 @@ describe('Navigation between invitations with in-flight mutations (Join/RSVP/Cre
       expect(screen.getAllByText('AnaInvitada').length).toBeGreaterThan(0);
     });
 
-    const saveRsvpBtn = screen.getByRole('button', { name: /Actualizar mi Asistencia/i });
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar' }));
+    const saveRsvpBtn = screen.getByRole('button', { name: /Guardar y seguir/i });
     fireEvent.click(saveRsvpBtn);
 
     expect(api.rsvp).toHaveBeenCalledWith('fiesta-uno', 'yes', 0);
@@ -311,7 +312,8 @@ describe('Navigation between invitations with in-flight mutations (Join/RSVP/Cre
       expect(screen.getAllByText('AnaInvitada').length).toBeGreaterThan(0);
     });
 
-    const saveRsvpBtn = screen.getByRole('button', { name: /Actualizar mi Asistencia/i });
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar' }));
+    const saveRsvpBtn = screen.getByRole('button', { name: /Guardar y seguir/i });
     fireEvent.click(saveRsvpBtn);
 
     // Navigate to fiesta-dos
@@ -333,7 +335,8 @@ describe('Navigation between invitations with in-flight mutations (Join/RSVP/Cre
     // Must not show error toast on fiesta-dos
     expect(screen.queryByText('Capacidad agotada en fiesta previa')).toBeNull();
     // Controls on fiesta-dos must remain interactive
-    const rsvpBtnDos = screen.getByRole('button', { name: /Actualizar mi Asistencia/i });
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar' }));
+    const rsvpBtnDos = screen.getByRole('button', { name: /Guardar y seguir/i });
     expect(rsvpBtnDos).not.toBeDisabled();
   });
 
@@ -349,7 +352,8 @@ describe('Navigation between invitations with in-flight mutations (Join/RSVP/Cre
       expect(screen.getByText('Cumpleaños de Ana')).toBeInTheDocument();
     });
 
-    const saveRsvpBtn = screen.getByRole('button', { name: /Actualizar mi Asistencia/i });
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar' }));
+    const saveRsvpBtn = screen.getByRole('button', { name: /Guardar y seguir/i });
     fireEvent.click(saveRsvpBtn);
 
     // Assert the form error separately: a global toast alone cannot prove propagation.
@@ -358,7 +362,7 @@ describe('Navigation between invitations with in-flight mutations (Join/RSVP/Cre
     });
     expect(within(screen.getByRole('region', { name: 'Notificaciones del sistema' })).getByText('Capacidad máxima superada')).toBeInTheDocument();
     // Controls must not remain permanently locked
-    expect(screen.getByRole('button', { name: /Actualizar mi Asistencia/i })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /Guardar y seguir/i })).not.toBeDisabled();
   });
 
   it('discards late createOrder resolution after navigating to another fiesta', async () => {

@@ -222,7 +222,7 @@ describe('create review and guest surfaces', () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     render(<RsvpForm guest={guest} event={event()} onSaveRsvp={onSave} isLoading={false} />);
     for (const radio of screen.getAllByRole('radio')) expect(radio).toHaveAttribute('aria-checked', 'false');
-    fireEvent.click(screen.getByRole('button', { name: 'Actualizar mi Asistencia' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar y seguir' }));
     expect(onSave).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toHaveTextContent('Elige si vienes antes de guardar.');
     fireEvent.click(screen.getByRole('radio', { name: /Sí, voy/i }));

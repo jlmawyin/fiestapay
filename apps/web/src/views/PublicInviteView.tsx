@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback, useLayoutEffect, useRef } from 'react';
-import { UI_LABELS } from '@fiestapay/shared';
 import type { FiestaEvent, Guest, Quote, OrderResult, Capabilities, RsvpStatus, AgendaItem } from '../types';
 import { api, ApiError } from '../api/client';
 import { useI18n, useMessages } from '../i18n/I18nContext';
@@ -7,10 +6,7 @@ import { inviteCatalog } from '../i18n/messages/invite';
 import { TemplateCover } from '../components/illustrations/TemplateCover';
 import { ThemeScope } from '../components/events/ThemeScope';
 import { TicketCutout } from '../components/common/TicketCutout';
-import { JoinForm } from '../components/invite/JoinForm';
-import { RsvpForm } from '../components/invite/RsvpForm';
-import { QuoteReviewCard } from '../components/invite/QuoteReviewCard';
-import { PayPalSection } from '../components/invite/PayPalSection';
+import { PaymentWizard } from '../components/invite/PaymentWizard';
 import { AssistantOrb } from '../components/assistant/AssistantOrb';
 import { QrShareModal } from '../components/dashboard/QrShareModal';
 import { FundingStatusPanel, newGuestActivityBlocked } from '../components/common/FundingStatusPanel';
@@ -57,11 +53,9 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const [showQrModal, setShowQrModal] = useState(false);
   const { locale, formatMoney } = useI18n();
   const m = useMessages(inviteCatalog);
-  const labels = UI_LABELS[locale];
   const copyRef = useRef(m);
   copyRef.current = m;
   const scopeVersion = useRef(0);
-  const paymentFocusRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     scopeVersion.current += 1;
     return () => { scopeVersion.current += 1; };
@@ -440,90 +434,15 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const activityBlocked = newGuestActivityBlocked(event);
   const sessionRevoked = Boolean(guest?.blockedAt || guest?.removedAt);
   const formsClosed = activityBlocked || sessionRevoked;
+  const closedReason = activityBlocked
+    ? (event.fundingStatus === 'failed' ? m.blockedFailed : m.blockedClosed)
+    : sessionRevoked
+      ? (guest?.removedAt ? m.revokedRemoved : m.revokedBlocked)
+      : null;
 
-  const joined = Boolean(guest);
-  const attendanceConfirmed = guest?.status === 'yes';
-  const quoteReviewed = Boolean(quote);
   const paidOrCovered = Boolean(
     guest && guest.status === 'yes' && (quote ? quote.amountCents === 0 : guest.dueCents === 0 && guest.paidCents > 0),
   ) || activeOrder?.status === 'paid';
-
-  const paymentSteps = [
-    {
-      key: 'join',
-      label: m.stepJoin,
-      detail: joined ? m.stepJoinDone : m.stepJoinTodo,
-      done: joined,
-      active: !joined,
-      locked: false,
-    },
-    {
-      key: 'rsvp',
-      label: m.stepRsvp,
-      detail: attendanceConfirmed ? m.stepRsvpDone : m.stepRsvpTodo,
-      done: attendanceConfirmed,
-      active: joined && !attendanceConfirmed,
-      locked: false,
-    },
-    {
-      key: 'quote',
-      label: m.stepQuote,
-      detail: quoteReviewed
-        ? m.stepQuoteDone(formatMoney(quote!.amountCents))
-        : m.stepQuoteTodo,
-      done: attendanceConfirmed && quoteReviewed,
-      active: attendanceConfirmed && !quoteReviewed,
-      locked: false,
-    },
-    {
-      key: 'paypal',
-      label: m.stepPay,
-      detail: paidOrCovered
-        ? m.stepPayDone
-        : activeOrder
-          ? m.stepPayOrder
-          : m.stepPayTodo(labels.wantToPay),
-      done: paidOrCovered,
-      active: attendanceConfirmed && quoteReviewed && !paidOrCovered,
-      locked: formsClosed && !activeOrder,
-    },
-  ];
-
-  /**
-   * This CTA only moves the person to the first missing human step. It deliberately never
-   * calls createOrder, captureOrder or any other payment mutation.
-   */
-  const focusFirstNeededPaymentStep = () => {
-    const root = paymentFocusRef.current;
-    if (!root) return;
-    const focusSelector = (selector: string): boolean => {
-      const element = root.querySelector<HTMLElement>(selector);
-      if (!element) return false;
-      element.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
-      element.focus?.({ preventScroll: true });
-      return true;
-    };
-
-    if (!guest) {
-      focusSelector('#attendee-name');
-      return;
-    }
-    if (guest.status !== 'yes') {
-      focusSelector('[role="radio"]');
-      return;
-    }
-    if (!quote) {
-      if (!focusSelector('[data-payment-quote] button')) focusSelector('[data-payment-quote]');
-      return;
-    }
-    if (quote.amountCents > 0 && !activeOrder) {
-      focusSelector('[data-payment-quote] input[type="checkbox"]');
-      return;
-    }
-    if (activeOrder) {
-      focusSelector('[data-paypal-section] button, [data-paypal-section] a');
-    }
-  };
 
   return (
     <ThemeScope theme={theme}>
@@ -685,7 +604,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         <TicketCutout />
 
         {/* Guest RSVP & Payment Stub */}
-        <div ref={paymentFocusRef} style={{ padding: '1.5rem', backgroundColor: '#FAFCFE' }}>
+        <div style={{ padding: '1.5rem', backgroundColor: '#FAFCFE' }}>
           {activityBlocked && (
             <p className="funding-stopped-banner" role="status" style={{ marginBottom: '1rem' }}>
               {event.fundingStatus === 'failed' ? m.blockedFailed : m.blockedClosed}
@@ -697,191 +616,30 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
             </p>
           )}
 
-          <section
-            aria-label={m.stepperAria}
-            data-testid="paypal-stepper"
-            style={{
-              backgroundColor: '#FFFFFF',
-              border: '1.5px solid var(--color-blue)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '1rem',
-              marginBottom: '1rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.75rem',
-            }}
-          >
-            <div>
-              <h3 style={{ fontSize: '1.05rem', color: 'var(--color-ink)', marginBottom: '0.2rem' }}>{m.stepperTitle}</h3>
-              <p style={{ fontSize: '0.825rem', color: 'var(--color-ink-muted)' }}>
-                {m.stepperSub}
-              </p>
-            </div>
-            <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: '0.5rem' }}>
-              {paymentSteps.map((step, index) => (
-                <li
-                  key={step.key}
-                  aria-current={step.active ? 'step' : undefined}
-                  data-step-state={step.done ? 'done' : step.active ? 'active' : 'pending'}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '0.65rem',
-                    padding: '0.55rem 0.65rem',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: step.active ? 'var(--color-blue-tint)' : 'var(--color-surface-subtle)',
-                    border: step.active ? '1px solid var(--color-blue)' : '1px solid transparent',
-                    opacity: step.locked ? 0.65 : 1,
-                  }}
-                >
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      width: '24px',
-                      height: '24px',
-                      borderRadius: '50%',
-                      flex: '0 0 auto',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 800,
-                      fontSize: '0.75rem',
-                      backgroundColor: step.done ? 'var(--color-teal)' : step.active ? 'var(--color-blue)' : 'var(--color-border-dark)',
-                      color: step.done || step.active ? '#FFFFFF' : 'var(--color-ink)',
-                    }}
-                  >
-                    {step.done ? '✓' : index + 1}
-                  </span>
-                  <span style={{ minWidth: 0 }}>
-                    <strong style={{ display: 'block', fontSize: '0.875rem', color: 'var(--color-ink)' }}>{step.label}</strong>
-                    <span style={{ display: 'block', fontSize: '0.775rem', color: 'var(--color-ink-muted)' }}>{step.detail}</span>
-                  </span>
-                </li>
-              ))}
-            </ol>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-ink-muted)' }}>
-                {m.ctaNote}
-              </span>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={focusFirstNeededPaymentStep}
-                disabled={paidOrCovered || (formsClosed && !activeOrder)}
-                aria-describedby="quiero-pagar-help"
-                style={{ flex: '0 0 auto' }}
-              >
-                {paidOrCovered ? m.ctaPaid : activeOrder ? m.ctaReview : labels.wantToPay}
-              </button>
-            </div>
-            <span id="quiero-pagar-help" style={{ fontSize: '0.75rem', color: 'var(--color-ink-muted)' }}>
-              {formsClosed && !activeOrder ? m.ctaHelpClosed : m.ctaHelpOpen}
-            </span>
-          </section>
-
-          {!guest && !activityBlocked ? (
-            <JoinForm onJoin={handleJoin} isLoading={isJoining} template={event.template} />
-          ) : !guest ? null : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              {/* Guest Greeting Header */}
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '0.75rem 1rem',
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--color-border)',
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--color-ink-muted)' }}>{m.sessionActive}</div>
-                  <strong style={{ fontSize: '1.05rem', color: 'var(--color-ink)' }}>{guest.name}</strong>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-ink-muted)' }}>{m.paidBack}</div>
-                  <strong style={{ color: 'var(--color-teal)', fontSize: '0.95rem' }}>{formatMoney(guest.paidCents)}</strong>
-                </div>
-              </div>
-
-              {!formsClosed ? (
-                <RsvpForm guest={guest} event={event} onSaveRsvp={handleSaveRsvp} isLoading={isSavingRsvp} />
-              ) : null}
-
-              {/* Server Quote & Payment Review */}
-              {guest.status === 'yes' && (
-                <>
-                  {!formsClosed ? (
-                    <div data-payment-quote tabIndex={-1} style={{ minWidth: 0 }}>
-                      <QuoteReviewCard
-                        quote={quote}
-                        isLoadingQuote={isLoadingQuote}
-                        onRefreshQuote={fetchQuote}
-                        onCreateOrder={handleCreateOrder}
-                        isCreatingOrder={isCreatingOrder}
-                        template={event.template}
-                      />
-                    </div>
-                  ) : null}
-
-                  {/* Scoped Active Order Notice & Reconciliation */}
-                  {activeOrder && (
-                    <div
-                      style={{
-                        backgroundColor: 'var(--color-blue-tint)',
-                        border: '1.5px solid var(--color-blue)',
-                        borderRadius: 'var(--radius-md)',
-                        padding: '0.75rem 1rem',
-                        fontSize: '0.85rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                        gap: '0.5rem',
-                      }}
-                    >
-                      <div>
-                        <span style={{ fontWeight: 700, color: 'var(--color-ink)' }}>{m.activeOrder}</span>
-                        <code>#{activeOrder.orderId.slice(0, 8)}</code>
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.4rem' }}>
-                        <button
-                          type="button"
-                          onClick={handleReconcileOrder}
-                          disabled={isReconcilingOrder}
-                          className="btn btn-teal"
-                          style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
-                        >
-                          {isReconcilingOrder ? m.orderChecking : `🔍 ${labels.verifyStatus}`}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleDismissOrder}
-                          className="btn btn-secondary"
-                          style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
-                        >
-                          {m.orderDismiss}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* PayPal capture stays hidden once this session is revoked. Verify/GET above remains. */}
-                  {activeOrder && !sessionRevoked && (
-                    <div data-paypal-section style={{ minWidth: 0 }}>
-                      <PayPalSection
-                        order={activeOrder}
-                        capabilities={capabilities}
-                        onCaptureSuccess={handleCaptureSuccess}
-                        onCancelOrError={handlePaymentCancelOrError}
-                      />
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
+          <PaymentWizard
+            event={event}
+            guest={guest}
+            quote={quote}
+            activeOrder={activeOrder}
+            capabilities={capabilities}
+            isJoining={isJoining}
+            isSavingRsvp={isSavingRsvp}
+            isLoadingQuote={isLoadingQuote}
+            isCreatingOrder={isCreatingOrder}
+            isReconcilingOrder={isReconcilingOrder}
+            formsClosed={formsClosed}
+            closedReason={closedReason}
+            sessionRevoked={sessionRevoked}
+            paidOrCovered={paidOrCovered}
+            onJoin={handleJoin}
+            onSaveRsvp={handleSaveRsvp}
+            onCreateOrder={handleCreateOrder}
+            onRefreshQuote={fetchQuote}
+            onReconcileOrder={handleReconcileOrder}
+            onDismissOrder={handleDismissOrder}
+            onCaptureSuccess={handleCaptureSuccess}
+            onCancelOrError={handlePaymentCancelOrError}
+          />
         </div>
       </article>
 

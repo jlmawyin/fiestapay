@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { UI_LABELS } from '@fiestapay/shared';
 import type { Guest, RsvpStatus, FiestaEvent } from '../../types';
-import { useMessages } from '../../i18n/I18nContext';
+import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { rsvpCatalog } from '../../i18n/messages/rsvp';
 
 interface RsvpFormProps {
@@ -28,7 +29,9 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
   const [status, setStatus] = useState<RsvpStatus | null>(() => visibleRsvpChoice(guest));
   const [companions, setCompanions] = useState<number>(guest.companions || 0);
   const [error, setError] = useState<string | null>(null);
+  const { locale } = useI18n();
   const m = useMessages(rsvpCatalog);
+  const labels = UI_LABELS[locale];
 
   useEffect(() => {
     setStatus(visibleRsvpChoice(guest));
@@ -228,7 +231,7 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
 
       {/* Save Button */}
       <button type="submit" className="btn btn-teal" style={{ width: '100%' }} disabled={isLoading}>
-        {isLoading ? m.saving : m.save}
+        {isLoading ? m.saving : labels.saveAndContinue}
       </button>
     </form>
   );
