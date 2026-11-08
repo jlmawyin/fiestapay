@@ -207,7 +207,7 @@ export function buildInviteShareText(input: InviteShareInput, locale: Locale = '
     locale === 'en' ? `Schedule: ${when}` : `Horario: ${when}`,
     locale === 'en' ? `Place: ${plainShareText(input.location)}` : `Lugar: ${plainShareText(input.location)}`,
     locale === 'en'
-      ? `Cost per person: ${formatMoney(input.priceCents, locale)}`
+      ? `Share per person: ${formatMoney(input.priceCents, locale)}`
       : `Cuota por persona: ${formatMoney(input.priceCents, locale)}`,
     copy.welcome,
     shareableInviteUrl(input.inviteUrl),
@@ -282,12 +282,12 @@ export function guestPayLabel(paidCents: number, dueCents: number, locale: Local
   if (paidCents > 0 && dueCents === 0) return locale === 'en' ? 'Paid' : 'Pagado';
   if (paidCents > 0 && dueCents > 0) {
     return locale === 'en'
-      ? `Paid ${formatMoney(paidCents, locale)}. Missing ${formatMoney(dueCents, locale)}`
+      ? `Paid ${formatMoney(paidCents, locale)}. Remaining ${formatMoney(dueCents, locale)}`
       : `Abonado ${formatMoney(paidCents, locale)}. Falta ${formatMoney(dueCents, locale)}`;
   }
   if (dueCents > 0) {
     return locale === 'en'
-      ? `Payment pending. Missing ${formatMoney(dueCents, locale)}`
+      ? `Payment pending. Remaining ${formatMoney(dueCents, locale)}`
       : `Pago pendiente. Falta ${formatMoney(dueCents, locale)}`;
   }
   return locale === 'en' ? 'Payment pending' : 'Pago pendiente';
@@ -452,7 +452,7 @@ const COVERED_WHEN_PAID: Record<TemplateKind, string> = {
 };
 
 const COVERED_WHEN_PAID_EN: Record<TemplateKind, string> = {
-  comida: 'Your payment for this dinner is already covered. That does not confirm the dinner or reserve a seat.',
+  comida: 'Your payment for this meal is already covered. That does not confirm the meal or reserve a seat.',
   casa: 'Your payment for this house gathering is already covered. That does not confirm the gathering or reserve a seat.',
   viaje: 'Your payment for this trip is already covered. That does not confirm the trip or reserve a seat.',
   evento: 'Your payment for this event is already covered. That does not confirm the event or reserve a seat.',
@@ -500,7 +500,7 @@ export function quoteClientSummary(
     return locale === 'en' ? `${head}. No balance due.` : `${head}. Sin saldo pendiente.`;
   }
   return locale === 'en'
-    ? `${head}. Paid ${lines.paid}. Missing ${lines.due}.`
+    ? `${head}. Paid ${lines.paid}. Remaining ${lines.due}.`
     : `${head}. Abonado ${lines.paid}. Falta ${lines.due}.`;
 }
 
@@ -522,7 +522,7 @@ export function organizerConfirmedBadge(template?: TemplateKind | null, locale: 
   if (locale === 'en') {
     switch (template) {
       case 'comida':
-        return 'Dinner confirmed by the organizer';
+        return 'Meal confirmed by the organizer';
       case 'casa':
         return 'House gathering confirmed by the organizer';
       case 'viaje':
@@ -556,7 +556,7 @@ export function fundedIsNotConfirmationNote(template?: TemplateKind | null, loca
     const subject = (() => {
       switch (template) {
         case 'comida':
-          return 'the dinner';
+          return 'the meal';
         case 'casa':
           return 'the house gathering';
         case 'viaje':

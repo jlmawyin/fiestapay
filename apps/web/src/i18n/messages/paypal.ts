@@ -63,7 +63,7 @@ export const paypalCatalog = defineCatalog({
     externalArmed:
       'Complete the payment in PayPal. When you return to this tab we will check the order with the server. It is not marked as paid until the server confirms it.',
     checkingServer: 'Checking the payment with the server…',
-    orderStatusShown: (status: string) => `The order shows as "${status}". It was not marked as paid.`,
+    orderStatusShown: (status: string) => `The order is listed as "${status}". It was not marked as paid.`,
     autoConfirmFail:
       'We did not confirm the payment automatically. Use Check to retry. Nothing was marked as paid.',
     stillWaiting: 'PayPal does not confirm the approval yet. We keep checking…',
@@ -96,7 +96,7 @@ export const paypalCatalog = defineCatalog({
     sdkFallback: 'Could not start the PayPal gateway.',
     retrySdk: 'Retry loading PayPal',
     externalApprovalLink: 'Open the PayPal approval link provided by the order ↗',
-    externalWindowLink: 'Go pay in PayPal in an external window ↗',
+    externalWindowLink: 'Pay in PayPal in an external window ↗',
     reconcileHint: 'Did you pay in another window or need to reconcile?',
   },
 });

@@ -91,13 +91,13 @@ export const demoCatalog = defineCatalog({
     payZero: 'No balance (fictional)',
     step2Title: 'Try a PayPal Sandbox payment',
     step2Text:
-      'Create a fictional dinner, join Demo Guest with one companion, and open the invitation so you can complete the payment manually.',
+      'Create a fictional meal, join Demo Guest with one companion, and open the invitation so you can complete the payment manually.',
     paymentLoading: 'Preparing the test payment...',
     step3Title: 'Talk to the assistant',
     step3Text: 'Ask how FiestaPay works in a chat separate from the landing one.',
     privateTitle: 'Prefer to explore on your own?',
     privateText:
-      'Create your own fictional dinner with an organizer key and open your real dashboard. Payments run in PayPal Sandbox; there are no real charges.',
+      'Create your own fictional meal with an organizer key and open your real dashboard. Payments run in PayPal Sandbox; there are no real charges.',
     privateLoading: 'Creating private demo...',
     myDemosSub: 'Demos created in this browser.',
     demosLoading: 'Loading your demos...',

@@ -39,7 +39,7 @@ function gatheringCopy(template: string | null | undefined, locale: Locale = 'es
   if (locale === 'en') {
     switch (template) {
       case 'comida':
-        return { noun: 'dinner', phrase: 'the dinner', ofPhrase: 'of the dinner', feminine: false };
+        return { noun: 'meal', phrase: 'the meal', ofPhrase: 'of the meal', feminine: false };
       case 'casa':
         return { noun: 'house gathering', phrase: 'the house gathering', ofPhrase: 'of the house gathering', feminine: false };
       case 'viaje':
@@ -527,11 +527,11 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
           }}
         >
           <div>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>{m.confirmCardTitle(copy.ofPhrase)}</h3>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>{m.confirmCardTitle(locale === 'en' ? copy.phrase : copy.ofPhrase)}</h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--color-ink-muted)' }}>
               {canConfirm
                 ? m.confirmCardOk(copy.phrase)
-                : m.confirmCardNeedMin(formatMoney(event.minimumCents || 0), copy.ofPhrase)}
+                : m.confirmCardNeedMin(formatMoney(event.minimumCents || 0), locale === 'en' ? copy.phrase : copy.ofPhrase)}
             </p>
           </div>
           <div>

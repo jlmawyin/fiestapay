@@ -108,10 +108,10 @@ describe('locale formats', () => {
     expect(organizerLine('Ana', 'en')).toBe('Organized by Ana');
     expect(namedGreeting('Ana', 'en')).toBe('Ana invites you.');
     expect(guestPayLabel(2500, 0, 'en')).toBe('Paid');
-    expect(guestPayLabel(2500, 2500, 'en')).toBe('Paid $25.00. Missing $25.00');
+    expect(guestPayLabel(2500, 2500, 'en')).toBe('Paid $25.00. Remaining $25.00');
     expect(organizerConfirmedBadge('viaje', 'en')).toBe('Trip confirmed by the organizer');
     expect(fundedIsNotConfirmationNote('viaje', 'en')).toContain('does not confirm the trip');
-    expect(guestCoveredCopy('comida', 2500, 'en')).toContain('Your payment for this dinner is already covered');
+    expect(guestCoveredCopy('comida', 2500, 'en')).toContain('Your payment for this meal is already covered');
   });
 
   it('marks only explicit isDemo:true events as demos', () => {

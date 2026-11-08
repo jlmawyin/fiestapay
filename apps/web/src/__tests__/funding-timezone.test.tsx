@@ -81,7 +81,7 @@ describe('event times ignore the browser time zone', () => {
     );
     const panel = screen.getByRole('region', { name: 'Share status' });
     expect(panel.textContent).toContain('$25.00');
-    expect(screen.getByText('Paid $20.00. Missing $30.00')).toBeInTheDocument();
+    expect(screen.getByText('Paid $20.00. Remaining $30.00')).toBeInTheDocument();
     expect(panel.textContent).toMatch(/02:00\s?PM \(UTC-05:00\)/);
     expect(panel.textContent).not.toContain('Dec 16');
     expect(screen.getByText('Progress toward the minimum: 50%')).toBeInTheDocument();

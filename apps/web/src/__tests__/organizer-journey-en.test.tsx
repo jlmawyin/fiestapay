@@ -244,14 +244,15 @@ describe('organizer dashboard in English', () => {
     await waitFor(() => expect(confirm).toHaveBeenCalledExactlyOnceWith('sunday-dinner'));
     expect(onShowToast).toHaveBeenCalledWith(
       'success',
-      'The dinner has been formally confirmed!',
-      'Dinner confirmed',
+      'The meal has been formally confirmed!',
+      'Meal confirmed',
     );
 
     fireEvent.click(screen.getByRole('button', { name: '📲 QR' }));
     expect(screen.getByText('Share Invitation')).toBeInTheDocument();
     const draft = screen.getByLabelText('WhatsApp draft');
-    expect(draft.textContent).toContain('Coming to dinner?');
+    expect(draft.textContent).toContain('Coming to eat?');
+    expect(draft.textContent).toContain('Share per person:');
     expect(draft.textContent).not.toContain('¿Vienes a comer?');
   });
 
@@ -460,8 +461,8 @@ describe('cover badges and share draft', () => {
       organizerName: 'Ana Org',
     };
     const en = buildInviteShareText(input, 'en');
-    expect(en).toContain('Coming to dinner?');
-    expect(en).toContain('$25.00');
+    expect(en).toContain('Coming to eat?');
+    expect(en).toContain('Share per person: $25.00');
     expect(en).not.toContain('¿Vienes a comer?');
     expect(en).not.toContain('Cuota por persona');
     const es = buildInviteShareText(input, 'es');

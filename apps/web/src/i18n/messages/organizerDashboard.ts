@@ -151,15 +151,15 @@ export const dashboardCatalog = defineCatalog({
     minKicker: 'Required Minimum',
     minNone: 'Not required',
     minReached: 'Minimum reached ✓',
-    minMissing: (money: string) => `${money} missing`,
+    minMissing: (money: string) => `${money} to reach the minimum`,
     minNoCondition: 'No minimum condition',
     deadlineLine: (date: string) => `Deadline: ${date}`,
     confirmedKicker: 'Confirmed (attendance)',
-    confirmCardTitle: (ofPhrase: string) => `Confirm realization ${ofPhrase}`,
+    confirmCardTitle: (phrase: string) => `Confirm ${phrase} will take place`,
     confirmCardOk: (phrase: string) =>
       `You can confirm that ${phrase} will happen. Each guest's attendance and payments are managed separately.`,
-    confirmCardNeedMin: (money: string, ofPhrase: string) =>
-      `At least ${money} must be raised before the realization ${ofPhrase} can be formally confirmed.`,
+    confirmCardNeedMin: (money: string, phrase: string) =>
+      `At least ${money} must be raised before ${phrase} can be formally confirmed.`,
     confirmBtnTitleOk: (noun: string) => `Confirm ${noun}`,
     confirmBtnTitleNeedMin: 'Minimum not reached yet',
     confirming: 'Confirming...',
@@ -171,7 +171,7 @@ export const dashboardCatalog = defineCatalog({
     auditAria: 'Audit history',
     auditTitle: 'Activity and Audit Log',
     confirmModalTitle: 'Confirm the invitation will happen?',
-    confirmModalDesc: 'This action marks the invitation as confirmed. It moves or holds no money.',
+    confirmModalDesc: 'This action marks the invitation as confirmed. No money is moved or held.',
     confirmModalBody: (title: string) =>
       `You confirm that "${title}" will take place. Each guest's attendance and payments are managed separately.`,
     modalCancel: 'Cancel',

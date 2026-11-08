@@ -166,7 +166,7 @@ describe('guest invitation in English', () => {
 
     expect(await screen.findByRole('heading', { name: 'Sunday lunch' })).toBeInTheDocument();
     // Template copy, facts, and organizer lines in English.
-    expect(screen.getByRole('heading', { name: 'Coming to dinner?' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Coming to eat?' })).toBeInTheDocument();
     expect(screen.getByText('Flat share: $25.00 per person')).toBeInTheDocument();
     expect(screen.getByText('START AND END')).toBeInTheDocument();
     expect(screen.getByText('MEAL TYPE')).toBeInTheDocument();
@@ -190,7 +190,7 @@ describe('guest invitation in English', () => {
     expect(screen.getByText(/the I want to pay button creates no orders/)).toBeInTheDocument();
     // Join form in English.
     expect(screen.getByLabelText('Guest alias')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Join the dinner' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Join the meal' })).toBeInTheDocument();
 
     const body = document.body.textContent ?? '';
     for (const witness of SPANISH_WITNESSES) {
@@ -212,7 +212,7 @@ describe('guest invitation in English', () => {
 
     await screen.findByRole('heading', { name: 'Sunday lunch' });
     fireEvent.change(screen.getByLabelText('Guest alias'), { target: { value: 'TestGuest' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Join the dinner' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Join the meal' }));
     await waitFor(() => expect(join).toHaveBeenCalledWith('sunday-lunch', 'TestGuest'));
 
     fireEvent.click(screen.getByRole('radio', { name: /Yes, I am coming!/ }));

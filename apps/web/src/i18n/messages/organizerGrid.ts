@@ -64,7 +64,7 @@ export const gridCatalog = defineCatalog({
     modActive: 'Active',
     modBlocked: 'Blocked',
     modRemoved: 'Withdrawn',
-    modPending: 'Payment verifying',
+    modPending: 'Payment being verified',
     modBlock: 'Block',
     modUnblock: 'Unblock',
     modRemove: 'Withdraw',

@@ -42,7 +42,7 @@ export const TEMPLATE_INVITE_COPY: Record<PresentationTemplate, TemplateInviteCo
 
 /** English invitation copy per template. Spanish stays in TEMPLATE_INVITE_COPY. */
 export const TEMPLATE_INVITE_COPY_EN: Record<PresentationTemplate, TemplateInviteCopy> = {
-  comida: { welcome: 'Coming to dinner?', join: 'Join the dinner', noun: 'dinner' },
+  comida: { welcome: 'Coming to eat?', join: 'Join the meal', noun: 'meal' },
   casa: { welcome: 'Coming over?', join: 'Join at home', noun: 'house gathering' },
   viaje: { welcome: 'Joining the trip?', join: 'Join the trip', noun: 'trip' },
   evento: { welcome: 'Coming to the event?', join: 'Join the event', noun: 'event' },
