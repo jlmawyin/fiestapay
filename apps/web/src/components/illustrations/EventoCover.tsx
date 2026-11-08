@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { coversCatalog } from '../../i18n/messages/organizerCovers';
 
@@ -8,9 +8,21 @@ interface CoverProps {
   accent?: string;
 }
 
+/**
+ * Modern editorial cover: stage light beams over a flat surface/tint
+ * wash, with a geometric ticket stub and confetti in theme tones.
+ * Every tone comes from the theme CSS vars so each theme renders its own
+ * palette; the static fallbacks match the default `escenario` theme.
+ */
 export const EventoCover: React.FC<CoverProps> = ({ className = '', height = '180px', accent }) => {
   const { locale } = useI18n();
   const m = useMessages(coversCatalog);
+  const surface = 'var(--theme-surface, #FBF6F8)';
+  const ink = 'var(--theme-ink, #2A1822)';
+  const muted = 'var(--theme-muted, #643848)';
+  const accentFill = `var(--theme-accent, ${accent ?? '#7A1F4B'})`;
+  const tint = 'var(--theme-tint, #F4E0E8)';
+  const bgId = `fp-evento-bg-${useId().replace(/:/g, '')}`;
   return (
     <svg
       viewBox="0 0 500 200"
@@ -25,69 +37,47 @@ export const EventoCover: React.FC<CoverProps> = ({ className = '', height = '18
       }
       role="img"
     >
-      {/* Background night stage */}
-      <rect width="500" height="200" fill="#12263A" />
-      {accent ? <rect width="500" height="14" fill={accent} /> : null}
+      <defs>
+        <linearGradient id={bgId} x1="0" y1="0" x2="500" y2="200" gradientUnits="userSpaceOnUse">
+          <stop offset="0" style={{ stopColor: surface }} />
+          <stop offset="1" style={{ stopColor: tint }} />
+        </linearGradient>
+      </defs>
 
-      {/* Spotlights cones */}
-      <polygon points="60,0 120,200 20,200" fill="#FFC85A" fillOpacity="0.12" />
-      <polygon points="440,0 480,200 380,200" fill="#125FE6" fillOpacity="0.18" />
-      <polygon points="250,0 320,200 180,200" fill="#E85D4A" fillOpacity="0.1" />
+      {/* Flat editorial wash */}
+      <rect width="500" height="200" fill={`url(#${bgId})`} />
+      <rect width="500" height="8" style={{ fill: accentFill }} />
 
-      {/* Celebration Balloons (Left) */}
-      <g>
-        <ellipse cx="80" cy="95" rx="18" ry="24" fill="#E85D4A" />
-        <ellipse cx="85" cy="90" rx="4" ry="8" fill="#FFFFFF" fillOpacity="0.4" />
-        <path d="M80 119 L 78 123 L 82 123 Z" fill="#E85D4A" />
-        <path d="M80 123 Q 75 145 82 170" stroke="#CBD5E1" strokeWidth="1" />
+      {/* Stage light beams */}
+      <polygon points="90,8 150,200 60,200" style={{ fill: accentFill }} opacity="0.10" />
+      <polygon points="410,8 470,200 380,200" style={{ fill: accentFill }} opacity="0.14" />
+      <polygon points="250,8 300,200 200,200" style={{ fill: ink }} opacity="0.06" />
 
-        <ellipse cx="115" cy="80" rx="19" ry="25" fill="#FFC85A" />
-        <ellipse cx="120" cy="74" rx="4" ry="8" fill="#FFFFFF" fillOpacity="0.5" />
-        <path d="M115 105 L 113 109 L 117 109 Z" fill="#FFC85A" />
-        <path d="M115 109 Q 125 135 118 170" stroke="#CBD5E1" strokeWidth="1" />
+      {/* Geometric confetti in theme tones */}
+      <circle cx="70" cy="80" r="6" style={{ fill: accentFill }} opacity="0.85" />
+      <rect x="140" y="52" width="11" height="11" rx="2" style={{ fill: ink }} opacity="0.7" transform="rotate(18 140 52)" />
+      <circle cx="215" cy="70" r="4" style={{ fill: muted }} opacity="0.8" />
+      <rect x="300" y="48" width="10" height="10" rx="2" style={{ fill: accentFill }} opacity="0.8" transform="rotate(-14 300 48)" />
+      <circle cx="368" cy="76" r="5" style={{ fill: ink }} opacity="0.6" />
+      <rect x="425" y="100" width="12" height="12" rx="2" style={{ fill: accentFill }} opacity="0.7" transform="rotate(24 425 100)" />
+      <circle cx="180" cy="120" r="4" style={{ fill: accentFill }} opacity="0.6" />
+      <circle cx="330" cy="118" r="6" style={{ fill: muted }} opacity="0.6" />
 
-        <ellipse cx="50" cy="110" rx="16" ry="22" fill="#0B8075" />
-        <ellipse cx="54" cy="105" rx="3.5" ry="7" fill="#FFFFFF" fillOpacity="0.4" />
-        <path d="M50 132 L 48 136 L 52 136 Z" fill="#0B8075" />
-        <path d="M50 136 Q 45 150 52 170" stroke="#CBD5E1" strokeWidth="1" />
-      </g>
+      {/* Ticket stub: outline, perforation, accent seal */}
+      <rect x="150" y="118" width="200" height="58" rx="10" style={{ fill: surface, stroke: accentFill }} strokeWidth="3" />
+      <line x1="238" y1="122" x2="238" y2="172" style={{ stroke: accentFill }} strokeWidth="2" strokeDasharray="5 5" opacity="0.7" />
+      <circle cx="238" cy="118" r="6" style={{ fill: tint, stroke: accentFill }} strokeWidth="2" />
+      <circle cx="238" cy="176" r="6" style={{ fill: tint, stroke: accentFill }} strokeWidth="2" />
+      <circle cx="196" cy="147" r="12" style={{ fill: accentFill }} />
+      <rect x="262" y="134" width="62" height="8" rx="4" style={{ fill: ink }} opacity="0.75" />
+      <rect x="262" y="148" width="44" height="8" rx="4" style={{ fill: muted }} opacity="0.6" />
 
-      {/* Confetti ribbons & bursts */}
-      {/* Ribbons curves */}
-      <path d="M170 30 Q 185 60 175 90 Q 165 120 180 150" stroke="#FFC85A" strokeWidth="3" strokeLinecap="round" fill="none" />
-      <path d="M330 35 Q 315 70 325 100 Q 340 130 320 160" stroke="#E85D4A" strokeWidth="3" strokeLinecap="round" fill="none" />
+      {/* Stage floor line */}
+      <rect x="40" y="186" width="420" height="5" rx="2.5" style={{ fill: ink }} opacity="0.75" />
 
-      {/* Confetti sparkles */}
-      <rect x="220" y="45" width="8" height="5" rx="1" fill="#FFC85A" transform="rotate(35 220 45)" />
-      <circle cx="280" cy="65" r="4" fill="#0B8075" />
-      <rect x="260" y="105" width="7" height="7" rx="1" fill="#125FE6" transform="rotate(-20 260 105)" />
-      <circle cx="370" cy="60" r="3.5" fill="#FFC85A" />
-      <rect x="420" y="85" width="8" height="4" rx="1" fill="#E85D4A" transform="rotate(40 420 85)" />
-      <circle cx="200" cy="130" r="4" fill="#E85D4A" />
-
-      {/* Celebration Stage & Glasses in Center */}
-      <g transform="translate(230, 95)">
-        {/* Ice bucket */}
-        <polygon points="10,40 38,40 34,70 14,70" fill="#94A3B8" />
-        {/* Bottle in bucket */}
-        <path d="M20 40 L 22 20 L 26 20 L 28 40 Z" fill="#0B8075" />
-        <rect x="23" y="15" width="4" height="6" fill="#FFC85A" />
-        {/* Clinking champagne flutes */}
-        <path d="M5 25 Q 5 40 12 40 Q 19 40 19 25 Z" fill="#FFC85A" fillOpacity="0.8" />
-        <line x1="12" y1="40" x2="12" y2="52" stroke="#CBD5E1" strokeWidth="1.5" />
-        <line x1="7" y1="52" x2="17" y2="52" stroke="#CBD5E1" strokeWidth="1.5" />
-
-        <path d="M30 25 Q 30 40 37 40 Q 44 40 44 25 Z" fill="#FFC85A" fillOpacity="0.8" />
-        <line x1="37" y1="40" x2="37" y2="52" stroke="#CBD5E1" strokeWidth="1.5" />
-        <line x1="32" y1="52" x2="42" y2="52" stroke="#CBD5E1" strokeWidth="1.5" />
-
-        {/* Clink star */}
-        <path d="M23 16 L 25 18 L 27 16 L 25 14 Z" fill="#FFFFFF" />
-      </g>
-
-      {/* Header Badge */}
-      <rect x="20" y="18" width="138" height="26" rx="13" fill="#12263A" fillOpacity="0.7" stroke="#E85D4A" strokeWidth="1" />
-      <text x="32" y="35" fill="#F87171" fontFamily="Nunito Sans, sans-serif" fontWeight="800" fontSize="12" letterSpacing="0.05em">{m.badgeEvento}</text>
+      {/* Header badge */}
+      <rect x="20" y="20" width="172" height="26" rx="13" style={{ fill: surface, stroke: accentFill }} strokeWidth="1.5" />
+      <text x="32" y="37" style={{ fill: ink }} fontFamily="Nunito Sans, sans-serif" fontWeight="800" fontSize="12" letterSpacing="0.05em">{m.badgeEvento}</text>
     </svg>
   );
 };

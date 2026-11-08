@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Check, Eye, Link2, MessageCircle, QrCode } from 'lucide-react';
 import { UI_LABELS, formatEventDateTime, themePhrase, type Locale } from '@fiestapay/shared';
 import type { Dashboard, Capabilities, EventInput, ModerationGuest } from '../types';
 import { api, ApiError } from '../api/client';
@@ -359,7 +360,10 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
             {event.fundingStatus === 'failed' ? (
               <span className="badge badge-coral">{m.badgeFailed}</span>
             ) : event.confirmed ? (
-              <span className="badge badge-teal">{m.badgeConfirmed}</span>
+              <span className="badge badge-teal">
+                <Check size={14} aria-hidden="true" />
+                <span>{m.badgeConfirmed}</span>
+              </span>
             ) : (
               <span className="badge badge-yellow">{m.badgePending}</span>
             )}
@@ -378,16 +382,20 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button onClick={() => onNavigateInvite(slug)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-            {m.viewInviteBtn}
+            <Eye size={16} aria-hidden="true" />
+            <span>{m.viewInviteBtn}</span>
           </button>
           <button onClick={handleWhatsAppShare} className="btn btn-teal" style={{ fontSize: '0.85rem' }}>
-            {m.shareWhatsapp}
+            <MessageCircle size={16} aria-hidden="true" />
+            <span>{m.shareWhatsapp}</span>
           </button>
           <button onClick={() => setShowQrModal(true)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-            {m.qrBtn}
+            <QrCode size={16} aria-hidden="true" />
+            <span>{m.qrBtn}</span>
           </button>
           <button onClick={handleCopyLink} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-            {copiedLink ? m.copiedBtn : m.copyLink}
+            {copiedLink ? <Check size={16} aria-hidden="true" /> : <Link2 size={16} aria-hidden="true" />}
+            <span>{copiedLink ? m.copiedBtn : m.copyLink}</span>
           </button>
           <button type="button" onClick={() => setEditing((v) => !v)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
             {editing ? m.editClose : m.editOpen(copy.noun)}
@@ -482,7 +490,10 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
           <div style={{ fontSize: '0.75rem' }}>
             {event.minimumCents ? (
               event.minimumReached ? (
-                <span style={{ color: 'var(--color-teal)', fontWeight: 700 }}>{m.minReached}</span>
+                <span style={{ color: 'var(--color-teal)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Check size={14} aria-hidden="true" />
+                  <span>{m.minReached}</span>
+                </span>
               ) : (
                 <span style={{ color: 'var(--color-coral)', fontWeight: 700 }}>{m.minMissing(formatMoney(event.minimumCents - event.collectedCents))}</span>
               )

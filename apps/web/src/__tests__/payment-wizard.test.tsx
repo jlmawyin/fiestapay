@@ -179,7 +179,7 @@ describe('payment wizard strict order', () => {
     expect(await screen.findByText(/Orden activa registrada/)).toBeInTheDocument();
     expect(stepItem(labels.stepPay)).toHaveAttribute('aria-current', 'step');
     expect(within(stepItem(labels.stepQuote)).getByText('Importe revisado: $50,00')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: `🔍 ${labels.verifyStatus}` })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: labels.verifyStatus })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Quiero pagar' })).not.toBeInTheDocument();
   });
 
@@ -295,7 +295,7 @@ describe('payment wizard PayPal step', () => {
     expect(await screen.findByText(/Autorización recibida en PayPal/)).toBeInTheDocument();
     expect(stepItem(labels.stepPay)).toHaveAttribute('aria-current', 'step');
     expect(screen.getByRole('button', { name: labels.captureComplete })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: `🔍 ${labels.verifyStatus}` })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: labels.verifyStatus })).toBeInTheDocument();
     expect(capture).not.toHaveBeenCalled();
     expect(onShowToast).not.toHaveBeenCalledWith('success', expect.anything(), expect.anything());
     expect(window.location.search).toBe('');

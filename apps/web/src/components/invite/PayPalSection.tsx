@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Check, ExternalLink } from 'lucide-react';
 import { loadScript } from '@paypal/paypal-js';
 import { UI_LABELS } from '@fiestapay/shared';
 import type { Capabilities, OrderResult } from '../../types';
@@ -344,7 +345,7 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
   const busy = isCapturing || isChecking;
   const verifyLabel = isCapturing ? m.verifyBusy : labels.verifyCapture;
   const verifyPayment = () => { void requestCaptureRef.current(order.orderId, 'manual'); };
-  const externalLink = (label: string, className: string, compact: boolean) =>
+  const externalLink = (label: string, className: string, compact: boolean, withIcon = false) =>
     order.approveUrl ? (
       <a
         href={order.approveUrl}
@@ -354,7 +355,8 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
         style={compact ? { fontSize: '0.75rem', padding: '0.35rem 0.6rem' } : { fontSize: '0.85rem' }}
         onClick={armExternalReturn}
       >
-        {label}
+        {withIcon ? <ExternalLink size={14} aria-hidden="true" /> : null}
+        <span>{label}</span>
       </a>
     ) : null;
 
@@ -388,8 +390,9 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
             fontSize: '0.875rem',
           }}
         >
-          <div style={{ fontWeight: 700, color: 'var(--color-teal)', marginBottom: '0.25rem' }}>
-            {m.approvedTitle}
+          <div style={{ fontWeight: 700, color: 'var(--color-teal)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <Check size={18} aria-hidden="true" />
+            <span>{m.approvedTitle}</span>
           </div>
           <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.825rem', color: 'var(--color-ink)' }}>
             {m.approvedBody}
@@ -425,7 +428,7 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
           </p>
           {order.approveUrl && (
             <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {externalLink(m.externalApprovalLink, 'btn btn-secondary', false)}
+              {externalLink(m.externalApprovalLink, 'btn btn-secondary', false, true)}
               <button
                 type="button"
                 onClick={verifyPayment}
@@ -472,7 +475,7 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
                 >
                   {m.retrySdk}
                 </button>
-                {externalLink(m.externalWindowLink, 'btn btn-primary', false)}
+                {externalLink(m.externalWindowLink, 'btn btn-primary', false, true)}
               </div>
             </div>
           )}

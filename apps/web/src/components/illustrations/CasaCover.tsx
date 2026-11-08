@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { coversCatalog } from '../../i18n/messages/organizerCovers';
 
@@ -8,9 +8,21 @@ interface CoverProps {
   accent?: string;
 }
 
+/**
+ * Modern editorial cover: a tall home arch in the theme accent over a
+ * flat surface/tint wash, with patio floor lines and a quiet dot grid.
+ * Every tone comes from the theme CSS vars so each theme renders its own
+ * palette; the static fallbacks match the default `patio` theme.
+ */
 export const CasaCover: React.FC<CoverProps> = ({ className = '', height = '180px', accent }) => {
   const { locale } = useI18n();
   const m = useMessages(coversCatalog);
+  const surface = 'var(--theme-surface, #F3FAF5)';
+  const ink = 'var(--theme-ink, #14261C)';
+  const muted = 'var(--theme-muted, #3A5648)';
+  const accentFill = `var(--theme-accent, ${accent ?? '#166534'})`;
+  const tint = 'var(--theme-tint, #DCEFE3)';
+  const bgId = `fp-casa-bg-${useId().replace(/:/g, '')}`;
   return (
     <svg
       viewBox="0 0 500 200"
@@ -23,60 +35,52 @@ export const CasaCover: React.FC<CoverProps> = ({ className = '', height = '180p
       }
       role="img"
     >
-      {/* Background warm home evening atmosphere */}
-      <rect width="500" height="200" fill="#12263A" />
-      {accent ? <rect width="500" height="14" fill={accent} /> : null}
-      <circle cx="150" cy="90" r="120" fill="#125FE6" fillOpacity="0.15" />
-      <circle cx="380" cy="110" r="110" fill="#FFC85A" fillOpacity="0.12" />
+      <defs>
+        <linearGradient id={bgId} x1="0" y1="0" x2="500" y2="200" gradientUnits="userSpaceOnUse">
+          <stop offset="0" style={{ stopColor: surface }} />
+          <stop offset="1" style={{ stopColor: tint }} />
+        </linearGradient>
+      </defs>
 
-      {/* Hanging festoon banner bunting */}
-      <path d="M20 30 Q 150 65 280 35 Q 400 65 480 30" stroke="#E2E8F0" strokeWidth="1.5" strokeOpacity="0.6" />
-      {/* Triangle flags */}
-      {[
-        { x: 50, y: 38, fill: '#E85D4A' },
-        { x: 100, y: 48, fill: '#FFC85A' },
-        { x: 160, y: 52, fill: '#0B8075' },
-        { x: 220, y: 46, fill: '#125FE6' },
-        { x: 300, y: 42, fill: '#FFC85A' },
-        { x: 360, y: 50, fill: '#E85D4A' },
-        { x: 420, y: 46, fill: '#0B8075' },
-      ].map((flag, i) => (
-        <polygon key={i} points={`${flag.x},${flag.y} ${flag.x + 18},${flag.y} ${flag.x + 9},${flag.y + 16}`} fill={flag.fill} />
-      ))}
+      {/* Flat editorial wash */}
+      <rect width="500" height="200" fill={`url(#${bgId})`} />
+      <rect width="500" height="8" style={{ fill: accentFill }} />
 
-      {/* Cozy Lounge Sofa (Left side) */}
-      <path d="M50 160 C 50 120 70 120 110 120 L 190 120 C 230 120 250 120 250 160 Z" fill="#0B8075" />
-      <rect x="58" y="140" width="184" height="28" rx="8" fill="#08665E" />
-      {/* Throw Pillows */}
-      <rect x="80" y="125" width="28" height="26" rx="6" fill="#FFC85A" transform="rotate(-10 80 125)" />
-      <rect x="180" y="125" width="28" height="26" rx="6" fill="#E85D4A" transform="rotate(12 180 125)" />
+      {/* Depth: oversized translucent disc */}
+      <circle cx="80" cy="150" r="92" style={{ fill: accentFill }} opacity="0.10" />
 
-      {/* House Plant Monstera */}
-      <ellipse cx="280" cy="165" rx="14" ry="10" fill="#E85D4A" />
-      <path d="M280 155 Q 265 125 250 115 Q 275 120 280 155" fill="#0B8075" />
-      <path d="M280 155 Q 295 120 310 110 Q 295 125 280 155" fill="#0B8075" />
-      <path d="M280 155 Q 280 115 280 98 Q 285 115 280 155" fill="#0B8075" />
+      {/* Dot grid, top right */}
+      {Array.from({ length: 4 }).map((_, row) =>
+        Array.from({ length: 6 }).map((_, col) => (
+          <circle
+            key={`${row}-${col}`}
+            cx={380 + col * 14}
+            cy={34 + row * 14}
+            r="2"
+            style={{ fill: accentFill }}
+            opacity="0.35"
+          />
+        )),
+      )}
 
-      {/* Vinyl Turntable Station (Right side) */}
-      <rect x="330" y="130" width="130" height="42" rx="6" fill="#334155" stroke="#475569" strokeWidth="1.5" />
-      {/* Vinyl record spinning */}
-      <circle cx="370" cy="148" r="22" fill="#0F172A" stroke="#1E293B" strokeWidth="2" />
-      <circle cx="370" cy="148" r="8" fill="#FFC85A" />
-      <circle cx="370" cy="148" r="2" fill="#0F172A" />
-      {/* Turntable needle arm */}
-      <line x1="400" y1="135" x2="380" y2="148" stroke="#CBD5E1" strokeWidth="2.5" strokeLinecap="round" />
-      {/* Cocktail shaker */}
-      <path d="M425 156 L 430 135 L 438 135 L 443 156 Z" fill="#E2E8F0" />
-      <rect x="431" y="128" width="6" height="7" rx="1" fill="#CBD5E1" />
+      {/* Home arch: solid presence in the theme accent */}
+      <path d="M176 176 L176 96 A54 54 0 0 1 284 96 L284 176 Z" style={{ fill: accentFill }} opacity="0.16" />
+      <path d="M196 176 L196 104 A34 34 0 0 1 264 104 L264 176 Z" style={{ fill: surface, stroke: accentFill }} strokeWidth="4" />
+      <circle cx="230" cy="140" r="7" style={{ fill: accentFill }} />
 
-      {/* Music notes floating */}
-      <path d="M375 105 L 375 88 L 392 82 L 392 98 M 375 92 L 392 86" stroke="#FFC85A" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="372" cy="105" r="3.5" fill="#FFC85A" />
-      <circle cx="389" cy="98" r="3.5" fill="#FFC85A" />
+      {/* Roof line + sun mark */}
+      <path d="M150 78 L230 34 L310 78" style={{ stroke: ink }} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
+      <circle cx="336" cy="128" r="16" style={{ fill: accentFill }} />
+      <circle cx="336" cy="128" r="24" style={{ stroke: accentFill }} strokeWidth="1.5" opacity="0.5" />
 
-      {/* Header Badge */}
-      <rect x="20" y="18" width="132" height="26" rx="13" fill="#12263A" fillOpacity="0.7" stroke="#0B8075" strokeWidth="1" />
-      <text x="32" y="35" fill="#0B8075" fontFamily="Nunito Sans, sans-serif" fontWeight="800" fontSize="12" letterSpacing="0.05em">{m.badgeCasa}</text>
+      {/* Patio floor lines */}
+      <rect x="40" y="176" width="420" height="5" rx="2.5" style={{ fill: ink }} opacity="0.75" />
+      <rect x="90" y="188" width="320" height="4" rx="2" style={{ fill: muted }} opacity="0.5" />
+      <rect x="330" y="60" width="10" height="56" rx="5" style={{ fill: ink }} opacity="0.35" />
+
+      {/* Header badge */}
+      <rect x="20" y="20" width="124" height="26" rx="13" style={{ fill: surface, stroke: accentFill }} strokeWidth="1.5" />
+      <text x="32" y="37" style={{ fill: ink }} fontFamily="Nunito Sans, sans-serif" fontWeight="800" fontSize="12" letterSpacing="0.05em">{m.badgeCasa}</text>
     </svg>
   );
 };

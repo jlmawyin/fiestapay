@@ -1,4 +1,5 @@
 import React from 'react';
+import { PartyPopper } from 'lucide-react';
 import { UI_LABELS } from '@fiestapay/shared';
 import type { FiestaEvent } from '../types';
 import { EventCard } from '../components/demo/EventCard';
@@ -207,7 +208,9 @@ export const LandingView: React.FC<LandingViewProps> = ({
               gap: '1rem',
             }}
           >
-            <div style={{ fontSize: '2.5rem' }} aria-hidden="true">🎉</div>
+            <div style={{ color: 'var(--color-coral)' }} aria-hidden="true">
+              <PartyPopper size={44} aria-hidden="true" />
+            </div>
             <h3 style={{ fontSize: '1.25rem' }}>{m.emptyTitle}</h3>
             <p style={{ color: 'var(--color-ink-muted)', maxWidth: '460px', fontSize: '0.9rem' }}>
               {m.emptyText}

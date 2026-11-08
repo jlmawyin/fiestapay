@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Check, ClipboardList, Mic, Receipt, Sparkles, TriangleAlert, X } from 'lucide-react';
 import { EVENT_TIME_ZONE, intlLocale, type Locale } from '@fiestapay/shared';
 import type { Capabilities, Quote, ChatResult, ChatTranscriptMessage, RsvpStatus } from '../../types';
 import { ApiError, api } from '../../api/client';
@@ -234,9 +235,9 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
             aria-label={isOpen ? m.closeAssistant : m.openAssistant}
             aria-expanded={isOpen}
           >
-            <span style={{ fontSize: '1.2rem' }}>✨</span>
+            <Sparkles size={20} aria-hidden="true" />
             <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{m.chatShort}</span>
-            {isOpen ? '✕' : ''}
+            {isOpen ? <X size={16} aria-hidden="true" /> : null}
           </button>
         </div>
       )}
@@ -279,7 +280,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '1.1rem' }}>✨</span>
+              <Sparkles size={18} aria-hidden="true" />
               <div>
                 <strong style={{ fontSize: '0.9rem', display: 'block' }}>
                   {organizer ? m.orgTitle : m.title}
@@ -291,10 +292,10 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
             </div>
             <button
               onClick={() => setOpen(false)}
-              style={{ background: 'none', border: 'none', color: '#FFFFFF', cursor: 'pointer', fontSize: '1.1rem' }}
+              style={{ background: 'none', border: 'none', color: '#FFFFFF', cursor: 'pointer', display: 'inline-flex' }}
               aria-label={m.closeChat}
             >
-              ×
+              <X size={18} aria-hidden="true" />
             </button>
           </div>
           )}
@@ -312,7 +313,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
               gap: '0.4rem',
             }}
           >
-            <span>🎙️</span>
+            <Mic size={16} aria-hidden="true" />
             <span>
               {organizer ? m.orgNotice : m.notice}
             </span>
@@ -345,9 +346,13 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                   borderRadius: 'var(--radius-md)',
                   fontSize: '0.8rem',
                   color: 'var(--color-ink)',
+                  display: 'flex',
+                  gap: '0.5rem',
+                  alignItems: 'flex-start',
                 }}
               >
-                {m.disabledBox}
+                <TriangleAlert size={16} aria-hidden="true" style={{ flex: '0 0 auto', marginTop: '0.1rem' }} />
+                <span>{m.disabledBox}</span>
               </div>
             )}
 
@@ -389,8 +394,9 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                           fontSize: '0.8rem',
                         }}
                       >
-                        <div style={{ fontWeight: 700, color: 'var(--color-blue)', marginBottom: '0.25rem' }}>
-                          {m.quoteTitle}
+                        <div style={{ fontWeight: 700, color: 'var(--color-blue)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <Receipt size={16} aria-hidden="true" />
+                          <span>{m.quoteTitle}</span>
                         </div>
                         <div>
                           {m.quoteLine(msg.quote.people)}<strong>{formatMoney(msg.quote.amountCents)}</strong>
@@ -440,8 +446,9 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                                 fontSize: '0.8rem',
                               }}
                             >
-                              <div style={{ fontWeight: 700, color: 'var(--color-ink)', marginBottom: '0.2rem' }}>
-                                {m.rsvpTitle}
+                              <div style={{ fontWeight: 700, color: 'var(--color-ink)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <ClipboardList size={16} aria-hidden="true" />
+                                <span>{m.rsvpTitle}</span>
                               </div>
                               <div style={{ fontSize: '0.78rem', color: 'var(--color-ink-muted)', marginBottom: '0.4rem' }}>
                                 {m.suggestion}<strong>{statusLabel}</strong>
@@ -466,7 +473,14 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                                     fontWeight: 700,
                                   }}
                                 >
-                                  {isConfirmed ? m.confirmedServer : m.confirmRsvp}
+                                  {isConfirmed ? (
+                                    <>
+                                      <Check size={16} aria-hidden="true" />
+                                      <span>{m.confirmedServer}</span>
+                                    </>
+                                  ) : (
+                                    m.confirmRsvp
+                                  )}
                                 </button>
                               )}
                             </div>

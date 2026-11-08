@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { coversCatalog } from '../../i18n/messages/organizerCovers';
 
@@ -8,9 +8,21 @@ interface CoverProps {
   accent?: string;
 }
 
+/**
+ * Modern editorial cover: layered route ridges in the theme accent over
+ * a flat surface/tint wash, with a dashed journey line and waypoints.
+ * Every tone comes from the theme CSS vars so each theme renders its own
+ * palette; the static fallbacks match the default `camino` theme.
+ */
 export const ViajeCover: React.FC<CoverProps> = ({ className = '', height = '180px', accent }) => {
   const { locale } = useI18n();
   const m = useMessages(coversCatalog);
+  const surface = 'var(--theme-surface, #F4F7FB)';
+  const ink = 'var(--theme-ink, #152033)';
+  const muted = 'var(--theme-muted, #3E4E66)';
+  const accentFill = `var(--theme-accent, ${accent ?? '#1D4E89'})`;
+  const tint = 'var(--theme-tint, #E1EAF5)';
+  const bgId = `fp-viaje-bg-${useId().replace(/:/g, '')}`;
   return (
     <svg
       viewBox="0 0 500 200"
@@ -25,65 +37,62 @@ export const ViajeCover: React.FC<CoverProps> = ({ className = '', height = '180
       }
       role="img"
     >
-      {/* Sky and sunrise */}
-      <rect width="500" height="200" fill="#12263A" />
-      {accent ? <rect width="500" height="14" fill={accent} /> : null}
-      <circle cx="250" cy="85" r="48" fill="#FFC85A" fillOpacity="0.85" />
-      <circle cx="250" cy="85" r="75" fill="#FFC85A" fillOpacity="0.2" />
+      <defs>
+        <linearGradient id={bgId} x1="0" y1="0" x2="500" y2="200" gradientUnits="userSpaceOnUse">
+          <stop offset="0" style={{ stopColor: surface }} />
+          <stop offset="1" style={{ stopColor: tint }} />
+        </linearGradient>
+      </defs>
 
-      {/* Mountain silhouettes */}
-      {/* Distant peaks */}
-      <polygon points="50,150 140,80 230,150" fill="#1E3A5F" />
-      <polygon points="120,95 140,80 160,95 150,95 140,88 130,95" fill="#F7FAFC" fillOpacity="0.8" />
+      {/* Flat editorial wash */}
+      <rect width="500" height="200" fill={`url(#${bgId})`} />
+      <rect width="500" height="8" style={{ fill: accentFill }} />
 
-      <polygon points="180,150 280,65 380,150" fill="#1B4D7E" />
-      <polygon points="260,82 280,65 300,82 290,82 280,73 270,82" fill="#F7FAFC" stroke="#F7FAFC" strokeWidth="1" />
+      {/* Depth: oversized translucent disc */}
+      <circle cx="410" cy="60" r="88" style={{ fill: accentFill }} opacity="0.10" />
 
-      <polygon points="320,150 420,85 490,150" fill="#1E3A5F" />
-      <polygon points="405,98 420,85 435,98 428,98 420,91 412,98" fill="#F7FAFC" fillOpacity="0.8" />
+      {/* Dot grid, left */}
+      {Array.from({ length: 4 }).map((_, row) =>
+        Array.from({ length: 4 }).map((_, col) => (
+          <circle
+            key={`${row}-${col}`}
+            cx={36 + col * 14}
+            cy={86 + row * 14}
+            r="2"
+            style={{ fill: accentFill }}
+            opacity="0.35"
+          />
+        )),
+      )}
 
-      {/* Pine trees ridge */}
-      {[70, 95, 120, 360, 390, 415, 440].map((x, i) => (
-        <polygon key={i} points={`${x},148 ${x + 10},125 ${x + 20},148`} fill="#0B8075" />
-      ))}
+      {/* Layered ridges in the theme accent */}
+      <polygon points="60,176 170,84 280,176" style={{ fill: accentFill }} opacity="0.16" />
+      <polygon points="200,176 320,66 440,176" style={{ fill: accentFill }} opacity="0.30" />
+      <polygon points="200,176 320,66 440,176" style={{ stroke: accentFill }} strokeWidth="3" strokeLinejoin="round" opacity="0.9" />
+      <polygon points="300,86 320,66 340,86 330,86 320,76 310,86" style={{ fill: surface }} opacity="0.9" />
 
-      {/* Road curve */}
-      <path d="M0 190 Q 200 170 300 170 Q 420 170 500 195" stroke="#334155" strokeWidth="26" />
-      <path d="M0 190 Q 200 170 300 170 Q 420 170 500 195" stroke="#FFC85A" strokeWidth="2" strokeDasharray="10 8" />
+      {/* Ridge base + journey line with waypoints */}
+      <rect x="0" y="176" width="500" height="24" style={{ fill: ink }} opacity="0.85" />
+      <path
+        d="M28 188 Q 150 168 250 186 T 472 184"
+        style={{ stroke: surface }}
+        strokeWidth="2.5"
+        strokeDasharray="8 7"
+        strokeLinecap="round"
+        opacity="0.9"
+      />
+      <circle cx="120" cy="181" r="6" style={{ fill: accentFill, stroke: surface }} strokeWidth="2.5" />
+      <circle cx="250" cy="186" r="6" style={{ fill: accentFill, stroke: surface }} strokeWidth="2.5" />
+      <circle cx="380" cy="184" r="6" style={{ fill: surface, stroke: accentFill }} strokeWidth="3" />
 
-      {/* Camper Van on Road */}
-      <g transform="translate(180, 130)">
-        {/* Roof rack & luggage */}
-        <line x1="16" y1="5" x2="84" y2="5" stroke="#475569" strokeWidth="3" strokeLinecap="round" />
-        {/* Surfboard / Duffel */}
-        <rect x="22" y="-2" width="34" height="6" rx="3" fill="#E85D4A" />
-        <rect x="58" y="-4" width="22" height="8" rx="2" fill="#0B8075" />
+      {/* Compass ring */}
+      <circle cx="188" cy="46" r="18" style={{ stroke: muted }} strokeWidth="2" opacity="0.8" />
+      <polygon points="188,35 192,46 188,44 184,46" style={{ fill: accentFill }} />
+      <polygon points="188,57 192,46 188,48 184,46" style={{ fill: muted }} opacity="0.7" />
 
-        {/* Van Body */}
-        <rect x="10" y="8" width="84" height="34" rx="6" fill="#125FE6" />
-        <path d="M72 8 L 94 20 L 94 42 L 72 42 Z" fill="#125FE6" />
-        {/* Windows */}
-        <rect x="20" y="14" width="22" height="12" rx="2" fill="#F7FAFC" fillOpacity="0.9" />
-        <rect x="48" y="14" width="22" height="12" rx="2" fill="#F7FAFC" fillOpacity="0.9" />
-        <path d="M74 14 L 88 22 L 74 22 Z" fill="#F7FAFC" fillOpacity="0.9" />
-        {/* Headlight beam */}
-        <polygon points="94,32 135,26 135,42 94,36" fill="#FFC85A" fillOpacity="0.3" />
-        <circle cx="92" cy="34" r="3" fill="#FFC85A" />
-        {/* Wheels */}
-        <circle cx="28" cy="42" r="8" fill="#0F172A" />
-        <circle cx="28" cy="42" r="3" fill="#94A3B8" />
-        <circle cx="78" cy="42" r="8" fill="#0F172A" />
-        <circle cx="78" cy="42" r="3" fill="#94A3B8" />
-      </g>
-
-      {/* Compass emblem top right */}
-      <circle cx="445" cy="42" r="20" fill="#12263A" fillOpacity="0.8" stroke="#125FE6" strokeWidth="1.5" />
-      <polygon points="445,28 449,42 445,39 441,42" fill="#E85D4A" />
-      <polygon points="445,56 449,42 445,45 441,42" fill="#CBD5E1" />
-
-      {/* Header Badge */}
-      <rect x="20" y="18" width="142" height="26" rx="13" fill="#12263A" fillOpacity="0.7" stroke="#125FE6" strokeWidth="1" />
-      <text x="32" y="35" fill="#60A5FA" fontFamily="Nunito Sans, sans-serif" fontWeight="800" fontSize="12" letterSpacing="0.05em">{m.badgeViaje}</text>
+      {/* Header badge */}
+      <rect x="20" y="20" width="132" height="26" rx="13" style={{ fill: surface, stroke: accentFill }} strokeWidth="1.5" />
+      <text x="32" y="37" style={{ fill: ink }} fontFamily="Nunito Sans, sans-serif" fontWeight="800" fontSize="12" letterSpacing="0.05em">{m.badgeViaje}</text>
     </svg>
   );
 };

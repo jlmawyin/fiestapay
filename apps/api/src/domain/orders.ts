@@ -474,6 +474,37 @@ export async function readOwnOrder(
 export type ApprovalOutcome = 'approved' | 'unknown' | 'ignored';
 
 /**
+ * Releases an order whose capture PayPal definitively declined. Only an order still frozen in
+ * `capturing` with no recorded capture is released, so a late successful capture can never be
+ * lost: the guard is re-checked under the same event/guest/order locks every money path takes,
+ * and `convergeCapture` (run by the caller first) would have applied any settled capture.
+ *
+ * The order becomes `failed`, which frees the one-open-order slot so the guest can retry the
+ * same payment. Repeated declines find the row already failed and change nothing.
+ */
+export async function markOrderDeclined(pool: Pool, known: OrderRow): Promise<boolean> {
+  return withTransaction(pool, async (client) => {
+    await lockEvent(client, known.event_id);
+    await lockGuest(client, known.guest_id);
+    const order = await lockOrder(client, known.id);
+    if (order.status !== 'capturing' || order.capture_id !== null) return false;
+
+    const captured = await client.query<{ id: string }>(
+      `SELECT id FROM payment_ledger WHERE order_id = $1 AND kind = 'capture' LIMIT 1`,
+      [order.id],
+    );
+    if (captured.rows.length > 0) return false;
+
+    const updated = await client.query(
+      `UPDATE orders SET status = 'failed', updated_at = now()
+        WHERE id = $1 AND status = 'capturing' AND capture_id IS NULL`,
+      [order.id],
+    );
+    return (updated.rowCount ?? 0) > 0;
+  });
+}
+
+/**
  * Marks an order approved from a signed webhook. APPROVED is never "paid".
  *
  * `unknown` means the notification arrived before the order's PayPal id was stored, which is a

@@ -1,8 +1,8 @@
 import { defineCatalog } from '../catalog';
 
 /**
- * Visible badge text inside the template cover SVGs. Geometry is untouched;
- * the English badges fit the existing pills. Spanish stays byte-identical.
+ * Visible badge text inside the template cover SVGs. The pill widths fit
+ * both languages. Spanish stays byte-identical.
  */
 export const coversCatalog = defineCatalog({
   es: {

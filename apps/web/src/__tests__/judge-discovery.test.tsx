@@ -88,7 +88,10 @@ describe('read-only AG Grid discovery preview', () => {
     expect(screen.getByText('Datos ficticios · Sandbox · Sin dinero real')).toBeInTheDocument();
     expect(screen.getByText(/Datos ficticios de ejemplo — vista de solo lectura/i)).toBeInTheDocument();
     expect(screen.getByText(/no son capturas reales de PayPal/i)).toBeInTheDocument();
-    expect(screen.getByText('Ana Ficticia')).toBeInTheDocument();
+    expect(screen.getByText('Asado del Domingo')).toBeInTheDocument();
+    expect(screen.getByText('Cumpleaños de Sofía')).toBeInTheDocument();
+    expect(screen.getByText('Escapada a la Playa')).toBeInTheDocument();
+    expect(screen.getByText('Lucía Fernández')).toBeInTheDocument();
     expect(screen.queryByText('Fila inventada')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Bloquear|Desbloquear|Eliminar|Retirar|Moderar|WhatsApp/i })).toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();

@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { Check, X } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
@@ -7,10 +8,12 @@ import { UI_LABELS } from '@fiestapay/shared';
 import type { FiestaEvent } from '../types';
 import { Modal } from '../components/common/Modal';
 import { EventCard } from '../components/demo/EventCard';
+import { SamplePartyCards } from '../components/demo/SamplePartyCards';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { cardsCatalog } from '../i18n/catalogs/cards';
 import { demoCatalog } from '../i18n/catalogs/demo';
 import { isDemoEvent } from '../lib/event-presentation';
+import { SAMPLE_PARTIES, samplePartyById, type SampleGuest } from '../lib/sample-parties';
 
 export interface JudgePreviewViewProps {
   /** Session events; only `isDemo === true` rows are listed here. */
@@ -33,37 +36,15 @@ export interface JudgePreviewViewProps {
   onBack: () => void;
 }
 
-interface PreviewGuest {
-  id: string;
-  name: string;
-  attendance: 'yes' | 'maybe' | 'no';
-  companions: number;
-  paidCents: number;
-  dueCents: number;
-}
-
-const SAMPLE_GUESTS: PreviewGuest[] = [
-  { id: 'preview-1', name: 'Ana Ficticia', attendance: 'yes', companions: 1, paidCents: 5000, dueCents: 0 },
-  { id: 'preview-2', name: 'Bruno Ejemplo', attendance: 'yes', companions: 0, paidCents: 2500, dueCents: 0 },
-  { id: 'preview-3', name: 'Carla Muestra', attendance: 'yes', companions: 2, paidCents: 2500, dueCents: 5000 },
-  { id: 'preview-4', name: 'Diego Simulado', attendance: 'yes', companions: 0, paidCents: 0, dueCents: 2500 },
-  { id: 'preview-5', name: 'Elena Demo', attendance: 'maybe', companions: 1, paidCents: 0, dueCents: 0 },
-  { id: 'preview-6', name: 'Fabián Prueba', attendance: 'no', companions: 0, paidCents: 0, dueCents: 0 },
-  { id: 'preview-7', name: 'Gabriela Ficticia', attendance: 'yes', companions: 0, paidCents: 2500, dueCents: 0 },
-  { id: 'preview-8', name: 'Hugo Ejemplo', attendance: 'maybe', companions: 0, paidCents: 0, dueCents: 0 },
-  { id: 'preview-9', name: 'Irene Muestra', attendance: 'yes', companions: 1, paidCents: 7500, dueCents: 0 },
-  { id: 'preview-10', name: 'Julián Simulado', attendance: 'no', companions: 0, paidCents: 0, dueCents: 0 },
-];
-
 type DemoCopy = (typeof demoCatalog)['es'];
 
-function attendanceLabelFor(attendance: PreviewGuest['attendance'], m: DemoCopy): string {
+function attendanceLabelFor(attendance: SampleGuest['attendance'], m: DemoCopy): string {
   if (attendance === 'yes') return m.attYes;
   if (attendance === 'maybe') return m.attMaybe;
   return m.attNo;
 }
 
-function paymentStateFor(guest: PreviewGuest | undefined, m: DemoCopy): string {
+function paymentStateFor(guest: SampleGuest | undefined, m: DemoCopy): string {
   if (!guest) return m.payNone;
   if (guest.dueCents === 0 && guest.paidCents > 0) return m.payFull;
   if (guest.paidCents > 0 && guest.dueCents > 0) return m.payPartial;
@@ -108,6 +89,8 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
   const cards = useMessages(cardsCatalog);
   const labels = UI_LABELS[locale];
   const [quickFilter, setQuickFilter] = useState('');
+  const [selectedPartyId, setSelectedPartyId] = useState(SAMPLE_PARTIES[0].id);
+  const selectedParty = samplePartyById(selectedPartyId);
   const [isCreating, setIsCreating] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
@@ -119,7 +102,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
   const goDashboard = onNavigateDashboard ?? (() => undefined);
   const goRecover = onNavigateRecover ?? (() => undefined);
 
-  const columnDefs = useMemo<ColDef<PreviewGuest>[]>(
+  const columnDefs = useMemo<ColDef<SampleGuest>[]>(
     () => [
       {
         headerName: m.colGuest,
@@ -134,14 +117,23 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         flex: 1,
         minWidth: 145,
         filter: true,
-        cellRenderer: (params: ICellRendererParams<PreviewGuest>) => {
+        cellRenderer: (params: ICellRendererParams<SampleGuest>) => {
           const guest = params.data;
           if (!guest) return null;
           const className =
             guest.attendance === 'yes' ? 'badge badge-teal' : guest.attendance === 'maybe' ? 'badge badge-yellow' : 'badge badge-coral';
-          return <span className={className}>{attendanceLabelFor(guest.attendance, m)}</span>;
+          return (
+            <span className={className}>
+              {guest.attendance === 'yes' ? (
+                <Check size={12} aria-hidden="true" />
+              ) : guest.attendance === 'no' ? (
+                <X size={12} aria-hidden="true" />
+              ) : null}
+              <span>{attendanceLabelFor(guest.attendance, m)}</span>
+            </span>
+          );
         },
-        filterValueGetter: (params) => attendanceLabelFor((params.data?.attendance ?? 'no') as PreviewGuest['attendance'], m),
+        filterValueGetter: (params) => attendanceLabelFor((params.data?.attendance ?? 'no') as SampleGuest['attendance'], m),
       },
       {
         headerName: m.colCompanions,
@@ -157,7 +149,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         width: 155,
         minWidth: 145,
         filter: 'agNumberColumnFilter',
-        cellRenderer: (params: ICellRendererParams<PreviewGuest>) => (
+        cellRenderer: (params: ICellRendererParams<SampleGuest>) => (
           <span style={{ color: 'var(--color-teal)', fontWeight: 700 }}>{formatMoney(params.value ?? 0)}</span>
         ),
       },
@@ -167,7 +159,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         width: 165,
         minWidth: 155,
         filter: 'agNumberColumnFilter',
-        cellRenderer: (params: ICellRendererParams<PreviewGuest>) => (
+        cellRenderer: (params: ICellRendererParams<SampleGuest>) => (
           <span style={{ color: 'var(--color-coral)', fontWeight: 700 }}>{formatMoney(params.value ?? 0)}</span>
         ),
       },
@@ -183,7 +175,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
     [formatMoney, m],
   );
 
-  const defaultColDef = useMemo<ColDef<PreviewGuest>>(
+  const defaultColDef = useMemo<ColDef<SampleGuest>>(
     () => ({
       sortable: true,
       filter: true,
@@ -256,6 +248,16 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         </p>
       </section>
 
+      <section aria-label={m.sampleTitle} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', minWidth: 0 }}>
+        <div>
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>{m.sampleTitle}</h2>
+          <p style={{ fontSize: '0.85rem', color: 'var(--color-ink-muted)', maxWidth: '720px' }}>
+            {m.sampleLead}
+          </p>
+        </div>
+        <SamplePartyCards parties={SAMPLE_PARTIES} selectedId={selectedPartyId} onSelect={setSelectedPartyId} />
+      </section>
+
       <ol style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: 0, margin: 0 }}>
         <li
           className="panel"
@@ -292,7 +294,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
             <div>
-              <h3 style={{ fontSize: '1.1rem' }}>{m.guestsTitle}</h3>
+              <h3 style={{ fontSize: '1.1rem' }}>{m.gridOf(selectedParty.title)}</h3>
               <p style={{ fontSize: '0.8rem', color: 'var(--color-ink-muted)' }}>
                 {m.guestsSub}
               </p>
@@ -316,8 +318,8 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
               className="ag-theme-alpine ag-theme-fiestapay judge-preview-grid"
               style={{ height: '430px', minWidth: '880px', width: '100%' }}
             >
-              <AgGridReact<PreviewGuest>
-                rowData={SAMPLE_GUESTS}
+              <AgGridReact<SampleGuest>
+                rowData={selectedParty.guests}
                 columnDefs={columnDefs}
                 defaultColDef={defaultColDef}
                 quickFilterText={quickFilter}

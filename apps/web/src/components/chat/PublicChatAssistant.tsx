@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { MessageCircle, X } from 'lucide-react';
 import type { AssistantContext } from '@fiestapay/shared';
 import type { Capabilities } from '../../types';
 import { ApiError } from '../../api/client';
@@ -158,7 +159,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
             aria-expanded={isOpen}
             aria-controls={panelId}
           >
-            <span aria-hidden="true" style={{ fontSize: '1.1rem' }}>💬</span>
+            <MessageCircle size={18} aria-hidden="true" />
             <span style={{ fontSize: '0.9rem' }}>{m.chatShort}</span>
           </button>
         </div>
@@ -232,13 +233,13 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
                 border: 'none',
                 color: '#FFFFFF',
                 cursor: 'pointer',
-                fontSize: '1.25rem',
                 lineHeight: 1,
                 padding: '0.1rem',
+                display: 'inline-flex',
               }}
               aria-label={m.headerClose}
             >
-              ×
+              <X size={18} aria-hidden="true" />
             </button>
           </header>
           )}
