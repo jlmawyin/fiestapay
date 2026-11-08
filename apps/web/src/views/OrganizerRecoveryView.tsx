@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 import { rememberAdminKey } from '../api/admin-key';
+import { useMessages } from '../i18n/I18nContext';
+import { recoveryCatalog } from '../i18n/messages/organizerRecovery';
 import { OrganizerLinkCard } from '../components/dashboard/OrganizerLinkCard';
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{43,128}$/;
@@ -53,6 +55,7 @@ interface OrganizerRecoveryViewProps {
 }
 
 export const OrganizerRecoveryView: React.FC<OrganizerRecoveryViewProps> = ({ available }) => {
+  const m = useMessages(recoveryCatalog);
   const [token, setToken] = useState<string | null>(() => readRecoveryTokenFromLocation());
   const [slug, setSlug] = useState('');
   const [email, setEmail] = useState('');
@@ -101,17 +104,17 @@ export const OrganizerRecoveryView: React.FC<OrganizerRecoveryViewProps> = ({ av
       forgetRecoveryToken();
       if (result.purpose === 'verify') {
         setVerifiedSlug(result.slug);
-        setMessage('El correo quedo verificado. Ya puede usarse para recuperar el enlace de organizador.');
+        setMessage(m.verifyOk);
         return;
       }
       rememberAdminKey(result.slug, result.adminKey);
       setRecovered({ slug: result.slug, adminKey: result.adminKey });
-      setMessage('Este es el enlace nuevo. El anterior ya no abre el panel.');
+      setMessage(m.recoveredNote);
     } catch (err: unknown) {
       if (!stillCurrent(gen)) return;
       setToken(null);
       forgetRecoveryToken();
-      setMessage(err instanceof Error ? err.message : 'El enlace no sirve. Solicita uno nuevo.');
+      setMessage(err instanceof Error ? err.message : m.consumeFail);
     } finally {
       if (stillCurrent(gen)) setBusy(false);
     }
@@ -126,10 +129,10 @@ export const OrganizerRecoveryView: React.FC<OrganizerRecoveryViewProps> = ({ av
       await api.requestRecovery(slug.trim(), email.trim());
       if (!stillCurrent(gen)) return;
       setEmail('');
-      setMessage('Si el correo esta verificado para esa invitación, recibirás instrucciones.');
+      setMessage(m.requestOk);
     } catch (err: unknown) {
       if (!stillCurrent(gen)) return;
-      setMessage(err instanceof Error ? err.message : 'No se pudo solicitar el enlace');
+      setMessage(err instanceof Error ? err.message : m.requestFail);
     } finally {
       if (stillCurrent(gen)) setBusy(false);
     }
@@ -137,26 +140,26 @@ export const OrganizerRecoveryView: React.FC<OrganizerRecoveryViewProps> = ({ av
 
   return (
     <div style={{ maxWidth: '640px', margin: '0 auto' }}>
-      <section className="panel" aria-label="Recuperar enlace de organizador">
-        <h1 style={{ fontSize: '1.75rem', marginBottom: '0.35rem' }}>Recuperar enlace</h1>
+      <section className="panel" aria-label={m.panelAria}>
+        <h1 style={{ fontSize: '1.75rem', marginBottom: '0.35rem' }}>{m.title}</h1>
         <p style={{ fontSize: '0.875rem', color: 'var(--color-ink-muted)', marginBottom: '1rem' }}>
-          El enlace de organizador sigue siendo el acceso principal.
+          {m.sub}
         </p>
 
         {token ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <p style={{ fontSize: '0.875rem' }}>
-              El enlace ya esta solo en esta pagina. Recargar la pierde. Pulsa confirmar para usarlo. Abrir el correo no cambia nada por si solo.
+              {m.tokenNote}
             </p>
             <button type="button" className="btn btn-primary" onClick={() => void confirm()} disabled={busy}>
-              {busy ? 'Confirmando...' : 'Confirmar enlace'}
+              {busy ? m.confirming : m.confirm}
             </button>
           </div>
         ) : null}
 
         {verifiedSlug ? (
           <p style={{ fontSize: '0.875rem' }}>
-            Correo guardado para <span>{verifiedSlug}</span>.
+            {m.verifiedLead} <span>{verifiedSlug}</span>.
           </p>
         ) : null}
 
@@ -164,7 +167,7 @@ export const OrganizerRecoveryView: React.FC<OrganizerRecoveryViewProps> = ({ av
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <OrganizerLinkCard slug={recovered.slug} adminKey={recovered.adminKey} recoveryAvailable={available} />
             <a className="btn btn-secondary" href={`/e/${encodeURIComponent(recovered.slug)}/admin`} referrerPolicy="no-referrer">
-              Ir al panel
+              {m.goDashboard}
             </a>
           </div>
         ) : null}
@@ -173,19 +176,19 @@ export const OrganizerRecoveryView: React.FC<OrganizerRecoveryViewProps> = ({ av
           available ? (
             <form onSubmit={(event) => void requestLink(event)} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <p style={{ fontSize: '0.875rem', color: 'var(--color-ink-muted)' }}>
-                Si perdiste el enlace, pide otro con el identificador de la invitación y el correo verificado.
+                {m.requestLead}
               </p>
-              <label className="form-label" htmlFor="recovery-slug">Identificador de la invitación</label>
+              <label className="form-label" htmlFor="recovery-slug">{m.slugLabel}</label>
               <input id="recovery-slug" className="form-input" value={slug} onChange={(event) => setSlug(event.target.value)} required maxLength={80} autoComplete="off" />
-              <label className="form-label" htmlFor="recovery-request-email">Correo verificado</label>
+              <label className="form-label" htmlFor="recovery-request-email">{m.emailLabel}</label>
               <input id="recovery-request-email" className="form-input" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required maxLength={254} />
               <button type="submit" className="btn btn-primary" disabled={busy}>
-                {busy ? 'Enviando...' : 'Solicitar enlace'}
+                {busy ? m.sending : m.requestCta}
               </button>
             </form>
           ) : (
             <p style={{ fontSize: '0.875rem' }}>
-              La recuperacion por correo no esta disponible en este servidor. Conserva el enlace de organizador; no hace falta un correo.
+              {m.unavailable}
             </p>
           )
         ) : null}

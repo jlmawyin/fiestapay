@@ -1,5 +1,7 @@
 import React from 'react';
 import type { ToastMessage } from '../../types';
+import { useMessages } from '../../i18n/I18nContext';
+import { toastCatalog } from '../../i18n/catalogs/toast';
 
 interface ToastContainerProps {
   toasts: ToastMessage[];
@@ -7,27 +9,28 @@ interface ToastContainerProps {
 }
 
 export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismiss }) => {
+  const m = useMessages(toastCatalog);
   if (toasts.length === 0) return null;
 
   return (
-    <div className="toast-container" role="region" aria-live="polite" aria-label="Notificaciones del sistema">
+    <div className="toast-container" role="region" aria-live="polite" aria-label={m.regionLabel}>
       {toasts.map((toast) => {
         let borderColor = 'var(--color-border)';
         let badgeColor = 'var(--color-blue)';
-        let badgeText = 'Aviso';
+        let badgeText = m.info;
 
         if (toast.type === 'success') {
           borderColor = 'var(--color-teal)';
           badgeColor = 'var(--color-teal)';
-          badgeText = 'Éxito';
+          badgeText = m.success;
         } else if (toast.type === 'error') {
           borderColor = 'var(--color-coral)';
           badgeColor = 'var(--color-coral)';
-          badgeText = 'Error';
+          badgeText = m.error;
         } else if (toast.type === 'warning') {
           borderColor = 'var(--color-yellow-dark)';
           badgeColor = 'var(--color-yellow)';
-          badgeText = 'Atención';
+          badgeText = m.warning;
         }
 
         return (
@@ -77,7 +80,7 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismis
                 fontSize: '1.1rem',
                 lineHeight: 1,
               }}
-              aria-label="Cerrar notificación"
+              aria-label={m.dismiss}
             >
               ×
             </button>

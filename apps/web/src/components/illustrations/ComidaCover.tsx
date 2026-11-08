@@ -1,4 +1,6 @@
 import React from 'react';
+import { useI18n, useMessages } from '../../i18n/I18nContext';
+import { coversCatalog } from '../../i18n/messages/organizerCovers';
 
 interface CoverProps {
   className?: string;
@@ -7,6 +9,8 @@ interface CoverProps {
 }
 
 export const ComidaCover: React.FC<CoverProps> = ({ className = '', height = '180px', accent }) => {
+  const { locale } = useI18n();
+  const m = useMessages(coversCatalog);
   return (
     <svg
       viewBox="0 0 500 200"
@@ -14,7 +18,11 @@ export const ComidaCover: React.FC<CoverProps> = ({ className = '', height = '18
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       style={{ width: '100%', height, display: 'block', objectFit: 'cover' }}
-      aria-label="Ilustración de banquete festivo y comida compartida"
+      aria-label={
+        locale === 'en'
+          ? 'Festive banquet and shared meal illustration'
+          : 'Ilustración de banquete festivo y comida compartida'
+      }
       role="img"
     >
       {/* Background with warm terracotta / dark ink depth */}
@@ -67,7 +75,7 @@ export const ComidaCover: React.FC<CoverProps> = ({ className = '', height = '18
 
       {/* Header Badge in the illustration */}
       <rect x="20" y="18" width="112" height="26" rx="13" fill="#12263A" fillOpacity="0.7" stroke="#FFC85A" strokeWidth="1" />
-      <text x="32" y="35" fill="#FFC85A" fontFamily="Nunito Sans, sans-serif" fontWeight="800" fontSize="12" letterSpacing="0.05em">COMIDA & ASADO</text>
+      <text x="32" y="35" fill="#FFC85A" fontFamily="Nunito Sans, sans-serif" fontWeight="800" fontSize="12" letterSpacing="0.05em">{m.badgeComida}</text>
     </svg>
   );
 };

@@ -1,7 +1,13 @@
 import React, { useRef, useState } from 'react';
+import { UI_LABELS } from '@fiestapay/shared';
 import type { Quote, TemplateKind } from '../../types';
-import { usd } from '../../types';
-import { GUEST_PAYMENT_COPY, guestCoveredCopy } from '../../lib/event-presentation';
+import { useI18n } from '../../i18n/I18nContext';
+import {
+  guestCoveredCopy,
+  guestPaymentCopy,
+  peopleWord,
+  quoteConfirmSentence,
+} from '../../lib/event-presentation';
 
 interface QuoteReviewCardProps {
   quote: Quote | null;
@@ -25,15 +31,18 @@ export const QuoteReviewCard: React.FC<QuoteReviewCardProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [localBusy, setLocalBusy] = useState(false);
   const inFlight = useRef(false);
+  const { locale, formatMoney } = useI18n();
+  const copy = guestPaymentCopy(locale);
+  const labels = UI_LABELS[locale];
   const confirmedByUser = quote !== null && confirmedQuoteId === quote.id;
   const preparing = isCreatingOrder || localBusy;
 
   if (isLoadingQuote && !quote) {
     return (
-      <section className="panel" aria-label={GUEST_PAYMENT_COPY.heading} style={{ textAlign: 'center', padding: '1.5rem' }}>
-        <h3 style={{ fontSize: '1.1rem', color: 'var(--color-ink)', marginBottom: '0.5rem' }}>{GUEST_PAYMENT_COPY.heading}</h3>
+      <section className="panel" aria-label={copy.heading} style={{ textAlign: 'center', padding: '1.5rem' }}>
+        <h3 style={{ fontSize: '1.1rem', color: 'var(--color-ink)', marginBottom: '0.5rem' }}>{copy.heading}</h3>
         <div role="status" style={{ color: 'var(--color-ink-muted)', fontSize: '0.9rem' }}>
-          {GUEST_PAYMENT_COPY.calculating}
+          {copy.calculating}
         </div>
       </section>
     );
@@ -41,24 +50,31 @@ export const QuoteReviewCard: React.FC<QuoteReviewCardProps> = ({
 
   if (!quote) {
     return (
-      <section className="panel" aria-label={GUEST_PAYMENT_COPY.heading} style={{ textAlign: 'center', padding: '1.5rem' }}>
-        <h3 style={{ fontSize: '1.1rem', color: 'var(--color-ink)', marginBottom: '0.5rem' }}>{GUEST_PAYMENT_COPY.heading}</h3>
+      <section className="panel" aria-label={copy.heading} style={{ textAlign: 'center', padding: '1.5rem' }}>
+        <h3 style={{ fontSize: '1.1rem', color: 'var(--color-ink)', marginBottom: '0.5rem' }}>{copy.heading}</h3>
         <p style={{ fontSize: '0.9rem', color: 'var(--color-ink-muted)', marginBottom: '0.75rem' }}>
-          {GUEST_PAYMENT_COPY.empty}
+          {copy.empty}
         </p>
         <button onClick={onRefreshQuote} className="btn btn-secondary" style={{ fontSize: '0.85rem' }} disabled={isLoadingQuote}>
-          {GUEST_PAYMENT_COPY.refresh}
+          {copy.refresh}
         </button>
       </section>
     );
   }
 
   const nothingDue = quote.amountCents === 0;
-  const peopleWord = quote.people === 1 ? 'persona' : 'personas';
+  const peopleWordLocal = peopleWord(quote.people, locale);
+  const lines = {
+    people: quote.people,
+    unit: formatMoney(quote.unitCents),
+    total: formatMoney(quote.totalCents),
+    paid: formatMoney(quote.paidCents),
+    due: formatMoney(quote.amountCents),
+  };
 
   const handleProceed = async () => {
     if (!confirmedByUser || isLoadingQuote || preparing || inFlight.current) {
-      if (!confirmedByUser) setError(GUEST_PAYMENT_COPY.mustConfirm);
+      if (!confirmedByUser) setError(copy.mustConfirm);
       return;
     }
     inFlight.current = true;
@@ -67,7 +83,7 @@ export const QuoteReviewCard: React.FC<QuoteReviewCardProps> = ({
     try {
       await onCreateOrder(quote.id);
     } catch (err: any) {
-      setError(err?.message || GUEST_PAYMENT_COPY.orderError);
+      setError(err?.message || copy.orderError);
     } finally {
       inFlight.current = false;
       setLocalBusy(false);
@@ -76,7 +92,7 @@ export const QuoteReviewCard: React.FC<QuoteReviewCardProps> = ({
 
   return (
     <section
-      aria-label={GUEST_PAYMENT_COPY.heading}
+      aria-label={copy.heading}
       style={{
         backgroundColor: '#FFFFFF',
         border: '2px solid var(--color-blue)',
@@ -87,7 +103,7 @@ export const QuoteReviewCard: React.FC<QuoteReviewCardProps> = ({
         boxSizing: 'border-box',
       }}
     >
-      <h3 style={{ fontSize: '1.1rem', color: 'var(--color-ink)', marginBottom: '0.75rem' }}>{GUEST_PAYMENT_COPY.heading}</h3>
+      <h3 style={{ fontSize: '1.1rem', color: 'var(--color-ink)', marginBottom: '0.75rem' }}>{copy.heading}</h3>
 
       {/* feeEstimate stays on the quote for the organizer. This guest card does not render it. */}
       <div
@@ -100,20 +116,20 @@ export const QuoteReviewCard: React.FC<QuoteReviewCardProps> = ({
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', padding: '0.35rem 0' }}>
-          <span style={{ color: 'var(--color-ink-muted)' }}>{GUEST_PAYMENT_COPY.people}:</span>
-          <strong style={{ color: 'var(--color-ink)' }}>{quote.people} {peopleWord}</strong>
+          <span style={{ color: 'var(--color-ink-muted)' }}>{copy.people}:</span>
+          <strong style={{ color: 'var(--color-ink)' }}>{quote.people} {peopleWordLocal}</strong>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', padding: '0.35rem 0' }}>
-          <span style={{ color: 'var(--color-ink-muted)' }}>{GUEST_PAYMENT_COPY.unit}:</span>
-          <strong style={{ color: 'var(--color-ink)' }}>{usd(quote.unitCents)}</strong>
+          <span style={{ color: 'var(--color-ink-muted)' }}>{copy.unit}:</span>
+          <strong style={{ color: 'var(--color-ink)' }}>{lines.unit}</strong>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', padding: '0.35rem 0', borderTop: '1px solid var(--color-border)' }}>
-          <span style={{ color: 'var(--color-ink-muted)' }}>{GUEST_PAYMENT_COPY.total}:</span>
-          <strong style={{ color: 'var(--color-ink)' }}>{usd(quote.totalCents)}</strong>
+          <span style={{ color: 'var(--color-ink-muted)' }}>{copy.total}:</span>
+          <strong style={{ color: 'var(--color-ink)' }}>{lines.total}</strong>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', padding: '0.35rem 0', color: 'var(--color-teal)' }}>
-          <span>{GUEST_PAYMENT_COPY.paid}:</span>
-          <strong>{usd(quote.paidCents)}</strong>
+          <span>{copy.paid}:</span>
+          <strong>{lines.paid}</strong>
         </div>
         <div
           style={{
@@ -127,24 +143,24 @@ export const QuoteReviewCard: React.FC<QuoteReviewCardProps> = ({
             fontWeight: 800,
           }}
         >
-          <span>{GUEST_PAYMENT_COPY.due}:</span>
-          <span>{usd(quote.amountCents)}</span>
+          <span>{copy.due}:</span>
+          <span>{lines.due}</span>
         </div>
       </div>
 
       {nothingDue ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <p role="status" style={{ margin: 0, color: 'var(--color-ink)', fontWeight: 700 }}>
-            {guestCoveredCopy(template, quote.paidCents)}
+            {guestCoveredCopy(template, quote.paidCents, locale)}
           </p>
           <button
             type="button"
             onClick={onRefreshQuote}
             disabled={isLoadingQuote || preparing}
             className="btn btn-secondary"
-            aria-label={GUEST_PAYMENT_COPY.update}
+            aria-label={copy.update}
           >
-            {GUEST_PAYMENT_COPY.update}
+            {copy.update}
           </button>
         </div>
       ) : (
@@ -177,12 +193,12 @@ export const QuoteReviewCard: React.FC<QuoteReviewCardProps> = ({
                   if (e.target.checked) setError(null);
                 }}
                 style={{ marginTop: '0.2rem', width: '18px', height: '18px', flex: '0 0 auto' }}
-                aria-label={GUEST_PAYMENT_COPY.confirmName}
+                aria-label={labels.quoteReview}
                 disabled={preparing || isLoadingQuote}
               />
               <span>
-                <strong>{GUEST_PAYMENT_COPY.confirmLead}</strong>
-                {` ${quote.people} ${peopleWord}, la cuota ${usd(quote.unitCents)} y el total ${usd(quote.totalCents)}. Quiero preparar el pago de ${usd(quote.amountCents)}.`}
+                <strong>{labels.quoteReviewLead}</strong>
+                {quoteConfirmSentence(lines, locale)}
               </span>
             </label>
           </div>
@@ -211,7 +227,7 @@ export const QuoteReviewCard: React.FC<QuoteReviewCardProps> = ({
               style={{ flex: '1 1 12rem', minWidth: 0, padding: '0.75rem' }}
               disabled={!confirmedByUser || preparing || isLoadingQuote}
             >
-              {preparing ? GUEST_PAYMENT_COPY.preparing : `${GUEST_PAYMENT_COPY.proceed} (${usd(quote.amountCents)})`}
+              {preparing ? copy.preparing : `${labels.generatePayment} (${lines.due})`}
             </button>
             <button
               type="button"
@@ -219,9 +235,9 @@ export const QuoteReviewCard: React.FC<QuoteReviewCardProps> = ({
               disabled={isLoadingQuote || preparing}
               className="btn btn-secondary"
               style={{ padding: '0.75rem', flex: '0 0 auto' }}
-              aria-label={GUEST_PAYMENT_COPY.update}
+              aria-label={copy.update}
             >
-              {GUEST_PAYMENT_COPY.update}
+              {copy.update}
             </button>
           </div>
         </>

@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from '../db/pool.js';
+import type { Locale } from '@fiestapay/shared';
 import { HttpError, forbidden, notFound, unavailable } from '../errors.js';
 import { newId } from '../lib/ids.js';
 import { withTransaction } from '../db/pool.js';
@@ -15,9 +16,16 @@ export const VOICE_CLIENT_COOLDOWN_SECONDS = 15;
 export const VOICE_ACTIVITY_MIN_INTERVAL_SECONDS = 5;
 
 const MAX_SECONDS = 300;
-const ACTIVE_LEASE = 'Ya tienes una sesión de voz activa. Espera a que termine o pulsa Detener.';
-const RATE_LIMIT = 'Has iniciado demasiadas sesiones de voz. Espera un minuto antes de intentarlo otra vez.';
-const DAILY_LIMIT = 'Se alcanzó el límite diario de voz; continúa por texto.';
+const ACTIVE_LEASE_ES = 'Ya tienes una sesión de voz activa. Espera a que termine o pulsa Detener.';
+const ACTIVE_LEASE_EN = 'You already have an active voice session. Wait for it to end or press Stop.';
+const RATE_LIMIT_ES = 'Has iniciado demasiadas sesiones de voz. Espera un minuto antes de intentarlo otra vez.';
+const RATE_LIMIT_EN = 'You started too many voice sessions. Wait one minute before trying again.';
+const DAILY_LIMIT_ES = 'Se alcanzó el límite diario de voz; continúa por texto.';
+const DAILY_LIMIT_EN = 'The daily voice limit was reached; continue by text.';
+
+function leaseMessage(es: string, en: string, locale: Locale = 'es'): string {
+  return locale === 'en' ? en : es;
+}
 
 /**
  * Shared voice reservation for guest, organizer and public audiences.
@@ -41,15 +49,17 @@ export async function reserveVoiceLease(
     reservedSeconds: number;
     dailySeconds: number;
     audience: VoiceAudience;
+    locale?: Locale;
     authorize: (db: PoolClient) => Promise<void>;
   },
 ): Promise<string> {
+  const locale = input.locale ?? 'es';
   if (input.audience === 'public' ? input.eventId !== null : input.eventId === null) {
-    throw new HttpError(400, 'Reserva de voz inválida');
+    throw new HttpError(400, leaseMessage('Reserva de voz inválida', 'Invalid voice reservation', locale));
   }
   const reservedSeconds = Math.floor(input.reservedSeconds);
   if (!Number.isInteger(reservedSeconds) || reservedSeconds < 1 || reservedSeconds > MAX_SECONDS) {
-    throw new HttpError(400, 'Duración de voz inválida');
+    throw new HttpError(400, leaseMessage('Duración de voz inválida', 'Invalid voice duration', locale));
   }
 
   return withTransaction(pool, async (db) => {
@@ -78,7 +88,7 @@ export async function reserveVoiceLease(
     );
     const used = Number(usage.rows[0]?.seconds ?? '0');
     if (!Number.isSafeInteger(used) || used + reservedSeconds > input.dailySeconds) {
-      throw new HttpError(429, DAILY_LIMIT);
+      throw new HttpError(429, leaseMessage(DAILY_LIMIT_ES, DAILY_LIMIT_EN, locale));
     }
 
     const active = await db.query(
@@ -91,7 +101,7 @@ export async function reserveVoiceLease(
         LIMIT 1`,
       [input.sessionId, VOICE_IDLE_SECONDS],
     );
-    if (active.rowCount) throw new HttpError(429, ACTIVE_LEASE);
+    if (active.rowCount) throw new HttpError(429, leaseMessage(ACTIVE_LEASE_ES, ACTIVE_LEASE_EN, locale));
 
     // Persistent across guest, organizer and public: querying, releasing and activity
     // writes never insert a row, so they never consume this allowance.
@@ -103,7 +113,7 @@ export async function reserveVoiceLease(
       [input.sessionId],
     );
     if (Number(recent.rows[0]?.count ?? 0) >= VOICE_NEW_SESSIONS_PER_MINUTE) {
-      throw new HttpError(429, RATE_LIMIT);
+      throw new HttpError(429, leaseMessage(RATE_LIMIT_ES, RATE_LIMIT_EN, locale));
     }
 
     await input.authorize(db);
@@ -123,7 +133,7 @@ export async function reserveVoiceLease(
  */
 export async function requireVoiceLease(
   db: Pool | PoolClient,
-  input: { leaseId: string; sessionId: string; eventId: string | null; audience: VoiceAudience },
+  input: { leaseId: string; sessionId: string; eventId: string | null; audience: VoiceAudience; locale?: Locale },
 ): Promise<void> {
   const lease = await db.query<{ audience: string }>(
     `SELECT audience
@@ -137,7 +147,13 @@ export async function requireVoiceLease(
     [input.leaseId, input.sessionId, input.eventId, VOICE_IDLE_SECONDS],
   );
   const row = lease.rows[0];
-  if (!row || row.audience !== input.audience) throw forbidden('Herramienta o sesión de voz no autorizada');
+  if (!row || row.audience !== input.audience) {
+    throw forbidden(leaseMessage(
+      'Herramienta o sesión de voz no autorizada',
+      'Tool or voice session not authorized',
+      input.locale,
+    ));
+  }
 }
 
 /**
@@ -223,7 +239,10 @@ export async function releaseVoiceLease(
  * token is POST; that does not change this outbound method. No model name is sent: the voice
  * engine does not expose one here.
  */
-export async function fetchAssemblyRealtimeToken(voice: { key: string; maxSeconds: number }): Promise<string> {
+export async function fetchAssemblyRealtimeToken(
+  voice: { key: string; maxSeconds: number },
+  locale: Locale = 'es',
+): Promise<string> {
   const url = new URL('https://agents.assemblyai.com/v1/token');
   url.searchParams.set('expires_in_seconds', '60');
   url.searchParams.set('max_session_duration_seconds', String(voice.maxSeconds));
@@ -235,21 +254,42 @@ export async function fetchAssemblyRealtimeToken(voice: { key: string; maxSecond
       signal: AbortSignal.timeout(8000),
     });
   } catch {
-    throw unavailable('No se pudo iniciar la voz. Continúa por texto');
+    throw unavailable(leaseMessage(
+      'No se pudo iniciar la voz. Continúa por texto',
+      'Could not start voice. Continue by text',
+      locale,
+    ));
   }
-  if (!response.ok) throw unavailable('El proveedor de voz no está disponible');
+  if (!response.ok) {
+    throw unavailable(leaseMessage(
+      'El proveedor de voz no está disponible',
+      'The voice provider is not available',
+      locale,
+    ));
+  }
   const data = await response.json() as { token?: string };
-  if (!data.token) throw unavailable('El proveedor no entregó una sesión de voz');
+  if (!data.token) {
+    throw unavailable(leaseMessage(
+      'El proveedor no entregó una sesión de voz',
+      'The provider did not return a voice session',
+      locale,
+    ));
+  }
   return data.token;
 }
 
-/** PCM, Spanish, and Lola. Shared so guest, organizer and public voice stay on the same engine. */
-export function assemblyVoiceMedia(): {
+/** PCM, one voice per locale. Shared so guest, organizer and public voice stay on the same engine. */
+export function assemblyVoiceMedia(locale: Locale = 'es'): {
   input: { format: { encoding: string }; language_codes: string[]; transcription_mode: string };
   output: { voice: string; format: { encoding: string } };
 } {
+  const english = locale === 'en';
   return {
-    input: { format: { encoding: 'audio/pcm' }, language_codes: ['es'], transcription_mode: 'max_accuracy' },
-    output: { voice: 'lola', format: { encoding: 'audio/pcm' } },
+    input: {
+      format: { encoding: 'audio/pcm' },
+      language_codes: [english ? 'en' : 'es'],
+      transcription_mode: 'max_accuracy',
+    },
+    output: { voice: english ? 'jane' : 'lola', format: { encoding: 'audio/pcm' } },
   };
 }

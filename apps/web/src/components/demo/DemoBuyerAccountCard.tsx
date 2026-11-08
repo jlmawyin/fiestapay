@@ -1,5 +1,8 @@
 import React, { useRef, useState } from 'react';
+import { UI_LABELS } from '@fiestapay/shared';
 import { fetchDemoBuyerAccount, type DemoBuyerResponse } from '../../api/demo-buyer';
+import { useI18n, useMessages } from '../../i18n/I18nContext';
+import { buyerCatalog } from '../../i18n/catalogs/buyer';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'unavailable' | 'error';
 type CopyField = 'email' | 'password';
@@ -17,6 +20,9 @@ const CARD_STYLE: React.CSSProperties = {
  * fetched only after a click, and is never placed in local/session storage or a URL.
  */
 export const DemoBuyerAccountCard: React.FC = () => {
+  const { locale } = useI18n();
+  const m = useMessages(buyerCatalog);
+  const labels = UI_LABELS[locale];
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [account, setAccount] = useState<Extract<DemoBuyerResponse, { available: true }> | null>(null);
   const [copying, setCopying] = useState<CopyField | null>(null);
@@ -53,14 +59,14 @@ export const DemoBuyerAccountCard: React.FC = () => {
         throw new Error('clipboard unavailable');
       }
       await navigator.clipboard.writeText(value);
-      setCopyMessage(field === 'email' ? 'Correo copiado.' : 'Contraseña copiada.');
+      setCopyMessage(field === 'email' ? m.emailCopied : m.passwordCopied);
     } catch {
       // Manual fallback: select the exact value so the user can copy it. Never surface the
       // browser's technical clipboard error as the account state.
       const input = field === 'email' ? emailRef.current : passwordRef.current;
       input?.focus();
       input?.select();
-      setCopyMessage('No se pudo copiar automáticamente. El texto quedó seleccionado; usa Ctrl+C o Cmd+C.');
+      setCopyMessage(m.copyFallback);
     } finally {
       setCopying(null);
     }
@@ -70,38 +76,36 @@ export const DemoBuyerAccountCard: React.FC = () => {
     <section style={CARD_STYLE} aria-labelledby="demo-buyer-title" data-testid="demo-buyer-account-card">
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
         <h2 id="demo-buyer-title" style={{ fontSize: '1.15rem', margin: 0 }}>
-          Cuenta Personal de prueba
+          {m.title}
         </h2>
-        <span className="badge badge-teal">PayPal Sandbox</span>
+        <span className="badge badge-teal">{m.badge}</span>
       </div>
       <p style={{ margin: '0.4rem 0 0.75rem', fontSize: '0.85rem', color: 'var(--color-ink-muted)' }}>
-        Acceso compartido de Sandbox. No se mueve dinero real. Esta cuenta ficticia sirve solo para
-        probar el pago; FiestaPay no inicia sesión ni crea órdenes por ti.
+        {m.description}
       </p>
 
       {loadState === 'idle' || loadState === 'error' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
           {loadState === 'error' ? (
             <p role="alert" style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-coral)' }}>
-              No se pudo consultar la cuenta de prueba. Inténtalo de nuevo.
+              {m.loadError}
             </p>
           ) : null}
           <button type="button" className="btn btn-secondary" onClick={() => void loadAccount()}>
-            {loadState === 'error' ? 'Reintentar cuenta de prueba' : 'Ver cuenta de prueba'}
+            {loadState === 'error' ? m.retry : labels.testAccount}
           </button>
         </div>
       ) : null}
 
       {loadState === 'loading' ? (
         <p role="status" style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-ink-muted)' }}>
-          Consultando la cuenta de prueba…
+          {m.loading}
         </p>
       ) : null}
 
       {loadState === 'unavailable' ? (
         <p role="alert" style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-ink-muted)' }}>
-          La cuenta de prueba no está disponible en este servidor. Puedes continuar creando tu
-          propia invitación, pero no mostraremos datos inventados.
+          {m.unavailable}
         </p>
       ) : null}
 
@@ -109,13 +113,13 @@ export const DemoBuyerAccountCard: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
           <div style={{ display: 'grid', gap: '0.6rem' }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 700 }}>
-              Correo
+              {m.emailLabel}
               <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
                 <input
                   ref={emailRef}
                   readOnly
                   value={account.email}
-                  aria-label="Correo de la cuenta de prueba"
+                  aria-label={m.emailAria}
                   autoComplete="off"
                   spellCheck={false}
                   style={{ flex: '1 1 220px', minWidth: 0, padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' }}
@@ -126,19 +130,19 @@ export const DemoBuyerAccountCard: React.FC = () => {
                   disabled={copying !== null}
                   onClick={() => void copy('email')}
                 >
-                  {copying === 'email' ? 'Copiando…' : 'Copiar correo'}
+                  {copying === 'email' ? m.copying : labels.copyEmail}
                 </button>
               </div>
             </label>
 
             <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 700 }}>
-              Contraseña
+              {m.passwordLabel}
               <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
                 <input
                   ref={passwordRef}
                   readOnly
                   value={account.password}
-                  aria-label="Contraseña de la cuenta de prueba"
+                  aria-label={m.passwordAria}
                   autoComplete="off"
                   spellCheck={false}
                   style={{ flex: '1 1 220px', minWidth: 0, padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' }}
@@ -149,7 +153,7 @@ export const DemoBuyerAccountCard: React.FC = () => {
                   disabled={copying !== null}
                   onClick={() => void copy('password')}
                 >
-                  {copying === 'password' ? 'Copiando…' : 'Copiar contraseña'}
+                  {copying === 'password' ? m.copying : labels.copyPassword}
                 </button>
               </div>
             </label>

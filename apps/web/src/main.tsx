@@ -8,13 +8,16 @@ import '@fontsource/manrope/500.css';
 import '@fontsource/manrope/600.css';
 import '@fontsource/manrope/700.css';
 import './index.css';
+import { I18nProvider } from './i18n/I18nContext';
 import { App } from './App';
 
 const rootElement = document.getElementById('root');
 if (rootElement) {
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
-      <App />
+      <I18nProvider>
+        <App />
+      </I18nProvider>
     </React.StrictMode>
   );
 }

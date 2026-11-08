@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Modal } from '../common/Modal';
+import { useMessages } from '../../i18n/I18nContext';
+import { qrShareCatalog } from '../../i18n/messages/organizerRecovery';
 import { shareableInviteUrl, whatsAppShareUrl } from '../../lib/event-presentation';
 
 interface QrShareModalProps {
@@ -19,6 +21,7 @@ export const QrShareModal: React.FC<QrShareModalProps> = ({
   eventTitle,
   shareText,
 }) => {
+  const m = useMessages(qrShareCatalog);
   const [copied, setCopied] = useState(false);
   const publicUrl = (() => {
     try {
@@ -43,8 +46,8 @@ export const QrShareModal: React.FC<QrShareModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Compartir Invitación"
-      description={`Invita a tus amigos a "${eventTitle}"`}
+      title={m.title}
+      description={m.desc(eventTitle)}
       maxWidth="480px"
     >
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
@@ -69,7 +72,7 @@ export const QrShareModal: React.FC<QrShareModalProps> = ({
         </div>
 
         <p style={{ fontSize: '0.875rem', color: 'var(--color-ink-muted)', marginBottom: '1.25rem' }}>
-          Tus amigos pueden escanear este código con la cámara de su teléfono para unirse al instante, sin necesidad de descargar ninguna app.
+          {m.body}
         </p>
 
         <div style={{ width: '100%', marginBottom: '1rem' }}>
@@ -79,23 +82,23 @@ export const QrShareModal: React.FC<QrShareModalProps> = ({
               value={publicUrl}
               className="form-input"
               style={{ fontSize: '0.85rem', backgroundColor: 'var(--color-surface-subtle)' }}
-              aria-label="Enlace de invitación para copiar"
+              aria-label={m.linkAria}
             />
             <button
               onClick={handleCopy}
               className={`btn ${copied ? 'btn-teal' : 'btn-primary'}`}
               style={{ minWidth: '110px', fontSize: '0.85rem' }}
             >
-              {copied ? '¡Copiado! ✓' : 'Copiar enlace'}
+              {copied ? m.copied : m.copy}
             </button>
           </div>
         </div>
 
         {shareText && draftUrl ? (
           <div style={{ width: '100%', marginBottom: '1rem', textAlign: 'left' }}>
-            <p style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.35rem' }}>Borrador para WhatsApp</p>
+            <p style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.35rem' }}>{m.draftTitle}</p>
             <pre
-              aria-label="Borrador para WhatsApp"
+              aria-label={m.draftTitle}
               style={{
                 whiteSpace: 'pre-wrap',
                 overflowWrap: 'anywhere',
@@ -110,13 +113,13 @@ export const QrShareModal: React.FC<QrShareModalProps> = ({
               {shareText}
             </pre>
             <a className="btn btn-teal" href={draftUrl} target="_blank" rel="noreferrer" style={{ width: '100%' }}>
-              Abrir borrador en WhatsApp
+              {m.openDraft}
             </a>
           </div>
         ) : null}
 
         <button onClick={onClose} className="btn btn-secondary" style={{ width: '100%' }}>
-          Cerrar
+          {m.close}
         </button>
       </div>
     </Modal>

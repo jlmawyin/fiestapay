@@ -1,10 +1,20 @@
 import type { ThemeKey } from './presentation.js';
 
-export type { ThemeKey, ThemeDefinition, TemplateInviteCopy, ContrastPair } from './presentation.js';
+export type { ThemeKey, ThemeDefinition, TemplateInviteCopy, ContrastPair, MealKind } from './presentation.js';
 export {
   TEMPLATE_THEMES,
   TEMPLATE_INVITE_COPY,
+  TEMPLATE_INVITE_COPY_EN,
+  templateInviteCopy,
+  TEMPLATE_LABELS_EN,
+  templateLabel,
+  MEAL_LABELS,
+  mealLabel,
   THEMES,
+  THEME_LABELS_EN,
+  THEME_PHRASES_EN,
+  themeLabel,
+  themePhrase,
   ORGANIZER_NAME_MAX,
   themesForTemplate,
   defaultThemeFor,
@@ -16,6 +26,8 @@ export {
   contrastRatio,
   themeContrastPairs,
 } from './presentation.js';
+export * from './i18n.js';
+export * from './server-errors.js';
 
 export type TemplateKind = 'comida' | 'casa' | 'viaje' | 'evento';
 export type RsvpStatus = 'yes' | 'no' | 'maybe';
@@ -72,6 +84,8 @@ export interface FiestaEvent {
   organizerName?: string | null;
   /** Resolved theme key. Legacy rows are presented with the template default. */
   theme?: ThemeKey;
+  /** True for judge-demo events (events.is_demo). Absent means false. */
+  isDemo?: boolean;
 }
 export interface Guest {
   id: string;

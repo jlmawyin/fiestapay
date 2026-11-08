@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { UI_LABELS, formatEventDateTime, themePhrase, type Locale } from '@fiestapay/shared';
 import type { Dashboard, Capabilities, EventInput, ModerationGuest } from '../types';
 import { api, ApiError } from '../api/client';
 import { adminKeyFor, rememberAdminKey } from '../api/admin-key';
-import { usd } from '../types';
+import { useI18n, useMessages } from '../i18n/I18nContext';
+import { dashboardCatalog } from '../i18n/messages/organizerDashboard';
 import { GuestGrid } from '../components/dashboard/GuestGrid';
 import { ModerationPanel } from '../components/dashboard/ModerationPanel';
 import { OrganizerLinkCard } from '../components/dashboard/OrganizerLinkCard';
@@ -33,7 +35,21 @@ interface GatheringCopy {
 }
 
 /** Noun without article. Viaje and evento stay masculine. Unknown context stays "invitación". */
-function gatheringCopy(template: string | null | undefined): GatheringCopy {
+function gatheringCopy(template: string | null | undefined, locale: Locale = 'es'): GatheringCopy {
+  if (locale === 'en') {
+    switch (template) {
+      case 'comida':
+        return { noun: 'meal', phrase: 'the meal', ofPhrase: 'of the meal', feminine: false };
+      case 'casa':
+        return { noun: 'house gathering', phrase: 'the house gathering', ofPhrase: 'of the house gathering', feminine: false };
+      case 'viaje':
+        return { noun: 'trip', phrase: 'the trip', ofPhrase: 'of the trip', feminine: false };
+      case 'evento':
+        return { noun: 'event', phrase: 'the event', ofPhrase: 'of the event', feminine: false };
+      default:
+        return { noun: 'invitation', phrase: 'the invitation', ofPhrase: 'of the invitation', feminine: false };
+    }
+  }
   switch (template) {
     case 'comida':
       return { noun: 'comida', phrase: 'la comida', ofPhrase: 'de la comida', feminine: true };
@@ -48,8 +64,8 @@ function gatheringCopy(template: string | null | undefined): GatheringCopy {
   }
 }
 
-function capitalLabel(value: string): string {
-  return value.length === 0 ? value : value.charAt(0).toLocaleUpperCase('es-EC') + value.slice(1);
+function capitalLabel(value: string, locale: Locale): string {
+  return value.length === 0 ? value : value.charAt(0).toLocaleUpperCase(locale === 'en' ? 'en-US' : 'es-EC') + value.slice(1);
 }
 
 function gendered(copy: GatheringCopy, feminine: string, masculine: string): string {
@@ -74,6 +90,9 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
   onNavigateRecover,
   onShowToast,
 }) => {
+  const { locale, formatMoney } = useI18n();
+  const m = useMessages(dashboardCatalog);
+  const labels = UI_LABELS[locale];
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -123,14 +142,14 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
     }).catch((err: Error) => {
       if (requestVersion.current === version) {
         if (err instanceof ApiError && err.status === 403) setAccessDenied(true);
-        setLoadError(err.message || 'No se pudo cargar el panel de control');
-        onShowToast('error', err.message || 'No se pudo cargar el panel de control', 'Panel');
+        setLoadError(err.message || m.loadFailFallback);
+        onShowToast('error', err.message || m.loadFailFallback, m.loadFailTitle);
       }
     }).finally(() => {
       if (requestVersion.current === version) setIsLoading(false);
     });
     return () => { requestVersion.current += 1; };
-  }, [slug, onShowToast, reloadTick]);
+  }, [slug, onShowToast, reloadTick, m]);
 
   const handleConfirmEvent = async () => {
     const version = requestVersion.current;
@@ -140,15 +159,15 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
       if (requestVersion.current !== version) return;
       setDashboard((prev: Dashboard | null) => (prev ? { ...prev, event: res.event } : null));
       setShowConfirmModal(false);
-      const copy = gatheringCopy(dashboard?.event.template);
+      const copy = gatheringCopy(dashboard?.event.template, locale);
       onShowToast(
         'success',
-        `¡${capitalLabel(copy.phrase)} ha sido formalmente ${gendered(copy, 'confirmada', 'confirmado')}!`,
-        `${capitalLabel(copy.noun)} ${gendered(copy, 'confirmada', 'confirmado')}`,
+        m.confirmDoneMsg(capitalLabel(copy.phrase, locale), gendered(copy, 'confirmada', 'confirmado')),
+        m.confirmDoneTitle(capitalLabel(copy.noun, locale), gendered(copy, 'confirmada', 'confirmado')),
       );
     } catch (err: any) {
       if (requestVersion.current !== version) return;
-      onShowToast('error', err.message || `No se pudo confirmar ${gatheringCopy(dashboard?.event.template).phrase}`, 'Error');
+      onShowToast('error', err.message || m.confirmFailMsg(gatheringCopy(dashboard?.event.template, locale).phrase), m.confirmFailTitle);
     } finally {
       if (requestVersion.current === version) setIsConfirming(false);
     }
@@ -165,10 +184,10 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
           : action === 'unblock'
             ? await api.unblockGuest(slug, guestId)
             : await api.removeGuest(slug, guestId);
-      onShowToast('success', result.message, 'Moderacion');
+      onShowToast('success', result.message, m.moderationTitle);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'No se pudo moderar';
-      onShowToast('error', message, 'Moderacion');
+      const message = err instanceof Error ? err.message : m.moderateFail;
+      onShowToast('error', message, m.moderationTitle);
     } finally {
       setModerationBusyId(null);
       setModerationTick((value) => value + 1);
@@ -179,7 +198,7 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
     try {
       await navigator.clipboard.writeText(inviteUrl);
       setCopiedLink(true);
-      onShowToast('info', 'Enlace copiado al portapapeles', 'Copiado');
+      onShowToast('info', m.copiedMsg, m.copiedTitle);
       setTimeout(() => setCopiedLink(false), 2500);
     } catch {
       // fallback
@@ -206,14 +225,14 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
       priceCents: event.priceCents,
       inviteUrl: publicUrl,
       organizerName: event.organizerName,
-    });
+    }, locale);
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
   if (isLoading || (dashboard && dashboard.event.slug !== slug)) {
     return (
       <div className="panel" style={{ textAlign: 'center', padding: '4rem 1rem' }}>
-        <p style={{ color: 'var(--color-ink-muted)' }}>Cargando panel de control del organizador...</p>
+        <p style={{ color: 'var(--color-ink-muted)' }}>{m.loading}</p>
       </div>
     );
   }
@@ -221,28 +240,28 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
   if (!dashboard) {
     return (
       <div className="panel" style={{ textAlign: 'center', padding: '3rem 1rem', maxWidth: '620px', margin: '2rem auto' }}>
-        <h3>Error al acceder al panel</h3>
+        <h3>{m.accessTitle}</h3>
         <p style={{ color: 'var(--color-ink-muted)', margin: '0.75rem 0 1.5rem 0' }}>
           {accessDenied
-            ? 'No pudimos abrir este panel con la clave guardada en este navegador. Puedes recuperar el enlace del organizador o consultar la invitación pública.'
-            : `No se pudo cargar el panel${loadError ? `: ${loadError}` : ''}. Revisa tu conexión e inténtalo de nuevo; no se cambió ningún dato.`}
+            ? m.accessBody
+            : m.loadFailBody(loadError ? `: ${loadError}` : '')}
         </p>
         <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'center', flexWrap: 'wrap' }}>
           {!accessDenied ? (
             <button type="button" onClick={() => setReloadTick((value) => value + 1)} className="btn btn-primary">
-              Reintentar
+              {m.retry}
             </button>
           ) : null}
           {onNavigateRecover ? (
             <button type="button" onClick={onNavigateRecover} className="btn btn-secondary">
-              Recuperar mi enlace
+              {labels.recoverLink}
             </button>
           ) : null}
           <button type="button" onClick={() => onNavigateInvite(slug)} className="btn btn-secondary">
-            Ver invitación pública
+            {m.viewPublic}
           </button>
           <button type="button" onClick={onNavigateHome} className="btn btn-secondary">
-            Volver a Mis invitaciones
+            {m.backTo(labels.myInvitations)}
           </button>
         </div>
       </div>
@@ -255,8 +274,8 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
       const res = await api.updateEvent(slug, input);
       setDashboard((prev) => (prev ? { ...prev, event: res.event } : prev));
       setEditing(false);
-      const copy = gatheringCopy(dashboard.event.template);
-      onShowToast('success', 'Los cambios quedaron guardados.', `${capitalLabel(copy.noun)} ${gendered(copy, 'actualizada', 'actualizado')}`);
+      const copy = gatheringCopy(dashboard.event.template, locale);
+      onShowToast('success', m.savedMsg, m.savedTitle(capitalLabel(copy.noun, locale), gendered(copy, 'actualizada', 'actualizado')));
     } finally {
       setSavingEdit(false);
     }
@@ -268,10 +287,10 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
       const res = await api.closeEvent(slug);
       setDashboard((prev) => (prev ? { ...prev, event: res.event } : prev));
       setShowClose(false);
-      const copy = gatheringCopy(dashboard.event.template);
-      onShowToast('info', 'Ya no entran asistencias ni pagos nuevos.', `${capitalLabel(copy.noun)} ${gendered(copy, 'cerrada', 'cerrado')}`);
+      const copy = gatheringCopy(dashboard.event.template, locale);
+      onShowToast('info', m.closedMsg, m.closedTitle(capitalLabel(copy.noun, locale), gendered(copy, 'cerrada', 'cerrado')));
     } catch (err: unknown) {
-      onShowToast('error', err instanceof Error ? err.message : 'No se pudo cerrar', 'Error');
+      onShowToast('error', err instanceof Error ? err.message : m.closeFail, m.confirmFailTitle);
     } finally {
       setBusyLifecycle(false);
     }
@@ -282,27 +301,27 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
     try {
       await api.deleteEvent(slug);
       setShowDelete(false);
-      const copy = gatheringCopy(dashboard.event.template);
+      const copy = gatheringCopy(dashboard.event.template, locale);
       onShowToast(
         'info',
-        `${capitalLabel(copy.phrase)} dejó de ser ${gendered(copy, 'pública', 'público')}. Los pagos registrados se conservan.`,
-        `${capitalLabel(copy.noun)} ${gendered(copy, 'eliminada', 'eliminado')}`,
+        m.deletedMsg(capitalLabel(copy.phrase, locale), gendered(copy, 'pública', 'público')),
+        m.deletedTitle(capitalLabel(copy.noun, locale), gendered(copy, 'eliminada', 'eliminado')),
       );
       onNavigateHome();
     } catch (err: unknown) {
-      onShowToast('error', err instanceof Error ? err.message : 'No se pudo eliminar', 'Error');
+      onShowToast('error', err instanceof Error ? err.message : m.deleteFail, m.confirmFailTitle);
       setBusyLifecycle(false);
     }
   };
 
   const { event, guests, audit, payments } = dashboard;
-  const copy = gatheringCopy(event.template);
+  const copy = gatheringCopy(event.template, locale);
   const canConfirm = !event.minimumCents || event.minimumReached;
   const theme = resolveTheme(event.template, event.theme);
   const parties = guests.filter((guest) => !guest.removedAt).length;
-  const attendance = attendanceSummary({ parties, paidPeople: event.paidPeople, capacity: event.capacity });
-  const hostLine = organizerLine(event.organizerName);
-  const whenLabel = formatEventRange(event.startsAt, event.endsAt);
+  const attendance = attendanceSummary({ parties, paidPeople: event.paidPeople, capacity: event.capacity }, locale);
+  const hostLine = organizerLine(event.organizerName, locale);
+  const whenLabel = formatEventRange(event.startsAt, event.endsAt, undefined, locale);
   const goalPct = goalProgressPercent(event.collectedCents, event.goalCents);
   const shareDraft = buildInviteShareText({
     template: event.template,
@@ -314,7 +333,7 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
     priceCents: event.priceCents,
     inviteUrl,
     organizerName: event.organizerName,
-  });
+  }, locale);
 
   return (
     <ThemeScope theme={theme}>
@@ -336,21 +355,21 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
       >
         <div>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.65rem', marginBottom: '0.35rem' }}>
-            <span className="badge badge-ink">Panel del Organizador</span>
+            <span className="badge badge-ink">{m.badgePanel}</span>
             {event.fundingStatus === 'failed' ? (
-              <span className="badge badge-coral">Mínimo no alcanzado a tiempo</span>
+              <span className="badge badge-coral">{m.badgeFailed}</span>
             ) : event.confirmed ? (
-              <span className="badge badge-teal">Invitación confirmada ✓</span>
+              <span className="badge badge-teal">{m.badgeConfirmed}</span>
             ) : (
-              <span className="badge badge-yellow">Por Confirmar</span>
+              <span className="badge badge-yellow">{m.badgePending}</span>
             )}
             {event.fundingStatus === 'funded' ? (
-              <span className="badge badge-blue">Umbral de financiamiento alcanzado</span>
+              <span className="badge badge-blue">{m.badgeFunded}</span>
             ) : null}
           </div>
           <h1 style={{ fontSize: '1.65rem', color: 'var(--color-ink)' }}>{event.title}</h1>
           {hostLine ? <p style={{ fontSize: '0.875rem', fontWeight: 700 }}>{hostLine}</p> : null}
-          <p className="theme-phrase" style={{ fontSize: '0.95rem', margin: '0.15rem 0' }}>{theme.phrase}</p>
+          <p className="theme-phrase" style={{ fontSize: '0.95rem', margin: '0.15rem 0' }}>{themePhrase(theme.key, locale)}</p>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-ink-muted)' }}>
             {event.location} · {whenLabel}
           </p>
@@ -359,25 +378,25 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button onClick={() => onNavigateInvite(slug)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-            👁️ Ver Invitación Pública
+            {m.viewInviteBtn}
           </button>
           <button onClick={handleWhatsAppShare} className="btn btn-teal" style={{ fontSize: '0.85rem' }}>
-            💬 Compartir en WhatsApp
+            {m.shareWhatsapp}
           </button>
           <button onClick={() => setShowQrModal(true)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-            📲 QR
+            {m.qrBtn}
           </button>
           <button onClick={handleCopyLink} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-            {copiedLink ? '¡Copiado! ✓' : '🔗 Copiar Link'}
+            {copiedLink ? m.copiedBtn : m.copyLink}
           </button>
           <button type="button" onClick={() => setEditing((v) => !v)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-            {editing ? 'Cerrar edicion' : `Editar ${copy.noun}`}
+            {editing ? m.editClose : m.editOpen(copy.noun)}
           </button>
           <button type="button" onClick={() => setShowClose(true)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }} disabled={event.closed}>
-            Cerrar inscripciones
+            {m.closeCta}
           </button>
           <button type="button" onClick={() => setShowDelete(true)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-            Eliminar {copy.noun}
+            {m.deleteCta(copy.noun)}
           </button>
         </div>
       </div>
@@ -396,20 +415,20 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
             onSubmit={handleSaveEdit}
             onCancel={() => setEditing(false)}
             isLoading={savingEdit}
-            submitLabel="Guardar cambios"
+            submitLabel={m.saveChanges}
           />
         </div>
       ) : null}
 
-      <section className="panel" aria-label="Pagos">
-        <h2 style={{ fontSize: '1.15rem', marginBottom: '0.5rem' }}>Pagos</h2>
+      <section className="panel" aria-label={m.paymentsAria}>
+        <h2 style={{ fontSize: '1.15rem', marginBottom: '0.5rem' }}>{m.paymentsTitle}</h2>
         {(payments ?? []).length === 0 ? (
-          <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.875rem' }}>Sin pagos registrados.</p>
+          <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.875rem' }}>{m.paymentsEmpty}</p>
         ) : (
           <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.875rem' }}>
             {(payments ?? []).map((payment) => (
               <li key={payment.orderId}>
-                {payment.guestName || 'Invitado'} · {usd(payment.amountCents)} · {payment.status}
+                {payment.guestName || m.paymentGuestFallback} · {formatMoney(payment.amountCents)} · {payment.status}
               </li>
             ))}
           </ul>
@@ -429,50 +448,50 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         {/* Recaudado antes de comisiones */}
         <div className="panel" style={{ borderLeft: '4px solid var(--color-teal)' }}>
           <div style={{ fontSize: '0.775rem', color: 'var(--color-ink-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
-            Recaudado
+            {m.raisedKicker}
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--color-ink)', margin: '0.2rem 0' }}>
-            {usd(event.collectedCents)}
+            {formatMoney(event.collectedCents)}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--color-ink-light)' }}>
-            capturado menos reembolsos verificados, antes de comisiones
+            {m.raisedHint}
           </div>
         </div>
 
         {/* Goal */}
         <div className="panel" style={{ borderLeft: '4px solid var(--color-blue)' }}>
           <div style={{ fontSize: '0.775rem', color: 'var(--color-ink-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
-            Meta de Recaudación
+            {m.goalKicker}
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--color-ink)', margin: '0.2rem 0' }}>
-            {event.goalCents ? usd(event.goalCents) : 'Sin meta fijada'}
+            {event.goalCents ? formatMoney(event.goalCents) : m.goalNone}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--color-ink-light)' }}>
-            {goalPct !== null ? `${goalPct}% alcanzado` : 'Presupuesto flexible'}
+            {goalPct !== null ? m.goalReached(goalPct) : m.goalFlexible}
           </div>
         </div>
 
         {/* Minimum Threshold */}
         <div className="panel" style={{ borderLeft: '4px solid var(--color-coral)' }}>
           <div style={{ fontSize: '0.775rem', color: 'var(--color-ink-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
-            Mínimo Requerido
+            {m.minKicker}
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--color-ink)', margin: '0.2rem 0' }}>
-            {event.minimumCents ? usd(event.minimumCents) : 'No requerido'}
+            {event.minimumCents ? formatMoney(event.minimumCents) : m.minNone}
           </div>
           <div style={{ fontSize: '0.75rem' }}>
             {event.minimumCents ? (
               event.minimumReached ? (
-                <span style={{ color: 'var(--color-teal)', fontWeight: 700 }}>Mínimo alcanzado ✓</span>
+                <span style={{ color: 'var(--color-teal)', fontWeight: 700 }}>{m.minReached}</span>
               ) : (
-                <span style={{ color: 'var(--color-coral)', fontWeight: 700 }}>Faltan {usd(event.minimumCents - event.collectedCents)}</span>
+                <span style={{ color: 'var(--color-coral)', fontWeight: 700 }}>{m.minMissing(formatMoney(event.minimumCents - event.collectedCents))}</span>
               )
             ) : (
-              <span style={{ color: 'var(--color-ink-light)' }}>Sin condición mínima</span>
+              <span style={{ color: 'var(--color-ink-light)' }}>{m.minNoCondition}</span>
             )}
             {event.fundingDeadlineAt && event.fundingStatus !== 'legacy' && event.fundingStatus !== 'inactive' ? (
               <div style={{ fontSize: '0.75rem', color: 'var(--color-ink-muted)', marginTop: '0.35rem' }}>
-                Límite: {formatEventInstant(event.fundingDeadlineAt)}
+                {m.deadlineLine(formatEventInstant(event.fundingDeadlineAt, locale))}
               </div>
             ) : null}
           </div>
@@ -481,7 +500,7 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         {/* Capacity / Attendees */}
         <div className="panel" style={{ borderLeft: '4px solid var(--color-yellow)' }}>
           <div style={{ fontSize: '0.775rem', color: 'var(--color-ink-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
-            Confirmados (asistencia)
+            {m.confirmedKicker}
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--color-ink)', margin: '0.2rem 0' }}>
             {event.confirmedPeople} {event.capacity ? `/ ${event.capacity}` : ''}
@@ -508,11 +527,11 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
           }}
         >
           <div>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>Confirmar realización {copy.ofPhrase}</h3>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>{m.confirmCardTitle(locale === 'en' ? copy.phrase : copy.ofPhrase)}</h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--color-ink-muted)' }}>
               {canConfirm
-                ? `Puedes confirmar que ${copy.phrase} se realizará. La asistencia y los pagos de cada invitado se gestionan por separado.`
-                : `Se requiere recaudar al menos ${usd(event.minimumCents || 0)} antes de poder confirmar formalmente la realización ${copy.ofPhrase}.`}
+                ? m.confirmCardOk(copy.phrase)
+                : m.confirmCardNeedMin(formatMoney(event.minimumCents || 0), locale === 'en' ? copy.phrase : copy.ofPhrase)}
             </p>
           </div>
           <div>
@@ -521,25 +540,25 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
               disabled={!canConfirm}
               className="btn btn-teal"
               style={{ fontWeight: 700 }}
-              title={canConfirm ? `Confirmar ${copy.noun}` : 'Mínimo aún no alcanzado'}
+              title={canConfirm ? m.confirmBtnTitleOk(copy.noun) : m.confirmBtnTitleNeedMin}
             >
-              ✓ Confirmar Realización
+              {labels.confirmEvent}
             </button>
           </div>
         </div>
       )}
 
       {/* Guests Management AG Grid Table */}
-      <section aria-label="Lista de invitados y pagos" style={{ width: '100%', overflowX: 'auto' }}>
+      <section aria-label={m.guestsAria} style={{ width: '100%', overflowX: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
           <div>
-            <h2 style={{ fontSize: '1.25rem' }}>Lista de Invitados y Pagos</h2>
+            <h2 style={{ fontSize: '1.25rem' }}>{m.guestsTitle}</h2>
             <p style={{ fontSize: '0.825rem', color: 'var(--color-ink-muted)' }}>
-              Revisa la asistencia y los pagos de tus invitados. Desliza la tabla para ver los importes y preparar recordatorios.
+              {m.guestsSub}
             </p>
           </div>
           <span style={{ fontSize: '0.85rem', color: 'var(--color-ink-muted)' }}>
-            {guests.length} {guests.length === 1 ? 'invitado' : 'invitados'}
+            {m.guestsCount(guests.length)}
           </span>
         </div>
 
@@ -566,14 +585,14 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         />
         <ModerationPanel slug={slug} refreshKey={moderationTick} onGuests={rememberGuests} />
         <p style={{ fontSize: '0.775rem', color: 'var(--color-ink-light)', marginTop: '0.5rem' }}>
-          Revisa el mensaje y elige a quién enviarlo en WhatsApp.
+          {m.guestsFoot}
         </p>
       </section>
 
       {/* Audit Trail */}
       {audit && audit.length > 0 && (
-        <section aria-label="Historial de auditoría" className="panel">
-          <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem' }}>Registro de Actividad y Auditoría</h3>
+        <section aria-label={m.auditAria} className="panel">
+          <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem' }}>{m.auditTitle}</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
             {audit.map((entry: { action: string; createdAt: string }, idx: number) => (
               <div
@@ -587,7 +606,7 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
               >
                 <span style={{ color: 'var(--color-ink)' }}>{entry.action}</span>
                 <span style={{ color: 'var(--color-ink-light)', fontSize: '0.775rem' }}>
-                  {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {formatEventDateTime(entry.createdAt, locale, { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
             ))}
@@ -608,34 +627,34 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
       <Modal
         isOpen={showConfirmModal}
         onClose={() => setShowConfirmModal(false)}
-        title="¿Confirmar realización de la invitación?"
-        description="Esta acción marca la invitación como confirmada. No mueve ni retiene el dinero."
+        title={m.confirmModalTitle}
+        description={m.confirmModalDesc}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-ink-muted)', lineHeight: 1.5 }}>
-            Confirmas que "{event.title}" se llevará a cabo. La asistencia y los pagos de cada invitado se gestionan por separado.
+            {m.confirmModalBody(event.title)}
           </p>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
             <button onClick={() => setShowConfirmModal(false)} className="btn btn-secondary" disabled={isConfirming}>
-              Cancelar
+              {m.modalCancel}
             </button>
             <button onClick={handleConfirmEvent} className="btn btn-teal" disabled={isConfirming}>
-              {isConfirming ? 'Confirmando...' : '✓ Confirmar Realización'}
+              {isConfirming ? m.confirming : labels.confirmEvent}
             </button>
           </div>
         </div>
       </Modal>
 
-      <Modal isOpen={showClose} onClose={() => setShowClose(false)} title="Cerrar inscripciones" description="Las asistencias y los pagos nuevos se detienen. El historial sigue visible.">
+      <Modal isOpen={showClose} onClose={() => setShowClose(false)} title={m.closeModalTitle} description={m.closeModalDesc}>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-          <button type="button" className="btn btn-secondary" onClick={() => setShowClose(false)} disabled={busyLifecycle}>Cancelar</button>
-          <button type="button" className="btn btn-primary" onClick={() => void handleClose()} disabled={busyLifecycle}>Si, cerrar inscripciones</button>
+          <button type="button" className="btn btn-secondary" onClick={() => setShowClose(false)} disabled={busyLifecycle}>{m.modalCancel}</button>
+          <button type="button" className="btn btn-primary" onClick={() => void handleClose()} disabled={busyLifecycle}>{m.closeModalYes}</button>
         </div>
       </Modal>
-      <Modal isOpen={showDelete} onClose={() => setShowDelete(false)} title={`Eliminar ${copy.feminine ? 'esta' : 'este'} ${copy.noun}`} description="El acceso publico y el contenido personal se borran. Los registros de pago se conservan.">
+      <Modal isOpen={showDelete} onClose={() => setShowDelete(false)} title={m.deleteModalTitle(locale === 'en' ? 'this' : (copy.feminine ? 'esta' : 'este'), copy.noun)} description={m.deleteModalDesc}>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-          <button type="button" className="btn btn-secondary" onClick={() => setShowDelete(false)} disabled={busyLifecycle}>Cancelar</button>
-          <button type="button" className="btn btn-primary" onClick={() => void handleDelete()} disabled={busyLifecycle}>Si, eliminar {copy.phrase}</button>
+          <button type="button" className="btn btn-secondary" onClick={() => setShowDelete(false)} disabled={busyLifecycle}>{m.modalCancel}</button>
+          <button type="button" className="btn btn-primary" onClick={() => void handleDelete()} disabled={busyLifecycle}>{m.deleteModalYes(copy.phrase)}</button>
         </div>
       </Modal>
 

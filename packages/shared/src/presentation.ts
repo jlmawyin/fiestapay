@@ -40,6 +40,55 @@ export const TEMPLATE_INVITE_COPY: Record<PresentationTemplate, TemplateInviteCo
   evento: { welcome: '¿Vienes al evento?', join: 'Unirme al evento', noun: 'evento' },
 };
 
+/** English invitation copy per template. Spanish stays in TEMPLATE_INVITE_COPY. */
+export const TEMPLATE_INVITE_COPY_EN: Record<PresentationTemplate, TemplateInviteCopy> = {
+  comida: { welcome: 'Coming to eat?', join: 'Join the meal', noun: 'meal' },
+  casa: { welcome: 'Coming over?', join: 'Join at home', noun: 'house gathering' },
+  viaje: { welcome: 'Joining the trip?', join: 'Join the trip', noun: 'trip' },
+  evento: { welcome: 'Coming to the event?', join: 'Join the event', noun: 'event' },
+};
+
+export function templateInviteCopy(
+  template: PresentationTemplate,
+  locale: 'es' | 'en' = 'es',
+): TemplateInviteCopy {
+  return locale === 'en' ? TEMPLATE_INVITE_COPY_EN[template] : TEMPLATE_INVITE_COPY[template];
+}
+
+/**
+ * Template display labels per locale. The Spanish side mirrors the historical
+ * TEMPLATE_LABELS in index.ts; the English side is new.
+ */
+export const TEMPLATE_LABELS_EN: Record<PresentationTemplate, string> = {
+  comida: 'Meal',
+  casa: 'House party',
+  viaje: 'Group trip',
+  evento: 'Event',
+};
+
+const TEMPLATE_LABELS_ES: Record<PresentationTemplate, string> = {
+  comida: 'Comida',
+  casa: 'Fiesta en casa',
+  viaje: 'Viaje conjunto',
+  evento: 'Evento',
+};
+
+export function templateLabel(template: PresentationTemplate, locale: 'es' | 'en' = 'es'): string {
+  return locale === 'en' ? TEMPLATE_LABELS_EN[template] : TEMPLATE_LABELS_ES[template];
+}
+
+export type MealKind = 'desayuno' | 'almuerzo' | 'cena';
+
+/** Lowercase meal names; callers capitalize for display. */
+export const MEAL_LABELS: Record<'es' | 'en', Record<MealKind, string>> = {
+  es: { desayuno: 'desayuno', almuerzo: 'almuerzo', cena: 'cena' },
+  en: { desayuno: 'breakfast', almuerzo: 'lunch', cena: 'dinner' },
+};
+
+export function mealLabel(meal: MealKind, locale: 'es' | 'en' = 'es'): string {
+  return MEAL_LABELS[locale][meal];
+}
+
 const theme = (
   key: ThemeKey,
   template: PresentationTemplate,
@@ -83,6 +132,58 @@ export const THEMES: readonly ThemeDefinition[] = [
 ];
 
 const byKey = new Map<string, ThemeDefinition>(THEMES.map((item) => [item.key, item]));
+
+/** English theme display names. Spanish stays on each THEMES entry. */
+export const THEME_LABELS_EN: Record<ThemeKey, string> = {
+  mesa: 'Table',
+  huerto: 'Orchard',
+  brindis: 'Toast',
+  fogata: 'Bonfire',
+  patio: 'Patio',
+  sala: 'Living room',
+  terraza: 'Terrace',
+  jardin: 'Garden',
+  camino: 'Trail',
+  montana: 'Mountain',
+  costa: 'Coast',
+  ciudad: 'City',
+  escenario: 'Stage',
+  galeria: 'Gallery',
+  taller: 'Workshop',
+  noche: 'Night',
+};
+
+/** English theme phrases for the invitation and the WhatsApp draft. Spanish stays on THEMES. */
+export const THEME_PHRASES_EN: Record<ThemeKey, string> = {
+  mesa: 'Coming to eat?',
+  huerto: 'There is a spot in the orchard.',
+  brindis: 'There is a toast for you.',
+  fogata: 'The bonfire is ready.',
+  patio: 'Coming over?',
+  sala: 'The living room is ready.',
+  terraza: 'We will wait for you on the terrace.',
+  jardin: 'The garden is home.',
+  camino: 'Joining the trip?',
+  montana: 'The mountains are waiting.',
+  costa: 'The coast is in the plan.',
+  ciudad: 'The city is the meeting point.',
+  escenario: 'Coming to the event?',
+  galeria: 'The gallery opens its doors.',
+  taller: 'The workshop already has a spot.',
+  noche: 'The night is the event.',
+};
+
+/** Theme display name in the locale. Spanish reads the THEMES entry itself. */
+export function themeLabel(key: ThemeKey, locale: 'es' | 'en' = 'es'): string {
+  if (locale === 'en') return THEME_LABELS_EN[key];
+  return byKey.get(key)?.label ?? key;
+}
+
+/** Theme phrase in the locale. Spanish reads the THEMES entry itself. */
+export function themePhrase(key: ThemeKey, locale: 'es' | 'en' = 'es'): string {
+  if (locale === 'en') return THEME_PHRASES_EN[key];
+  return byKey.get(key)?.phrase ?? '';
+}
 
 export function themesForTemplate(template: PresentationTemplate): ThemeDefinition[] {
   const allowed = new Set<string>(TEMPLATE_THEMES[template]);

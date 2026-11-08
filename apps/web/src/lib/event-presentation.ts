@@ -2,12 +2,17 @@ import {
   TEMPLATE_INVITE_COPY,
   contrastRatio,
   defaultThemeFor,
+  formatMoney,
+  intlLocale,
+  mealLabel,
   resolveTheme,
   suggestTheme,
+  templateInviteCopy,
   themeContrastPairs,
-  usd,
-  type EventInput,
+  themePhrase,
   type FiestaEvent,
+  type Locale,
+  type MealKind,
   type TemplateKind,
   type ThemeDefinition,
   type ThemeKey,
@@ -17,49 +22,28 @@ export {
   TEMPLATE_INVITE_COPY,
   contrastRatio,
   defaultThemeFor,
+  mealLabel,
   resolveTheme,
   suggestTheme,
+  templateInviteCopy,
   themeContrastPairs,
+  type MealKind,
   type ThemeDefinition,
   type ThemeKey,
 };
 
 const SHARE_TIME_ZONE = 'America/Guayaquil';
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Fresh, server-valid private demo. Dates are always relative to the caller and are never
- * copied from an older demo, so a missing historical organizer key can never be reused.
- * 13:00/17:00 Ecuador (UTC-5) are written as UTC instants because Ecuador has no DST.
+ * Judge-demo marker. Rows saved before the flag existed omit it and count as
+ * own invitations; only an explicit `true` marks a demo. Kept here (not in
+ * `@fiestapay/shared`, which this package must not touch) until the shared
+ * `FiestaEvent` type carries `isDemo`.
  */
-export function privateDemoEventInput(now = new Date()): EventInput {
-  const start = new Date(now.getTime() + 7 * DAY_MS);
-  start.setUTCHours(18, 0, 0, 0); // 13:00 in America/Guayaquil
-  const end = new Date(start.getTime() + 4 * 60 * 60 * 1000); // 17:00
-  const deadline = new Date(start.getTime() - DAY_MS);
-  deadline.setUTCHours(1, 0, 0, 0); // 20:00 the day before, still in the future
-  return {
-    title: 'Almuerzo de demostración',
-    template: 'comida',
-    meal: 'almuerzo',
-    description:
-      'Comida ficticia de demostración para probar el panel del organizador y PayPal Sandbox. Ningún importe es un cobro real.',
-    startsAt: start.toISOString(),
-    endsAt: end.toISOString(),
-    location: 'Salón Mirador de los Andes, Quito (lugar ficticio)',
-    includes: ['Almuerzo de prueba', 'Bebida ficticia', 'Postre de ejemplo'],
-    priceCents: 2500,
-    capacity: 8,
-    goalCents: 20000,
-    minimumCents: 5000,
-    agenda: [
-      { time: '13:00', title: 'Bienvenida de demostración' },
-      { time: '14:00', title: 'Almuerzo ficticio' },
-      { time: '16:00', title: 'Cierre y prueba de PayPal Sandbox' },
-    ],
-    organizerName: 'Equipo FiestaPay (demo)',
-    fundingDeadlineAt: deadline.toISOString(),
-  };
+export type EventWithDemoFlag = FiestaEvent & { isDemo?: boolean };
+
+export function isDemoEvent(event: FiestaEvent): boolean {
+  return (event as EventWithDemoFlag).isDemo === true;
 }
 
 /** Official click-to-chat endpoint. One encodeURIComponent pass, no network call. */
@@ -128,21 +112,26 @@ export interface ZonedInstant {
   label: string;
 }
 
-export function formatInstantInZone(iso: string, timeZone = SHARE_TIME_ZONE): ZonedInstant {
+export function formatInstantInZone(
+  iso: string,
+  timeZone = SHARE_TIME_ZONE,
+  locale: Locale = 'es',
+): ZonedInstant {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return { date: iso, time: '', label: iso };
-  const day = new Intl.DateTimeFormat('es-EC', {
+  const tag = intlLocale(locale);
+  const day = new Intl.DateTimeFormat(tag, {
     timeZone,
     weekday: 'short',
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   }).format(date);
-  const time = new Intl.DateTimeFormat('es-EC', {
+  const time = new Intl.DateTimeFormat(tag, {
     timeZone,
     hour: '2-digit',
     minute: '2-digit',
-    hourCycle: 'h23',
+    ...(locale === 'es' ? { hourCycle: 'h23' as const } : {}),
   }).format(date);
   return { date: day, time, label: `${day}, ${time} (${timeZone})` };
 }
@@ -151,20 +140,38 @@ export function formatInstantInZone(iso: string, timeZone = SHARE_TIME_ZONE): Zo
  * Uses the end instant. A cross-day range keeps both calendar dates. The zone is printed
  * exactly once for the whole range, including a same-day start and end.
  */
-export function formatEventRange(startsAt: string, endsAt?: string | null, timeZone = SHARE_TIME_ZONE): string {
-  const start = formatInstantInZone(startsAt, timeZone);
-  if (!endsAt) return `Inicio: ${start.date}, ${start.time}. Hora de fin no indicada (${timeZone}).`;
-  const end = formatInstantInZone(endsAt, timeZone);
-  if (start.date === end.date) {
-    return `Inicio: ${start.date}, ${start.time}. Fin: ${end.time} (${timeZone}).`;
+export function formatEventRange(
+  startsAt: string,
+  endsAt?: string | null,
+  timeZone = SHARE_TIME_ZONE,
+  locale: Locale = 'es',
+): string {
+  const start = formatInstantInZone(startsAt, timeZone, locale);
+  if (!endsAt) {
+    return locale === 'en'
+      ? `Start: ${start.date}, ${start.time}. No end time given (${timeZone}).`
+      : `Inicio: ${start.date}, ${start.time}. Hora de fin no indicada (${timeZone}).`;
   }
-  return `Inicio: ${start.date}, ${start.time}. Fin: ${end.date}, ${end.time} (${timeZone}).`;
+  const end = formatInstantInZone(endsAt, timeZone, locale);
+  if (start.date === end.date) {
+    return locale === 'en'
+      ? `Start: ${start.date}, ${start.time}. End: ${end.time} (${timeZone}).`
+      : `Inicio: ${start.date}, ${start.time}. Fin: ${end.time} (${timeZone}).`;
+  }
+  return locale === 'en'
+    ? `Start: ${start.date}, ${start.time}. End: ${end.date}, ${end.time} (${timeZone}).`
+    : `Inicio: ${start.date}, ${start.time}. Fin: ${end.date}, ${end.time} (${timeZone}).`;
 }
 
-export function eventRangeIsCrossDay(startsAt: string, endsAt?: string | null, timeZone = SHARE_TIME_ZONE): boolean {
+export function eventRangeIsCrossDay(
+  startsAt: string,
+  endsAt?: string | null,
+  timeZone = SHARE_TIME_ZONE,
+  locale: Locale = 'es',
+): boolean {
   if (!endsAt) return false;
-  const start = formatInstantInZone(startsAt, timeZone);
-  const end = formatInstantInZone(endsAt, timeZone);
+  const start = formatInstantInZone(startsAt, timeZone, locale);
+  const end = formatInstantInZone(endsAt, timeZone, locale);
   return start.date !== end.date;
 }
 
@@ -180,27 +187,36 @@ export interface InviteShareInput {
   organizerName?: string | null;
 }
 
-export function buildInviteShareText(input: InviteShareInput): string {
+export function buildInviteShareText(input: InviteShareInput, locale: Locale = 'es'): string {
   const theme = resolveTheme(input.template, input.theme);
-  const copy = TEMPLATE_INVITE_COPY[input.template];
+  const copy = templateInviteCopy(input.template, locale);
   const who = input.organizerName?.trim();
-  const greeting = who ? `${plainShareText(who)} te invita.` : 'Te invitan.';
-  const when = formatEventRange(input.startsAt, input.endsAt);
+  const greeting =
+    locale === 'en'
+      ? who
+        ? `${plainShareText(who)} invites you.`
+        : 'You are invited.'
+      : who
+        ? `${plainShareText(who)} te invita.`
+        : 'Te invitan.';
+  const when = formatEventRange(input.startsAt, input.endsAt, SHARE_TIME_ZONE, locale);
   const lines = [
-    theme.phrase,
+    themePhrase(theme.key, locale),
     greeting,
     plainShareText(input.title),
-    `Horario: ${when}`,
-    `Lugar: ${plainShareText(input.location)}`,
-    `Cuota por persona: ${usd(input.priceCents)}`,
+    locale === 'en' ? `Schedule: ${when}` : `Horario: ${when}`,
+    locale === 'en' ? `Place: ${plainShareText(input.location)}` : `Lugar: ${plainShareText(input.location)}`,
+    locale === 'en'
+      ? `Share per person: ${formatMoney(input.priceCents, locale)}`
+      : `Cuota por persona: ${formatMoney(input.priceCents, locale)}`,
     copy.welcome,
     shareableInviteUrl(input.inviteUrl),
   ];
   return lines.join('\n');
 }
 
-export function buildInviteShareUrl(input: InviteShareInput): string {
-  return whatsAppShareUrl(buildInviteShareText(input));
+export function buildInviteShareUrl(input: InviteShareInput, locale: Locale = 'es'): string {
+  return whatsAppShareUrl(buildInviteShareText(input, locale));
 }
 
 export function countPhrase(count: number, singular: string, plural: string): string {
@@ -208,22 +224,33 @@ export function countPhrase(count: number, singular: string, plural: string): st
   return `${safe} ${safe === 1 ? singular : plural}`;
 }
 
-export function attendanceSummary(options: {
-  parties?: number;
-  paidPeople?: number;
-  capacity?: number | null;
-}): string {
+export function attendanceSummary(
+  options: {
+    parties?: number;
+    paidPeople?: number;
+    capacity?: number | null;
+  },
+  locale: Locale = 'es',
+): string {
   const parts: string[] = [];
   if (typeof options.parties === 'number' && Number.isFinite(options.parties)) {
-    parts.push(countPhrase(options.parties, 'invitado', 'invitados'));
+    parts.push(
+      locale === 'en'
+        ? countPhrase(options.parties, 'guest', 'guests')
+        : countPhrase(options.parties, 'invitado', 'invitados'),
+    );
   }
   if (typeof options.paidPeople === 'number' && Number.isFinite(options.paidPeople)) {
-    parts.push(countPhrase(options.paidPeople, 'persona pagada', 'personas pagadas'));
+    parts.push(
+      locale === 'en'
+        ? countPhrase(options.paidPeople, 'paid person', 'paid people')
+        : countPhrase(options.paidPeople, 'persona pagada', 'personas pagadas'),
+    );
   } else {
-    parts.push('Personas pagadas: por consultar');
+    parts.push(locale === 'en' ? 'Paid people: pending' : 'Personas pagadas: por consultar');
   }
   if (typeof options.capacity === 'number' && Number.isFinite(options.capacity)) {
-    parts.push(`cupo ${Math.trunc(options.capacity)}`);
+    parts.push(locale === 'en' ? `capacity ${Math.trunc(options.capacity)}` : `cupo ${Math.trunc(options.capacity)}`);
   }
   return parts.join(' · ');
 }
@@ -251,24 +278,40 @@ export function minimumProgressPercent(
   return Math.min(99, Math.floor((collectedCents * 100) / minimumCents));
 }
 
-export function guestPayLabel(paidCents: number, dueCents: number): string {
-  if (paidCents > 0 && dueCents === 0) return 'Pagado';
-  if (paidCents > 0 && dueCents > 0) return `Abonado ${usd(paidCents)}. Falta ${usd(dueCents)}`;
-  if (dueCents > 0) return `Pago pendiente. Falta ${usd(dueCents)}`;
-  return 'Pago pendiente';
+export function guestPayLabel(paidCents: number, dueCents: number, locale: Locale = 'es'): string {
+  if (paidCents > 0 && dueCents === 0) return locale === 'en' ? 'Paid' : 'Pagado';
+  if (paidCents > 0 && dueCents > 0) {
+    return locale === 'en'
+      ? `Paid ${formatMoney(paidCents, locale)}. Remaining ${formatMoney(dueCents, locale)}`
+      : `Abonado ${formatMoney(paidCents, locale)}. Falta ${formatMoney(dueCents, locale)}`;
+  }
+  if (dueCents > 0) {
+    return locale === 'en'
+      ? `Payment pending. Remaining ${formatMoney(dueCents, locale)}`
+      : `Pago pendiente. Falta ${formatMoney(dueCents, locale)}`;
+  }
+  return locale === 'en' ? 'Payment pending' : 'Pago pendiente';
 }
 
-export function guestFundingOutcome(event: Pick<FiestaEvent, 'fundingStatus' | 'refundSummary' | 'confirmed'>): string | null {
+export function guestFundingOutcome(
+  event: Pick<FiestaEvent, 'fundingStatus' | 'refundSummary' | 'confirmed'>,
+  locale: Locale = 'es',
+): string | null {
   if (event.fundingStatus === 'failed') {
     const pending = (event.refundSummary?.pendingCents ?? 0) > 0 || (event.refundSummary?.needsReviewCents ?? 0) > 0;
     const refunded = (event.refundSummary?.refundedCents ?? 0) > 0;
-    if (pending) return 'Mínimo no alcanzado. Devolución en proceso.';
-    if (refunded) return 'Mínimo no alcanzado. Devuelto.';
-    return 'Mínimo no alcanzado.';
+    if (pending) return locale === 'en' ? 'Minimum not reached. Refund in progress.' : 'Mínimo no alcanzado. Devolución en proceso.';
+    if (refunded) return locale === 'en' ? 'Minimum not reached. Refunded.' : 'Mínimo no alcanzado. Devuelto.';
+    return locale === 'en' ? 'Minimum not reached.' : 'Mínimo no alcanzado.';
   }
   if (event.fundingStatus === 'funded') {
-    return event.confirmed
-      ? 'El mínimo se alcanzó y la invitación está confirmada.'
+    if (event.confirmed) {
+      return locale === 'en'
+        ? 'The minimum was reached and the invitation is confirmed.'
+        : 'El mínimo se alcanzó y la invitación está confirmada.';
+    }
+    return locale === 'en'
+      ? 'The minimum was reached. The organizer confirmation is separate.'
       : 'El mínimo se alcanzó. La confirmación del organizador es aparte.';
   }
   return null;
@@ -285,16 +328,16 @@ export function themeCssVars(item: ThemeDefinition): Record<string, string> {
   };
 }
 
-export function organizerLine(name: string | null | undefined): string | null {
+export function organizerLine(name: string | null | undefined, locale: Locale = 'es'): string | null {
   const clean = name?.trim();
   if (!clean) return null;
-  return `Organiza ${clean}`;
+  return locale === 'en' ? `Organized by ${clean}` : `Organiza ${clean}`;
 }
 
-export function namedGreeting(name: string | null | undefined): string | null {
+export function namedGreeting(name: string | null | undefined, locale: Locale = 'es'): string | null {
   const clean = name?.trim();
   if (!clean) return null;
-  return `${clean} te invita.`;
+  return locale === 'en' ? `${clean} invites you.` : `${clean} te invita.`;
 }
 
 /** Back-compat when a caller has no template. Neutral on purpose: not a fiesta. */
@@ -313,12 +356,43 @@ export const GUEST_ENTRY_COPY = {
   entering: 'Entrando...',
 } as const;
 
-export function guestEntryCopy(template?: TemplateKind | null): { welcome: string; join: string } {
+export const GUEST_ENTRY_COPY_EN: Record<keyof typeof GUEST_ENTRY_COPY, string> = {
+  aliasLabel: 'Guest alias',
+  aliasPlaceholder: 'E.g. Demo Guest',
+  aliasHelp:
+    'Use a fictional alias to try your attendance and your share. No personal data, password, or prior signup needed.',
+  aliasError: 'Please enter a fictional alias.',
+  joinError: 'Could not complete the check-in.',
+  entering: 'Joining...',
+};
+
+export const NEUTRAL_GUEST_ENTRY_EN = {
+  welcome: 'Joining us?',
+  join: 'Join',
+} as const;
+
+export function guestEntryCopy(
+  template?: TemplateKind | null,
+  locale: Locale = 'es',
+): { welcome: string; join: string } {
   if (template && TEMPLATE_INVITE_COPY[template]) {
-    const copy = TEMPLATE_INVITE_COPY[template];
+    const copy = templateInviteCopy(template, locale);
     return { welcome: copy.welcome, join: copy.join };
   }
-  return { welcome: NEUTRAL_GUEST_ENTRY.welcome, join: NEUTRAL_GUEST_ENTRY.join };
+  return locale === 'en'
+    ? { welcome: NEUTRAL_GUEST_ENTRY_EN.welcome, join: NEUTRAL_GUEST_ENTRY_EN.join }
+    : { welcome: NEUTRAL_GUEST_ENTRY.welcome, join: NEUTRAL_GUEST_ENTRY.join };
+}
+
+/** Alias form copy (label, placeholder, help, errors, busy state) in the locale. */
+export function guestEntryFormCopy(locale: Locale = 'es'): Record<keyof typeof GUEST_ENTRY_COPY, string> {
+  return locale === 'en' ? GUEST_ENTRY_COPY_EN : { ...GUEST_ENTRY_COPY };
+}
+
+/** "persona/personas" or "person/people" for a headcount. */
+export function peopleWord(count: number, locale: Locale = 'es'): string {
+  if (locale === 'en') return count === 1 ? 'person' : 'people';
+  return count === 1 ? 'persona' : 'personas';
 }
 
 export const GUEST_PAYMENT_COPY = {
@@ -342,6 +416,34 @@ export const GUEST_PAYMENT_COPY = {
   confirmName: 'Confirmar revisión de la cotización',
 } as const;
 
+export const GUEST_PAYMENT_COPY_EN: Record<keyof typeof GUEST_PAYMENT_COPY, string> = {
+  heading: 'Review your payment',
+  calculating: 'Calculating your payment',
+  empty: 'There is no payment to review yet.',
+  refresh: 'Calculate my payment',
+  update: 'Update my payment',
+  people: 'People',
+  unit: 'Share per person',
+  total: 'Total',
+  paid: 'Already paid',
+  due: 'Balance to pay',
+  confirmLead: 'I confirm I reviewed',
+  proceed: 'Confirm and Create Payment',
+  preparing: 'Preparing your payment...',
+  mustConfirm: 'Check the box to confirm you reviewed this payment.',
+  orderError: 'Could not prepare the payment.',
+  confirmName: 'Confirm quote review',
+};
+
+/**
+ * Quote card copy in the locale. The confirmation checkbox name, its lead,
+ * and the proceed button intentionally match UI_LABELS quoteReview,
+ * quoteReviewLead and generatePayment; call sites render those labels literally.
+ */
+export function guestPaymentCopy(locale: Locale = 'es'): Record<keyof typeof GUEST_PAYMENT_COPY, string> {
+  return locale === 'en' ? GUEST_PAYMENT_COPY_EN : { ...GUEST_PAYMENT_COPY };
+}
+
 const COVERED_WHEN_PAID: Record<TemplateKind, string> = {
   comida: 'Tu pago de esta comida ya está cubierto. Eso no confirma la comida ni reserva un lugar.',
   casa: 'Tu pago para esta casa ya está cubierto. Eso no confirma la reunión ni reserva un lugar.',
@@ -349,18 +451,88 @@ const COVERED_WHEN_PAID: Record<TemplateKind, string> = {
   evento: 'Tu pago de este evento ya está cubierto. Eso no confirma el evento ni reserva un lugar.',
 };
 
+const COVERED_WHEN_PAID_EN: Record<TemplateKind, string> = {
+  comida: 'Your payment for this meal is already covered. That does not confirm the meal or reserve a seat.',
+  casa: 'Your payment for this house gathering is already covered. That does not confirm the gathering or reserve a seat.',
+  viaje: 'Your payment for this trip is already covered. That does not confirm the trip or reserve a seat.',
+  evento: 'Your payment for this event is already covered. That does not confirm the event or reserve a seat.',
+};
+
 const COVERED_NEUTRAL = 'Tu pago ya está cubierto. Eso no confirma el encuentro ni reserva un lugar.';
+const COVERED_NEUTRAL_EN = 'Your payment is already covered. That does not confirm the gathering or reserve a seat.';
 const NOTHING_DUE = 'No hay saldo pendiente. Eso no confirma el encuentro ni reserva un lugar.';
+const NOTHING_DUE_EN = 'No balance due. That does not confirm the gathering or reserve a seat.';
+
+export interface QuoteMoneyLines {
+  people: number;
+  /** Preformatted with formatMoney in the locale. */
+  unit: string;
+  total: string;
+  paid: string;
+  due: string;
+}
+
+/**
+ * Human-confirmation sentence for the quote checkbox. Spanish output matches
+ * the historical inline sentence; the lead ("Confirmo que revisé") is rendered
+ * separately from UI_LABELS at the call site.
+ */
+export function quoteConfirmSentence(lines: QuoteMoneyLines, locale: Locale = 'es'): string {
+  const pw = peopleWord(lines.people, locale);
+  if (locale === 'en') {
+    return ` ${lines.people} ${pw}, the ${lines.unit} per-person share and the ${lines.total} total. I want to prepare the ${lines.due} payment.`;
+  }
+  return ` ${lines.people} ${pw}, la cuota ${lines.unit} y el total ${lines.total}. Quiero preparar el pago de ${lines.due}.`;
+}
+
+/**
+ * Client-composed quote summary from server numbers (people x price = total).
+ * Used where the stored Spanish quote.summary must not leak into English.
+ */
+export function quoteClientSummary(
+  lines: QuoteMoneyLines,
+  dueCents: number,
+  locale: Locale = 'es',
+): string {
+  const pw = peopleWord(lines.people, locale);
+  const head = `${lines.people} ${pw} × ${lines.unit} = ${lines.total}`;
+  if (!(dueCents > 0)) {
+    return locale === 'en' ? `${head}. No balance due.` : `${head}. Sin saldo pendiente.`;
+  }
+  return locale === 'en'
+    ? `${head}. Paid ${lines.paid}. Remaining ${lines.due}.`
+    : `${head}. Abonado ${lines.paid}. Falta ${lines.due}.`;
+}
 
 /** Honest zero-due status. It does not say the gathering is confirmed or reserved. */
-export function guestCoveredCopy(template: TemplateKind | null | undefined, paidCents: number): string {
-  if (!(paidCents > 0)) return NOTHING_DUE;
-  if (template && COVERED_WHEN_PAID[template]) return COVERED_WHEN_PAID[template];
-  return COVERED_NEUTRAL;
+export function guestCoveredCopy(
+  template: TemplateKind | null | undefined,
+  paidCents: number,
+  locale: Locale = 'es',
+): string {
+  if (!(paidCents > 0)) return locale === 'en' ? NOTHING_DUE_EN : NOTHING_DUE;
+  if (template && COVERED_WHEN_PAID[template]) {
+    return locale === 'en' ? COVERED_WHEN_PAID_EN[template] : COVERED_WHEN_PAID[template];
+  }
+  return locale === 'en' ? COVERED_NEUTRAL_EN : COVERED_NEUTRAL;
 }
 
 /** Organizer confirmation badge. Reaching the minimum is a different fact. */
-export function organizerConfirmedBadge(template?: TemplateKind | null): string {
+export function organizerConfirmedBadge(template?: TemplateKind | null, locale: Locale = 'es'): string {
+  if (locale === 'en') {
+    switch (template) {
+      case 'comida':
+        return 'Meal confirmed by the organizer';
+      case 'casa':
+        return 'House gathering confirmed by the organizer';
+      case 'viaje':
+        return 'Trip confirmed by the organizer';
+      case 'evento':
+        return 'Event confirmed by the organizer';
+      default:
+        return 'Invitation confirmed by the organizer';
+    }
+  }
   switch (template) {
     case 'comida':
       return 'Comida confirmada por el organizador';
@@ -379,7 +551,24 @@ export function organizerConfirmedBadge(template?: TemplateKind | null): string 
  * Funded status copy. The subject follows the type.
  * "el viaje" and "el evento" stay masculine. A missing type stays "la invitación".
  */
-export function fundedIsNotConfirmationNote(template?: TemplateKind | null): string {
+export function fundedIsNotConfirmationNote(template?: TemplateKind | null, locale: Locale = 'es'): string {
+  if (locale === 'en') {
+    const subject = (() => {
+      switch (template) {
+        case 'comida':
+          return 'the meal';
+        case 'casa':
+          return 'the house gathering';
+        case 'viaje':
+          return 'the trip';
+        case 'evento':
+          return 'the event';
+        default:
+          return 'the invitation';
+      }
+    })();
+    return `The funding threshold was met. That alone does not confirm ${subject}: the organizer confirmation is separate.`;
+  }
   const subject = (() => {
     switch (template) {
       case 'comida':

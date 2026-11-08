@@ -1,31 +1,30 @@
 import React from 'react';
+import { EVENT_TIME_ZONE, intlLocale, type Locale } from '@fiestapay/shared';
 import type { FiestaEvent } from '../../types';
-import { usd } from '../../types';
+import { useI18n, useMessages } from '../../i18n/I18nContext';
+import { fundingCatalog } from '../../i18n/messages/funding';
 import { attendanceSummary, fundedIsNotConfirmationNote, guestFundingOutcome, guestPayLabel, minimumProgressPercent, organizerConfirmedBadge } from '../../lib/event-presentation';
 
-function pad2(n: number): string {
-  return String(n).padStart(2, '0');
-}
-
-/** Visible timezone offset of the local calendar, not a funding decision. */
-export function formatEventInstant(iso: string): string {
+/**
+ * Event instant in the event time zone (America/Guayaquil, fixed UTC-05:00),
+ * formatted in the locale. Guayaquil has no daylight saving, so the offset
+ * suffix is constant.
+ */
+export function formatEventInstant(iso: string, locale: Locale = 'es'): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  const offsetMin = -d.getTimezoneOffset();
-  const sign = offsetMin >= 0 ? '+' : '-';
-  const abs = Math.abs(offsetMin);
-  const tz = `UTC${sign}${pad2(Math.floor(abs / 60))}:${pad2(abs % 60)}`;
   try {
-    const formatted = d.toLocaleString('es-EC', {
+    const formatted = d.toLocaleString(intlLocale(locale), {
+      timeZone: EVENT_TIME_ZONE,
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     });
-    return `${formatted} (${tz})`;
+    return `${formatted} (UTC-05:00)`;
   } catch {
-    return `${d.toISOString()} (${tz})`;
+    return `${d.toISOString()} (UTC-05:00)`;
   }
 }
 
@@ -36,14 +35,6 @@ export function paidPeopleLabel(paidPeople: number | undefined, parties?: number
 export function newGuestActivityBlocked(event: Pick<FiestaEvent, 'closed' | 'fundingStatus'>): boolean {
   return event.closed === true || event.fundingStatus === 'failed';
 }
-
-const STATUS_LABEL: Record<NonNullable<FiestaEvent['fundingStatus']>, string> = {
-  legacy: 'Evento anterior (sin financiamiento automático)',
-  inactive: 'Sin financiamiento automático',
-  open: 'Recaudación abierta',
-  funded: 'Umbral de financiamiento alcanzado',
-  failed: 'Mínimo no alcanzado a tiempo',
-};
 
 const STATUS_BADGE: Record<NonNullable<FiestaEvent['fundingStatus']>, string> = {
   legacy: 'badge-ink',
@@ -73,79 +64,96 @@ export const FundingStatusPanel: React.FC<FundingStatusPanelProps> = ({
   if (audience === 'guest') {
     return <GuestFundingStatus event={event} paidCents={paidCents} dueCents={dueCents} parties={parties} />;
   }
+  return <AdminFundingStatus event={event} parties={parties} />;
+};
+
+const AdminFundingStatus: React.FC<{ event: FiestaEvent; parties?: number }> = ({ event, parties }) => {
+  const { locale, formatMoney } = useI18n();
+  const m = useMessages(fundingCatalog);
   const status = event.fundingStatus;
   const hasDeadline = typeof event.fundingDeadlineAt === 'string' && event.fundingDeadlineAt.length > 0;
   const showDeadline = hasDeadline && status !== 'legacy' && status !== 'inactive';
   const minCents = event.minimumCents;
   const displayPct = minimumProgressPercent(event.collectedCents, minCents, event.minimumReached);
   const refunds = event.refundSummary;
-  const paidLabel = paidPeopleLabel(event.paidPeople, parties);
+  const paidLabel = attendanceSummary({ paidPeople: event.paidPeople, parties }, locale);
+  const statusLabel =
+    status === 'legacy'
+      ? m.statusLegacy
+      : status === 'inactive'
+        ? m.statusInactive
+        : status === 'open'
+          ? m.statusOpen
+          : status === 'funded'
+            ? m.statusFunded
+            : status === 'failed'
+              ? m.statusFailed
+              : null;
 
   return (
-    <section className="funding-status-panel" aria-label="Estado de financiamiento">
+    <section className="funding-status-panel" aria-label={m.panelLabel}>
       <div className="funding-status-panel__header">
-        {status ? (
-          <span className={`badge ${STATUS_BADGE[status]}`}>{STATUS_LABEL[status]}</span>
+        {status && statusLabel ? (
+          <span className={`badge ${STATUS_BADGE[status]}`}>{statusLabel}</span>
         ) : (
-          <span className="badge badge-ink">Estado de financiamiento: no informado</span>
+          <span className="badge badge-ink">{m.statusUnknown}</span>
         )}
         {event.confirmed ? (
-          <span className="badge badge-teal">{organizerConfirmedBadge(event.template)}</span>
+          <span className="badge badge-teal">{organizerConfirmedBadge(event.template, locale)}</span>
         ) : (
-          <span className="badge badge-yellow">Sin confirmación del organizador</span>
+          <span className="badge badge-yellow">{m.noOrganizerConfirm}</span>
         )}
-        {event.closed ? <span className="badge badge-ink">Inscripciones cerradas</span> : null}
+        {event.closed ? <span className="badge badge-ink">{m.closedBadge}</span> : null}
       </div>
 
       {status === 'funded' ? (
         <p className="funding-status-panel__note">
-          {fundedIsNotConfirmationNote(event.template)}
+          {fundedIsNotConfirmationNote(event.template, locale)}
         </p>
       ) : null}
       {status === 'failed' ? (
         <p className="funding-stopped-banner" role="status">
-          El plazo venció sin alcanzar el mínimo. Los pagos y las asistencias nuevas están
-          detenidos. Un aviso anterior de éxito en esta pantalla no cambia la decisión del servidor.
+          {m.failedBanner}
         </p>
       ) : null}
       {status === 'legacy' || status === 'inactive' ? (
         <p className="funding-status-panel__note">
-          Este evento no tiene cierre automático de recaudación.
+          {m.noAutoClose}
         </p>
       ) : null}
 
       <div className="funding-status-panel__metrics">
         <div>
-          <div className="funding-status-panel__kicker">Recaudado</div>
-          <strong>{usd(event.collectedCents)}</strong>
+          <div className="funding-status-panel__kicker">{m.kickerRaised}</div>
+          <strong>{formatMoney(event.collectedCents)}</strong>
           <p className="funding-status-panel__hint">
-            Capturado menos reembolsos verificados, antes de comisiones. No es el neto liquidado.
+            {m.raisedHint}
           </p>
         </div>
         <div>
-          <div className="funding-status-panel__kicker">Meta</div>
-          <strong>{event.goalCents ? usd(event.goalCents) : 'Sin meta fijada'}</strong>
+          <div className="funding-status-panel__kicker">{m.kickerGoal}</div>
+          <strong>{event.goalCents ? formatMoney(event.goalCents) : m.noGoal}</strong>
         </div>
         <div>
-          <div className="funding-status-panel__kicker">Mínimo</div>
-          <strong>{minCents ? usd(minCents) : 'Sin mínimo'}</strong>
+          <div className="funding-status-panel__kicker">{m.kickerMin}</div>
+          <strong>{minCents ? formatMoney(minCents) : m.noMin}</strong>
           {minCents ? (
             <p className="funding-status-panel__hint">
-              {event.minimumReached ? 'El servidor marca el mínimo como alcanzado.' : 'El servidor aún no marca el mínimo como alcanzado.'}
+              {event.minimumReached ? m.minReached : m.minPending}
             </p>
           ) : null}
         </div>
         <div>
-          <div className="funding-status-panel__kicker">Personas</div>
-          <strong>{event.confirmedPeople} personas con asistencia confirmada</strong>
+          <div className="funding-status-panel__kicker">{m.kickerPeople}</div>
+          <strong>{m.confirmedPeople(event.confirmedPeople)}</strong>
           <p className="funding-status-panel__hint">{paidLabel}</p>
         </div>
       </div>
 
       {showDeadline ? (
         <p className="funding-status-panel__deadline">
-          Fecha límite de aportes:{' '}
-          <strong>{formatEventInstant(event.fundingDeadlineAt as string)}</strong>
+          {m.deadlineAdmin}
+          <strong>{formatEventInstant(event.fundingDeadlineAt as string, locale)}</strong>
         </p>
       ) : null}
 
@@ -155,28 +163,28 @@ export const FundingStatusPanel: React.FC<FundingStatusPanelProps> = ({
         </div>
       ) : null}
       {displayPct !== null ? (
-        <p className="funding-status-panel__hint">Progreso hacia el mínimo: {displayPct}%</p>
+        <p className="funding-status-panel__hint">{m.progressMin(displayPct)}</p>
       ) : null}
 
       {refunds ? (
-        <div className="funding-refund-summary" aria-label="Resumen de reembolsos del evento">
-          <h4>Reembolsos del evento (totales)</h4>
+        <div className="funding-refund-summary" aria-label={m.refundAria}>
+          <h4>{m.refundTitle}</h4>
           <ul>
-            <li>Devuelto y verificado: {usd(refunds.refundedCents)}</li>
+            <li>{m.refunded(formatMoney(refunds.refundedCents))}</li>
             <li>
-              En proceso de reembolso: {usd(refunds.pendingCents)}{' '}
-              <span className="funding-status-panel__warn">(aún NO es dinero devuelto)</span>
+              {m.pendingRefund(formatMoney(refunds.pendingCents))}
+              <span className="funding-status-panel__warn">{m.pendingWarn}</span>
             </li>
             <li>
-              Requiere revisión: {usd(refunds.needsReviewCents)}{' '}
-              <span className="funding-status-panel__warn">(aún NO es un reembolso completado)</span>
+              {m.reviewRefund(formatMoney(refunds.needsReviewCents))}
+              <span className="funding-status-panel__warn">{m.reviewWarn}</span>
             </li>
             <li>
-              Saldo capturado pendiente: {usd(refunds.outstandingCents)} (bruto, antes de comisiones)
+              {m.outstanding(formatMoney(refunds.outstandingCents))}
             </li>
           </ul>
           <p className="funding-status-panel__hint">
-            Estos totales son del evento. No indican si un invitado concreto ya recibió su reembolso.
+            {m.refundHint}
           </p>
         </div>
       ) : null}
@@ -190,28 +198,30 @@ const GuestFundingStatus: React.FC<{
   paidCents?: number;
   dueCents?: number;
 }> = ({ event, parties, paidCents, dueCents }) => {
-  const outcome = guestFundingOutcome(event);
+  const { locale, formatMoney } = useI18n();
+  const m = useMessages(fundingCatalog);
+  const outcome = guestFundingOutcome(event, locale);
   const progress = minimumProgressPercent(event.collectedCents, event.minimumCents, event.minimumReached);
   const hasDeadline = typeof event.fundingDeadlineAt === 'string' && event.fundingDeadlineAt.length > 0;
   const showDeadline = hasDeadline && event.fundingStatus !== 'legacy' && event.fundingStatus !== 'inactive';
   const personal =
-    typeof paidCents === 'number' && typeof dueCents === 'number' ? guestPayLabel(paidCents, dueCents) : null;
+    typeof paidCents === 'number' && typeof dueCents === 'number' ? guestPayLabel(paidCents, dueCents, locale) : null;
 
   return (
-    <section className="funding-status-panel" aria-label="Estado de la cuota">
+    <section className="funding-status-panel" aria-label={m.guestPanelLabel}>
       <p>
-        Cuota por persona: <strong>{usd(event.priceCents)}</strong>
+        {m.perPersonLead}<strong>{formatMoney(event.priceCents)}</strong>
       </p>
       {personal ? <p>{personal}</p> : null}
-      <p>{attendanceSummary({ parties, paidPeople: event.paidPeople, capacity: event.capacity })}</p>
+      <p>{attendanceSummary({ parties, paidPeople: event.paidPeople, capacity: event.capacity }, locale)}</p>
       <p>
-        Mínimo: <strong>{event.minimumCents ? usd(event.minimumCents) : 'Sin mínimo'}</strong>
-        {event.minimumCents ? (event.minimumReached ? ' · alcanzado' : ' · aún no alcanzado') : null}
+        {m.minGuest}<strong>{event.minimumCents ? formatMoney(event.minimumCents) : m.noMinGuest}</strong>
+        {event.minimumCents ? (event.minimumReached ? m.minReachedShort : m.minPendingShort) : null}
       </p>
-      <p>Meta: <strong>{event.goalCents ? usd(event.goalCents) : 'Sin meta'}</strong></p>
+      <p>{m.goalGuest}<strong>{event.goalCents ? formatMoney(event.goalCents) : m.noGoalGuest}</strong></p>
       {showDeadline ? (
         <p>
-          Fecha límite: <strong>{formatEventInstant(event.fundingDeadlineAt as string)}</strong>
+          {m.deadlineGuest}<strong>{formatEventInstant(event.fundingDeadlineAt as string, locale)}</strong>
         </p>
       ) : null}
       {progress !== null ? (
@@ -219,9 +229,9 @@ const GuestFundingStatus: React.FC<{
           <div className="funding-progress__bar" style={{ width: `${progress}%` }} />
         </div>
       ) : null}
-      {progress !== null ? <p>Progreso hacia el mínimo: {progress}%</p> : null}
+      {progress !== null ? <p>{m.progressMin(progress)}</p> : null}
       {outcome ? <p role="status">{outcome}</p> : null}
-      {event.confirmed ? <p>La invitación está confirmada.</p> : null}
+      {event.confirmed ? <p>{m.confirmedInvite}</p> : null}
     </section>
   );
 };

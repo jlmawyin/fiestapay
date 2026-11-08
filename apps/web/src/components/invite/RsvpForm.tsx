@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { Guest, RsvpStatus, FiestaEvent } from '../../types';
+import { useMessages } from '../../i18n/I18nContext';
+import { rsvpCatalog } from '../../i18n/messages/rsvp';
 
 interface RsvpFormProps {
   guest: Guest;
@@ -26,6 +28,7 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
   const [status, setStatus] = useState<RsvpStatus | null>(() => visibleRsvpChoice(guest));
   const [companions, setCompanions] = useState<number>(guest.companions || 0);
   const [error, setError] = useState<string | null>(null);
+  const m = useMessages(rsvpCatalog);
 
   useEffect(() => {
     setStatus(visibleRsvpChoice(guest));
@@ -36,7 +39,7 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
     e.preventDefault();
     setError(null);
     if (!status) {
-      setError('Elige si vienes antes de guardar.');
+      setError(m.chooseFirst);
       return;
     }
     try {
@@ -49,7 +52,7 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
         }
       }
     } catch (err: any) {
-      setError(err.message || 'Error al guardar asistencia.');
+      setError(err.message || m.saveError);
     }
   };
 
@@ -69,9 +72,9 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-        <h3 style={{ fontSize: '1.1rem' }}>Tu Asistencia</h3>
+        <h3 style={{ fontSize: '1.1rem' }}>{m.heading}</h3>
         <span style={{ fontSize: '0.85rem', color: 'var(--color-ink-muted)' }}>
-          Invitado: <strong style={{ color: 'var(--color-ink)' }}>{guest.name}</strong>
+          {m.guestIs}<strong style={{ color: 'var(--color-ink)' }}>{guest.name}</strong>
         </span>
       </div>
 
@@ -88,7 +91,7 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
           }}
           role="alert"
         >
-          La capacidad máxima de esta invitación ({event.capacity} personas) ya está completa. Si confirmas ahora, se verificará disponibilidad en el servidor.
+          {m.fullCapacity(event.capacity as number)}
         </div>
       )}
 
@@ -113,7 +116,7 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
         className="rsvp-choice-grid"
         style={{ marginBottom: '1rem' }}
         role="radiogroup"
-        aria-label="Selecciona tu confirmación de asistencia"
+        aria-label={m.groupLabel}
       >
         <button
           type="button"
@@ -131,7 +134,7 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
             fontSize: '0.875rem',
           }}
         >
-          ✓ ¡Sí, voy!
+          {m.yes}
         </button>
 
         <button
@@ -150,7 +153,7 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
             fontSize: '0.875rem',
           }}
         >
-          ? Tal vez
+          {m.maybe}
         </button>
 
         <button
@@ -172,7 +175,7 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
             fontSize: '0.875rem',
           }}
         >
-          ✕ No podré ir
+          {m.no}
         </button>
       </div>
 
@@ -190,9 +193,9 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
           }}
         >
           <div>
-            <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>¿Traes acompañantes?</div>
+            <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{m.companionsTitle}</div>
             <div style={{ fontSize: '0.775rem', color: 'var(--color-ink-muted)' }}>
-              Pareja, amigos o familiares que vendrán contigo
+              {m.companionsHelp}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -202,7 +205,7 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
               style={{ width: '32px', height: '32px', padding: 0 }}
               onClick={() => setCompanions(Math.max(0, companions - 1))}
               disabled={companions <= 0}
-              aria-label="Restar un acompañante"
+              aria-label={m.minusCompanion}
             >
               -
             </button>
@@ -215,7 +218,7 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
               style={{ width: '32px', height: '32px', padding: 0 }}
               onClick={() => setCompanions(companions + 1)}
               disabled={companions >= 10}
-              aria-label="Añadir un acompañante"
+              aria-label={m.plusCompanion}
             >
               +
             </button>
@@ -225,7 +228,7 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
 
       {/* Save Button */}
       <button type="submit" className="btn btn-teal" style={{ width: '100%' }} disabled={isLoading}>
-        {isLoading ? 'Guardando respuesta...' : 'Actualizar mi Asistencia'}
+        {isLoading ? m.saving : m.save}
       </button>
     </form>
   );

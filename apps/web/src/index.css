@@ -97,6 +97,11 @@ p, span, li, input, textarea, select, button {
   max-width: 1120px;
   margin: 0 auto;
   padding: 0 1rem 3rem 1rem;
+  /* FP-BIL-A1-M: this main is a column-flex item. min-width:auto would let a
+     wide AG Grid force the page past the viewport at 360-390px; the grids
+     scroll inside their own overflow-x:auto wrappers instead. */
+  width: 100%;
+  min-width: 0;
 }
 
 @media (min-width: 640px) {
@@ -115,7 +120,85 @@ p, span, li, input, textarea, select, button {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
   border-bottom: 2px solid var(--color-yellow);
+}
+
+/* FP-BIL-A1: header + language selector. Wrap keeps 360-390px free of overflow. */
+.fp-header-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.fp-header-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.fp-header-btn {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.fp-lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-ink-muted);
+  white-space: nowrap;
+}
+
+.fp-lang select {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  background-color: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.35rem 0.4rem;
+  max-width: 8.5rem;
+  cursor: pointer;
+}
+
+@media (max-width: 560px) {
+  .fp-header-inner {
+    padding: 0.7rem 0.75rem;
+    gap: 0.6rem;
+  }
+
+  .fp-header-btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  .fp-lang {
+    font-size: 0.75rem;
+  }
+
+  .fp-lang select {
+    font-size: 0.75rem;
+    padding: 0.3rem;
+  }
+
+  .demo-ribbon {
+    font-size: 0.75rem;
+    padding: 0.45rem 0.75rem;
+  }
 }
 
 .demo-ribbon-badge {

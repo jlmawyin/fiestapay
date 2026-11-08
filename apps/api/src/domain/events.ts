@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
-import { defaultThemeFor, normalizeOrganizerName, themeBelongs, type EventInput, type FiestaEvent } from '@fiestapay/shared';
+import { defaultThemeFor, normalizeOrganizerName, themeBelongs, type EventInput, type FiestaEvent, type Locale } from '@fiestapay/shared';
 import { withTransaction, type Pool, type PoolClient } from '../db/pool.js';
 import { badRequest, conflict, forbidden, gone, notFound } from '../errors.js';
 import { newAdminKey, newId, newSlug, sha256 } from '../lib/ids.js';
@@ -7,7 +7,7 @@ import { assertAdminKey, digestMatches, rememberUnlock, revokeUnlocks } from './
 import { audit } from './audit.js';
 import { decideFundingIfDue, fundingBlocksNewCharge, fundingForNewEvent, fundingNow, nextFundingTerms, type FundingGate } from './funding.js';
 import { isPastRetention, tombstoneEvent } from './retention.js';
-import { EVENT_COLUMNS, eventTotals, loadFiestaEvent, lockEvent, toFiestaEvent, type EventRow, type Queryable } from './read.js';
+import { EVENT_COLUMNS, eventTotals, loadFiestaEvent, lockEvent, toFiestaEvent, type EventRow, type FiestaEventWithDemo, type Queryable } from './read.js';
 
 const UNIQUE_VIOLATION = '23505';
 
@@ -172,11 +172,85 @@ export async function startDemo(pool: Pool, sessionId: string): Promise<MintedEv
   });
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Judge-demo content in the request language. Spanish reproduces the web's
+ * `privateDemoEventInput()` values exactly; English is a natural translation of the same
+ * fictional party. Dates are relative to `now` and never copied from an older demo.
+ */
+export function demoEventInputForLocale(locale: Locale, now = new Date()): EventInput {
+  const startsAt = new Date(now.getTime() + 7 * DAY_MS);
+  startsAt.setUTCHours(18, 0, 0, 0); // 13:00 in America/Guayaquil
+  const endsAt = new Date(startsAt.getTime() + 4 * 60 * 60 * 1000); // 17:00
+  const deadline = new Date(startsAt.getTime() - DAY_MS);
+  deadline.setUTCHours(1, 0, 0, 0); // 20:00 the day before, still in the future
+
+  const shared = {
+    template: 'comida' as const,
+    meal: 'almuerzo' as const,
+    startsAt: startsAt.toISOString(),
+    endsAt: endsAt.toISOString(),
+    priceCents: 2500,
+    capacity: 8,
+    goalCents: 20000,
+    minimumCents: 5000,
+    fundingDeadlineAt: deadline.toISOString(),
+  };
+
+  if (locale === 'en') {
+    return {
+      ...shared,
+      title: 'Demo lunch',
+      description:
+        'Fictional demo meal to try the organizer dashboard and PayPal Sandbox. No amount is a real charge.',
+      location: 'Mirador de los Andes Hall, Quito (fictional place)',
+      includes: ['Trial lunch', 'Fictional drink', 'Sample dessert'],
+      agenda: [
+        { time: '13:00', title: 'Demo welcome' },
+        { time: '14:00', title: 'Fictional lunch' },
+        { time: '16:00', title: 'Closing and PayPal Sandbox test' },
+      ],
+      organizerName: 'FiestaPay team (demo)',
+    };
+  }
+
+  return {
+    ...shared,
+    title: 'Almuerzo de demostración',
+    description:
+      'Comida ficticia de demostración para probar el panel del organizador y PayPal Sandbox. Ningún importe es un cobro real.',
+    location: 'Salón Mirador de los Andes, Quito (lugar ficticio)',
+    includes: ['Almuerzo de prueba', 'Bebida ficticia', 'Postre de ejemplo'],
+    agenda: [
+      { time: '13:00', title: 'Bienvenida de demostración' },
+      { time: '14:00', title: 'Almuerzo ficticio' },
+      { time: '16:00', title: 'Cierre y prueba de PayPal Sandbox' },
+    ],
+    organizerName: 'Equipo FiestaPay (demo)',
+  };
+}
+
+/**
+ * Mints a NEW demo every time a `kind` is requested. It deliberately does not reuse the
+ * generation's existing demo: the judge flow needs a fresh invitation per click.
+ */
+export async function createDemoEvent(pool: Pool, sessionId: string, locale: Locale): Promise<MintedEvent> {
+  return withTransaction(pool, async (client) => {
+    const { rows } = await client.query<{ demo_generation: number }>(
+      'SELECT demo_generation FROM sessions WHERE id = $1 FOR UPDATE',
+      [sessionId],
+    );
+    const generation = rows[0]?.demo_generation ?? 0;
+    return mintAndInsert(client, sessionId, demoEventInputForLocale(locale), generation, true);
+  });
+}
+
 /**
  * Archives only demo events of this session. Real parties stay active, with their guests,
  * orders and ledger intact. Already archived demos stay archived so late captures still reconcile.
  */
-export async function resetDemo(pool: Pool, sessionId: string): Promise<MintedEvent> {
+export async function resetDemo(pool: Pool, sessionId: string, locale: Locale = 'es'): Promise<MintedEvent> {
   return withTransaction(pool, async (client) => {
     const { rows } = await client.query<{ demo_generation: number }>(
       'UPDATE sessions SET demo_generation = demo_generation + 1 WHERE id = $1 RETURNING demo_generation',
@@ -193,18 +267,18 @@ export async function resetDemo(pool: Pool, sessionId: string): Promise<MintedEv
     );
     for (const old of archived.rows) await audit(client, old.id, 'demo_reset');
 
-    return mintAndInsert(client, sessionId, demoEventInput(), generation, true);
+    return mintAndInsert(client, sessionId, demoEventInputForLocale(locale), generation, true);
   });
 }
 
-export async function listOwnedEvents(pool: Pool, sessionId: string): Promise<FiestaEvent[]> {
+export async function listOwnedEvents(pool: Pool, sessionId: string): Promise<FiestaEventWithDemo[]> {
   const { rows } = await pool.query<EventRow>(
     `SELECT ${EVENT_COLUMNS} FROM events
       WHERE organizer_session_id = $1 AND purged_at IS NULL
       ORDER BY created_at DESC LIMIT 100`,
     [sessionId],
   );
-  const events: FiestaEvent[] = [];
+  const events: FiestaEventWithDemo[] = [];
   for (const row of rows) events.push(await loadFiestaEvent(pool, row));
   return events;
 }

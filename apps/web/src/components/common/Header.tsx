@@ -1,15 +1,24 @@
 import React from 'react';
+import { UI_LABELS } from '@fiestapay/shared';
+import { useI18n, useMessages } from '../../i18n/I18nContext';
+import { LanguageSelector } from '../../i18n/LanguageSelector';
+import { headerCatalog } from '../../i18n/catalogs/header';
 
 interface HeaderProps {
   onNavigateHome: () => void;
   onNavigateCreate: () => void;
+  onNavigateDemo?: () => void;
   hasActiveEvent?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onNavigateHome,
   onNavigateCreate,
+  onNavigateDemo,
 }) => {
+  const { locale } = useI18n();
+  const m = useMessages(headerCatalog);
+  const labels = UI_LABELS[locale];
   return (
     <header
       style={{
@@ -20,16 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
         zIndex: 50,
       }}
     >
-      <div
-        style={{
-          maxWidth: '1120px',
-          margin: '0 auto',
-          padding: '0.85rem 1rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
+      <div className="fp-header-inner">
         {/* Brand Logo & Name */}
         <button
           onClick={onNavigateHome}
@@ -43,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
             textAlign: 'left',
             padding: 0,
           }}
-          aria-label="Ir a la página principal de FiestaPay"
+          aria-label={m.logoLabel}
         >
           <div
             style={{
@@ -70,27 +70,34 @@ export const Header: React.FC<HeaderProps> = ({
               FiestaPay
             </div>
             <div style={{ fontSize: '0.725rem', color: 'var(--color-teal)', fontWeight: 700, letterSpacing: '0.02em' }}>
-              Invitaciones con pagos claros
+              {m.tagline}
             </div>
           </div>
         </button>
 
         {/* Navigation Actions */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <nav className="fp-header-nav" aria-label={m.tagline}>
           <button
             onClick={onNavigateHome}
-            className="btn btn-secondary"
-            style={{ padding: '0.45rem 0.85rem', fontSize: '0.875rem' }}
+            className="btn btn-secondary fp-header-btn"
           >
-            Mis invitaciones
+            {labels.myInvitations}
           </button>
+          {onNavigateDemo ? (
+            <button
+              onClick={onNavigateDemo}
+              className="btn btn-secondary fp-header-btn"
+            >
+              {labels.judgesDemo}
+            </button>
+          ) : null}
           <button
             onClick={onNavigateCreate}
-            className="btn btn-primary"
-            style={{ padding: '0.45rem 1rem', fontSize: '0.875rem' }}
+            className="btn btn-primary fp-header-btn"
           >
-            + Nueva invitación
+            {labels.newInvitation}
           </button>
+          <LanguageSelector />
         </nav>
       </div>
     </header>

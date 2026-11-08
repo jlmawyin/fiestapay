@@ -1,12 +1,14 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { DEMO_GUEST_NAME, type AssistantContext } from '@fiestapay/shared';
 import type { Capabilities, FiestaEvent, ToastMessage } from './types';
 import { api, ApiError } from './api/client';
 import { adminKeyFor, captureAdminKeyFromLocation, rememberAdminKey } from './api/admin-key';
-import { privateDemoEventInput } from './lib/event-presentation';
+import { useI18n, useMessages } from './i18n/I18nContext';
+import { appCatalog } from './i18n/catalogs/app';
 import { DemoRibbon } from './components/common/DemoRibbon';
 import { Header } from './components/common/Header';
 import { ToastContainer } from './components/common/Toast';
-import { OrganizerHomeView } from './views/OrganizerHomeView';
+import { LandingView } from './views/LandingView';
 import { CreateEventView } from './views/CreateEventView';
 import { PublicInviteView } from './views/PublicInviteView';
 import { OrganizerDashboardView } from './views/OrganizerDashboardView';
@@ -45,6 +47,8 @@ type ViewMode =
 
 export const App: React.FC = () => {
   captureAdminKeyFromLocation();
+  const { locale } = useI18n();
+  const m = useMessages(appCatalog);
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
   const [events, setEvents] = useState<FiestaEvent[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
@@ -54,10 +58,16 @@ export const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>({ mode: 'home' });
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [demoPaymentSlug, setDemoPaymentSlug] = useState<string | null>(() => readDemoPaymentSlug());
+  const [orbOpenSignal, setOrbOpenSignal] = useState<number | undefined>(undefined);
   const demoCreationRef = useRef<Promise<void> | null>(null);
   const paymentDemoRef = useRef<Promise<void> | null>(null);
   const paymentDemoSlugRef = useRef<string | null>(null);
   const paymentCreationUncertainRef = useRef(false);
+  // Latest copy without re-running the mount effect on every language switch.
+  const copyRef = useRef(m);
+  copyRef.current = m;
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
 
   const showToast = useCallback(
     (type: 'success' | 'error' | 'info' | 'warning', message: string, title?: string) => {
@@ -88,6 +98,18 @@ export const App: React.FC = () => {
       window.history.pushState(view, '', path);
     }
   }, []);
+
+  /** Header entry: landing plus a scroll to the visitor's own invitations. */
+  const goToOwnInvitations = useCallback(() => {
+    navigate({ mode: 'home' });
+    window.setTimeout(() => {
+      try {
+        document.getElementById('my-invitations')?.scrollIntoView?.();
+      } catch {
+        // The landing is still usable without the scroll.
+      }
+    }, 0);
+  }, [navigate]);
 
   // Parse path on initial load & popstate
   const handleLocationChange = useCallback(() => {
@@ -126,15 +148,17 @@ export const App: React.FC = () => {
     const capabilitiesTask = api
       .getCapabilities()
       .then((caps) => setCapabilities(caps))
-      .catch((err: any) => {
-        setSessionError(err.message || 'No se pudo conectar con el servidor backend.');
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : null;
+        setSessionError(message || copyRef.current.sessionFallback);
       });
     const eventsTask = api
       .getOrganizerEvents()
       .then((res) => setEvents(res.events || []))
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         // Keep any history already shown. The home view offers a bounded retry.
-        setEventsError(err?.message || 'No se pudieron cargar tus invitaciones.');
+        const message = err instanceof Error ? err.message : null;
+        setEventsError(message || copyRef.current.eventsFallback);
       })
       .finally(() => setIsLoadingEvents(false));
     await Promise.allSettled([capabilitiesTask, eventsTask]);
@@ -149,35 +173,32 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('popstate', onPopState);
   }, [handleLocationChange, initApp]);
 
+  useEffect(() => {
+    document.title = m.docTitle;
+  }, [m]);
+
   /**
-   * Fresh private demo. This intentionally calls createEvent with new future dates instead
-   * of resetDemo/startDemo, so a historical demo without a stored key is never reused.
-   * The server mints the key; the browser stores it and only then opens the owner panel.
+   * Fresh private judge demo. `POST /api/demo` always mints a new `is_demo`
+   * event, so a historical demo without a stored key is never reused.
+   * The server mints the key; the browser stores it and only then opens the panel.
    */
   const handleCreateDemo = useCallback((): Promise<void> => {
     if (demoCreationRef.current) return demoCreationRef.current;
 
     const creation = (async () => {
       try {
-        const res = await api.createEvent(privateDemoEventInput());
+        const res = await api.createDemo('private');
         setEvents((prev) => [res.event, ...prev.filter((event) => event.id !== res.event.id)]);
         if (!res.adminKey) {
-          showToast(
-            'error',
-            'La demo se creó, pero el servidor no devolvió la clave de organizador. No se abrirá el panel como administrador.',
-            'Demo sin clave',
-          );
+          showToast('error', copyRef.current.demoNoKey, copyRef.current.demoNoKeyTitle);
           return;
         }
         rememberAdminKey(res.event.slug, res.adminKey);
-        showToast('success', `Demo privada "${res.event.title}" creada. Ya puedes probar PayPal Sandbox.`, 'Demo privada lista');
+        showToast('success', copyRef.current.demoReady(res.event.title), copyRef.current.demoReadyTitle);
         navigate({ mode: 'dashboard', slug: res.event.slug });
-      } catch (err: any) {
-        showToast(
-          'error',
-          err?.message || 'No se pudo crear la demo privada. Revisa tu conexión e inténtalo de nuevo.',
-          'Error al crear demo privada',
-        );
+      } catch (err: unknown) {
+        const message = err instanceof Error && err.message ? err.message : copyRef.current.demoCreateFail;
+        showToast('error', message, copyRef.current.demoCreateFailTitle);
       } finally {
         demoCreationRef.current = null;
       }
@@ -188,43 +209,35 @@ export const App: React.FC = () => {
   }, [navigate, showToast]);
 
   /**
-   * Explicit payment demo. It creates exactly one future, isolated owned Comida, saves its
-   * organizer key and slug before any guest work, joins "Invitado Demo", prepares an RSVP for
-   * two people, and opens the ordinary invitation. It never opens PayPal, an order, or a quote.
+   * Explicit payment demo. It creates exactly one fresh isolated demo through
+   * `POST /api/demo`, saves its organizer key and slug before any guest work,
+   * joins the locale's fictional guest, prepares an RSVP for two people, and
+   * opens the ordinary invitation. It never opens PayPal, an order, or a quote.
    */
   const handleStartPaymentDemo = useCallback((): Promise<void> => {
     if (paymentDemoRef.current) return paymentDemoRef.current;
 
     const start = (async () => {
       let slug = paymentDemoSlugRef.current;
+      const copy = copyRef.current;
+      const guestName = DEMO_GUEST_NAME[localeRef.current];
       try {
         if (!slug) {
           if (paymentCreationUncertainRef.current) {
-            showToast(
-              'warning',
-              'No sabemos si la demo de pago llegó a crearse. Revisa "Mis invitaciones" antes de volver a intentarlo. No abriremos otra automáticamente.',
-              'Creación sin confirmar',
-            );
+            showToast('warning', copy.payUncertainRetry, copy.payUncertainTitle);
             return;
           }
 
-          let created: Awaited<ReturnType<typeof api.createEvent>>;
+          let created: Awaited<ReturnType<typeof api.createDemo>>;
           try {
-            created = await api.createEvent(privateDemoEventInput());
-          } catch (err: any) {
+            created = await api.createDemo('payment');
+          } catch (err: unknown) {
             if (err instanceof ApiError && err.status === 408) {
               paymentCreationUncertainRef.current = true;
-              showToast(
-                'warning',
-                'No sabemos si la demo de pago llegó a crearse. Revisa "Mis invitaciones" antes de volver a intentarlo; no se abrirá otra automáticamente.',
-                'Creación sin confirmar',
-              );
+              showToast('warning', copy.payUncertainFirst, copy.payUncertainTitle);
             } else {
-              showToast(
-                'error',
-                err?.message || 'No se pudo crear la demo de pago. Revisa tu conexión e inténtalo de nuevo.',
-                'Error al preparar el pago',
-              );
+              const message = err instanceof Error && err.message ? err.message : copy.payCreateFail;
+              showToast('error', message, copy.payPrepareFailTitle);
             }
             return;
           }
@@ -239,23 +252,17 @@ export const App: React.FC = () => {
           setDemoPaymentSlug(slug);
         }
 
-        const joined = await api.joinEvent(slug, 'Invitado Demo');
+        const joined = await api.joinEvent(slug, guestName);
         // A completed paid session keeps its existing RSVP. Reloading this screen never starts
         // this flow; this guard only protects an explicit retry after a completed payment.
         if (!(joined.guest.paidCents > 0)) {
           await api.rsvp(slug, 'yes', 1);
         }
-        showToast(
-          'success',
-          'Demo de pago lista: Invitado Demo asistirá con un acompañante. Revisa la cotización y confirma el pago manualmente en PayPal Sandbox.',
-          'Pago de prueba preparado',
-        );
+        showToast('success', copy.payReady(guestName), copy.payReadyTitle);
         navigate({ mode: 'invite', slug });
       } catch {
-        const where = slug
-          ? `La demo "${slug}" ya está creada y tu enlace de organizador quedó guardado. No se pudo preparar el ingreso/RSVP; vuelve a intentarlo sin crear otra demo.`
-          : 'No se pudo preparar la demo de pago. No se creó ninguna invitación nueva.';
-        showToast('error', where, 'Demo de pago incompleta');
+        const where = slug ? copy.payIncompleteSlug(slug) : copy.payIncompleteNone;
+        showToast('error', where, copy.payIncompleteTitle);
       } finally {
         paymentDemoRef.current = null;
       }
@@ -265,7 +272,7 @@ export const App: React.FC = () => {
     return start;
   }, [navigate, showToast]);
 
-  // Handle Reset Demo
+  // Handle Reset Demo. It archives only this session's demos and stays on /demo.
   const handleResetDemo = async () => {
     setIsResettingDemo(true);
     try {
@@ -277,14 +284,21 @@ export const App: React.FC = () => {
       } catch {
         setEvents([res.event]);
       }
-      showToast('info', 'Demostración reiniciada. Las invitaciones reales siguen activas.', 'Reinicio completado');
-      navigate({ mode: 'home' });
-    } catch (err: any) {
-      showToast('error', err.message || 'Error al reiniciar la demostración', 'Error');
+      showToast('info', copyRef.current.resetDone, copyRef.current.resetDoneTitle);
+      navigate({ mode: 'demo' });
+    } catch (err: unknown) {
+      const message = err instanceof Error && err.message ? err.message : copyRef.current.resetFail;
+      showToast('error', message, copyRef.current.resetFailTitle);
     } finally {
       setIsResettingDemo(false);
     }
   };
+
+  const handleTalkToAssistant = useCallback(() => {
+    setOrbOpenSignal((prev) => (prev ?? 0) + 1);
+  }, []);
+
+  const publicContext: AssistantContext = currentView.mode === 'demo' ? 'demo' : 'landing';
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -297,8 +311,9 @@ export const App: React.FC = () => {
 
       {/* Global Navigation Header */}
       <Header
-        onNavigateHome={() => navigate({ mode: 'home' })}
+        onNavigateHome={goToOwnInvitations}
         onNavigateCreate={() => navigate({ mode: 'create' })}
+        onNavigateDemo={() => navigate({ mode: 'demo' })}
         hasActiveEvent={events.length > 0}
       />
 
@@ -321,7 +336,7 @@ export const App: React.FC = () => {
         >
           <span>⚠️ {sessionError}</span>
           <button onClick={initApp} className="btn btn-secondary" style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}>
-            Reintentar Conexión
+            {m.retryConnection}
           </button>
         </div>
       )}
@@ -329,7 +344,7 @@ export const App: React.FC = () => {
       {/* Main Body View */}
       <main className="app-container" style={{ marginTop: '1.5rem', flex: 1 }}>
         {currentView.mode === 'home' && (
-          <OrganizerHomeView
+          <LandingView
             events={events}
             isLoading={isLoadingEvents}
             eventsError={eventsError}
@@ -337,18 +352,25 @@ export const App: React.FC = () => {
             onNavigateCreate={() => navigate({ mode: 'create' })}
             onNavigateInvite={(slug) => navigate({ mode: 'invite', slug })}
             onNavigateDashboard={(slug) => navigate({ mode: 'dashboard', slug })}
-            onCreateDemo={handleCreateDemo}
-            onStartPaymentDemo={handleStartPaymentDemo}
-            onResetDemo={handleResetDemo}
-            isResetting={isResettingDemo}
-            onNavigatePreview={() => navigate({ mode: 'demo' })}
+            onNavigateDemo={() => navigate({ mode: 'demo' })}
             onNavigateRecover={() => navigate({ mode: 'recover' })}
           />
         )}
 
         {currentView.mode === 'demo' && (
           <JudgePreviewView
+            events={events}
+            isLoading={isLoadingEvents}
+            eventsError={eventsError}
+            onRetryEvents={initApp}
             onCreateDemo={handleCreateDemo}
+            onStartPaymentDemo={handleStartPaymentDemo}
+            onTalkToAssistant={handleTalkToAssistant}
+            onResetDemo={handleResetDemo}
+            isResetting={isResettingDemo}
+            onNavigateInvite={(slug) => navigate({ mode: 'invite', slug })}
+            onNavigateDashboard={(slug) => navigate({ mode: 'dashboard', slug })}
+            onNavigateRecover={() => navigate({ mode: 'recover' })}
             onBack={() => navigate({ mode: 'home' })}
           />
         )}
@@ -399,6 +421,7 @@ export const App: React.FC = () => {
         {/*
           Cross-front contract: builder B supplies the unified orb. Public home/demo/create/
           recovery get one launcher; invite and dashboard keep their own role-scoped orb.
+          Landing and demo keep separate public conversations by context.
         */}
         {(currentView.mode === 'home' ||
           currentView.mode === 'demo' ||
@@ -408,6 +431,8 @@ export const App: React.FC = () => {
             audience="public"
             capabilities={capabilities}
             onShowToast={showToast}
+            context={publicContext}
+            openSignal={orbOpenSignal}
           />
         )}
       </main>

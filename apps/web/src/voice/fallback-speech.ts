@@ -1,10 +1,12 @@
 /**
- * Last-resort Spanish speech for the public informational assistant when no neural voice
+ * Last-resort speech for the public informational assistant when no neural voice
  * is configured. The browser's native speech queue is kept: a new phrase is enqueued
  * behind the one already playing, so a reply is never cut. Only an explicit cancel()
  * (Stop, unmount or a human cancellation) stops the current phrase.
  * Rate stays inside 0.95-1.0 as required by the voice policy.
  */
+
+import type { Locale } from '@fiestapay/shared';
 
 export const FALLBACK_SPEECH_RATE = 0.97;
 
@@ -30,13 +32,30 @@ export function pickSpanishVoice(voices: readonly SpeechSynthesisVoice[]): Speec
   return exact('es-es') ?? exact('es-us') ?? spanish[0] ?? null;
 }
 
+/** en-US first, then any English voice. Returns null when none exists. */
+export function pickEnglishVoice(voices: readonly SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
+  const english = voices.filter((voice) => /^en(?:-|$)/i.test(voice.lang || ''));
+  if (english.length === 0) return null;
+  return english.find((voice) => voice.lang?.toLowerCase() === 'en-us') ?? english[0] ?? null;
+}
+
+/** Voice of the locale, or null when the browser offers none (callers stay silent). */
+export function pickVoiceForLocale(
+  voices: readonly SpeechSynthesisVoice[],
+  locale: Locale = 'es',
+): SpeechSynthesisVoice | null {
+  return locale === 'en' ? pickEnglishVoice(voices) : pickSpanishVoice(voices);
+}
+
 export class SpanishSpeechFallback {
   private readonly synth: SpeechLike | null;
   private readonly makeUtterance: ((text: string) => UtteranceLike) | null;
+  private locale: Locale;
 
   constructor(
     synth: SpeechLike | null = null,
     makeUtterance: ((text: string) => UtteranceLike) | null = null,
+    locale: Locale = 'es',
   ) {
     this.synth =
       synth ??
@@ -50,6 +69,12 @@ export class SpanishSpeechFallback {
       (typeof SpeechSynthesisUtterance === 'function'
         ? (text: string) => new SpeechSynthesisUtterance(text)
         : null);
+    this.locale = locale;
+  }
+
+  /** Switches the voice language. Never falls back to the other language. */
+  setLocale(locale: Locale): void {
+    this.locale = locale;
   }
 
   get supported(): boolean {
@@ -69,19 +94,19 @@ export class SpanishSpeechFallback {
   }
 
   get bestVoice(): SpeechSynthesisVoice | null {
-    return pickSpanishVoice(this.voices);
+    return pickVoiceForLocale(this.voices, this.locale);
   }
 
   /**
    * Enqueues one phrase without cancelling the one already playing. Returns false when
-   * unsupported, when no Spanish voice exists (never falls back to a default non-Spanish
-   * voice) or when the engine refuses the utterance.
+   * unsupported, when no voice of the locale exists (never falls back to a default
+   * voice of the other language) or when the engine refuses the utterance.
    */
-  speak(text: string): boolean {
+  speak(text: string, locale: Locale = this.locale): boolean {
     if (!this.supported || !text.trim()) return false;
     // Re-read on every call: some browsers populate getVoices() asynchronously after a
-    // `voiceschanged` event, so a later user action sees the Spanish voice.
-    const voice = pickSpanishVoice(this.voices);
+    // `voiceschanged` event, so a later user action sees the voice.
+    const voice = pickVoiceForLocale(this.voices, locale);
     if (!voice) return false;
     const synth = this.synth!;
     let utterance: UtteranceLike;
@@ -90,7 +115,7 @@ export class SpanishSpeechFallback {
     } catch {
       return false;
     }
-    utterance.lang = voice.lang || 'es-ES';
+    utterance.lang = voice.lang || (locale === 'en' ? 'en-US' : 'es-ES');
     utterance.rate = FALLBACK_SPEECH_RATE;
     utterance.voice = voice;
     try {
@@ -110,6 +135,6 @@ export class SpanishSpeechFallback {
   }
 }
 
-export function createSpanishSpeechFallback(): SpanishSpeechFallback {
-  return new SpanishSpeechFallback();
+export function createSpanishSpeechFallback(locale: Locale = 'es'): SpanishSpeechFallback {
+  return new SpanishSpeechFallback(null, null, locale);
 }

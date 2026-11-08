@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
+import type { AssistantContext } from '@fiestapay/shared';
 import type { Capabilities } from '../../types';
 import { ApiError } from '../../api/client';
 import { sendPublicChat } from '../../api/public-chat';
+import { useMessages } from '../../i18n/I18nContext';
+import { chatCatalog } from '../../i18n/catalogs/chat';
 import { AssistantText } from './AssistantText';
 
 export interface PublicChatAssistantProps {
@@ -11,6 +14,10 @@ export interface PublicChatAssistantProps {
   /** Optional controlled visibility. Standalone use keeps its internal state. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Landing vs demo conversation. Sent to the server; omitted when unnamed. */
+  context?: AssistantContext;
+  /** Suffix for the panel id when several instances share one document. */
+  idSuffix?: string;
 }
 
 interface PublicMessage {
@@ -24,31 +31,17 @@ interface PublicChatError {
   failedQuestion: string;
 }
 
-const WELCOME =
-  'Hola. Este es un chat público general y separado de tu evento o del panel del organizador. Puedo explicarte cómo funciona FiestaPay, el flujo de prueba con PayPal Sandbox, la tabla de invitados y la recuperación del organizador. No creo eventos, no reservo y no muevo dinero.';
-
-const QUICK_HELP = [
-  '¿Cómo funciona FiestaPay?',
-  '¿Qué significa pagar en PayPal Sandbox?',
-  '¿Cómo recupera el organizador su acceso?',
-];
-
-const PRIVACY_NOTE =
-  'La conversación vive solo en esta pestaña abierta: al recargar o en una ventana nueva empieza vacía y aquí no se guarda historial. El servidor conserva metadatos de consumo, no el contenido de tus mensajes públicos. OpenAI procesa tus consultas para responder; no afirmamos que su retención sea cero.';
-
 function messageId(seq: number, role: PublicMessage['role']): string {
   return `public-${role}-${seq}`;
 }
 
-function friendlyError(err: unknown): string {
+type ChatCopy = (typeof chatCatalog)['es'];
+
+function friendlyError(err: unknown, m: ChatCopy): string {
   const status = err instanceof ApiError ? err.status : undefined;
-  if (status === 429) {
-    return 'Se alcanzó el límite temporal de consultas (429). Tu pregunta no se respondió. Espera un minuto y pulsa «Reintentar» cuando quieras; los formularios y el panel siguen disponibles.';
-  }
-  if (status === 503) {
-    return 'El chat público no está disponible ahora (503). Tu pregunta no obtuvo respuesta. Pulsa «Reintentar» manualmente o continúa con los formularios y el panel; la recuperación del organizador sigue disponible si el correo está configurado. Nada se creó, pagó ni reembolsó.';
-  }
-  return 'No se pudo enviar la consulta al chat público. Tu pregunta no obtuvo respuesta. Pulsa «Reintentar» manualmente; los formularios y el panel siguen disponibles.';
+  if (status === 429) return m.error429;
+  if (status === 503) return m.error503;
+  return m.errorGeneric;
 }
 
 /**
@@ -60,7 +53,12 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
   embedded = false,
   open,
   onOpenChange,
+  context,
+  idSuffix,
 }) => {
+  const m = useMessages(chatCatalog);
+  const welcomeRef = useRef<string | null>(null);
+  if (welcomeRef.current === null) welcomeRef.current = m.welcome;
   const [internalOpen, setInternalOpen] = useState(false);
   const controlled = open !== undefined;
   const isOpen = controlled ? open : internalOpen;
@@ -69,14 +67,18 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
     onOpenChange?.(next);
   };
   const [inputMessage, setInputMessage] = useState('');
-  const [messages, setMessages] = useState<PublicMessage[]>([
-    { id: 'public-assistant-welcome', role: 'assistant', text: WELCOME },
+  // The welcome snapshot never refreshes: switching languages keeps the
+  // visible history and only new replies arrive in the new language.
+  const [messages, setMessages] = useState<PublicMessage[]>(() => [
+    { id: 'public-assistant-welcome', role: 'assistant', text: welcomeRef.current ?? m.welcome },
   ]);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<PublicChatError | null>(null);
   const sendingRef = useRef(false);
   const aliveRef = useRef(true);
   const sequenceRef = useRef(0);
+  const panelId = idSuffix ? `public-chat-panel-${idSuffix}` : 'public-chat-panel';
+  const quickHelp = [m.quickHelp1, m.quickHelp2, m.quickHelp3];
 
   const chatAvailable = capabilities?.chat === true;
   const composerDisabled = !chatAvailable || isSending;
@@ -111,7 +113,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
     }
 
     try {
-      const reply = await sendPublicChat(text);
+      const reply = await sendPublicChat(text, context);
       if (!aliveRef.current) return;
       sequenceRef.current += 1;
       setMessages((previous) => [
@@ -121,7 +123,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
       setError(null);
     } catch (err) {
       if (!aliveRef.current) return;
-      setError({ message: friendlyError(err), failedQuestion: text });
+      setError({ message: friendlyError(err, m), failedQuestion: text });
     } finally {
       sendingRef.current = false;
       if (aliveRef.current) setIsSending(false);
@@ -152,21 +154,21 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
               border: '2px solid #FFFFFF',
               fontWeight: 700,
             }}
-            aria-label={isOpen ? 'Cerrar chat de FiestaPay' : 'Abrir chat de FiestaPay'}
+            aria-label={isOpen ? m.closeLabel : m.openLabel}
             aria-expanded={isOpen}
-            aria-controls="public-chat-panel"
+            aria-controls={panelId}
           >
             <span aria-hidden="true" style={{ fontSize: '1.1rem' }}>💬</span>
-            <span style={{ fontSize: '0.9rem' }}>Chat</span>
+            <span style={{ fontSize: '0.9rem' }}>{m.chatShort}</span>
           </button>
         </div>
       )}
 
       {isOpen && (
         <section
-          id="public-chat-panel"
+          id={panelId}
           role={embedded ? 'region' : 'dialog'}
-          aria-label="Chat público de FiestaPay"
+          aria-label={m.panelLabel}
           onKeyDown={(event) => {
             if (event.key === 'Escape') setOpen(false);
           }}
@@ -215,11 +217,11 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
                   marginBottom: '0.25rem',
                 }}
               >
-                NUEVO · PÚBLICO
+                {m.headerBadge}
               </span>
-              <strong style={{ display: 'block', fontSize: '0.95rem' }}>Chat general de FiestaPay</strong>
+              <strong style={{ display: 'block', fontSize: '0.95rem' }}>{m.headerTitle}</strong>
               <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-yellow)' }}>
-                Información general, no sobre un evento concreto
+                {m.headerSub}
               </span>
             </div>
             <button
@@ -234,7 +236,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
                 lineHeight: 1,
                 padding: '0.1rem',
               }}
-              aria-label="Cerrar chat público"
+              aria-label={m.headerClose}
             >
               ×
             </button>
@@ -251,7 +253,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
               lineHeight: 1.45,
             }}
           >
-            Este chat es general y separado de tu evento o del panel del organizador. No crea eventos ni modifica asistencias o pagos.
+            {m.infoStrip}
           </div>
 
           <div
@@ -306,7 +308,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
                   color: 'var(--color-ink-muted)',
                 }}
               >
-                El asistente público está escribiendo…
+                {m.typing}
               </div>
             )}
 
@@ -322,9 +324,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
                 }}
                 role="note"
               >
-                {capabilities === null
-                  ? 'Comprobando la disponibilidad del chat público. Mientras tanto puedes usar los formularios y el panel manualmente.'
-                  : 'El chat público no está habilitado en este servidor. Puedes crear tu invitación y usar los formularios y el panel manualmente; la recuperación del organizador sigue disponible si el correo está configurado.'}
+                {capabilities === null ? m.checkingAvailability : m.unavailable}
               </div>
             )}
 
@@ -349,7 +349,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
                   disabled={isSending || !chatAvailable}
                   style={{ marginTop: '0.5rem', padding: '0.35rem 0.7rem', fontSize: '0.78rem' }}
                 >
-                  Reintentar
+                  {m.retry}
                 </button>
               </div>
             )}
@@ -357,10 +357,10 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
 
           <div style={{ padding: '0.55rem 0.75rem', borderTop: '1px solid var(--color-border)', backgroundColor: '#FFFFFF' }}>
             <div style={{ fontSize: '0.7rem', color: 'var(--color-ink-muted)', marginBottom: '0.4rem' }}>
-              Ayuda rápida (solo rellena la pregunta; no se envía sola):
+              {m.quickLead}
             </div>
             <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-              {QUICK_HELP.map((question) => (
+              {quickHelp.map((question) => (
                 <button
                   key={question}
                   type="button"
@@ -387,16 +387,16 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
             }}
           >
             <label style={{ flex: 1, fontSize: '0.75rem', color: 'var(--color-ink-muted)' }}>
-              <span style={{ display: 'block', marginBottom: '0.2rem' }}>Tu pregunta</span>
+              <span style={{ display: 'block', marginBottom: '0.2rem' }}>{m.composerLabel}</span>
               <textarea
                 className="form-input"
                 value={inputMessage}
                 onChange={(event) => setInputMessage(event.target.value)}
-                placeholder="Escribe una pregunta general…"
+                placeholder={m.placeholder}
                 disabled={composerDisabled}
                 maxLength={1200}
                 rows={2}
-                aria-label="Pregunta para el chat público"
+                aria-label={m.composerAria}
                 style={{ width: '100%', resize: 'vertical', minHeight: '2.6rem', fontSize: '0.85rem', padding: '0.5rem 0.65rem' }}
               />
             </label>
@@ -406,12 +406,12 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
               disabled={!canSend}
               style={{ padding: '0.5rem 0.8rem', fontSize: '0.82rem', marginBottom: '0.1rem' }}
             >
-              Enviar
+              {m.send}
             </button>
           </form>
 
           <p style={{ padding: '0.5rem 0.75rem', fontSize: '0.67rem', color: 'var(--color-ink-muted)', backgroundColor: 'var(--color-surface-subtle)', borderTop: '1px solid var(--color-border)', lineHeight: 1.45 }}>
-            {PRIVACY_NOTE}
+            {m.privacy}
           </p>
         </section>
       )}

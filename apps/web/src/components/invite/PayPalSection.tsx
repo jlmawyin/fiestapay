@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { loadScript } from '@paypal/paypal-js';
+import { UI_LABELS } from '@fiestapay/shared';
 import type { Capabilities, OrderResult } from '../../types';
 import { api } from '../../api/client';
+import { useI18n, useMessages } from '../../i18n/I18nContext';
+import { paypalCatalog } from '../../i18n/messages/paypal';
 import { nextReturnDelay, returnServerAction } from './paymentReturn';
 
 interface PayPalSectionProps {
@@ -48,6 +51,11 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
   const [isChecking, setIsChecking] = useState(false);
   const [sdkMessage, setSdkMessage] = useState<string | null>(null);
   const [progressMessage, setProgressMessage] = useState<string | null>(null);
+  const { locale } = useI18n();
+  const m = useMessages(paypalCatalog);
+  const labels = UI_LABELS[locale];
+  const copyRef = useRef(m);
+  copyRef.current = m;
 
   const paypalAvailable = Boolean(capabilities?.paypal && capabilities?.paypalClientId);
   const mountedRef = useRef(true);
@@ -100,7 +108,7 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
       setIsChecking(false);
     }
     setIsCapturing(true);
-    setProgressMessage('Verificando captura con el servidor...');
+    setProgressMessage(copyRef.current.verifyingCapture);
 
     const flight: { id: string; promise: Promise<boolean> } = {
       id,
@@ -111,9 +119,9 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
         const paid = await onCaptureSuccessRef.current(id);
         if (!currentOrder(id)) return false;
         if (paid) {
-          setProgressMessage('¡Pago capturado y confirmado con éxito!');
+          setProgressMessage(copyRef.current.captureConfirmed);
         } else if (kind === 'return') {
-          setProgressMessage('El servidor aún no confirma el pago. Puedes reintentar con Verificar. No se marcó como pagado.');
+          setProgressMessage(copyRef.current.captureUnconfirmed);
         } else {
           setProgressMessage(null);
         }
@@ -124,8 +132,8 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
         const detail = err instanceof Error && err.message
           ? err.message
           : kind === 'manual'
-            ? 'No se pudo confirmar la captura en este momento'
-            : 'Error al capturar la orden en el servidor';
+            ? copyRef.current.manualError
+            : copyRef.current.sdkError;
         onCancelRef.current(detail);
         return false;
       } finally {
@@ -152,7 +160,7 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
       armingRef.current = false;
     }, 0);
     setIsChecking(false);
-    setProgressMessage('Completa el pago en PayPal. Al volver a esta pestaña comprobaremos la orden con el servidor. No se marca como pagada hasta que el servidor lo confirme.');
+    setProgressMessage(copyRef.current.externalArmed);
   };
 
   beginReturnRef.current = () => {
@@ -163,7 +171,7 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
     checkingRef.current = true;
     pausedRef.current = null;
     setIsChecking(true);
-    setProgressMessage('Comprobando el pago con el servidor…');
+    setProgressMessage(copyRef.current.checkingServer);
 
     const alive = () => mountedRef.current && returnGenRef.current === gen && orderIdRef.current === id;
 
@@ -189,28 +197,28 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
             return;
           }
           if (action === 'stop') {
-            finish(`La orden figura como "${result.status}". No se marcó como pagada.`);
+            finish(copyRef.current.orderStatusShown(result.status));
             return;
           }
           const delay = nextReturnDelay(finishedGets + 1, startedAt, Date.now());
           if (delay === null) {
-            finish('No confirmamos el pago automáticamente. Usa Verificar para reintentar. Nada se marcó como pagado.');
+            finish(copyRef.current.autoConfirmFail);
             return;
           }
           if (!alive()) return;
-          setProgressMessage('PayPal aún no confirma la aprobación. Seguimos comprobando…');
+          setProgressMessage(copyRef.current.stillWaiting);
           timerRef.current = window.setTimeout(() => {
             timerRef.current = null;
             if (!alive()) return;
             if (document.hidden) {
-              setProgressMessage('Esta pestaña está en segundo plano. Seguiremos comprobando al volver. Nada se marcó como pagado.');
+              setProgressMessage(copyRef.current.backgroundPaused);
               pausedRef.current = { resume: () => run(finishedGets + 1) };
               return;
             }
             run(finishedGets + 1);
           }, delay);
         } catch {
-          finish('No pudimos consultar la orden. Puedes reintentar con Verificar. No se marcó como pagado.');
+          finish(copyRef.current.reconcileFail);
         }
       })();
     };
@@ -256,7 +264,7 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
       if (paused) {
         pausedRef.current = null;
         setIsChecking(true);
-        setProgressMessage('Comprobando el pago con el servidor…');
+        setProgressMessage(copyRef.current.checkingServer);
         paused.resume();
         return;
       }
@@ -303,29 +311,27 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
           },
           onCancel: () => {
             if (cancelled || buttonsEpochRef.current !== gen) return;
-            onCancelRef.current('El flujo en PayPal fue cancelado o pausado. Si autorizaste el pago en ventana externa, puedes verificar el estado de la orden.');
+            onCancelRef.current(copyRef.current.cancelFlow);
           },
           onError: (err: unknown) => {
             if (cancelled || buttonsEpochRef.current !== gen) return;
-            const detail = err instanceof Error && err.message ? err.message : 'La transacción no pudo completarse';
-            onCancelRef.current(
-              `Incidencia en PayPal: ${detail}. Puedes consultar el estado de tu orden para comprobar si fue recibida por el servidor.`
-            );
+            const detail = err instanceof Error && err.message ? err.message : copyRef.current.transactionFallback;
+            onCancelRef.current(copyRef.current.paypalIssue(detail));
           },
         })
           .render(paypalContainerRef.current)
           .catch((renderErr: unknown) => {
             if (cancelled) return;
-            const detail = renderErr instanceof Error ? renderErr.message : 'error de render';
+            const detail = renderErr instanceof Error ? renderErr.message : copyRef.current.renderFallback;
             setSdkStatus('error');
-            setSdkMessage(`No se pudo cargar el botón de PayPal: ${detail}`);
+            setSdkMessage(copyRef.current.renderFail(detail));
           });
       })
       .catch((scriptErr: unknown) => {
         if (cancelled) return;
-        const detail = scriptErr instanceof Error ? scriptErr.message : 'error de script';
+        const detail = scriptErr instanceof Error ? scriptErr.message : copyRef.current.scriptFallback;
         setSdkStatus('error');
-        setSdkMessage(`Error cargando PayPal SDK: ${detail}`);
+        setSdkMessage(copyRef.current.sdkLoadFail(detail));
       });
 
     return () => {
@@ -336,7 +342,7 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
   }, [order.orderId, paypalAvailable, capabilities?.paypalClientId, sdkAttempt]);
 
   const busy = isCapturing || isChecking;
-  const verifyLabel = isCapturing ? 'Verificando...' : 'Verificar / Continuar Captura';
+  const verifyLabel = isCapturing ? m.verifyBusy : labels.verifyCapture;
   const verifyPayment = () => { void requestCaptureRef.current(order.orderId, 'manual'); };
   const externalLink = (label: string, className: string, compact: boolean) =>
     order.approveUrl ? (
@@ -363,8 +369,8 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-        <h4 style={{ fontSize: '1rem', color: 'var(--color-ink)' }}>Completar Pago Seguro</h4>
-        <span className="badge badge-yellow">Orden #{order.orderId.slice(0, 8)}</span>
+        <h4 style={{ fontSize: '1rem', color: 'var(--color-ink)' }}>{m.heading}</h4>
+        <span className="badge badge-yellow">{m.orderBadge(order.orderId.slice(0, 8))}</span>
       </div>
 
       <div role="status" aria-live="polite" aria-busy={busy}>
@@ -383,10 +389,10 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
           }}
         >
           <div style={{ fontWeight: 700, color: 'var(--color-teal)', marginBottom: '0.25rem' }}>
-            ✓ Autorización recibida en PayPal
+            {m.approvedTitle}
           </div>
           <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.825rem', color: 'var(--color-ink)' }}>
-            Tu orden está autorizada en PayPal. Confirma la captura final para que el servidor verifique la transacción y acredite tu cuota.
+            {m.approvedBody}
           </p>
           <button
             type="button"
@@ -395,7 +401,7 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
             className="btn btn-teal"
             style={{ fontSize: '0.85rem', padding: '0.4rem 0.85rem', fontWeight: 600 }}
           >
-            {isCapturing ? 'Verificando y Capturando...' : 'Confirmar y Completar Captura de Pago'}
+            {isCapturing ? m.approvedBusy : labels.captureComplete}
           </button>
         </div>
       )}
@@ -412,14 +418,14 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
           }}
         >
           <p style={{ fontWeight: 600, color: 'var(--color-ink)', marginBottom: '0.35rem' }}>
-            Proveedor PayPal no configurado en el servidor
+            {m.noProviderTitle}
           </p>
           <p>
-            El servidor reporta que las credenciales de PayPal Sandbox están ausentes. Los botones de pago directo no se pueden inicializar en este entorno sin configurar <code>PAYPAL_CLIENT_ID</code>.
+            {m.noProviderBody}<code>PAYPAL_CLIENT_ID</code>.
           </p>
           {order.approveUrl && (
             <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {externalLink('Abrir enlace de aprobación PayPal provisto por la orden ↗', 'btn btn-secondary', false)}
+              {externalLink(m.externalApprovalLink, 'btn btn-secondary', false)}
               <button
                 type="button"
                 onClick={verifyPayment}
@@ -435,12 +441,12 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
       ) : (
         <>
           <p style={{ fontSize: '0.825rem', color: 'var(--color-ink-muted)', marginBottom: '1rem' }}>
-            Paga de forma segura mediante PayPal Sandbox. El pago solo se considerará completado una vez que nuestro servidor capture y verifique la transacción.
+            {m.secureNote}
           </p>
 
           {sdkStatus === 'loading' && (
             <div role="status" style={{ textAlign: 'center', padding: '1rem', color: 'var(--color-ink-muted)', fontSize: '0.875rem' }}>
-              Cargando interfaz oficial de PayPal Sandbox...
+              {m.loadingSdk}
             </div>
           )}
 
@@ -456,7 +462,7 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
               }}
               role="alert"
             >
-              {sdkMessage || 'No se pudo inicializar la pasarela de PayPal.'}
+              {sdkMessage || m.sdkFallback}
               <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button
                   type="button"
@@ -464,9 +470,9 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
                   style={{ fontSize: '0.85rem' }}
                   onClick={() => setSdkAttempt((attempt) => attempt + 1)}
                 >
-                  Reintentar carga de PayPal
+                  {m.retrySdk}
                 </button>
-                {externalLink('Ir a pagar en PayPal en ventana externa ↗', 'btn btn-primary', false)}
+                {externalLink(m.externalWindowLink, 'btn btn-primary', false)}
               </div>
             </div>
           )}
@@ -487,10 +493,10 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
             }}
           >
             <span style={{ color: 'var(--color-ink-muted)' }}>
-              ¿Pagaste en otra ventana o necesitas conciliar?
+              {m.reconcileHint}
             </span>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {externalLink('Abrir PayPal ↗', 'btn btn-secondary', true)}
+              {externalLink(labels.openPayPal, 'btn btn-secondary', true)}
               <button
                 type="button"
                 onClick={verifyPayment}

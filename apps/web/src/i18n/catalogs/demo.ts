@@ -1,0 +1,116 @@
+import { defineCatalog } from '../catalog';
+
+/**
+ * Judges demo tour. Action buttons (sample panel, private demo, payment
+ * demo, talk to assistant, reset) use UI_LABELS literally at the call site.
+ */
+export const demoCatalog = defineCatalog({
+  es: {
+    banner: 'Datos ficticios · Sandbox · Sin dinero real',
+    intro:
+      'Recorrido guiado para jueces: todo lo que ves aquí es ficticio y PayPal está en modo Sandbox, sin dinero real.',
+    step1Title: 'Mira el panel de ejemplo',
+    step1Text:
+      'Así se ve la lista de invitados y pagos. Puedes ordenar, filtrar y buscar sin modificar ningún evento real.',
+    readonlyBadge: 'Vista de solo lectura',
+    fictionNoteTitle: 'Datos ficticios de ejemplo — vista de solo lectura.',
+    fictionNoteText:
+      'Los nombres, asistencias e importes son inventados. Los números de “Pagado” no son capturas reales de PayPal ni un libro de pagos.',
+    guestsTitle: 'Invitados de ejemplo',
+    guestsSub: '10 filas ficticias con asistencia y pagos variados. La tabla filtra y ordena localmente.',
+    filterLabel: 'Buscar en datos ficticios',
+    filterPlaceholder: 'Nombre, estado o importe',
+    gridFoot: 'Tabla de demostración. No hay botones para escribir, moderar, enviar WhatsApp ni cobrar.',
+    colGuest: 'Invitado ficticio',
+    colAttendance: 'Asistencia',
+    colCompanions: 'Acompañantes',
+    colPaid: 'Pagado (ficticio)',
+    colDue: 'Pendiente (ficticio)',
+    colState: 'Estado de pago',
+    attYes: '✓ Asistirá',
+    attMaybe: '? Tal vez',
+    attNo: '✕ No asistirá',
+    payNone: 'Sin datos',
+    payFull: 'Pagado (ficticio)',
+    payPartial: 'Pago parcial (ficticio)',
+    payPending: 'Pendiente (ficticio)',
+    payZero: 'Sin saldo (ficticio)',
+    step2Title: 'Prueba un pago con PayPal Sandbox',
+    step2Text:
+      'Crea una comida ficticia, une a Invitado Demo con un acompañante y abre la invitación para que completes el pago manualmente.',
+    paymentLoading: 'Preparando pago de prueba...',
+    step3Title: 'Habla con el asistente',
+    step3Text: 'Pregunta cómo funciona FiestaPay en un chat separado del de la portada.',
+    privateTitle: '¿Prefieres explorar por tu cuenta?',
+    privateText:
+      'Crea una comida ficticia propia con clave de organizador y abre tu panel real. El pago se prueba en PayPal Sandbox; no hay cobros reales.',
+    privateLoading: 'Creando demo privada...',
+    myDemosSub: 'Demos creadas en este navegador.',
+    demosLoading: 'Cargando tus demos...',
+    demosEmpty: 'Todavía no creaste demos en este navegador.',
+    demosLoadError: 'No se pudieron cargar tus demos.',
+    resetNote: 'Reiniciar solo afecta a las demos de este navegador. Tus invitaciones propias no se tocan.',
+    resetTitle: '¿Reiniciar mis demos?',
+    resetDesc: 'Solo afecta a las demos de este navegador.',
+    resetBody:
+      'Se archivarán las demos creadas en este navegador. Tus invitaciones propias siguen activas, con sus fechas y sus pagos intactos.',
+    cancel: 'Cancelar',
+    confirmReset: 'Sí, reiniciar mis demos',
+    resetting: 'Reiniciando…',
+    back: 'Volver al inicio',
+  },
+  en: {
+    banner: 'Fictional data · Sandbox · No real money',
+    intro:
+      'Guided tour for judges: everything you see here is fictional and PayPal runs in Sandbox mode, with no real money.',
+    step1Title: 'Look at the sample dashboard',
+    step1Text:
+      'This is what the guest and payment list looks like. You can sort, filter, and search without changing any real event.',
+    readonlyBadge: 'Read-only view',
+    fictionNoteTitle: 'Fictional sample data — read-only view.',
+    fictionNoteText:
+      'Names, attendance, and amounts are made up. The “Paid” numbers are not real PayPal captures or a payment ledger.',
+    guestsTitle: 'Sample guests',
+    guestsSub: '10 fictional rows with varied attendance and payments. The table filters and sorts locally.',
+    filterLabel: 'Search the fictional data',
+    filterPlaceholder: 'Name, status, or amount',
+    gridFoot: 'Demo table. There are no buttons to write, moderate, send WhatsApp, or charge.',
+    colGuest: 'Fictional guest',
+    colAttendance: 'Attendance',
+    colCompanions: 'Companions',
+    colPaid: 'Paid (fictional)',
+    colDue: 'Due (fictional)',
+    colState: 'Payment status',
+    attYes: '✓ Attending',
+    attMaybe: '? Maybe',
+    attNo: '✕ Not attending',
+    payNone: 'No data',
+    payFull: 'Paid (fictional)',
+    payPartial: 'Partial payment (fictional)',
+    payPending: 'Pending (fictional)',
+    payZero: 'No balance (fictional)',
+    step2Title: 'Try a PayPal Sandbox payment',
+    step2Text:
+      'Create a fictional meal, join Demo Guest with one companion, and open the invitation so you can complete the payment manually.',
+    paymentLoading: 'Preparing the test payment...',
+    step3Title: 'Talk to the assistant',
+    step3Text: 'Ask how FiestaPay works in a chat separate from the landing one.',
+    privateTitle: 'Prefer to explore on your own?',
+    privateText:
+      'Create your own fictional meal with an organizer key and open your real dashboard. Payments run in PayPal Sandbox; there are no real charges.',
+    privateLoading: 'Creating private demo...',
+    myDemosSub: 'Demos created in this browser.',
+    demosLoading: 'Loading your demos...',
+    demosEmpty: 'You have not created any demos in this browser yet.',
+    demosLoadError: 'Your demos could not be loaded.',
+    resetNote: 'Resetting only affects this browser’s demos. Your own invitations stay untouched.',
+    resetTitle: 'Reset my demos?',
+    resetDesc: 'Only affects this browser’s demos.',
+    resetBody:
+      'The demos created in this browser will be archived. Your own invitations stay active, with their dates and payments intact.',
+    cancel: 'Cancel',
+    confirmReset: 'Yes, reset my demos',
+    resetting: 'Resetting…',
+    back: 'Back to home',
+  },
+});

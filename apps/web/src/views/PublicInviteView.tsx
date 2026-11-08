@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback, useLayoutEffect, useRef } from 'react';
+import { UI_LABELS } from '@fiestapay/shared';
 import type { FiestaEvent, Guest, Quote, OrderResult, Capabilities, RsvpStatus, AgendaItem } from '../types';
 import { api, ApiError } from '../api/client';
-import { usd } from '../types';
-import { TEMPLATE_INVITE_COPY } from '@fiestapay/shared';
+import { useI18n, useMessages } from '../i18n/I18nContext';
+import { inviteCatalog } from '../i18n/messages/invite';
 import { TemplateCover } from '../components/illustrations/TemplateCover';
 import { ThemeScope } from '../components/events/ThemeScope';
 import { TicketCutout } from '../components/common/TicketCutout';
@@ -17,11 +18,13 @@ import {
   attendanceSummary,
   buildInviteShareText,
   formatEventRange,
+  mealLabel,
   namedGreeting,
   organizerLine,
   publicInviteUrl,
   resolveTheme,
   shareableInviteUrl,
+  templateInviteCopy,
 } from '../lib/event-presentation';
 
 interface PublicInviteViewProps {
@@ -52,6 +55,11 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const [unlocking, setUnlocking] = useState(false);
   const [isSavingRsvp, setIsSavingRsvp] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
+  const { locale, formatMoney } = useI18n();
+  const m = useMessages(inviteCatalog);
+  const labels = UI_LABELS[locale];
+  const copyRef = useRef(m);
+  copyRef.current = m;
   const scopeVersion = useRef(0);
   const paymentFocusRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -77,8 +85,8 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
     const candidateId = (isReturn && token) || savedOrder?.orderId;
     if (isReturn) {
       onShowToast('info', returned === 'cancelled'
-        ? 'El enlace indica cancelación. Consultaremos el estado real de la orden.'
-        : 'Has regresado de PayPal. Consultaremos el estado antes de continuar.', 'Regreso de PayPal');
+        ? copyRef.current.returnCancelled
+        : copyRef.current.returnApproved, copyRef.current.returnTitle);
     }
     if (isReturn || token) {
       url.searchParams.delete('paypal');
@@ -101,12 +109,12 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         setGuest(details.guest);
         if (result.status === 'paid') {
           try { sessionStorage.removeItem(`fiestapay_order_${slug}`); } catch { /* Optional. */ }
-          onShowToast('success', 'El servidor verificó que esta orden ya está pagada.', 'Pago confirmado');
+          onShowToast('success', copyRef.current.paidVerified, copyRef.current.paidTitle);
           return;
         }
         if (!['created', 'approved', 'capturing'].includes(result.status)) {
           try { sessionStorage.removeItem(`fiestapay_order_${slug}`); } catch { /* Optional. */ }
-          onShowToast('warning', 'Esta orden ya no admite pagos. Revisa una nueva cotización.', 'Orden cerrada');
+          onShowToast('warning', copyRef.current.orderClosed, copyRef.current.orderClosedTitle);
           return;
         }
         const recovered: OrderResult = {
@@ -117,7 +125,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         setActiveOrder(recovered);
         try { sessionStorage.setItem(`fiestapay_order_${slug}`, JSON.stringify(recovered)); } catch { /* Optional. */ }
       } catch {
-        if (active) onShowToast('warning', 'No pudimos verificar esta orden para tu invitación. No se confirmó ningún estado de pago.', 'Orden sin verificar');
+        if (active) onShowToast('warning', copyRef.current.orderUnverified, copyRef.current.orderUnverifiedTitle);
       }
     })();
     return () => { active = false; };
@@ -140,8 +148,8 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         setEvent(null);
         return;
       }
-      setLoadError(err?.message || 'No se pudo cargar la invitación');
-      onShowToast('error', err.message || 'No se pudo cargar la invitación', 'Error de carga');
+      setLoadError(err?.message || copyRef.current.loadFail);
+      onShowToast('error', err.message || copyRef.current.loadFail, copyRef.current.loadFailTitle);
     } finally {
       if (scope === scopeVersion.current) setIsLoading(false);
     }
@@ -164,7 +172,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
       setQuote(data.quote);
     } catch (err: any) {
       if (scope !== scopeVersion.current) return;
-      onShowToast('error', err.message || 'No se pudo calcular la cotización', 'Cotización');
+      onShowToast('error', err.message || copyRef.current.quoteFail, copyRef.current.quoteTitle);
     } finally {
       if (scope === scopeVersion.current) setIsLoadingQuote(false);
     }
@@ -184,10 +192,10 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
       const data = await api.joinEvent(slug, name);
       if (scope !== scopeVersion.current) return;
       setGuest(data.guest);
-      onShowToast('success', `¡Bienvenido/a, ${name}! Tu sesión está lista.`, 'Unido con éxito');
+      onShowToast('success', copyRef.current.welcomeGuest(name), copyRef.current.joinedTitle);
     } catch (err: any) {
       if (scope !== scopeVersion.current) return;
-      onShowToast('error', err.message || 'Error al unirte', 'Error');
+      onShowToast('error', err.message || copyRef.current.joinFail, copyRef.current.joinFailTitle);
     } finally {
       if (scope === scopeVersion.current) {
         setIsJoining(false);
@@ -197,7 +205,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
 
   const handleSaveRsvp = async (status: RsvpStatus, companions: number) => {
     if (guest?.blockedAt || guest?.removedAt) {
-      onShowToast('error', 'Esta sesion no puede cambiar la asistencia.', 'Acceso revocado');
+      onShowToast('error', copyRef.current.revokedRsvp, copyRef.current.revokedTitle);
       throw new Error('sesion revocada');
     }
     const scope = scopeVersion.current;
@@ -214,10 +222,10 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
       } catch {
         // Storage is optional; the active order remains in React state.
       }
-      onShowToast('success', 'Tu respuesta de asistencia fue actualizada en el servidor.', 'Asistencia guardada');
+      onShowToast('success', copyRef.current.rsvpSaved, copyRef.current.rsvpSavedTitle);
     } catch (err: any) {
       if (scope !== scopeVersion.current) return;
-      onShowToast('error', err.message || 'Error al guardar asistencia', 'Error de cupo');
+      onShowToast('error', err.message || copyRef.current.rsvpFail, copyRef.current.rsvpFailTitle);
       throw err;
     } finally {
       if (scope === scopeVersion.current) {
@@ -239,10 +247,10 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
       } catch {
         // Storage is optional; the active order remains in React state.
       }
-      onShowToast('info', 'Orden de pago generada. Procede a pagar con PayPal.', 'Orden Lista');
+      onShowToast('info', copyRef.current.orderReady, copyRef.current.orderReadyTitle);
     } catch (err: any) {
       if (scope !== scopeVersion.current) return;
-      onShowToast('error', err.message || 'No se pudo generar la orden de pago', 'Error de orden');
+      onShowToast('error', err.message || copyRef.current.orderFail, copyRef.current.orderFailTitle);
     } finally {
       if (scope === scopeVersion.current) {
         setIsCreatingOrder(false);
@@ -268,7 +276,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         // Reload event to get updated collectedCents
         await loadEvent();
         if (scope !== scopeVersion.current) return false;
-        onShowToast('success', '¡Tu pago fue verificado y capturado correctamente por el servidor!', '¡Pago confirmado!');
+        onShowToast('success', copyRef.current.captureOk, copyRef.current.captureOkTitle);
         return true;
       } else {
         if (res.guest) {
@@ -276,8 +284,8 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         }
         onShowToast(
           'warning',
-          `El servidor reporta el estado de la orden como "${res.status}". Si realizaste la transacción, verifica su conciliación nuevamente.`,
-          'Verificación de Pago'
+          copyRef.current.captureStatus(res.status),
+          copyRef.current.captureStatusTitle
         );
         return false;
       }
@@ -285,8 +293,8 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
       if (scope !== scopeVersion.current) return false;
       onShowToast(
         'error',
-        `No se pudo comprobar la captura con el servidor: ${err.message || 'Error de red'}. Puedes consultar el estado de tu orden para verificar si fue recibida.`,
-        'Estado no confirmado'
+        copyRef.current.captureCheckFail(err.message || copyRef.current.networkFallback),
+        copyRef.current.captureCheckFailTitle
       );
       throw err;
     }
@@ -309,14 +317,14 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         }
         await loadEvent();
         if (scope !== scopeVersion.current) return;
-        onShowToast('success', '¡La orden fue confirmada como pagada por el servidor!', 'Pago confirmado');
+        onShowToast('success', copyRef.current.reconcilePaid, copyRef.current.paidTitle);
       } else {
         if (res.guest) setGuest(res.guest);
-        onShowToast('info', `Estado actual de la orden en el servidor: "${res.status}".`, 'Consulta de Orden');
+        onShowToast('info', copyRef.current.reconcileStatus(res.status), copyRef.current.reconcileTitle);
       }
     } catch (err: any) {
       if (scope !== scopeVersion.current) return;
-      onShowToast('error', err.message || 'No se pudo consultar el estado de la orden', 'Error al verificar');
+      onShowToast('error', err.message || copyRef.current.reconcileFail, copyRef.current.reconcileFailTitle);
     } finally {
       if (scope === scopeVersion.current) setIsReconcilingOrder(false);
     }
@@ -329,18 +337,18 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
     } catch {
       // Dismissal still clears the in-memory order when storage is unavailable.
     }
-    onShowToast('info', 'Orden descartada de la sesión.', 'Sesión limpia');
+    onShowToast('info', copyRef.current.dismissOrder, copyRef.current.dismissTitle);
   };
 
   const handlePaymentCancelOrError = (msg: string) => {
-    onShowToast('warning', msg, 'Pago no completado');
+    onShowToast('warning', msg, copyRef.current.payIncompleteTitle);
   };
 
 
   if (isLoading) {
     return (
       <div className="panel" style={{ textAlign: 'center', padding: '4rem 1rem' }}>
-        <p style={{ color: 'var(--color-ink-muted)' }}>Cargando la invitación...</p>
+        <p style={{ color: 'var(--color-ink-muted)' }}>{m.loading}</p>
       </div>
     );
   }
@@ -348,16 +356,16 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   if (loadError && !event) {
     return (
       <div className="panel" style={{ textAlign: 'center', padding: '3rem 1rem', maxWidth: '560px', margin: '2rem auto' }}>
-        <h3>No se pudo cargar la invitación</h3>
+        <h3>{m.loadFail}</h3>
         <p role="alert" style={{ color: 'var(--color-ink-muted)', margin: '0.75rem 0 1.5rem 0' }}>
           {loadError}
         </p>
         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
           <button type="button" onClick={() => void loadEvent()} className="btn btn-primary">
-            Reintentar
+            {m.retry}
           </button>
           <button type="button" onClick={onNavigateHome} className="btn btn-secondary">
-            Ir al Inicio
+            {m.goHome}
           </button>
         </div>
       </div>
@@ -372,7 +380,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
       setNeedsCode(false);
       await loadEvent();
     } catch (err: unknown) {
-      onShowToast('error', err instanceof Error ? err.message : 'Codigo incorrecto', 'Acceso');
+      onShowToast('error', err instanceof Error ? err.message : copyRef.current.privateWrong, copyRef.current.privateToastTitle);
     } finally {
       setUnlocking(false);
     }
@@ -381,12 +389,12 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   if (needsCode && !event) {
     return (
       <form className="panel" onSubmit={(e) => void submitCode(e)} style={{ maxWidth: '420px', margin: '2rem auto' }}>
-        <h2>Esta invitación es privada</h2>
-        <p style={{ color: 'var(--color-ink-muted)', margin: '0.5rem 0 1rem' }}>Escribe el codigo que te dio quien organiza.</p>
-        <label className="form-label" htmlFor="private-code">Codigo de acceso</label>
+        <h2>{m.privateTitle}</h2>
+        <p style={{ color: 'var(--color-ink-muted)', margin: '0.5rem 0 1rem' }}>{m.privateHelp}</p>
+        <label className="form-label" htmlFor="private-code">{m.privateLabel}</label>
         <input id="private-code" className="form-input" value={accessCode} onChange={(e) => setAccessCode(e.target.value)} autoComplete="off" />
         <button type="submit" className="btn btn-primary" style={{ marginTop: '0.75rem' }} disabled={unlocking}>
-          {unlocking ? 'Comprobando...' : 'Entrar'}
+          {unlocking ? m.privateChecking : m.privateEnter}
         </button>
       </form>
     );
@@ -395,22 +403,22 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   if (!event) {
     return (
       <div className="panel" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-        <h3>Invitación no encontrada</h3>
+        <h3>{m.notFoundTitle}</h3>
         <p style={{ color: 'var(--color-ink-muted)', margin: '0.75rem 0 1.5rem 0' }}>
-          El enlace no corresponde a ninguna invitación activa.
+          {m.notFoundBody}
         </p>
         <button onClick={onNavigateHome} className="btn btn-primary">
-          Ir al Inicio
+          {m.goHome}
         </button>
       </div>
     );
   }
 
   const theme = resolveTheme(event.template, event.theme);
-  const copy = TEMPLATE_INVITE_COPY[event.template];
-  const whenLabel = formatEventRange(event.startsAt, event.endsAt);
-  const hostLine = organizerLine(event.organizerName);
-  const greeting = namedGreeting(event.organizerName);
+  const copy = templateInviteCopy(event.template, locale);
+  const whenLabel = formatEventRange(event.startsAt, event.endsAt, undefined, locale);
+  const hostLine = organizerLine(event.organizerName, locale);
+  const greeting = namedGreeting(event.organizerName, locale);
   const publicUrl = (() => {
     try {
       return publicInviteUrl(window.location.origin, event.slug);
@@ -428,7 +436,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
     priceCents: event.priceCents,
     inviteUrl: publicUrl,
     organizerName: event.organizerName,
-  });
+  }, locale);
   const activityBlocked = newGuestActivityBlocked(event);
   const sessionRevoked = Boolean(guest?.blockedAt || guest?.removedAt);
   const formsClosed = activityBlocked || sessionRevoked;
@@ -443,38 +451,38 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const paymentSteps = [
     {
       key: 'join',
-      label: 'Únete con tu nombre',
-      detail: joined ? 'Sesión de invitado lista.' : 'Escribe un alias para crear tu sesión.',
+      label: m.stepJoin,
+      detail: joined ? m.stepJoinDone : m.stepJoinTodo,
       done: joined,
       active: !joined,
       locked: false,
     },
     {
       key: 'rsvp',
-      label: 'Confirma tu asistencia',
-      detail: attendanceConfirmed ? 'Asistencia confirmada.' : 'Elige si vienes antes de calcular el importe.',
+      label: m.stepRsvp,
+      detail: attendanceConfirmed ? m.stepRsvpDone : m.stepRsvpTodo,
       done: attendanceConfirmed,
       active: joined && !attendanceConfirmed,
       locked: false,
     },
     {
       key: 'quote',
-      label: 'Revisa tu importe',
+      label: m.stepQuote,
       detail: quoteReviewed
-        ? `Importe revisado: ${usd(quote!.amountCents)} pendiente.`
-        : 'El servidor calculará el total y la diferencia.',
+        ? m.stepQuoteDone(formatMoney(quote!.amountCents))
+        : m.stepQuoteTodo,
       done: attendanceConfirmed && quoteReviewed,
       active: attendanceConfirmed && !quoteReviewed,
       locked: false,
     },
     {
       key: 'paypal',
-      label: 'Paga en PayPal Sandbox',
+      label: m.stepPay,
       detail: paidOrCovered
-        ? 'Sin saldo pendiente en esta vista.'
+        ? m.stepPayDone
         : activeOrder
-          ? 'Orden creada: revisa y confirma la captura en la tarjeta de PayPal.'
-          : 'Primero revisa y confirma el importe; el botón Quiero pagar no crea órdenes.',
+          ? m.stepPayOrder
+          : m.stepPayTodo(labels.wantToPay),
       done: paidOrCovered,
       active: attendanceConfirmed && quoteReviewed && !paidOrCovered,
       locked: formsClosed && !activeOrder,
@@ -521,20 +529,20 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
     <ThemeScope theme={theme}>
     <div className="invite-shell">
       {/* Main Signature Invitation Ticket */}
-      <article className="ticket-card" aria-label={`Invitación: ${event.title}`}>
+      <article className="ticket-card" aria-label={m.inviteAria(event.title)}>
         {/* Cover illustration */}
         <TemplateCover template={event.template} accent={theme.accent} height="200px" />
 
         {/* Header Section */}
         <div style={{ padding: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <span className="badge badge-blue">Cuota Fija: {usd(event.priceCents)} por persona</span>
+            <span className="badge badge-blue">{m.quotaBadge(formatMoney(event.priceCents))}</span>
             {event.fundingStatus === 'failed' ? (
-              <span className="badge badge-coral">Mínimo no alcanzado a tiempo</span>
+              <span className="badge badge-coral">{m.badgeFailed}</span>
             ) : event.confirmed ? (
-              <span className="badge badge-teal">Invitación confirmada ✓</span>
+              <span className="badge badge-teal">{m.badgeConfirmed}</span>
             ) : event.fundingStatus === 'funded' ? (
-              <span className="badge badge-blue">Umbral de financiamiento alcanzado</span>
+              <span className="badge badge-blue">{m.badgeFunded}</span>
             ) : null}
           </div>
 
@@ -558,14 +566,14 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
           <div className="invite-facts">
             <div>
               <span style={{ color: 'var(--color-ink-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
-                INICIO Y FIN
+                {m.factStartEnd}
               </span>
               <strong style={{ color: 'var(--color-ink)' }}>{whenLabel}</strong>
             </div>
 
             <div>
               <span style={{ color: 'var(--color-ink-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
-                LUGAR
+                {m.factPlace}
               </span>
               <strong style={{ color: 'var(--color-ink)' }}>{event.location}</strong>
             </div>
@@ -573,18 +581,18 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
             {event.template === 'comida' ? (
               <div>
                 <span style={{ color: 'var(--color-ink-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
-                  TIPO DE COMIDA
+                  {m.factMeal}
                 </span>
-                <strong style={{ textTransform: 'capitalize', color: 'var(--color-ink)' }}>{event.meal}</strong>
+                <strong style={{ textTransform: 'capitalize', color: 'var(--color-ink)' }}>{mealLabel(event.meal, locale)}</strong>
               </div>
             ) : null}
 
             <div>
               <span style={{ color: 'var(--color-ink-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600 }}>
-                ASISTENCIA
+                {m.factAttendance}
               </span>
               <strong style={{ color: 'var(--color-ink)' }}>
-                {attendanceSummary({ paidPeople: event.paidPeople, capacity: event.capacity })}
+                {attendanceSummary({ paidPeople: event.paidPeople, capacity: event.capacity }, locale)}
               </strong>
             </div>
           </div>
@@ -598,14 +606,14 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
               className="btn btn-secondary"
               style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
             >
-              📍 Ver en Google Maps
+              {m.mapsCta}
             </a>
             <button
               onClick={() => setShowQrModal(true)}
               className="btn btn-secondary"
               style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
             >
-              📲 Código QR / Compartir
+              {m.qrCta}
             </button>
           </div>
         </div>
@@ -618,7 +626,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
           {event.includes.length > 0 && (
             <div style={{ marginBottom: '1.25rem' }}>
               <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', color: 'var(--color-ink)' }}>
-                ¿Qué incluye tu cuota?
+                {m.includesTitle}
               </h3>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                 {event.includes.map((item: string, idx: number) => (
@@ -643,7 +651,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
           {event.agenda && event.agenda.length > 0 && (
             <div>
               <h3 style={{ fontSize: '1rem', marginBottom: '0.65rem', color: 'var(--color-ink)' }}>
-                Programa de la invitación
+                {m.agendaTitle}
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {event.agenda.map((ag: AgendaItem, i: number) => (
@@ -653,7 +661,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
                       <span style={{ color: 'var(--color-ink)' }}>{ag.title}</span>
                       {ag.speaker && (
                         <span style={{ fontSize: '0.75rem', color: 'var(--color-ink-muted)' }}>
-                          Expositor: {ag.speaker}
+                          {m.speakerLabel(ag.speaker)}
                         </span>
                       )}
                     </div>
@@ -680,21 +688,17 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         <div ref={paymentFocusRef} style={{ padding: '1.5rem', backgroundColor: '#FAFCFE' }}>
           {activityBlocked && (
             <p className="funding-stopped-banner" role="status" style={{ marginBottom: '1rem' }}>
-              {event.fundingStatus === 'failed'
-                ? 'No se admiten nuevas asistencias ni pagos: el mínimo no se alcanzó a tiempo. Si ya tenías una orden de PayPal, puedes verificar su captura real abajo.'
-                : 'Las inscripciones están cerradas. No se admiten asistencias ni pagos nuevos. Si ya tenías una orden de PayPal, puedes verificar su captura real abajo.'}
+              {event.fundingStatus === 'failed' ? m.blockedFailed : m.blockedClosed}
             </p>
           )}
           {sessionRevoked && (
             <p className="session-revoked-banner" role="status" style={{ marginBottom: '1rem' }}>
-              {guest?.removedAt
-                ? 'Tu participación fue retirada. El abono ya registrado sigue visible y no se reembolsa solo. Si un pago sigue en verificación, espera a que se concilie antes de reintentar el retiro.'
-                : 'Esta sesión no puede confirmar asistencia, chatear, usar voz ni iniciar un pago nuevo. Si ya había un cobro en curso, verifica su estado real abajo. El recibo de lo abonado sigue visible.'}
+              {guest?.removedAt ? m.revokedRemoved : m.revokedBlocked}
             </p>
           )}
 
           <section
-            aria-label="Pasos para pagar con PayPal"
+            aria-label={m.stepperAria}
             data-testid="paypal-stepper"
             style={{
               backgroundColor: '#FFFFFF',
@@ -708,9 +712,9 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
             }}
           >
             <div>
-              <h3 style={{ fontSize: '1.05rem', color: 'var(--color-ink)', marginBottom: '0.2rem' }}>Tu camino al pago</h3>
+              <h3 style={{ fontSize: '1.05rem', color: 'var(--color-ink)', marginBottom: '0.2rem' }}>{m.stepperTitle}</h3>
               <p style={{ fontSize: '0.825rem', color: 'var(--color-ink-muted)' }}>
-                PayPal Sandbox, sin dinero real. Cada paso se completa en esta misma invitación.
+                {m.stepperSub}
               </p>
             </div>
             <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: '0.5rem' }}>
@@ -757,7 +761,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
             </ol>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '0.75rem', color: 'var(--color-ink-muted)' }}>
-                Este botón solo te lleva al primer paso pendiente; no crea ni captura una orden.
+                {m.ctaNote}
               </span>
               <button
                 type="button"
@@ -767,13 +771,11 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
                 aria-describedby="quiero-pagar-help"
                 style={{ flex: '0 0 auto' }}
               >
-                {paidOrCovered ? 'Sin saldo pendiente' : activeOrder ? 'Revisar pago' : 'Quiero pagar'}
+                {paidOrCovered ? m.ctaPaid : activeOrder ? m.ctaReview : labels.wantToPay}
               </button>
             </div>
             <span id="quiero-pagar-help" style={{ fontSize: '0.75rem', color: 'var(--color-ink-muted)' }}>
-              {formsClosed && !activeOrder
-                ? 'Las inscripciones o pagos nuevos están cerrados para esta invitación.'
-                : 'Revisa el importe calculado por el servidor antes de confirmar cualquier pago.'}
+              {formsClosed && !activeOrder ? m.ctaHelpClosed : m.ctaHelpOpen}
             </span>
           </section>
 
@@ -794,12 +796,12 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--color-ink-muted)' }}>Sesión activa:</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--color-ink-muted)' }}>{m.sessionActive}</div>
                   <strong style={{ fontSize: '1.05rem', color: 'var(--color-ink)' }}>{guest.name}</strong>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-ink-muted)' }}>Abonado:</div>
-                  <strong style={{ color: 'var(--color-teal)', fontSize: '0.95rem' }}>{usd(guest.paidCents)}</strong>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-ink-muted)' }}>{m.paidBack}</div>
+                  <strong style={{ color: 'var(--color-teal)', fontSize: '0.95rem' }}>{formatMoney(guest.paidCents)}</strong>
                 </div>
               </div>
 
@@ -840,7 +842,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
                       }}
                     >
                       <div>
-                        <span style={{ fontWeight: 700, color: 'var(--color-ink)' }}>Orden activa registrada: </span>
+                        <span style={{ fontWeight: 700, color: 'var(--color-ink)' }}>{m.activeOrder}</span>
                         <code>#{activeOrder.orderId.slice(0, 8)}</code>
                       </div>
                       <div style={{ display: 'flex', gap: '0.4rem' }}>
@@ -851,7 +853,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
                           className="btn btn-teal"
                           style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
                         >
-                          {isReconcilingOrder ? 'Consultando...' : '🔍 Verificar Estado'}
+                          {isReconcilingOrder ? m.orderChecking : `🔍 ${labels.verifyStatus}`}
                         </button>
                         <button
                           type="button"
@@ -859,7 +861,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
                           className="btn btn-secondary"
                           style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
                         >
-                          Descartar
+                          {m.orderDismiss}
                         </button>
                       </div>
                     </div>
@@ -902,7 +904,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         eventClosed={activityBlocked}
         onApplyQuote={(q) => {
           setQuote(q);
-          onShowToast('info', 'Cotización sugerida por el asistente cargada. Revisa los detalles en pantalla.', 'Cotización');
+          onShowToast('info', copyRef.current.assistantQuote, copyRef.current.quoteTitle);
         }}
         onConfirmRsvp={handleSaveRsvp}
         onShowToast={onShowToast}

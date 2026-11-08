@@ -1,4 +1,4 @@
-import { ORGANIZER_NAME_MAX, TEMPLATE_THEMES, themeBelongs } from '@fiestapay/shared';
+import { DEMO_KINDS, ORGANIZER_NAME_MAX, TEMPLATE_THEMES, themeBelongs } from '@fiestapay/shared';
 import { z } from 'zod';
 import { badRequest } from '../errors.js';
 
@@ -106,6 +106,9 @@ export const rsvpSchema = z.object({
   status: z.enum(['yes', 'no', 'maybe']),
   companions: z.number().int().min(0).max(MAX_COMPANIONS),
 });
+
+/** Optional body for POST /demo. Absent or empty keeps the historical reuse behaviour. */
+export const demoBodySchema = z.object({ kind: z.enum(DEMO_KINDS).optional() }).strict();
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

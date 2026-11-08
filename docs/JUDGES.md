@@ -2,18 +2,27 @@
 
 **FiestaPay helps an organizer create a gathering, share its invitation, track attendance and collect a fixed contribution per person through PayPal.** Open the [live application](https://fiestapay.somospanas.com/).
 
-**All payments in this demo use PayPal Sandbox. No real money is charged or transferred. Do not use a personal PayPal account or a real card.** A sandbox capture credits the shared Business test account. **✓ Confirmar Realización** changes the application's event status; it does not release escrow or trigger a payout.
+**All payments in this demo use PayPal Sandbox. No real money is charged or transferred. Do not use a personal PayPal account or a real card.** A sandbox capture credits the shared Business test account. **✓ Confirm Event** (Spanish: **✓ Confirmar Realización**) changes the application's event status; it does not release escrow or trigger a payout.
+
+**English or Spanish.** The interface is available in both languages. Use the **Language** selector in the header, or open the [Judges demo in English](https://fiestapay.somospanas.com/demo?lang=en); the choice is remembered in this browser. Spanish is the default. Amounts are always USD and event times are always shown in the event time zone (America/Guayaquil). Text written by organizers and guests is never translated.
+
+> Release note: the bilingual interface and the separate **Judges demo** described in this section ship with the `claude/bilingual-judge-demo-20261107` pull request. Until that release is approved and deployed, the live site keeps the previous Spanish two-card home page described in the historical evidence below.
 
 ## Three-minute walkthrough
 
-### See the product immediately
+### Judges demo: see the product immediately
 
-1. In the **Explora la demo** card, select **Ver panel de ejemplo (AG Grid)**, or open the [read-only example panel](https://fiestapay.somospanas.com/demo). It uses the real AG Grid component: search for a guest, sort a column and inspect attendance/payment states. All ten rows and amounts are clearly labelled fictional; they are not evidence of captured payments. No organizer key or account is needed for this example.
-2. Select **Crear mi demo privada** to create your own sandbox gathering and open its authorized organizer panel. Save its organizer link, then open the separate public invitation. Existing personal invitations are in the collapsed history; no tester records have been deleted to tidy the home page.
-3. For the shortest payment route, choose **Probar pago con PayPal**. This explicit action prepares your own fictional meal and a guest with one companion. On the invitation, use **Ver cuenta de prueba**, then **Copiar correo** and **Copiar contraseña** for the dedicated shared **Personal sandbox** buyer. Review the server quote **2 × USD 25 = USD 50**, confirm it and approve checkout personally on PayPal Sandbox. The app never logs in or approves automatically.
-4. The separate **Prueba en vivo** card creates your own gathering with your chosen details. The application works normally; payments still use **Sandbox**, without real money. **Quiero pagar** on any invitation takes you to the first missing step and does not create or charge an order.
+The home page explains the product and lets anyone **Create my invitation**. Everything for judges lives in the separate **Judges demo** (`/demo`), a guided three-step tour with fictional data, PayPal Sandbox and no real money. Demo records are marked as demos on the server and kept apart from your own invitations.
 
-The single **FiestaPay orb** opens **Escribir** (text) or **Hablar** (voice). Public help needs no event. Voice requires consent and an explicit start; switching to text or closing the orb stops voice. The public text conversation belongs only to the current open window. Messages are processed by OpenAI, and the server keeps consumption metadata without storing public message contents. Event-specific and organizer conversations retain their separate permissions. Organizer-link recovery is unchanged at [Recover access](https://fiestapay.somospanas.com/recover).
+1. **Step 1 — View sample dashboard (AG Grid).** The read-only panel on `/demo` uses the real AG Grid component: search for a guest, sort a column and inspect attendance/payment states. All ten rows and amounts are labelled fictional; they are not evidence of captured payments. No organizer key or account is needed.
+2. **Step 2 — Try a PayPal payment.** This explicit action creates a fictional demo meal, joins it as **Demo Guest** with one companion and opens the normal invitation. Use **Show test account**, then **Copy email** and **Copy password** for the dedicated shared **Personal sandbox** buyer. Review the server quote **2 × $25.00 = $50.00**, tick the review box, use **Confirm and Create Payment ($50.00)** and approve checkout personally on PayPal Sandbox; back in FiestaPay use **Check / Continue Capture** on the same order if needed. The app never logs in or approves automatically, and nothing is marked paid until the server verifies the capture.
+3. **Step 3 — Talk to the assistant.** The **FiestaPay orb** opens **Type** (text) or **Talk** (voice) and answers in the selected language.
+4. **Create my private demo** opens your own demo organizer dashboard. **My demos** lists the demos created in this browser, and **Reset my demos** archives only those demos — never your own invitations or anyone else's.
+5. Back on the home page, **Create my invitation** creates your own gathering with your chosen details. It works normally, but payments still use **Sandbox**, without real money. **I want to pay** on any invitation only takes you to the first missing step; it does not create or charge an order.
+
+The public assistant keeps the home-page and Judges-demo conversations separate and has no access to any event's private data. Voice requires consent and an explicit start; switching to text, closing the orb or changing the language stops voice. The public text conversation belongs only to the current open window. Messages are processed by OpenAI, and the server keeps consumption metadata without storing public message contents. Event-specific guest and organizer conversations keep their separate permissions. Organizer-link recovery is unchanged at [Recover access](https://fiestapay.somospanas.com/recover).
+
+**Voice languages.** Voice uses the AssemblyAI Voice Agent API with Spanish recognition and the Spanish voice *lola*, or English recognition and the English voice *jane* when English is selected. Both languages are officially supported by the provider, but English voice has not yet been verified with a live session, and Spanish has only been exercised with a synthetic microphone; physical-phone audio remains unverified.
 
 ### Full sandbox payment route
 
@@ -41,7 +50,7 @@ The earlier accepted payment used source **60593db** (486 tests, CI `41868819343
 
 The earlier 29 October browser matrix for source `8e13ae6` recorded 12/14 accepted points, with voice points 12 and 13 partial. That matrix is historical and does not describe the current source. Physical-phone Spanish voice, including a measured three-minute session, and a full unassisted human walkthrough remain pending.
 
-Open [FiestaPay](https://fiestapay.somospanas.com/) on a phone or desktop browser. The interface is Spanish; translations appear below. **No Google account, personal email, real PayPal account or real card is required.** Use fictional names throughout.
+Open [FiestaPay](https://fiestapay.somospanas.com/) on a phone or desktop browser. The detailed steps below use the Spanish labels of the previous release, with English translations; in the bilingual release select **English** to see the English labels directly. **No Google account, personal email, real PayPal account or real card is required.** Use fictional names throughout.
 
 ## Before testing checkout
 
