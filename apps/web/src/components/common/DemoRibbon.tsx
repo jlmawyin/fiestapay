@@ -1,5 +1,7 @@
 import React from 'react';
 import type { Capabilities } from '../../types';
+import { useMessages } from '../../i18n/I18nContext';
+import { ribbonCatalog } from '../../i18n/catalogs/ribbon';
 
 export type DemoRibbonStatus = 'loading' | 'ready' | 'unavailable';
 
@@ -21,13 +23,14 @@ const statusClusterStyle: React.CSSProperties = {
 export const DemoRibbon: React.FC<DemoRibbonProps> = ({ capabilities, status, onRetry }) => {
   const resolvedStatus: DemoRibbonStatus = status ?? 'ready';
   const chatAvailable = Boolean(capabilities?.chat);
+  const m = useMessages(ribbonCatalog);
 
   return (
-    <div className="demo-ribbon" role="region" aria-label="Aviso de modo sandbox y pagos de prueba">
+    <div className="demo-ribbon" role="region" aria-label={m.regionLabel}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-        <span className="demo-ribbon-badge">PAGO DE PRUEBA</span>
+        <span className="demo-ribbon-badge">{m.badge}</span>
         <span>
-          PayPal sandbox · Sin dinero real
+          {m.sandboxLine}
         </span>
       </div>
       {resolvedStatus === 'loading' ? (
@@ -40,7 +43,7 @@ export const DemoRibbon: React.FC<DemoRibbonProps> = ({ capabilities, status, on
         >
           <span className="demo-ribbon-skel" aria-hidden="true" />
           <span className="demo-ribbon-skel demo-ribbon-skel-short" aria-hidden="true" />
-          <span className="demo-ribbon-sr">Comprobando PayPal y chat</span>
+          <span className="demo-ribbon-sr">{m.checking}</span>
         </div>
       ) : resolvedStatus === 'unavailable' ? (
         <div
@@ -49,20 +52,20 @@ export const DemoRibbon: React.FC<DemoRibbonProps> = ({ capabilities, status, on
           aria-live="polite"
           style={statusClusterStyle}
         >
-          <span>PayPal: No disponible</span>
+          <span>{m.paypalUnavailable}</span>
           <span>•</span>
-          <span>Chat: No disponible</span>
+          <span>{m.chatUnavailable}</span>
           {onRetry ? (
             <button type="button" className="demo-ribbon-retry" onClick={onRetry}>
-              Reintentar
+              {m.retry}
             </button>
           ) : null}
         </div>
       ) : (
         <div className="demo-ribbon-status" style={statusClusterStyle}>
-          <span>PayPal: {capabilities?.paypal ? 'Configurado' : 'No configurado'}</span>
+          <span>{capabilities?.paypal ? m.paypalConfigured : m.paypalMissing}</span>
           <span>•</span>
-          <span>Chat: {chatAvailable ? 'Configurado' : 'Desactivado'}</span>
+          <span>{chatAvailable ? m.chatConfigured : m.chatOff}</span>
         </div>
       )}
     </div>

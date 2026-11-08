@@ -1,4 +1,6 @@
 import React, { useEffect } from 'react';
+import { useMessages } from '../../i18n/I18nContext';
+import { modalCatalog } from '../../i18n/catalogs/modal';
 
 interface ModalProps {
   isOpen: boolean;
@@ -17,6 +19,7 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   maxWidth = '560px',
 }) => {
+  const m = useMessages(modalCatalog);
   useEffect(() => {
     if (!isOpen) return;
 
@@ -67,7 +70,7 @@ export const Modal: React.FC<ModalProps> = ({
             onClick={onClose}
             className="btn btn-secondary"
             style={{ padding: '0.25rem 0.6rem', fontSize: '1.1rem', lineHeight: 1 }}
-            aria-label="Cerrar modal"
+            aria-label={m.close}
           >
             ×
           </button>

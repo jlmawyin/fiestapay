@@ -7,7 +7,7 @@ import { JudgePreviewView } from '../views/JudgePreviewView';
 import { OrganizerHomeView } from '../views/OrganizerHomeView';
 import { PublicInviteView } from '../views/PublicInviteView';
 import type { Capabilities, CreatedEvent, FiestaEvent, Guest, Quote } from '../types';
-import { formatEventRange, privateDemoEventInput } from '../lib/event-presentation';
+import { formatEventRange } from '../lib/event-presentation';
 
 vi.mock('ag-grid-react', () => ({
   AgGridReact: ({ rowData }: { rowData: Array<{ id: string; name: string }> }) => (
@@ -85,6 +85,7 @@ describe('read-only AG Grid discovery preview', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     render(<JudgePreviewView onCreateDemo={vi.fn()} onBack={vi.fn()} />);
 
+    expect(screen.getByText('Datos ficticios · Sandbox · Sin dinero real')).toBeInTheDocument();
     expect(screen.getByText(/Datos ficticios de ejemplo — vista de solo lectura/i)).toBeInTheDocument();
     expect(screen.getByText(/no son capturas reales de PayPal/i)).toBeInTheDocument();
     expect(screen.getByText('Ana Ficticia')).toBeInTheDocument();
@@ -93,33 +94,41 @@ describe('read-only AG Grid discovery preview', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('guards the two private-demo CTAs with one in-flight submission', async () => {
-    const pending = deferred<void>();
-    const onCreateDemo = vi.fn(() => pending.promise);
-    render(<JudgePreviewView onCreateDemo={onCreateDemo} onBack={vi.fn()} />);
+  it('guards each demo CTA with its own in-flight submission', async () => {
+    const pendingPrivate = deferred<void>();
+    const pendingPayment = deferred<void>();
+    const onCreateDemo = vi.fn(() => pendingPrivate.promise);
+    const onStartPaymentDemo = vi.fn(() => pendingPayment.promise);
+    render(<JudgePreviewView onCreateDemo={onCreateDemo} onStartPaymentDemo={onStartPaymentDemo} onBack={vi.fn()} />);
 
     const create = screen.getByRole('button', { name: 'Crear mi demo privada' });
-    const paypal = screen.getByRole('button', { name: 'Probar PayPal Sandbox' });
+    const pay = screen.getByRole('button', { name: 'Probar pago con PayPal' });
     fireEvent.click(create);
     fireEvent.click(create);
-    fireEvent.click(paypal);
+    fireEvent.click(pay);
+    fireEvent.click(pay);
 
+    // Each tour calls its own handler once: the payment entry never opens the panel.
     expect(onCreateDemo).toHaveBeenCalledTimes(1);
+    expect(onStartPaymentDemo).toHaveBeenCalledTimes(1);
     expect(create).toBeDisabled();
-    expect(paypal).toBeDisabled();
+    expect(pay).toBeDisabled();
 
     await act(async () => {
-      pending.resolve();
+      pendingPrivate.resolve();
+      pendingPayment.resolve();
     });
     expect(create).toBeEnabled();
+    expect(pay).toBeEnabled();
   });
 
-  it('creates a fresh createEvent demo, stores the key, and opens the owner panel', async () => {
+  it('creates a fresh server demo, stores the key, and opens the owner panel', async () => {
     const createdEvent = sampleEvent({ id: 'fresh-demo', slug: 'almuerzo-demo' });
     const created: CreatedEvent = { event: createdEvent, adminKey: 'clave-demo-fresca' };
     vi.spyOn(api, 'getCapabilities').mockResolvedValue(capabilities);
     vi.spyOn(api, 'getOrganizerEvents').mockResolvedValue({ events: [] });
-    const createEvent = vi.spyOn(api, 'createEvent').mockResolvedValue(created);
+    const createDemo = vi.spyOn(api, 'createDemo').mockResolvedValue(created);
+    const createEvent = vi.spyOn(api, 'createEvent');
     const getDashboard = vi.spyOn(api, 'getDashboard').mockResolvedValue({ event: createdEvent, guests: [], audit: [] });
     vi.spyOn(api, 'getModerationGuests').mockResolvedValue({ guests: [] });
     vi.spyOn(api, 'getModerationConversations').mockResolvedValue({ conversations: [] });
@@ -131,61 +140,33 @@ describe('read-only AG Grid discovery preview', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Crear mi demo privada' }));
 
-    await waitFor(() => expect(createEvent).toHaveBeenCalledTimes(1));
-    const input = createEvent.mock.calls[0]![0];
-    expect(input.title).toBe('Almuerzo de demostración');
-    expect(input.template).toBe('comida');
-    expect(input.meal).toBe('almuerzo');
-    expect(input.priceCents).toBe(2500);
-    expect(input.capacity).toBe(8);
-    expect(input.minimumCents).toBe(5000);
-    expect(input.goalCents).toBe(20000);
-    expect(input.location.toLowerCase()).toContain('ficticio');
-    expect(Date.parse(input.startsAt)).toBeGreaterThan(Date.now());
-    expect(Date.parse(input.endsAt)).toBeGreaterThan(Date.parse(input.startsAt));
-    expect(Date.parse(input.fundingDeadlineAt!)).toBeGreaterThan(Date.now());
-    expect(Date.parse(input.fundingDeadlineAt!)).toBeLessThanOrEqual(Date.parse(input.startsAt));
+    await waitFor(() => expect(createDemo).toHaveBeenCalledTimes(1));
+    expect(createDemo).toHaveBeenCalledWith('private');
 
     await waitFor(() => expect(window.location.pathname).toBe('/e/almuerzo-demo/admin'));
     expect(localStorage.getItem('fp_admin_almuerzo-demo')).toBe('clave-demo-fresca');
     expect(getDashboard).toHaveBeenCalledWith('almuerzo-demo');
+    expect(createEvent).not.toHaveBeenCalled();
     expect(resetDemo).not.toHaveBeenCalled();
     expect(createDemoEvent).not.toHaveBeenCalled();
   });
-
-  it('keeps the private demo input future-safe and independent of historical dates', () => {
-    const now = new Date('2026-11-04T22:01:00.000Z');
-    const input = privateDemoEventInput(now);
-    expect(input.title).toBe('Almuerzo de demostración');
-    expect(input.priceCents).toBe(2500);
-    expect(input.capacity).toBe(8);
-    expect(input.goalCents).toBe(20000);
-    expect(input.minimumCents).toBe(5000);
-    expect(Date.parse(input.startsAt)).toBeGreaterThan(now.getTime());
-    expect(Date.parse(input.fundingDeadlineAt!)).toBeGreaterThan(now.getTime());
-    expect(Date.parse(input.fundingDeadlineAt!)).toBeLessThanOrEqual(Date.parse(input.startsAt));
-  });
 });
 
-describe('home discovery journey and organizer safety', () => {
-  it('shows the two home cards, three demo actions, recovery and the sandbox note early', async () => {
+describe('landing journey and organizer safety', () => {
+  it('shows the product landing, both CTAs, recovery and the sandbox note', async () => {
     vi.spyOn(api, 'getCapabilities').mockResolvedValue(capabilities);
     vi.spyOn(api, 'getOrganizerEvents').mockResolvedValue({ events: [] });
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /Organiza tus invitaciones/i })).toBeInTheDocument();
-    const demo = screen.getByRole('article', { name: 'Explora la demo' });
-    const live = screen.getByRole('article', { name: 'Prueba en vivo' });
-    expect(within(demo).getByRole('button', { name: 'Ver panel de ejemplo (AG Grid)' })).toBeInTheDocument();
-    expect(within(demo).getByRole('button', { name: 'Crear mi demo privada' })).toBeInTheDocument();
-    expect(within(demo).getByRole('button', { name: 'Probar pago con PayPal' })).toBeInTheDocument();
-    expect(within(live).getByText(/La aplicación es real/i)).toBeInTheDocument();
-    expect(within(live).getByText('SANDBOX')).toBeInTheDocument();
-    expect(within(live).getByRole('button', { name: '+ Crear mi propia fiesta' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Recuperar mi enlace' })).toBeInTheDocument();
-    const emptyHistory = screen.getByText('No tienes ninguna invitación creada aún');
-    expect(emptyHistory.closest('details')).not.toHaveAttribute('open');
-    expect(screen.getByText('Opciones de demostración')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Crea tu invitación y aclara los pagos/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Crear mi invitación' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: 'Demo para jueces' }).length).toBeGreaterThan(0);
+    expect(screen.getByText('Sandbox · Sin dinero real')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reunión de excompañeros de colegio' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Comida con excompañeros de trabajo' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Mis invitaciones' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Recuperar mi enlace' }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'Reiniciar mis demos' })).toBeNull();
     expect(screen.getByTestId('assistant-orb')).toBeInTheDocument();
   });
 
@@ -196,7 +177,8 @@ describe('home discovery journey and organizer safety', () => {
     const getDashboard = vi.spyOn(api, 'getDashboard');
     render(<App />);
 
-    fireEvent.click(await screen.findByText('Recuperar enlace'));
+    const section = await screen.findByRole('region', { name: 'Mis invitaciones' });
+    fireEvent.click(within(section).getByRole('button', { name: 'Recuperar mi enlace' }));
     expect(window.location.pathname).toBe('/recover');
     expect(getDashboard).not.toHaveBeenCalled();
   });

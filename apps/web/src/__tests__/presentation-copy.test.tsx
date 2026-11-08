@@ -20,6 +20,20 @@ vi.mock('../components/assistant/AssistantOrb', () => ({
   AssistantOrb: () => <div data-testid="assistant-orb" />,
 }));
 
+vi.mock('ag-grid-react', () => ({
+  AgGridReact: ({ rowData }: { rowData: Array<{ id: string; name: string }> }) => (
+    <table data-testid="judge-grid">
+      <tbody>
+        {rowData.map((row) => (
+          <tr key={row.id}>
+            <td>{row.name}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  ),
+}));
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -76,13 +90,9 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-/** Current home keeps reset inside the secondary demo options disclosure. */
-function openDemoOptions() {
-  const summary = screen.getByText('Opciones de demostración');
-  const details = summary.closest('details');
-  fireEvent.click(summary);
-  if (details && !details.hasAttribute('open')) details.setAttribute('open', '');
-  return details;
+/** The demos-only reset lives on /demo behind a confirmation modal. */
+async function openDemoResetModal() {
+  fireEvent.click(await screen.findByRole('button', { name: 'Reiniciar mis demos' }));
 }
 
 describe('neutral presentation copy', () => {
@@ -93,6 +103,10 @@ describe('neutral presentation copy', () => {
     expect(within(nav).getByRole('button', { name: 'Mis invitaciones' })).toBeInTheDocument();
     expect(within(nav).getByRole('button', { name: '+ Nueva invitación' })).toBeInTheDocument();
     expect(within(nav).queryByRole('button', { name: /fiesta/i })).toBeNull();
+    expect(within(nav).getByLabelText('Idioma')).toBeInTheDocument();
+    cleanup();
+    render(<Header onNavigateHome={vi.fn()} onNavigateCreate={vi.fn()} onNavigateDemo={vi.fn()} />);
+    expect(screen.getByRole('navigation').textContent).toContain('Demo para jueces');
   });
 
   it('uses invitation headings before a type is published and still opens the panel with the slug', async () => {
@@ -135,7 +149,7 @@ describe('neutral presentation copy', () => {
     expect(onEventCreated).toHaveBeenCalledWith('ruta-banos');
   });
 
-  it('offers both home cards and keeps reset inside secondary demo options', () => {
+  it('offers the product landing with both CTAs and keeps reset out of it', () => {
     render(
       <OrganizerHomeView
         events={[]}
@@ -148,38 +162,36 @@ describe('neutral presentation copy', () => {
         isResetting={false}
       />,
     );
-    expect(screen.getByRole('heading', { name: 'Organiza tus invitaciones, claridad en cada cuota' })).toBeInTheDocument();
-    const demo = screen.getByRole('article', { name: 'Explora la demo' });
-    const live = screen.getByRole('article', { name: 'Prueba en vivo' });
-    expect(within(demo).getByRole('button', { name: 'Crear mi demo privada' })).toBeInTheDocument();
-    expect(within(live).getByRole('button', { name: '+ Crear mi propia fiesta' })).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Crear mi demo privada' })).toHaveLength(2);
-
-    openDemoOptions();
-    fireEvent.click(screen.getByRole('button', { name: 'Reiniciar Demo' }));
-    expect(screen.getByText('Esta acción afectará las invitaciones creadas en esta sesión de organizador.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sí, Reiniciar Demo' })).toBeInTheDocument();
-    expect(within(live).getByRole('button', { name: '+ Crear mi propia fiesta' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Crea tu invitación y aclara los pagos desde el inicio' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Crear mi invitación' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Reunión de excompañeros de colegio' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Mis invitaciones' })).toBeInTheDocument();
+    expect(screen.getByText('Sandbox · Sin dinero real')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reiniciar mis demos' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reiniciar Demo' })).toBeNull();
+    expect(screen.queryByText(/\bfiesta\b/i)).toBeNull();
   });
 
   it('prints the fresh demo title without a client amount', async () => {
     vi.spyOn(api, 'getCapabilities').mockResolvedValue(caps);
     vi.spyOn(api, 'getOrganizerEvents').mockResolvedValue({ events: [] });
     const created = event();
-    const createEvent = vi.spyOn(api, 'createEvent').mockResolvedValue({ event: created, adminKey: 'clave-demo' });
-    const createDemo = vi.spyOn(api, 'createDemoEvent');
+    const createDemo = vi.spyOn(api, 'createDemo').mockResolvedValue({ event: created, adminKey: 'clave-demo' });
+    const legacyDemo = vi.spyOn(api, 'createDemoEvent');
+    const createEvent = vi.spyOn(api, 'createEvent');
     vi.spyOn(api, 'getDashboard').mockResolvedValue({ event: created, guests: [], audit: [] });
     vi.spyOn(api, 'getModerationGuests').mockResolvedValue({ guests: [] });
     vi.spyOn(api, 'getModerationConversations').mockResolvedValue({ conversations: [] });
 
+    window.history.replaceState({}, '', '/demo');
     render(<App />);
     await waitFor(() => expect(api.getOrganizerEvents).toHaveBeenCalled());
-    await waitFor(() => expect(screen.queryByText(/Cargando tus invitaciones/)).toBeNull());
-    const demo = screen.getByRole('article', { name: 'Explora la demo' });
-    fireEvent.click(within(demo).getByRole('button', { name: 'Crear mi demo privada' }));
-    await waitFor(() => expect(createEvent).toHaveBeenCalledTimes(1));
+    fireEvent.click(await screen.findByRole('button', { name: 'Crear mi demo privada' }));
+    await waitFor(() => expect(createDemo).toHaveBeenCalledTimes(1));
+    expect(createDemo).toHaveBeenCalledWith('private');
     expect(await screen.findByText('Demo privada "Ruta a Baños" creada. Ya puedes probar PayPal Sandbox.')).toBeInTheDocument();
-    expect(createDemo).not.toHaveBeenCalled();
+    expect(legacyDemo).not.toHaveBeenCalled();
+    expect(createEvent).not.toHaveBeenCalled();
     expect(screen.queryByText(/Cuota \$25/)).toBeNull();
     expect(screen.queryByText(/fiesta de demostración/i)).toBeNull();
   });
@@ -187,20 +199,19 @@ describe('neutral presentation copy', () => {
   it('uses the fresh demo error and secondary reset lines without saying real invitations were removed', async () => {
     vi.spyOn(api, 'getCapabilities').mockResolvedValue(caps);
     vi.spyOn(api, 'getOrganizerEvents').mockResolvedValue({ events: [] });
-    const createEvent = vi.spyOn(api, 'createEvent').mockRejectedValue(new Error(''));
+    const createDemo = vi.spyOn(api, 'createDemo').mockRejectedValue(new Error(''));
     const resetDemo = vi.spyOn(api, 'resetDemo').mockResolvedValue({ event: event(), adminKey: null });
 
+    window.history.replaceState({}, '', '/demo');
     render(<App />);
     await waitFor(() => expect(api.getOrganizerEvents).toHaveBeenCalled());
-    await waitFor(() => expect(screen.queryByText(/Cargando tus invitaciones/)).toBeNull());
-    const demo = screen.getByRole('article', { name: 'Explora la demo' });
-    fireEvent.click(within(demo).getByRole('button', { name: 'Crear mi demo privada' }));
-    await waitFor(() => expect(createEvent).toHaveBeenCalled());
+    fireEvent.click(await screen.findByRole('button', { name: 'Crear mi demo privada' }));
+    await waitFor(() => expect(createDemo).toHaveBeenCalled());
     expect(await screen.findByText('No se pudo crear la demo privada. Revisa tu conexión e inténtalo de nuevo.')).toBeInTheDocument();
 
-    openDemoOptions();
-    fireEvent.click(screen.getByRole('button', { name: 'Reiniciar Demo' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Sí, Reiniciar Demo' }));
+    await openDemoResetModal();
+    expect(screen.getByText(/Tus invitaciones propias siguen activas/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sí, reiniciar mis demos' }));
     await waitFor(() => expect(resetDemo).toHaveBeenCalledTimes(1));
     expect(await screen.findByText('Demostración reiniciada. Las invitaciones reales siguen activas.')).toBeInTheDocument();
     expect(screen.queryByText(/fiestas reales/i)).toBeNull();

@@ -19,7 +19,14 @@ import type {
   RecoveryRequestResult,
   RecoveryConsumeResult,
 } from '../types';
-import type { VoiceAudience, VoiceLeaseActivityResult, VoiceLeaseReleaseResult } from '@fiestapay/shared';
+import type {
+  DemoKind,
+  VoiceAudience,
+  VoiceLeaseActivityResult,
+  VoiceLeaseReleaseResult,
+} from '@fiestapay/shared';
+import { LOCALE_HEADER, translateServerError } from '@fiestapay/shared';
+import { getActiveLocale } from '../i18n/locale-store';
 import { adminHeaderFor } from './admin-key';
 
 export interface OrganizerChatTranscript extends ChatTranscript {
@@ -43,9 +50,16 @@ export const REQUEST_TIMEOUT_MESSAGES = {
     'La operación tardó más de 30 segundos. No sabemos si el servidor alcanzó a procesarla; revisa el estado antes de repetirla.',
 } as const;
 
+export const REQUEST_TIMEOUT_MESSAGES_EN = {
+  read: 'The request took more than 30 seconds. Check your connection and try again.',
+  mutation:
+    'The operation took more than 30 seconds. We do not know whether the server processed it; check the status before retrying.',
+} as const;
+
 function timeoutMessageFor(method: string): string {
   const verb = method.toUpperCase();
-  return verb === 'GET' || verb === 'HEAD' ? REQUEST_TIMEOUT_MESSAGES.read : REQUEST_TIMEOUT_MESSAGES.mutation;
+  const table = getActiveLocale() === 'en' ? REQUEST_TIMEOUT_MESSAGES_EN : REQUEST_TIMEOUT_MESSAGES;
+  return verb === 'GET' || verb === 'HEAD' ? table.read : table.mutation;
 }
 
 /**
@@ -54,12 +68,14 @@ function timeoutMessageFor(method: string): string {
  * controller is only an implementation detail and never triggers an automatic retry.
  */
 export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const locale = getActiveLocale();
   const headers = new Headers(options.headers || {});
   if (options.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
   const adminKey = adminHeaderFor(path, options.method ?? 'GET');
   if (adminKey && !headers.has('X-Fiesta-Admin-Key')) headers.set('X-Fiesta-Admin-Key', adminKey);
+  if (!headers.has(LOCALE_HEADER)) headers.set(LOCALE_HEADER, locale);
 
   const method = options.method ?? 'GET';
   const externalSignal = options.signal;
@@ -106,7 +122,12 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
         if (timedOut) throw err;
         // not JSON
       }
-      throw new ApiError(errorMsg, res.status);
+      // The API keeps answering in Spanish; in English the client translates.
+      // Spanish behavior and texts are untouched, and the status is preserved.
+      throw new ApiError(
+        locale === 'en' ? translateServerError(errorMsg, res.status, locale) : errorMsg,
+        res.status,
+      );
     }
 
     return (await Promise.race([res.json(), timeout])) as T;
@@ -133,6 +154,17 @@ export const api = {
   async createDemoEvent(): Promise<CreatedEvent> {
     return request<CreatedEvent>('/api/demo', {
       method: 'POST',
+    });
+  },
+
+  /**
+   * Judge demo in the requested flavour. Always creates a fresh `is_demo`
+   * event in the `x-fiesta-locale` language and answers like createEvent.
+   */
+  async createDemo(kind: DemoKind): Promise<CreatedEvent> {
+    return request<CreatedEvent>('/api/demo', {
+      method: 'POST',
+      body: JSON.stringify({ kind }),
     });
   },
 

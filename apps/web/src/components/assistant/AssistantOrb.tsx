@@ -1,8 +1,11 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
+import { UI_LABELS, type AssistantContext } from '@fiestapay/shared';
 import type { Capabilities, Guest, Quote, RsvpStatus } from '../../types';
 import { PublicChatAssistant } from '../chat/PublicChatAssistant';
 import { ChatAssistant } from '../chat/ChatAssistant';
 import { VoiceInvitationAgent } from '../voice/VoiceInvitationAgent';
+import { useI18n, useMessages } from '../../i18n/I18nContext';
+import { orbCatalog } from '../../i18n/catalogs/orb';
 
 export type AssistantAudience = 'public' | 'guest' | 'organizer';
 export type AssistantOrbMode = 'text' | 'voice';
@@ -18,17 +21,23 @@ export interface AssistantOrbProps {
   accessRevoked?: boolean;
   eventClosed?: boolean;
   onShowToast: (type: 'success' | 'error' | 'info' | 'warning', message: string, title?: string) => void;
+  /** Public only: which separate conversation to show. Defaults to landing. */
+  context?: AssistantContext;
+  /** External open request: the orb opens in text mode whenever this changes. */
+  openSignal?: number;
 }
 
-function subtitleFor(audience: AssistantAudience, mode: AssistantOrbMode): string {
+type OrbCopy = (typeof orbCatalog)['es'];
+
+function subtitleFor(audience: AssistantAudience, mode: AssistantOrbMode, m: OrbCopy): string {
   if (mode === 'voice') {
-    if (audience === 'public') return 'Voz informativa · sin datos del evento';
-    if (audience === 'organizer') return 'Voz del organizador · sin cambios automáticos';
-    return 'Voz de esta invitación';
+    if (audience === 'public') return m.subtitlePublicVoice;
+    if (audience === 'organizer') return m.subtitleOrganizerVoice;
+    return m.subtitleGuestVoice;
   }
-  if (audience === 'public') return 'Información general de FiestaPay';
-  if (audience === 'organizer') return 'Asistente del organizador · solo lectura';
-  return 'Asistente de esta invitación';
+  if (audience === 'public') return m.subtitlePublicText;
+  if (audience === 'organizer') return m.subtitleOrganizerText;
+  return m.subtitleGuestText;
 }
 
 /**
@@ -47,14 +56,22 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
   accessRevoked = false,
   eventClosed = false,
   onShowToast,
+  context,
+  openSignal,
 }) => {
+  const { locale } = useI18n();
+  const m = useMessages(orbCatalog);
+  const labels = UI_LABELS[locale];
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<AssistantOrbMode>('text');
   const launcherRef = useRef<HTMLButtonElement>(null);
   const textTabRef = useRef<HTMLButtonElement>(null);
   const justClosedRef = useRef(false);
+  const lastSignalRef = useRef(openSignal);
   const panelId = `assistant-orb-${useId().replace(/:/g, '')}`;
 
+  /** Landing and demo keep their own mounted text state; only one shows. */
+  const activeContext: AssistantContext = context ?? 'landing';
   const textKey = audience === 'public' ? 'public' : `${audience}:${slug ?? ''}`;
   const voiceKey = `voice:${audience}:${slug ?? ''}`;
 
@@ -63,6 +80,16 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
     setIsOpen(false);
     setMode('text');
   };
+
+  useEffect(() => {
+    if (lastSignalRef.current !== openSignal) {
+      lastSignalRef.current = openSignal;
+      if (openSignal !== undefined) {
+        setMode('text');
+        setIsOpen(true);
+      }
+    }
+  }, [openSignal]);
 
   useEffect(() => {
     if (isOpen) {
@@ -91,7 +118,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
           if (isOpen) closeOrb();
           else setIsOpen(true);
         }}
-        aria-label={isOpen ? 'Cerrar asistente FiestaPay' : 'Abrir asistente FiestaPay'}
+        aria-label={isOpen ? m.launcherClose : labels.orbLauncher}
         aria-expanded={isOpen}
         aria-controls={panelId}
         style={{
@@ -132,14 +159,14 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
             border: 0,
           }}
         >
-          Asistente FiestaPay
+          {m.launcherShort}
         </span>
       </button>
 
       <section
         id={panelId}
         role="dialog"
-        aria-label="Asistente FiestaPay"
+        aria-label={m.dialogLabel}
         aria-modal="false"
         style={{
           position: 'fixed',
@@ -183,7 +210,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
               }}
             />
             <div style={{ minWidth: 0 }}>
-              <strong style={{ display: 'block', fontSize: '0.92rem' }}>Asistente FiestaPay</strong>
+              <strong style={{ display: 'block', fontSize: '0.92rem' }}>{m.title}</strong>
               <span
                 style={{
                   display: 'block',
@@ -194,14 +221,14 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
                   textOverflow: 'ellipsis',
                 }}
               >
-                {subtitleFor(audience, mode)}
+                {subtitleFor(audience, mode, m)}
               </span>
             </div>
           </div>
           <button
             type="button"
             onClick={closeOrb}
-            aria-label="Cerrar panel del asistente"
+            aria-label={m.closePanel}
             style={{
               background: 'none',
               border: 'none',
@@ -219,7 +246,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
 
         <div
           role="tablist"
-          aria-label="Modo del asistente"
+          aria-label={m.modeLabel}
           style={{
             display: 'flex',
             gap: '0.4rem',
@@ -240,7 +267,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
             className={mode === 'text' ? 'btn btn-primary' : 'btn btn-secondary'}
             style={{ flex: 1, padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
           >
-            Escribir
+            {labels.textTab}
           </button>
           <button
             type="button"
@@ -253,7 +280,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
             className={mode === 'voice' ? 'btn btn-teal' : 'btn btn-secondary'}
             style={{ flex: 1, padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
           >
-            Hablar
+            {labels.voiceTab}
           </button>
         </div>
 
@@ -270,15 +297,31 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
           }}
         >
           {audience === 'public' ? (
-            <PublicChatAssistant
-              key={textKey}
-              capabilities={capabilities}
-              embedded
-              open={isOpen && mode === 'text'}
-              onOpenChange={(next) => {
-                if (!next) closeOrb();
-              }}
-            />
+            <>
+              {(['landing', 'demo'] as const).map((ctx) => (
+                <div
+                  key={`${textKey}:${ctx}`}
+                  style={{
+                    display: activeContext === ctx ? 'flex' : 'none',
+                    flex: 1,
+                    minHeight: 0,
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <PublicChatAssistant
+                    capabilities={capabilities}
+                    embedded
+                    open={isOpen && mode === 'text'}
+                    onOpenChange={(next) => {
+                      if (!next) closeOrb();
+                    }}
+                    context={ctx}
+                    idSuffix={ctx}
+                  />
+                </div>
+              ))}
+            </>
           ) : (
             <ChatAssistant
               key={textKey}
