@@ -4,7 +4,8 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import type { Guest } from '../../types';
-import { usd } from '../../types';
+import { useI18n, useMessages } from '../../i18n/I18nContext';
+import { gridCatalog } from '../../i18n/messages/organizerGrid';
 import {
   buildGuestReminderUrl,
   canSendReminder,
@@ -26,16 +27,30 @@ export interface GuestGridProps {
   moderation?: GuestModerationActions;
 }
 
+const GRID_LOCALE_TEXT_ES = {
+  page: 'Página',
+  to: 'a',
+  of: 'de',
+  firstPage: 'Primera página',
+  previousPage: 'Página anterior',
+  nextPage: 'Página siguiente',
+  lastPage: 'Última página',
+  noRowsToShow: 'Aún no hay aportes',
+};
+
 export const GuestGrid: React.FC<GuestGridProps> = ({
   guests,
   eventTitle,
   inviteUrl,
   moderation,
 }) => {
+  const { locale, formatMoney } = useI18n();
+  const m = useMessages(gridCatalog);
+
   const columnDefs = useMemo<ColDef<Guest>[]>(() => {
     return [
       {
-        headerName: 'Invitado',
+        headerName: m.colGuest,
         field: 'name',
         flex: 1.5,
         minWidth: 240,
@@ -56,7 +71,7 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
                 {guest.name}
               </strong>
               <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>
-                {getGuestPaymentStatus(guest).label}
+                {getGuestPaymentStatus(guest, locale).label}
               </span>
               {canSendReminder(guest) && (
                 <span
@@ -67,7 +82,7 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
                     fontWeight: 600,
                   }}
                 >
-                  Pendiente: {usd(guest.dueCents)}
+                  {m.pendingNote(formatMoney(guest.dueCents))}
                 </span>
               )}
             </div>
@@ -75,7 +90,7 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
         },
       },
       {
-        headerName: 'Asistencia',
+        headerName: m.colAttendance,
         field: 'status',
         flex: 1.3,
         minWidth: 160,
@@ -83,14 +98,14 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
           const guest = params.data;
           if (!guest) return null;
           return guest.status === 'yes'
-            ? <span className="badge badge-teal">✓ Confirmado</span>
+            ? <span className="badge badge-teal">{m.attYes}</span>
             : guest.status === 'maybe'
-              ? <span className="badge badge-yellow">? Tal vez</span>
-              : <span className="badge badge-coral">✕ No asistirá</span>;
+              ? <span className="badge badge-yellow">{m.attMaybe}</span>
+              : <span className="badge badge-coral">{m.attNo}</span>;
         },
       },
       {
-        headerName: 'Acompañantes',
+        headerName: m.colCompanions,
         field: 'companions',
         flex: 1,
         minWidth: 110,
@@ -100,7 +115,7 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
         },
       },
       {
-        headerName: 'Total Personas',
+        headerName: m.colTotal,
         valueGetter: (params) => {
           return 1 + (params.data?.companions || 0);
         },
@@ -108,17 +123,17 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
         minWidth: 110,
       },
       {
-        headerName: 'Pagado',
+        headerName: m.colPaid,
         field: 'paidCents',
         flex: 1.1,
         minWidth: 110,
         cellRenderer: (params: ICellRendererParams<Guest>) => {
           const val = params.value || 0;
-          return <span style={{ color: 'var(--color-teal)', fontWeight: 700 }}>{usd(val)}</span>;
+          return <span style={{ color: 'var(--color-teal)', fontWeight: 700 }}>{formatMoney(val)}</span>;
         },
       },
       {
-        headerName: 'Pendiente',
+        headerName: m.colDue,
         field: 'dueCents',
         flex: 1.1,
         minWidth: 110,
@@ -126,13 +141,13 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
           const val = params.value || 0;
           return (
             <span style={{ color: val > 0 ? 'var(--color-coral)' : 'var(--color-ink-muted)', fontWeight: 600 }}>
-              {usd(val)}
+              {formatMoney(val)}
             </span>
           );
         },
       },
       {
-        headerName: 'Recordatorio',
+        headerName: m.colReminder,
         colId: 'reminderAction',
         flex: 1.3,
         minWidth: 150,
@@ -147,7 +162,7 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
             eventTitle,
             dueCents: guest.dueCents,
             inviteUrl,
-          });
+          }, locale);
           return (
             <a
               href={reminderUrl}
@@ -155,8 +170,8 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
               rel="noopener noreferrer"
               className="btn btn-secondary"
               data-testid={`reminder-link-${guest.id}`}
-              title="Prepara el mensaje en WhatsApp para que el organizador lo revise y envíe manualmente"
-              aria-label={`Preparar recordatorio en WhatsApp para ${guest.name} (${usd(guest.dueCents)} pendiente)`}
+              title={m.reminderTitle}
+              aria-label={m.reminderAria(guest.name, formatMoney(guest.dueCents))}
               style={{
                 fontSize: '0.75rem',
                 padding: '0.2rem 0.55rem',
@@ -168,7 +183,7 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
                 color: 'var(--color-ink)',
               }}
             >
-              <span>💬 Recordar</span>
+              <span>{m.remindBtn}</span>
             </a>
           );
         },
@@ -176,7 +191,7 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
       ...(moderation
         ? [
             {
-              headerName: 'Moderacion',
+              headerName: m.colModeration,
               colId: 'moderation',
               flex: 1.4,
               minWidth: 180,
@@ -186,12 +201,12 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
                 if (!guest) return null;
                 const busy = moderation.busyId === guest.id;
                 const label = guest.removedAt
-                  ? 'Retirado'
+                  ? m.modRemoved
                   : guest.blockedAt
-                    ? 'Bloqueado'
+                    ? m.modBlocked
                     : guest.paymentPending
-                      ? 'Pago en verificacion'
-                      : 'Activo';
+                      ? m.modPending
+                      : m.modActive;
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                     <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>{label}</span>
@@ -203,7 +218,7 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
                         disabled={busy || Boolean(guest.blockedAt || guest.removedAt)}
                         onClick={() => moderation.onBlock(guest.id)}
                       >
-                        Bloquear
+                        {m.modBlock}
                       </button>
                       <button
                         type="button"
@@ -212,7 +227,7 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
                         disabled={busy || !guest.blockedAt || Boolean(guest.removedAt)}
                         onClick={() => moderation.onUnblock(guest.id)}
                       >
-                        Desbloquear
+                        {m.modUnblock}
                       </button>
                       <button
                         type="button"
@@ -221,7 +236,7 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
                         disabled={busy || Boolean(guest.removedAt)}
                         onClick={() => moderation.onRemove(guest.id)}
                       >
-                        Retirar
+                        {m.modRemove}
                       </button>
                     </span>
                   </div>
@@ -231,7 +246,7 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
           ]
         : []),
     ];
-  }, [eventTitle, inviteUrl, moderation]);
+  }, [eventTitle, inviteUrl, moderation, m, locale, formatMoney]);
 
   const defaultColDef = useMemo<ColDef>(
     () => ({
@@ -261,7 +276,7 @@ export const GuestGrid: React.FC<GuestGridProps> = ({
         pagination={true}
         paginationPageSize={10}
         paginationPageSizeSelector={false}
-        localeText={{ page: 'Página', to: 'a', of: 'de', firstPage: 'Primera página', previousPage: 'Página anterior', nextPage: 'Página siguiente', lastPage: 'Última página', noRowsToShow: 'Aún no hay aportes' }}
+        localeText={locale === 'es' ? GRID_LOCALE_TEXT_ES : undefined}
         rowHeight={68}
       />
     </div>

@@ -97,6 +97,11 @@ p, span, li, input, textarea, select, button {
   max-width: 1120px;
   margin: 0 auto;
   padding: 0 1rem 3rem 1rem;
+  /* FP-BIL-A1-M: this main is a column-flex item. min-width:auto would let a
+     wide AG Grid force the page past the viewport at 360-390px; the grids
+     scroll inside their own overflow-x:auto wrappers instead. */
+  width: 100%;
+  min-width: 0;
 }
 
 @media (min-width: 640px) {

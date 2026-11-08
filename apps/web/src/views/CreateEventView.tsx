@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { EventInput } from '../types';
 import { api } from '../api/client';
 import { rememberAdminKey } from '../api/admin-key';
+import { useMessages } from '../i18n/I18nContext';
+import { createEventCatalog } from '../i18n/messages/organizerCreate';
 import { OrganizerLinkCard } from '../components/dashboard/OrganizerLinkCard';
 import { RecoveryEmailCard } from '../components/dashboard/RecoveryEmailCard';
 import { CreateEventForm } from '../components/events/CreateEventForm';
@@ -19,6 +21,7 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
   onShowToast,
   recoveryAvailable = false,
 }) => {
+  const m = useMessages(createEventCatalog);
   const [isLoading, setIsLoading] = useState(false);
   const [created, setCreated] = useState<{ slug: string; adminKey: string } | null>(null);
   const mountedRef = useRef(true);
@@ -42,12 +45,12 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
         const res = await api.createEvent(input);
         if (res.adminKey) rememberAdminKey(res.event.slug, res.adminKey);
         if (!mountedRef.current) return;
-        onShowToast('success', `¡Invitación "${res.event.title}" creada con éxito!`, 'Invitación creada');
+        onShowToast('success', m.toastCreated(res.event.title), m.toastCreatedTitle);
         if (res.adminKey) setCreated({ slug: res.event.slug, adminKey: res.adminKey });
         else onEventCreated(res.event.slug);
       } catch (err: any) {
         if (!mountedRef.current) return;
-        onShowToast('error', err.message || 'No se pudo crear la invitación', 'Error al crear');
+        onShowToast('error', err.message || m.toastCreateFail, m.toastCreateFailTitle);
         throw err;
       } finally {
         if (mountedRef.current) setIsLoading(false);
@@ -67,11 +70,11 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
       <div className="panel" style={{ padding: '1.75rem' }}>
         <div style={{ marginBottom: '1.25rem' }}>
           <span className="badge badge-blue" style={{ marginBottom: '0.35rem' }}>
-            Nueva invitación
+            {m.viewBadge}
           </span>
-          <h1 style={{ fontSize: '1.75rem', color: 'var(--color-ink)' }}>Crea tu próxima invitación</h1>
+          <h1 style={{ fontSize: '1.75rem', color: 'var(--color-ink)' }}>{m.viewHeading}</h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-ink-muted)' }}>
-            Elige una de las 4 plantillas, personaliza la cuota en dólares y comparte el enlace con tus amigos.
+            {m.viewSub}
           </p>
         </div>
 
@@ -80,17 +83,17 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
             <OrganizerLinkCard slug={created.slug} adminKey={created.adminKey} recoveryAvailable={recoveryAvailable} />
             <RecoveryEmailCard slug={created.slug} available={recoveryAvailable} />
             <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-ink-muted)' }}>
-              Ir al panel abre esta actividad con la clave ya guardada en el navegador. La invitación pública no se convierte en panel.
+              {m.viewCreatedNote}
             </p>
             <button type="button" className="btn btn-primary" onClick={() => onEventCreated(created.slug)}>
-              Ir al panel
+              {m.viewGoDashboard}
             </button>
           </div>
         ) : (
           <>
             {isLoading ? (
               <div className="create-event-progress" role="status" aria-live="polite" aria-busy="true">
-                <p>Creando la invitación…</p>
+                <p>{m.viewCreating}</p>
                 <div className="create-event-progress-bar" aria-hidden="true" />
               </div>
             ) : null}

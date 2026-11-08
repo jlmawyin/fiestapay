@@ -133,6 +133,58 @@ export const THEMES: readonly ThemeDefinition[] = [
 
 const byKey = new Map<string, ThemeDefinition>(THEMES.map((item) => [item.key, item]));
 
+/** English theme display names. Spanish stays on each THEMES entry. */
+export const THEME_LABELS_EN: Record<ThemeKey, string> = {
+  mesa: 'Table',
+  huerto: 'Orchard',
+  brindis: 'Toast',
+  fogata: 'Bonfire',
+  patio: 'Patio',
+  sala: 'Living room',
+  terraza: 'Terrace',
+  jardin: 'Garden',
+  camino: 'Trail',
+  montana: 'Mountain',
+  costa: 'Coast',
+  ciudad: 'City',
+  escenario: 'Stage',
+  galeria: 'Gallery',
+  taller: 'Workshop',
+  noche: 'Night',
+};
+
+/** English theme phrases for the invitation and the WhatsApp draft. Spanish stays on THEMES. */
+export const THEME_PHRASES_EN: Record<ThemeKey, string> = {
+  mesa: 'Coming to eat?',
+  huerto: 'There is a spot in the orchard.',
+  brindis: 'There is a toast for you.',
+  fogata: 'The bonfire is ready.',
+  patio: 'Coming over?',
+  sala: 'The living room is ready.',
+  terraza: 'We will wait for you on the terrace.',
+  jardin: 'The garden is home.',
+  camino: 'Joining the trip?',
+  montana: 'The mountains are waiting.',
+  costa: 'The coast is in the plan.',
+  ciudad: 'The city is the meeting point.',
+  escenario: 'Coming to the event?',
+  galeria: 'The gallery opens its doors.',
+  taller: 'The workshop already has a spot.',
+  noche: 'The night is the event.',
+};
+
+/** Theme display name in the locale. Spanish reads the THEMES entry itself. */
+export function themeLabel(key: ThemeKey, locale: 'es' | 'en' = 'es'): string {
+  if (locale === 'en') return THEME_LABELS_EN[key];
+  return byKey.get(key)?.label ?? key;
+}
+
+/** Theme phrase in the locale. Spanish reads the THEMES entry itself. */
+export function themePhrase(key: ThemeKey, locale: 'es' | 'en' = 'es'): string {
+  if (locale === 'en') return THEME_PHRASES_EN[key];
+  return byKey.get(key)?.phrase ?? '';
+}
+
 export function themesForTemplate(template: PresentationTemplate): ThemeDefinition[] {
   const allowed = new Set<string>(TEMPLATE_THEMES[template]);
   return THEMES.filter((item) => allowed.has(item.key));

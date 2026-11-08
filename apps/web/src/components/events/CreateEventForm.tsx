@@ -1,7 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { TEMPLATE_INVITE_COPY, themesForTemplate, type ThemeKey } from '@fiestapay/shared';
+import {
+  mealLabel,
+  templateInviteCopy,
+  themeLabel,
+  themePhrase,
+  themesForTemplate,
+  type Locale,
+  type ThemeKey,
+} from '@fiestapay/shared';
 import type { EventInput, FiestaEvent, TemplateKind, AgendaItem } from '../../types';
-import { usd } from '../../types';
+import { useI18n, useMessages } from '../../i18n/I18nContext';
+import { createEventCatalog } from '../../i18n/messages/organizerCreate';
 import {
   defaultThemeFor,
   formatEventRange,
@@ -18,6 +27,11 @@ interface CreateEventFormProps {
   isLoading: boolean;
   initial?: FiestaEvent | null;
   submitLabel?: string;
+}
+
+function capitalLabel(value: string, locale: Locale): string {
+  if (value.length === 0) return value;
+  return value.charAt(0).toLocaleUpperCase(locale === 'en' ? 'en-US' : 'es-EC') + value.slice(1);
 }
 
 const pad = (n: number): string => String(n).padStart(2, '0');
@@ -47,28 +61,35 @@ const mealForHour = (hour: number): 'desayuno' | 'almuerzo' | 'cena' => {
 
 const dollars = (cents: number | null): string => (cents === null ? '' : (cents / 100).toFixed(2));
 
-// Visible title hint is neutral. The rule string below still says "Nombre de la fiesta"
-// so an unmodified legacy example keeps warning. That leftover phrase is intentional.
-const TITLE_PLACEHOLDER = 'Nombre de la invitación';
-
+// Detection always covers both languages: a legacy Spanish example still
+// warns in English and an English placeholder still warns in Spanish.
+// Display labels and placeholders come from the catalog.
 const EXAMPLE_FIELDS = [
-  { field: 'title', label: 'Título del Evento', example: 'Nombre de la fiesta', inputId: 'event-title' },
-  { field: 'location', label: 'Lugar o Dirección', example: 'Lugar o direccion', inputId: 'event-location' },
+  {
+    field: 'title',
+    labelKey: 'exampleLabelTitle',
+    examples: ['Nombre de la fiesta', 'Nombre de la invitación', 'Party name', 'Invitation name'],
+    inputId: 'event-title',
+  },
+  {
+    field: 'location',
+    labelKey: 'exampleLabelLocation',
+    examples: ['Lugar o direccion', 'Place or address'],
+    inputId: 'event-location',
+  },
   {
     field: 'description',
-    label: 'Descripción para los invitados',
-    example: 'Que van a hacer',
+    labelKey: 'exampleLabelDescription',
+    examples: ['Que van a hacer', 'What you will do'],
     inputId: 'event-desc',
   },
   {
     field: 'includes',
-    label: '¿Qué incluye la cuota? (Separados por coma)',
-    example: 'Separa con comas',
+    labelKey: 'exampleLabelIncludes',
+    examples: ['Separa con comas', 'Separate with commas'],
     inputId: 'event-includes',
   },
 ] as const;
-
-const TITLE_EXAMPLE_PHRASES = [EXAMPLE_FIELDS[0].example, TITLE_PLACEHOLDER] as const;
 
 type ExampleFieldKey = (typeof EXAMPLE_FIELDS)[number]['field'];
 
@@ -112,8 +133,11 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
   onCancel,
   isLoading,
   initial = null,
-  submitLabel = 'Crear y Obtener Enlace de Invitación',
+  submitLabel,
 }) => {
+  const { locale, formatMoney } = useI18n();
+  const m = useMessages(createEventCatalog);
+  const effectiveSubmitLabel = submitLabel ?? m.createSubmit;
   const [template, setTemplate] = useState<TemplateKind>(initial?.template ?? 'comida');
   const [title, setTitle] = useState(initial?.title ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
@@ -193,14 +217,11 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
 
   const collectExampleHits = (): ExampleHit[] => {
     const values = exampleValues();
-    return EXAMPLE_FIELDS.filter((item) => {
-      if (item.field === 'title') {
-        return TITLE_EXAMPLE_PHRASES.some((phrase) => matchesKnownExample(values.title, phrase));
-      }
-      return matchesKnownExample(values[item.field], item.example);
-    }).map((item) => ({
+    return EXAMPLE_FIELDS.filter((item) =>
+      item.examples.some((phrase) => matchesKnownExample(values[item.field], phrase)),
+    ).map((item) => ({
       field: item.field,
-      label: item.label,
+      label: m[item.labelKey],
       raw: values[item.field],
       inputId: item.inputId,
     }));
@@ -244,76 +265,76 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
 
   const buildSubmission = (): Submission => {
     if (!title.trim()) {
-      return { ok: false, message: 'Escribe un titulo.' };
+      return { ok: false, message: m.errTitle };
     }
     if (!location.trim()) {
-      return { ok: false, message: 'Escribe el lugar.' };
+      return { ok: false, message: m.errLocation };
     }
     const startMs = new Date(startsAt).getTime();
     const endMs = new Date(endsAt).getTime();
     if (!Number.isFinite(startMs) || startMs <= Date.now()) {
-      return { ok: false, message: 'El inicio debe ser en el futuro.' };
+      return { ok: false, message: m.errStartFuture };
     }
     if (!Number.isFinite(endMs) || endMs <= startMs) {
-      return { ok: false, message: 'La hora de fin debe ser posterior al inicio.' };
+      return { ok: false, message: m.errEndAfterStart };
     }
     const priceNum = parseFloat(priceDollars);
     if (!Number.isFinite(priceNum) || priceNum <= 0) {
-      return { ok: false, message: 'La cuota por persona debe ser mayor a 0.' };
+      return { ok: false, message: m.errPrice };
     }
     const priceCents = Math.round(priceNum * 100);
     const parsedCapacity = Number.parseInt(capacity, 10);
     if (!Number.isInteger(parsedCapacity) || parsedCapacity < 1) {
-      return { ok: false, message: 'Indica un cupo mayor a 0.' };
+      return { ok: false, message: m.errCapacity };
     }
 
     let goalCents: number | null = null;
     if (goalDollars.trim()) {
       const g = parseFloat(goalDollars);
       if (!Number.isFinite(g) || g <= 0) {
-        return { ok: false, message: 'La meta debe ser un monto mayor a 0.' };
+        return { ok: false, message: m.errGoal };
       }
       goalCents = Math.round(g * 100);
     }
 
     let minimumCents: number | null = null;
     if (minimumDollars.trim()) {
-      const m = parseFloat(minimumDollars);
-      if (!Number.isFinite(m) || m <= 0) {
-        return { ok: false, message: 'El minimo debe ser un monto mayor a 0.' };
+      const mm = parseFloat(minimumDollars);
+      if (!Number.isFinite(mm) || mm <= 0) {
+        return { ok: false, message: m.errMinimum };
       }
-      minimumCents = Math.round(m * 100);
+      minimumCents = Math.round(mm * 100);
     }
     if (minimumCents !== null && goalCents !== null && minimumCents > goalCents) {
-      return { ok: false, message: 'El minimo no puede superar la meta.' };
+      return { ok: false, message: m.errMinOverGoal };
     }
     const ceiling = priceCents * parsedCapacity;
     if ((goalCents !== null && ceiling < goalCents) || (minimumCents !== null && ceiling < minimumCents)) {
-      return { ok: false, message: 'La cuota por el cupo debe cubrir la meta y el minimo.' };
+      return { ok: false, message: m.errCeiling };
     }
 
     const deadlineFilled = deadlineLocal.trim().length > 0;
     if (deadlineFilled) {
       const deadlineMs = new Date(deadlineLocal).getTime();
       if (!Number.isFinite(deadlineMs)) {
-        return { ok: false, message: 'La fecha limite de aportes no es valida.' };
+        return { ok: false, message: m.errDeadlineInvalid };
       }
       if (deadlineMs <= Date.now()) {
-        return { ok: false, message: 'La fecha limite debe ser posterior a ahora y no posterior al inicio.' };
+        return { ok: false, message: m.errDeadlineRange };
       }
       if (deadlineMs > startMs) {
-        return { ok: false, message: 'La fecha limite debe ser posterior a ahora y no posterior al inicio.' };
+        return { ok: false, message: m.errDeadlineRange };
       }
       if (minimumCents === null) {
-        return { ok: false, message: 'Sin minimo no hay fecha limite de financiamiento.' };
+        return { ok: false, message: m.errDeadlineNoMin };
       }
       if (isLegacy) {
-        return { ok: false, message: 'Un evento anterior conserva la exencion y no admite fecha limite.' };
+        return { ok: false, message: m.errDeadlineLegacy };
       }
     } else if (isEdit && deadlineTouched && minimumCents !== null) {
       return {
         ok: false,
-        message: 'Un minimo requiere fecha limite. Vaciar el campo al editar no usa la hora de inicio por defecto.',
+        message: m.errDeadlineCleared,
       };
     }
 
@@ -376,7 +397,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       setPublishReview(null);
       setExampleReview(null);
     } catch (err: any) {
-      setValidationError(err.message || 'Error al crear la invitación');
+      setValidationError(err.message || m.errSubmit);
     } finally {
       posting.current = false;
     }
@@ -467,27 +488,27 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
   const selectedTheme = resolveTheme(template, theme);
   const themeHint = suggestTheme(template, title);
   const reviewedPayload = activePublish?.payload ?? null;
+  const templateLabels: Record<TemplateKind, string> = {
+    comida: m.templateComida,
+    casa: m.templateCasa,
+    viaje: m.templateViaje,
+    evento: m.templateEvento,
+  };
 
   return (
     <form noValidate onSubmit={handleSubmit} className="event-form" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', ...themeCssVars(selectedTheme) }}>
       {/* Template Selection Tabs */}
       <div>
         <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
-          Tipo de invitación
+          {m.typeLabel}
         </label>
         <div
           className="template-picker"
           role="radiogroup"
-          aria-label="Selecciona una de las 4 plantillas"
+          aria-label={m.typeGroupAria}
         >
           {(['comida', 'casa', 'viaje', 'evento'] as TemplateKind[]).map((t) => {
             const isSelected = template === t;
-            const labels: Record<TemplateKind, string> = {
-              comida: '🥘 Comida',
-              casa: '🏠 En Casa',
-              viaje: '🚐 Viaje',
-              evento: '🎉 Evento',
-            };
             return (
               <button
                 key={t}
@@ -508,9 +529,9 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
                   gap: '0.2rem',
                 }}
               >
-                <span>{labels[t]}</span>
+                <span>{templateLabels[t]}</span>
                 <span style={{ fontSize: '0.7rem', color: 'var(--color-ink-muted)', fontWeight: 500 }}>
-                  Tipo
+                  {m.typeKind}
                 </span>
               </button>
             );
@@ -521,12 +542,12 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       {/* SVG Preview Card */}
       <div className="theme-scope" data-theme={selectedTheme.key} style={{ ...themeCssVars(selectedTheme), borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
         <TemplateCover template={template} height="130px" accent={selectedTheme.accent} />
-        <p className="theme-phrase" style={{ margin: '0.75rem 1rem' }}>{selectedTheme.phrase}</p>
+        <p className="theme-phrase" style={{ margin: '0.75rem 1rem' }}>{themePhrase(selectedTheme.key, locale)}</p>
       </div>
 
       <div className="form-group">
-        <label className="form-label" htmlFor="event-theme">Tema</label>
-        <div id="event-theme" className="theme-picker" role="radiogroup" aria-label="Tema de la invitación">
+        <label className="form-label" htmlFor="event-theme">{m.themeLabel}</label>
+        <div id="event-theme" className="theme-picker" role="radiogroup" aria-label={m.themeGroupAria}>
           {themesForTemplate(template).map((item) => (
             <button
               key={item.key}
@@ -540,13 +561,13 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
                 setTheme(item.key);
               }}
             >
-              {item.label}
+              {themeLabel(item.key, locale)}
             </button>
           ))}
         </div>
         {themeHint && themeHint.key !== theme ? (
           <p className="form-label-desc">
-            Sugerencia: {themeHint.label}. El tema actual se mantiene hasta que la uses.
+            {m.themeSuggestion(themeLabel(themeHint.key, locale))}
             <button
               type="button"
               className="btn btn-secondary"
@@ -556,7 +577,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
                 setTheme(themeHint.key);
               }}
             >
-              Usar {themeHint.label}
+              {m.themeUse(themeLabel(themeHint.key, locale))}
             </button>
           </p>
         ) : null}
@@ -581,7 +602,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       {/* Basic Info */}
       <div className="form-group">
         <label className="form-label" htmlFor="event-title">
-          Título del Evento *
+          {m.titleLabel}
         </label>
         <input
           id="event-title"
@@ -589,13 +610,13 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
-          placeholder={TITLE_PLACEHOLDER}
+          placeholder={m.titlePlaceholder}
         />
       </div>
 
       <div className="form-group">
         <label className="form-label" htmlFor="event-organizer">
-          Nombre de quien organiza (opcional)
+          {m.organizerLabel}
         </label>
         <input
           id="event-organizer"
@@ -603,17 +624,17 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
           value={organizerName}
           maxLength={100}
           onChange={(e) => setOrganizerName(e.target.value)}
-          placeholder="Como quieres aparecer"
+          placeholder={m.organizerPlaceholder}
           autoComplete="off"
         />
-        <span className="form-label-desc">Nombre público de la invitación. No hace falta un correo.</span>
+        <span className="form-label-desc">{m.organizerHelp}</span>
       </div>
 
       <div className="event-form-grid-2">
         {template === 'comida' ? (
         <div className="form-group">
           <label className="form-label" htmlFor="event-meal">
-            Tipo de Comida
+            {m.mealLabel}
           </label>
           <select
             id="event-meal"
@@ -624,16 +645,16 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
               setMeal(e.target.value as 'desayuno' | 'almuerzo' | 'cena');
             }}
           >
-            <option value="desayuno">Desayuno</option>
-            <option value="almuerzo">Almuerzo</option>
-            <option value="cena">Cena</option>
+            <option value="desayuno">{capitalLabel(mealLabel('desayuno', locale), locale)}</option>
+            <option value="almuerzo">{capitalLabel(mealLabel('almuerzo', locale), locale)}</option>
+            <option value="cena">{capitalLabel(mealLabel('cena', locale), locale)}</option>
           </select>
         </div>
         ) : null}
 
         <div className="form-group">
           <label className="form-label" htmlFor="event-date">
-            Fecha y Hora *
+            {m.startLabel}
           </label>
           <input
             id="event-date"
@@ -643,15 +664,16 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
             onChange={(e) => handleStartChange(e.target.value)}
             required
           />
+          <span className="form-label-desc">{m.timeZoneNote}</span>
           {!isEdit && !startTouched ? (
-            <span className="form-label-desc">Sugerencia. Confírmala en el resumen antes de publicar.</span>
+            <span className="form-label-desc">{m.startSuggestion}</span>
           ) : null}
         </div>
       </div>
 
       <div className="form-group">
         <label className="form-label" htmlFor="event-end">
-          Hora de fin *
+          {m.endLabel}
         </label>
         <input
           id="event-end"
@@ -664,12 +686,12 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
           }}
           required
         />
-        <span className="form-label-desc">Incluye la fecha. Si termina otro día, elige esa fecha.</span>
+        <span className="form-label-desc">{m.endHelp}</span>
       </div>
 
       <div className="form-group">
         <label className="form-label" htmlFor="event-location">
-          Lugar o Dirección *
+          {m.locationLabel}
         </label>
         <input
           id="event-location"
@@ -677,13 +699,13 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
           value={location}
           onChange={(e) => setLocation(e.target.value)}
           required
-          placeholder="Lugar o direccion"
+          placeholder={m.locationPlaceholder}
         />
       </div>
 
       <div className="form-group">
         <label className="form-label" htmlFor="event-desc">
-          Descripción para los invitados
+          {m.descLabel}
         </label>
         <textarea
           id="event-desc"
@@ -691,7 +713,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
           rows={2}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Que van a hacer"
+          placeholder={m.descPlaceholder}
         />
       </div>
 
@@ -705,13 +727,13 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
         }}
       >
         <h4 style={{ fontSize: '0.95rem', marginBottom: '0.75rem', color: 'var(--color-ink)' }}>
-          Cuota y Metas Financieras (USD)
+          {m.moneyTitle}
         </h4>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem' }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label" htmlFor="event-price">
-              Cuota por persona *
+              {m.priceLabel}
             </label>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: '0.75rem', top: '0.65rem', color: 'var(--color-ink-muted)' }}>
@@ -730,12 +752,12 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
                 required
               />
             </div>
-            <span className="form-label-desc">Precio fijo individual</span>
+            <span className="form-label-desc">{m.priceHelp}</span>
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label" htmlFor="event-minimum">
-              Mínimo requerido
+              {m.minimumLabel}
             </label>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: '0.75rem', top: '0.65rem', color: 'var(--color-ink-muted)' }}>
@@ -752,12 +774,12 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
                 onChange={(e) => setMinimumDollars(e.target.value)}
               />
             </div>
-            <span className="form-label-desc">Para confirmar la invitación</span>
+            <span className="form-label-desc">{m.minimumHelp}</span>
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label" htmlFor="event-goal">
-              Meta ideal
+              {m.goalLabel}
             </label>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: '0.75rem', top: '0.65rem', color: 'var(--color-ink-muted)' }}>
@@ -774,12 +796,12 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
                 onChange={(e) => setGoalDollars(e.target.value)}
               />
             </div>
-            <span className="form-label-desc">Objetivo de recaudación</span>
+            <span className="form-label-desc">{m.goalHelp}</span>
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label" htmlFor="event-capacity">
-              Capacidad máxima *
+              {m.capacityLabel}
             </label>
             <input
               id="event-capacity"
@@ -789,16 +811,16 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
               className="form-input"
               value={capacity}
               onChange={(e) => setCapacity(e.target.value)}
-              placeholder="Cupo"
+              placeholder={m.capacityPlaceholder}
               required
             />
-            <span className="form-label-desc">Cupos disponibles</span>
+            <span className="form-label-desc">{m.capacityHelp}</span>
           </div>
         </div>
 
         <div className="form-group" style={{ margin: '0.85rem 0 0 0' }}>
           <label className="form-label" htmlFor="event-funding-deadline">
-            Fecha límite de aportes (opcional)
+            {m.deadlineLabel}
           </label>
           <input
             id="event-funding-deadline"
@@ -812,27 +834,21 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
             aria-describedby="event-funding-deadline-help"
           />
           <span id="event-funding-deadline-help" className="form-label-desc">
-            {isEdit
-              ? 'Si no la modificas, se conserva el valor actual, incluida una fecha vacía de eventos anteriores. Vaciarla con un mínimo no usa la hora de inicio por defecto.'
-              : 'Si indicas un mínimo y omites esta fecha, el servidor usa la hora de inicio.'}
+            {isEdit ? m.deadlineHelpEdit : m.deadlineHelpCreate}
           </span>
         </div>
         {isLegacy ? (
           <p className="funding-field-note" role="note">
-            Este evento es anterior al financiamiento automático. Conserva su exención: no hay fecha
-            límite automática y no se activa editando el título o el mínimo.
+            {m.legacyNote}
           </p>
         ) : initialDeadlineAbsent ? (
           <p className="funding-field-note" role="note">
-            Sin fecha límite automática. Vacío y sin cambios conserva el valor actual. No se enviará
-            un valor por defecto.
+            {m.deadlineAbsentNote}
           </p>
         ) : null}
         {isEdit ? (
           <p className="funding-field-note" role="note">
-            Si ya existe cualquier orden, el servidor rechaza cambios del mínimo o de la fecha
-            límite. Esta pantalla no sabe si hay órdenes; el mensaje de rechazo se muestra aquí. El
-            precio no se congela solo por tener recaudación.
+            {m.editOrdersNote}
           </p>
         ) : null}
       </div>
@@ -840,14 +856,14 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       {/* What's Included */}
       <div className="form-group">
         <label className="form-label" htmlFor="event-includes">
-          ¿Qué incluye la cuota? (Separados por coma)
+          {m.includesLabel}
         </label>
         <input
           id="event-includes"
           className="form-input"
           value={includesText}
           onChange={(e) => setIncludesText(e.target.value)}
-          placeholder="Separa con comas"
+          placeholder={m.includesPlaceholder}
         />
       </div>
 
@@ -855,7 +871,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
           <label className="form-label" style={{ marginBottom: 0 }}>
-            Programa o Agenda
+            {m.agendaLabel}
           </label>
           <button
             type="button"
@@ -863,12 +879,12 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
             className="btn btn-secondary"
             style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }}
           >
-            + Añadir horario
+            {m.agendaAdd}
           </button>
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="event-access">
-            Codigo de acceso (opcional)
+            {m.accessLabel}
           </label>
           <input
             id="event-access"
@@ -878,7 +894,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
               setAccessTouched(true);
               setAccessCode(e.target.value);
             }}
-            placeholder={initial ? 'Vacio quita el codigo' : 'Solo si la invitación es privada'}
+            placeholder={initial ? m.accessPlaceholderEdit : m.accessPlaceholderCreate}
             autoComplete="off"
           />
         </div>
@@ -898,16 +914,16 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
                 className="form-input"
                 value={item.time}
                 onChange={(e) => handleUpdateAgendaItem(idx, 'time', e.target.value)}
-                placeholder="14:00"
-                aria-label={`Hora actividad ${idx + 1}`}
+                placeholder={m.agendaTimePlaceholder}
+                aria-label={m.agendaTimeAria(idx + 1)}
               />
               <input
                 style={{ flex: '1 1 180px' }}
                 className="form-input"
                 value={item.title}
                 onChange={(e) => handleUpdateAgendaItem(idx, 'title', e.target.value)}
-                placeholder="Descripción de la actividad"
-                aria-label={`Título actividad ${idx + 1}`}
+                placeholder={m.agendaTitlePlaceholder}
+                aria-label={m.agendaTitleAria(idx + 1)}
               />
               <input
                 style={{ flex: '1 1 140px' }}
@@ -915,15 +931,15 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
                 value={item.speaker || ''}
                 maxLength={80}
                 onChange={(e) => handleUpdateAgendaItem(idx, 'speaker', e.target.value)}
-                placeholder="Expositor (opcional)"
-                aria-label={`Expositor actividad ${idx + 1}`}
+                placeholder={m.agendaSpeakerPlaceholder}
+                aria-label={m.agendaSpeakerAria(idx + 1)}
               />
               <button
                 type="button"
                 onClick={() => handleRemoveAgendaItem(idx)}
                 className="btn btn-secondary"
                 style={{ padding: '0.4rem 0.6rem', color: 'var(--color-coral)' }}
-                aria-label="Eliminar punto de agenda"
+                aria-label={m.agendaRemoveAria}
               >
                 ✕
               </button>
@@ -933,45 +949,45 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       </div>
 
       {reviewedPayload ? (
-        <section className="publish-review" aria-label="Resumen de la invitación" style={themeCssVars(selectedTheme)}>
-          <h3 style={{ margin: 0 }}>Revisar invitación</h3>
-          <p className="theme-phrase" style={{ fontSize: '1.15rem' }}>{selectedTheme.phrase}</p>
+        <section className="publish-review" aria-label={m.reviewAria} style={themeCssVars(selectedTheme)}>
+          <h3 style={{ margin: 0 }}>{m.reviewTitle}</h3>
+          <p className="theme-phrase" style={{ fontSize: '1.15rem' }}>{themePhrase(selectedTheme.key, locale)}</p>
           {activePublish?.datesSuggested ? (
-            <p>Estas fechas son una sugerencia. Publicar la invitación las confirma.</p>
+            <p>{m.reviewDatesSuggested}</p>
           ) : (
-            <p>Estas son las fechas que quedan en la invitación.</p>
+            <p>{m.reviewDatesFixed}</p>
           )}
           <dl>
-            <dt>Tipo</dt>
-            <dd>{TEMPLATE_INVITE_COPY[reviewedPayload.template].welcome}</dd>
-            <dt>Título</dt>
+            <dt>{m.reviewType}</dt>
+            <dd>{templateInviteCopy(reviewedPayload.template, locale).welcome}</dd>
+            <dt>{m.reviewHeading}</dt>
             <dd>{reviewedPayload.title}</dd>
-            <dt>Quién organiza</dt>
-            <dd>{organizerLine(reviewedPayload.organizerName) ?? 'Sin nombre público'}</dd>
-            <dt>Cuándo</dt>
-            <dd>{formatEventRange(reviewedPayload.startsAt, reviewedPayload.endsAt)}</dd>
-            <dt>Lugar</dt>
+            <dt>{m.reviewOrganizer}</dt>
+            <dd>{organizerLine(reviewedPayload.organizerName, locale) ?? m.reviewNoName}</dd>
+            <dt>{m.reviewWhen}</dt>
+            <dd>{formatEventRange(reviewedPayload.startsAt, reviewedPayload.endsAt, undefined, locale)}</dd>
+            <dt>{m.reviewWhere}</dt>
             <dd>{reviewedPayload.location}</dd>
-            <dt>Cuota por persona</dt>
-            <dd>{usd(reviewedPayload.priceCents)}</dd>
-            <dt>Mínimo requerido</dt>
-            <dd>{reviewedPayload.minimumCents === null ? 'Sin mínimo' : usd(reviewedPayload.minimumCents)}</dd>
-            <dt>Meta ideal</dt>
-            <dd>{reviewedPayload.goalCents === null ? 'Sin meta' : usd(reviewedPayload.goalCents)}</dd>
+            <dt>{m.reviewPrice}</dt>
+            <dd>{formatMoney(reviewedPayload.priceCents)}</dd>
+            <dt>{m.reviewMinimum}</dt>
+            <dd>{reviewedPayload.minimumCents === null ? m.reviewNoMinimum : formatMoney(reviewedPayload.minimumCents)}</dd>
+            <dt>{m.reviewGoal}</dt>
+            <dd>{reviewedPayload.goalCents === null ? m.reviewNoGoal : formatMoney(reviewedPayload.goalCents)}</dd>
             {reviewedPayload.template === 'comida' ? (
               <>
-                <dt>Tipo de comida</dt>
-                <dd style={{ textTransform: 'capitalize' }}>{reviewedPayload.meal}</dd>
+                <dt>{m.reviewMeal}</dt>
+                <dd style={{ textTransform: 'capitalize' }}>{mealLabel(reviewedPayload.meal, locale)}</dd>
               </>
             ) : null}
           </dl>
           {activePublish && activePublish.hits.length === 0 ? (
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
               <button type="button" className="btn btn-secondary" onClick={() => setPublishReview(null)} disabled={isLoading}>
-                Seguir editando
+                {m.reviewKeepEditing}
               </button>
               <button type="button" className="btn btn-primary btn-theme-primary" onClick={() => void handlePublishReviewed()} disabled={isLoading}>
-                Publicar invitación
+                {m.reviewPublish}
               </button>
             </div>
           ) : null}
@@ -995,7 +1011,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
           }}
         >
           <p id="example-values-warning-title" style={{ margin: '0 0 0.5rem' }}>
-            Algunos campos tienen el texto de ejemplo. Revisa esos campos o publica estos valores a propósito.
+            {m.exampleTitle}
           </p>
           <ul style={{ margin: '0 0 0.75rem', paddingLeft: '1.25rem' }}>
             {activeReview.hits.map((hit) => (
@@ -1006,10 +1022,10 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
           </ul>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
             <button type="button" className="btn btn-secondary" onClick={handleReviseExamples} disabled={isLoading}>
-              Revisar campos
+              {m.exampleRevise}
             </button>
             <button type="button" className="btn btn-primary" onClick={handlePublishExamples} disabled={isLoading}>
-              Publicar estos valores
+              {m.examplePublish}
             </button>
           </div>
         </div>
@@ -1027,10 +1043,10 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
         }}
       >
         <button type="button" onClick={onCancel} className="btn btn-secondary" disabled={isLoading}>
-          Cancelar
+          {m.cancel}
         </button>
         <button type="submit" className="btn btn-primary" disabled={isLoading || Boolean(activePublish)}>
-          {isLoading ? 'Guardando...' : isEdit ? submitLabel : 'Revisar invitación'}
+          {isLoading ? m.saving : isEdit ? effectiveSubmitLabel : m.reviewTitle}
         </button>
       </div>
     </form>

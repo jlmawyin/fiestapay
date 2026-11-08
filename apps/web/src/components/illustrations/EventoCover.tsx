@@ -1,5 +1,6 @@
 import React from 'react';
-import { useI18n } from '../../i18n/I18nContext';
+import { useI18n, useMessages } from '../../i18n/I18nContext';
+import { coversCatalog } from '../../i18n/messages/organizerCovers';
 
 interface CoverProps {
   className?: string;
@@ -9,6 +10,7 @@ interface CoverProps {
 
 export const EventoCover: React.FC<CoverProps> = ({ className = '', height = '180px', accent }) => {
   const { locale } = useI18n();
+  const m = useMessages(coversCatalog);
   return (
     <svg
       viewBox="0 0 500 200"
@@ -85,7 +87,7 @@ export const EventoCover: React.FC<CoverProps> = ({ className = '', height = '18
 
       {/* Header Badge */}
       <rect x="20" y="18" width="138" height="26" rx="13" fill="#12263A" fillOpacity="0.7" stroke="#E85D4A" strokeWidth="1" />
-      <text x="32" y="35" fill="#F87171" fontFamily="Nunito Sans, sans-serif" fontWeight="800" fontSize="12" letterSpacing="0.05em">EVENTO & CELEBRACIÓN</text>
+      <text x="32" y="35" fill="#F87171" fontFamily="Nunito Sans, sans-serif" fontWeight="800" fontSize="12" letterSpacing="0.05em">{m.badgeEvento}</text>
     </svg>
   );
 };

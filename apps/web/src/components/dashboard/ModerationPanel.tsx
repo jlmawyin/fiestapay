@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import type { ModerationConversation, ModerationGuest, ModerationMessage } from '../../types';
 import { api, ApiError } from '../../api/client';
+import { useMessages } from '../../i18n/I18nContext';
+import { moderationCatalog } from '../../i18n/messages/organizerModeration';
 
 interface ModerationPanelProps {
   slug: string;
@@ -8,10 +10,8 @@ interface ModerationPanelProps {
   onGuests: (guests: ModerationGuest[]) => void;
 }
 
-const labelOf = (conversation: ModerationConversation): string =>
-  conversation.guestName && conversation.guestName.trim().length > 0 ? conversation.guestName : 'Participante';
-
 export const ModerationPanel: React.FC<ModerationPanelProps> = ({ slug, refreshKey, onGuests }) => {
+  const m = useMessages(moderationCatalog);
   const [conversations, setConversations] = useState<ModerationConversation[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [messages, setMessages] = useState<ModerationMessage[]>([]);
@@ -32,14 +32,14 @@ export const ModerationPanel: React.FC<ModerationPanelProps> = ({ slug, refreshK
         setNotice(null);
       } catch (err) {
         if (cancel) return;
-        setNotice(err instanceof ApiError ? err.message : 'No se pudo leer la moderacion.');
+        setNotice(err instanceof ApiError ? err.message : m.readFail);
       }
     };
     void load();
     return () => {
       cancel = true;
     };
-  }, [slug, refreshKey, onGuests]);
+  }, [slug, refreshKey, onGuests, m]);
 
   useEffect(() => {
     if (!selected) {
@@ -52,34 +52,33 @@ export const ModerationPanel: React.FC<ModerationPanelProps> = ({ slug, refreshK
         const page = await api.getModerationMessages(slug, selected);
         if (!cancel) setMessages(page.messages);
       } catch (err) {
-        if (!cancel) setNotice(err instanceof ApiError ? err.message : 'No se pudo leer los mensajes.');
+        if (!cancel) setNotice(err instanceof ApiError ? err.message : m.messagesFail);
       }
     };
     void load();
     return () => {
       cancel = true;
     };
-  }, [slug, selected, refreshKey]);
+  }, [slug, selected, refreshKey, m]);
 
   const removeMessage = async (messageId: string) => {
     setBusy(true);
     try {
       await api.deleteModerationMessage(slug, messageId);
       setMessages((prev) => prev.filter((message) => message.id !== messageId));
-      setNotice('Mensaje retirado del historial. La persona lo deja de ver al recargar.');
+      setNotice(m.removedNote);
     } catch (err) {
-      setNotice(err instanceof ApiError ? err.message : 'No se pudo borrar el mensaje.');
+      setNotice(err instanceof ApiError ? err.message : m.deleteFail);
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <section className="panel moderation-panel" aria-label="Moderacion de chat">
-      <h3 style={{ fontSize: '1.05rem' }}>Moderacion de chat</h3>
+    <section className="panel moderation-panel" aria-label={m.panelAria}>
+      <h3 style={{ fontSize: '1.05rem' }}>{m.title}</h3>
       <p className="moderation-note">
-        Bloquear corta acciones nuevas de esa sesion. Retirar es logico: no borra pagos. Un pago en verificacion
-        conserva el cupo hasta que se concilie. Esto no identifica a la persona en otro navegador.
+        {m.note}
       </p>
       {notice && (
         <p role="alert" className="moderation-note">
@@ -89,7 +88,7 @@ export const ModerationPanel: React.FC<ModerationPanelProps> = ({ slug, refreshK
       <div className="moderation-layout">
         <div>
           {conversations.length === 0 ? (
-            <p style={{ fontSize: '0.85rem', color: 'var(--color-ink-muted)' }}>Sin conversaciones.</p>
+            <p style={{ fontSize: '0.85rem', color: 'var(--color-ink-muted)' }}>{m.empty}</p>
           ) : (
             conversations.map((conversation) => (
               <button
@@ -100,7 +99,7 @@ export const ModerationPanel: React.FC<ModerationPanelProps> = ({ slug, refreshK
                 onClick={() => setSelected(conversation.id)}
                 style={{ display: 'block', width: '100%', marginBottom: '0.35rem', textAlign: 'left' }}
               >
-                {labelOf(conversation)}
+                {conversation.guestName && conversation.guestName.trim().length > 0 ? conversation.guestName : m.fallback}
               </button>
             ))
           )}
@@ -109,7 +108,7 @@ export const ModerationPanel: React.FC<ModerationPanelProps> = ({ slug, refreshK
           {messages.map((message) => (
             <article key={message.id} style={{ marginBottom: '0.6rem' }}>
               <div style={{ fontSize: '0.72rem', color: 'var(--color-ink-muted)' }}>
-                {message.role === 'user' ? 'Persona' : 'Asistente'} · {message.id}
+                {message.role === 'user' ? m.roleUser : m.roleAssistant} · {message.id}
               </div>
               <p className="moderation-message">{message.text}</p>
               <button
@@ -119,7 +118,7 @@ export const ModerationPanel: React.FC<ModerationPanelProps> = ({ slug, refreshK
                 disabled={busy}
                 onClick={() => void removeMessage(message.id)}
               >
-                Borrar mensaje
+                {m.deleteMsg}
               </button>
             </article>
           ))}

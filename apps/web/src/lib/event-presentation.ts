@@ -9,6 +9,7 @@ import {
   suggestTheme,
   templateInviteCopy,
   themeContrastPairs,
+  themePhrase,
   type FiestaEvent,
   type Locale,
   type MealKind,
@@ -188,7 +189,7 @@ export interface InviteShareInput {
 
 export function buildInviteShareText(input: InviteShareInput, locale: Locale = 'es'): string {
   const theme = resolveTheme(input.template, input.theme);
-  const copy = TEMPLATE_INVITE_COPY[input.template];
+  const copy = templateInviteCopy(input.template, locale);
   const who = input.organizerName?.trim();
   const greeting =
     locale === 'en'
@@ -200,7 +201,7 @@ export function buildInviteShareText(input: InviteShareInput, locale: Locale = '
         : 'Te invitan.';
   const when = formatEventRange(input.startsAt, input.endsAt, SHARE_TIME_ZONE, locale);
   const lines = [
-    theme.phrase,
+    themePhrase(theme.key, locale),
     greeting,
     plainShareText(input.title),
     locale === 'en' ? `Schedule: ${when}` : `Horario: ${when}`,
