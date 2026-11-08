@@ -49,15 +49,23 @@ const createdEvent: CreatedEvent = {
   adminKey: 'admin-key-1',
 };
 
+function saveWizardStep() {
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar y seguir' }));
+}
+
 function fillCreateForm() {
   fireEvent.change(screen.getByLabelText(/Título del Evento/i), { target: { value: 'Fiesta de prueba' } });
+  saveWizardStep();
+  saveWizardStep();
   fireEvent.change(screen.getByLabelText(/Lugar o Dirección/i), { target: { value: 'Parque' } });
+  saveWizardStep();
   fireEvent.change(screen.getByLabelText(/Cuota por persona/i), { target: { value: '25.00' } });
   fireEvent.change(screen.getByLabelText(/Capacidad máxima/i), { target: { value: '10' } });
+  saveWizardStep();
+  saveWizardStep();
 }
 
 function submitCreate() {
-  fireEvent.click(screen.getByRole('button', { name: 'Revisar invitación' }));
   const publish = screen.queryByRole('button', { name: 'Publicar invitación' });
   if (publish) fireEvent.click(publish);
 }
@@ -147,7 +155,6 @@ describe('create event pending progress and duplicate protection', () => {
     );
 
     fillCreateForm();
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar invitación' }));
     const publish = screen.getByRole('button', { name: 'Publicar invitación' });
     fireEvent.click(publish);
     fireEvent.click(publish);

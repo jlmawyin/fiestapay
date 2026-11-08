@@ -265,8 +265,18 @@ describe('example placeholder warning', () => {
     render(
       <CreateEventView onEventCreated={vi.fn()} onCancel={vi.fn()} onShowToast={vi.fn()} recoveryAvailable={false} />,
     );
-    fillExactExamples();
-    submitCreate();
+    const save = () => fireEvent.click(screen.getByRole('button', { name: 'Guardar y seguir' }));
+    fireEvent.change(screen.getByLabelText(/Título del Evento/i), { target: { value: 'Nombre de la fiesta' } });
+    save();
+    save();
+    fireEvent.change(screen.getByLabelText(/Lugar o Dirección/i), { target: { value: 'Lugar o direccion' } });
+    fireEvent.change(screen.getByLabelText(/Descripción para los invitados/i), { target: { value: 'Que van a hacer' } });
+    fireEvent.change(screen.getByLabelText(/Qué incluye la cuota/i), { target: { value: 'Separa con comas' } });
+    save();
+    fireEvent.change(screen.getByLabelText(/Cuota por persona/i), { target: { value: '40.00' } });
+    fireEvent.change(screen.getByLabelText(/Capacidad máxima/i), { target: { value: '6' } });
+    save();
+    save();
     expect(exampleAlert()).toBeInTheDocument();
     expect(createEvent).not.toHaveBeenCalled();
 

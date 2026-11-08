@@ -6,7 +6,7 @@ import { useMessages } from '../i18n/I18nContext';
 import { createEventCatalog } from '../i18n/messages/organizerCreate';
 import { OrganizerLinkCard } from '../components/dashboard/OrganizerLinkCard';
 import { RecoveryEmailCard } from '../components/dashboard/RecoveryEmailCard';
-import { CreateEventForm } from '../components/events/CreateEventForm';
+import { CreateWizard } from '../components/events/CreateWizard';
 
 interface CreateEventViewProps {
   onEventCreated: (slug: string) => void;
@@ -97,7 +97,7 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
                 <div className="create-event-progress-bar" aria-hidden="true" />
               </div>
             ) : null}
-            <CreateEventForm onSubmit={handleSubmit} onCancel={onCancel} isLoading={isLoading} />
+            <CreateWizard onSubmit={handleSubmit} onCancel={onCancel} isLoading={isLoading} />
           </>
         )}
       </div>

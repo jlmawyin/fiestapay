@@ -118,6 +118,17 @@ export const orderSchema = z.object({
 });
 
 export const chatSchema = z.object({ message: requiredText(1000) });
+
+/** Optional creation-assistant help. No event, person, price, date or capacity fields. */
+export const presentationSuggestionSchema = z
+  .object({
+    template: z.enum(['comida', 'casa', 'viaje', 'evento']),
+    title: requiredText(120),
+    meal: z.enum(['desayuno', 'almuerzo', 'cena']).optional(),
+    location: trimmed(200).optional(),
+    hints: z.array(requiredText(60)).max(10).optional(),
+  })
+  .strict();
 const MESSAGE_ID_RE = /^[1-9][0-9]{0,18}$/;
 
 export const slugParamSchema = z.object({

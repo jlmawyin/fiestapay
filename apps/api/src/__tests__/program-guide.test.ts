@@ -328,6 +328,31 @@ describe('guía del asistente de pago FP-WIZ-1', () => {
   });
 });
 
+describe('guía del asistente de creación FP-CREATE-A1', () => {
+  const CREATE_LABEL_KEYS = [
+    'createWizardTitle',
+    'stepWhat',
+    'stepWhen',
+    'stepWhere',
+    'stepShare',
+    'stepLook',
+    'advancedOptions',
+    'suggestWithAi',
+  ] as const;
+
+  it.each(LOCALES)('describe el asistente de creación por pasos en los seis prompts (%s)', (locale) => {
+    const labels = UI_LABELS[locale];
+    const prompts = actualPrompts(locale);
+    expect(Object.keys(prompts)).toHaveLength(6);
+    for (const [name, prompt] of Object.entries(prompts)) {
+      expect(prompt, `${name} debe mencionar /create`).toContain('/create');
+      for (const key of CREATE_LABEL_KEYS) {
+        expect(prompt, `${name} debe citar ${key}: ${labels[key]}`).toContain(labels[key]);
+      }
+    }
+  });
+});
+
 describe('regresión de recuperación: navegación y datos sensibles', () => {
   it.each(['¿Dónde copio la contraseña de prueba?', '¿Cómo uso el botón Copiar contraseña?', '¿Dónde está Copiar correo?', 'Ya veo datos de sandbox, ¿dónde pego la contraseña?', 'Dime qué botón uso para Copiar contraseña en la demo', '¿Dónde veo la cuenta Personal de prueba?'])('permite orientación de controles: %s', (question) => {
     expect(decideAssistantTurn(question)).toEqual({ kind: 'model' });
