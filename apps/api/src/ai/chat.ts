@@ -10,7 +10,13 @@ import { assertActive } from '../domain/events.js';
 import { concealExpired } from '../domain/retention.js';
 import { reserveAiRequest } from './budget.js';
 import { findGuestBySession, getEventBySlug, loadGuest, type EventRow, type GuestRow } from '../domain/read.js';
-import { decideAssistantTurn, guestSystemInstruction, loadServerFacts, policyAnswer } from './assistant-policy.js';
+import {
+  claimsSensitiveExecution,
+  decideAssistantTurn,
+  guestSystemInstruction,
+  loadServerFacts,
+  policyAnswer,
+} from './assistant-policy.js';
 import type { HistoryRole, StoredPart, StoredTurn } from './history.js';
 import { createResponse, openaiCallsOf, openaiTextOf, toOpenAIInput, toOpenAITools, type RespondFn } from './openai.js';
 import { TOOL_NAMES, TOOL_DECLARATIONS, runTool, type FunctionDeclaration, type ToolOutcome } from './tools.js';
@@ -276,8 +282,13 @@ export async function chatWithAssistant(
 
   const freshGuest = guest ? await loadGuest(pool, guest, event) : undefined;
   const assistantMessageId = assistantIds[assistantIds.length - 1];
+  // The guest channel must not repeat a claim that FiestaPay executed a payment, refund,
+  // confirmation or attendance change. The deterministic turns above never reach this check.
+  const finalText = result.text.length > 0 && !claimsSensitiveExecution(result.text)
+    ? result.text
+    : fallbackText(locale);
   return {
-    text: result.text.length > 0 ? result.text : fallbackText(locale),
+    text: finalText,
     ...(result.quote ? { quote: result.quote } : {}),
     ...(freshGuest ? { guest: freshGuest } : {}),
     ...(result.actions.length > 0 ? { actions: result.actions } : {}),

@@ -274,6 +274,72 @@ describeDb('asistentes bilingües de punta a punta', () => {
     });
   });
 
+  it('tabla completa: bloquea afirmaciones de ejecución y permite explicaciones neutrales', () => {
+    const blocked = [
+      // The five phrases reported by the verifier.
+      "I've refunded you",
+      'I sent the money',
+      'Refund processed',
+      'I charged your card',
+      'I marked you as paid',
+      // First-person and consummated-fact variants.
+      'I refunded you',
+      "I've refunded your payment",
+      'I sent you the money',
+      'I transferred the money',
+      "I've paid the organizer",
+      'I paid you',
+      'I charged you',
+      'I charged your account',
+      'I marked your payment as received',
+      'Your refund has been processed',
+      'Refund issued',
+      'Refund completed',
+      'Payment captured',
+      "I've captured it",
+      'I confirmed the event',
+      'I changed your RSVP',
+    ];
+    const neutral = [
+      'The organizer can press ✓ Confirm Event in the panel.',
+      'PayPal handles refunds according to its terms.',
+      'Refunds are processed by PayPal, not by me.',
+      'Once the server verifies the capture, the status changes to paid.',
+      'You can check status with the Check Status button.',
+      "I can't process refunds; the organizer decides.",
+      "If the event is cancelled, refunds follow PayPal's process.",
+      'I prepared a quote for you to review.',
+    ];
+
+    for (const claim of blocked) expect(claimsSensitiveExecution(claim), claim).toBe(true);
+    for (const text of neutral) expect(claimsSensitiveExecution(text), text).toBe(false);
+  });
+
+  it.each<Locale>(['en', 'es'])(
+    'el chat del invitado reemplaza una afirmación inglesa de ejecución y deja pasar una neutral en %s',
+    async (locale) => {
+      const claim = "I've refunded you";
+      const neutral = 'The organizer can press "Confirm Event" in the panel.';
+      const fallback = locale === 'en'
+        ? 'I could not draft an answer. You can continue with the page forms: attendance, quote and payment work without the assistant.'
+        : 'No pude redactar una respuesta. Puedes seguir con los formularios de la pagina: asistencia, cotizacion y pago funcionan sin el asistente.';
+
+      await withApp(async (app) => {
+        const created = await createEvent(app, locale);
+        const guest = await joinGuest(app, created.slug, locale);
+
+        const unsafe = await guest.post(`/api/events/${created.slug}/chat`, { message: 'summary' });
+        expect(unsafe.statusCode).toBe(200);
+        expect(body<{ text: string }>(unsafe).text).toBe(fallback);
+        expect(body<{ text: string }>(unsafe).text).not.toContain(claim);
+
+        const allowed = await guest.post(`/api/events/${created.slug}/chat`, { message: 'summary' });
+        expect(allowed.statusCode).toBe(200);
+        expect(body<{ text: string }>(allowed).text).toBe(neutral);
+      }, [completed(message(claim)), completed(message(neutral))]);
+    },
+  );
+
   it('bloquea afirmaciones inglesas de ejecución en público y organizador y permite explicaciones neutrales', async () => {
     const claims = [
       'I processed the refund.',

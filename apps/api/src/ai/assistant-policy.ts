@@ -71,8 +71,32 @@ const IPV4 = /\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]
 const SHA256_HEX = /\b[a-f0-9]{64}\b/gi;
 const ADMIN_QUERY = /([?&])k=[^\s&#]*/gi;
 
+/** Spanish detections stay byte-for-byte compatible with the previous filter. */
 const EXECUTION_CLAIM =
   /\b(ya\s+)?(confirm[eé]\s+la\s+realizaci[oó]n|proces[eé]\s+(el\s+)?reembolso|reembols[eé]\s+a|cancel[eé]\s+el\s+evento|elimin[eé]\s+la\s+(fiesta|invitaci[oó]n)|cambi[eé]\s+la\s+asistencia|registr[eé]\s+(el\s+)?pago|ejecut[eé]\s+el\s+reembolso)\b|\bI(?:'ve| have)?\s+(?:already\s+)?(?:processed|issued|sent|completed|approved|started)\s+(?:the|your|their|a|all)?\s*(?:refunds?|reimbursements?|money back)\b|\bI(?:'ve| have)?\s+(?:already\s+)?(?:charged|captured|confirmed|processed|recorded|registered)\s+(?:the|your|their|a)?\s*(?:payments?|orders?|charges?|events?|bookings?)\b|\bI(?:'ve| have)?\s+(?:already\s+)?(?:paid|released|moved|retained|refunded|transferred)\s+(?:the|your|their|a|all)?\s*(?:funds?|money|payments?|refunds?|amount)\b|\bI(?:'ve| have)?\s+(?:already\s+)?(?:canceled|cancelled|deleted|removed)\s+(?:the|your|their|a)?\s*(?:events?|invitations?|fiestas?)\b|\bI(?:'ve| have)?\s+(?:already\s+)?changed\s+(?:your|the)\s+(?:attendance|rsvp|status)\b|\b(?:your|the)\s+(?:refund|reimbursement)\s+(?:has been|was|is)\s+(?:processed|issued|sent|completed|approved)\b|\b(?:your|the)\s+(?:payment|order)\s+(?:has been|was)\s+(?:charged|captured|confirmed)\s+by me\b/i;
+
+/**
+ * English execution claims the assistant cannot perform: first-person actions plus bare
+ * consummated facts. Neutral explanations ("PayPal handles refunds", "Refunds are processed
+ * by PayPal, not by me") deliberately do not match.
+ */
+const EXECUTION_CLAIM_EN = new RegExp([
+  // Refunded/reimbursed someone or their payment.
+  String.raw`\bI(?:'ve|’ve| have)?\s+(?:already\s+)?(?:refunded|reimbursed)\s+(?:you|your\s+(?:payments?|orders?|money|funds?|purchase|charges?|cards?|accounts?))\b`,
+  // Sent/transferred/paid money or an organizer.
+  String.raw`\bI(?:'ve|’ve| have)?\s+(?:already\s+)?(?:sent|transferred|paid)\s+(?:you\s+)?(?:the|your|their|a|all)?\s*(?:money|funds?|payments?|refunds?|organizer|event)\b`,
+  String.raw`\bI(?:'ve|’ve| have)?\s+(?:already\s+)?paid\s+you\b`,
+  // Charged/captured/confirmed/marked a person, a payment or the event.
+  String.raw`\bI(?:'ve|’ve| have)?\s+(?:already\s+)?(?:charged|captured|confirmed|marked)\s+(?:you|your\s+(?:cards?|accounts?|payments?|orders?|charges?|rsvp|attendance|status)|the\s+(?:payments?|orders?|event|charges?|cards?|accounts?)|it)\b`,
+  String.raw`\bI(?:'ve|’ve| have)?\s+(?:already\s+)?changed\s+(?:your|the)\s+(?:attendance|rsvp|status)\b`,
+  String.raw`\bI(?:'ve|’ve| have)?\s+(?:already\s+)?marked\s+you\s+as\s+(?:paid|received|complete|confirmed)\b`,
+  // Processed/issued/completed one of those actions.
+  String.raw`\bI(?:'ve|’ve| have)?\s+(?:already\s+)?processed\s+(?:the|your|their|a|all)?\s*(?:refunds?|reimbursements?|payments?|orders?)\b`,
+  String.raw`\bI(?:'ve|’ve| have)?\s+(?:already\s+)?(?:issued|completed|approved|started|recorded|registered)\s+(?:the|your|their|a|all)?\s*(?:refunds?|reimbursements?|payments?|orders?|charges?|events?)\b`,
+  // Bare consummated facts, without a first-person subject.
+  String.raw`\b(?:your\s+|the\s+)?(?:refund|reimbursement)\s+(?:has\s+been\s+|was\s+|is\s+)?(?:processed|issued|sent|completed|approved)\b`,
+  String.raw`\b(?:your\s+|the\s+)?payment\s+(?:has\s+been\s+|was\s+|is\s+)?(?:captured|charged|confirmed|processed)\b`,
+].join('|'), 'i');
 
 /** Collapse untrusted event text so it cannot break out of a prompt line. */
 export function fenceData(value: string): string {
@@ -656,7 +680,7 @@ export function organizerSystemInstruction(input: { title: string; slug: string;
 }
 
 export function claimsSensitiveExecution(text: string): boolean {
-  return EXECUTION_CLAIM.test(text);
+  return EXECUTION_CLAIM.test(text) || EXECUTION_CLAIM_EN.test(text);
 }
 
 export function redactSecrets(text: string, secrets: readonly string[]): string {
