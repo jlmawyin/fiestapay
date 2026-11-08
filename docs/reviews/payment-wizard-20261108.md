@@ -21,4 +21,13 @@ Request from Jorge (with annotated screenshots): the invitation's **Tu camino al
   - **Cambiar** reopens step 2 and locks steps 3–4;
   - the assistant link opens the chat without sending anything;
   - English shows no Spanish UI text and the page never scrolls horizontally.
-- No payment, OpenAI, AssemblyAI, SMTP or WhatsApp call was made. Not deployed: production stays on `64465cb` until Jorge approves.
+- No payment, OpenAI, AssemblyAI, SMTP or WhatsApp call was made.
+
+## Deployment
+
+Jorge approved merging and deploying. PR 17 merged as `main` = `81f5f054671207fc4b1d453f3ee1662d37c4e373` ([main CI 42451573104](https://github.com/jlmawyin/fiestapay/actions/runs/42451573104) succeeded) and deployed on 8 November 2026 at 05:47 UTC with the same reviewed zero-SQL operator, base moved to `64465cb` (AGY approved the operator change).
+
+- **Before activation:** fresh backup restored into a scratch database (20 tables identical, 0 migration rows added, 0 payment references broken).
+- **Activation:** recreated only the FiestaPay API on image `sha256:f278295c…`. It added 0 events, orders or ledger rows and did not roll back the database. Other containers were unchanged, and the five private values were not found in the bundle or logs.
+- **Offsite copy:** the activation backup `fiestapay-20261108T054754Z.dump` was copied off the VPS with a matching hash and restricted access.
+- **Public check (view only, 375 px):** step 1 is open and steps 2–4 are locked. **Quiero pagar** is gone and there is no horizontal overflow.
