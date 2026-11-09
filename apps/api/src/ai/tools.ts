@@ -1,4 +1,4 @@
-import { usd, type Quote } from '@fiestapay/shared';
+import { VOICE_PAYMENT_PENDING, usd, type Locale, type Quote } from '@fiestapay/shared';
 import { z } from 'zod';
 import type { Pool } from '../db/pool.js';
 import { MAX_COMPANIONS } from '../lib/schemas.js';
@@ -24,6 +24,7 @@ export interface ToolContext {
   event: EventRow;
   guest: GuestRow | null;
   quoteTtlSeconds: number;
+  locale?: Locale;
 }
 
 export interface ToolOutcome {
@@ -202,16 +203,22 @@ export async function runTool(ctx: ToolContext, name: string, rawArgs: unknown):
         };
       }
       // Amounts come only from the event price, the confirmed RSVP and verified payments.
+      // Any client-supplied amount in the arguments is ignored: it is never read above.
       const quote = await createQuoteForSession(ctx.pool, ctx.sessionId, ctx.event.slug, ctx.quoteTtlSeconds);
+      const nextStep = ctx.locale === 'en'
+        ? 'Press "Approve in PayPal" on screen and approve the payment inside PayPal. The assistant cannot charge or confirm it: only a capture verified by the server counts as paid.'
+        : 'Pulsa «Aprobar en PayPal» en pantalla y aprueba el pago dentro de PayPal. El asistente no cobra ni confirma el pago: solo una captura verificada por el servidor cuenta como pagado.';
       return {
         response: {
           ok: true,
+          estado: VOICE_PAYMENT_PENDING,
           resumen: quote.summary,
           personas: quote.people,
           total: usd(quote.totalCents),
           a_pagar: usd(quote.amountCents),
           a_pagar_centavos: quote.amountCents,
           vence: quote.expiresAt,
+          siguiente_paso: nextStep,
           nota: 'Repite el resumen y pide confirmacion; el pago solo ocurre si la persona lo aprueba en la interfaz y en PayPal.',
         },
         quote,

@@ -102,6 +102,7 @@ describeDb('asistentes bilingües de punta a punta', () => {
         LLM_PROVIDER: 'openai',
         OPENAI_API_KEY: 'clave-de-prueba',
         VOICE_ENABLED: 'true',
+        VOICE_PROVIDER: 'assemblyai',
         ASSEMBLYAI_API_KEY: 'assembly-test-key',
         VOICE_MAX_SECONDS: '60',
         VOICE_DAILY_SECONDS: '1800',
@@ -226,7 +227,7 @@ describeDb('asistentes bilingües de punta a punta', () => {
 
       const privacy = body<{ text: string }>(await ask('What data do you store about me?'));
       expect(privacy.text).toContain('FiestaPay neither receives nor stores the card number or PayPal password');
-      expect(privacy.text).toContain('processed with OpenAI');
+      expect(privacy.text).toContain('processed with Gemini');
 
       const refund = body<{ text: string }>(await ask('How long will a refund take?'));
       expect(refund.text).toMatch(/Receipt depends on your original method/);
@@ -260,7 +261,7 @@ describeDb('asistentes bilingües de punta a punta', () => {
       const response = await ask('¿Qué datos guardan de mí?');
       expect(response.statusCode).toBe(200);
       expect(body<{ text: string }>(response).text).toContain('Datos que guarda FiestaPay');
-      expect(body<{ text: string }>(response).text).toContain('OpenAI');
+      expect(body<{ text: string }>(response).text).toContain('Gemini');
       expect(privacyText('es')).toContain('Datos que guarda FiestaPay');
 
       const refund = body<{ text: string }>(await ask('¿Cuánto tarda un reembolso?'));

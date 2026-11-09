@@ -412,7 +412,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
           </form>
 
           <p style={{ padding: '0.5rem 0.75rem', fontSize: '0.67rem', color: 'var(--color-ink-muted)', backgroundColor: 'var(--color-surface-subtle)', borderTop: '1px solid var(--color-border)', lineHeight: 1.45 }}>
-            {m.privacy}
+            {capabilities?.llmProvider === 'openai' ? m.privacy : m.privacyGemini}
           </p>
         </section>
       )}

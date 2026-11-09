@@ -2,7 +2,7 @@ import type { ChatResult } from '@fiestapay/shared';
 import type { Locale } from '@fiestapay/shared';
 import type { Config, OpenAIConfig } from '../config.js';
 import type { Pool } from '../db/pool.js';
-import { HttpError, unavailable } from '../errors.js';
+import { HttpError } from '../errors.js';
 import { audit } from '../domain/audit.js';
 import { ModerationHold, appendChatTurn, assertChatRevision, assertSessionMayAct } from '../domain/moderation.js';
 import { assertPrivateAccess } from '../domain/access.js';
@@ -18,7 +18,9 @@ import {
   policyAnswer,
 } from './assistant-policy.js';
 import type { HistoryRole, StoredPart, StoredTurn } from './history.js';
-import { createResponse, openaiCallsOf, openaiTextOf, toOpenAIInput, toOpenAITools, type RespondFn } from './openai.js';
+import { openaiCallsOf, openaiTextOf, toOpenAIInput, toOpenAITools, type RespondFn } from './openai.js';
+import { geminiAdapter } from './gemini-text.js';
+import { selectTextProvider, type TextProviderSelection } from './text-provider.js';
 import { TOOL_NAMES, TOOL_DECLARATIONS, runTool, type FunctionDeclaration, type ToolOutcome } from './tools.js';
 
 /** Hard ceiling per (event, session) conversation, so one visitor cannot drain the AI budget. */
@@ -173,20 +175,29 @@ function systemInstruction(event: EventRow, guest: GuestRow | null, locale: Loca
   });
 }
 
-/** OpenAI only. A missing key is a 503, never another model. */
+/** Builds the provider-specific adapter; the conversation loop stays provider neutral. */
+export function textAdapter(
+  selection: TextProviderSelection,
+  instruction: string,
+  declarations: FunctionDeclaration[] = TOOL_DECLARATIONS,
+): ProviderAdapter {
+  if (selection.provider === 'gemini') {
+    return geminiAdapter(selection.gemini!, instruction, selection.respond, declarations);
+  }
+  return openaiAdapter(selection.openai!, instruction, selection.respond, declarations);
+}
+
+/** AI_TEXT_PROVIDER decides; a missing key is a 503, never a silent move to another model. */
 function selectProvider(
   config: Config,
   providers: ChatProviders,
   locale: Locale = 'es',
 ): { maxHistoryMessages: number; adapter: (instruction: string) => ProviderAdapter } {
-  const openai = config.openai;
-  if (!openai) {
-    throw unavailable(locale === 'en'
-      ? 'The assistant is not configured'
-      : (config.openaiDisabledReason ?? 'El asistente no esta configurado'));
-  }
-  const respond = providers.respond ?? createResponse;
-  return { maxHistoryMessages: openai.maxHistoryMessages, adapter: (instruction) => openaiAdapter(openai, instruction, respond) };
+  const selection = selectTextProvider(config, locale, providers.respond);
+  return {
+    maxHistoryMessages: selection.maxHistoryMessages,
+    adapter: (instruction) => textAdapter(selection, instruction),
+  };
 }
 
 async function loadHistory(pool: Pool, eventId: string, sessionId: string, limit: number): Promise<StoredTurn[]> {
@@ -272,7 +283,7 @@ export async function chatWithAssistant(
     history,
     async (name, args) => {
       await assertChatRevision(pool, event.id, sessionId, storedUser.revision);
-      return runTool({ pool, sessionId, event, guest, quoteTtlSeconds: config.quoteTtlSeconds }, name, args);
+      return runTool({ pool, sessionId, event, guest, quoteTtlSeconds: config.quoteTtlSeconds, locale }, name, args);
     },
     async (turn) => {
       const saved = await appendChatTurn(pool, event.id, sessionId, turn.role, turn.parts, storedUser.revision);

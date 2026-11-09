@@ -5,8 +5,10 @@ export type HistoryRole = 'user' | 'model' | 'function';
 
 /**
  * Persisted chat part. New user turns store `{text}`. New model and function turns store one
- * OpenAI item under `openai`. Older rows may still carry `thought`, `thoughtSignature`,
- * `functionCall`, or `functionResponse`. Those keys stay readable and are not replayed.
+ * normalized item under `openai`; a Gemini item may also carry `gemini_signature` so thought
+ * signatures survive a stateless replay. Older rows may still carry `thought`,
+ * `thoughtSignature`, `functionCall`, or `functionResponse`. Those keys stay readable and are
+ * not replayed.
  */
 export interface StoredPart {
   text?: string;

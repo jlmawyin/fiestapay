@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Check, ClipboardList, Lock, Mic, Receipt, X } from 'lucide-react';
-import { UI_LABELS, type VoiceAudience } from '@fiestapay/shared';
+import { UI_LABELS, type VoiceAudience, type VoiceProvider } from '@fiestapay/shared';
 import type { Capabilities, Guest, Quote, RsvpStatus } from '../../types';
 import { ApiError, api } from '../../api/client';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
@@ -10,6 +10,12 @@ import { ContinuousResampler } from '../../voice/resampler';
 import { floatToPCM16, pcm16ToBase64 } from '../../voice/pcm';
 import { PlaybackQueue, type PlaybackFault } from '../../voice/playback';
 import { createSpanishSpeechFallback, type SpanishSpeechFallback } from '../../voice/fallback-speech';
+import {
+  asGeminiSessionConfig,
+  connectGeminiLive,
+  type GeminiLiveConnector,
+  type GeminiLiveSessionHandle,
+} from '../../voice/gemini-live';
 import {
   VOICE_ACTIVITY_THROTTLE_MS,
   VOICE_COOLDOWN_MS,
@@ -41,6 +47,8 @@ interface VoiceInvitationAgentProps {
   /** Optional controlled visibility. Standalone use keeps its internal state. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Test seam: fake Gemini Live transport. Production omits it and uses the real connector. */
+  geminiLiveConnector?: GeminiLiveConnector;
 }
 
 interface AccumulatedToolCall {
@@ -92,6 +100,23 @@ function parseRsvpAction(actionStr: string): { status: RsvpStatus; companions: n
   };
 }
 
+/** Appends one incremental transcript fragment with a single separating space. */
+function appendTranscriptFragment(previous: string, fragment: string): string {
+  if (!previous) return fragment;
+  if (!fragment) return previous;
+  if (previous.endsWith(' ') || fragment.startsWith(' ')) return previous + fragment;
+  return `${previous} ${fragment}`;
+}
+
+/** Normalizes a server tool answer into the object Gemini expects back. */
+function toGeminiToolPayload(response: unknown): Record<string, unknown> {
+  if (response && typeof response === 'object' && !Array.isArray(response)) {
+    return response as Record<string, unknown>;
+  }
+  if (response === undefined || response === null) return { ok: true };
+  return { result: response };
+}
+
 export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   slug = '',
   capabilities,
@@ -105,6 +130,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   embedded = false,
   open,
   onOpenChange,
+  geminiLiveConnector,
 }) => {
   const organizer = audience === 'organizer';
   const publicAudience = audience === 'public';
@@ -128,6 +154,8 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   const [suggestedQuote, setSuggestedQuote] = useState<Quote | null>(null);
   const [actionProposals, setActionProposals] = useState<ActionProposal[]>([]);
   const [isConfirmingAction, setIsConfirmingAction] = useState(false);
+  /** Engine of the live session. Null before start and after stop; rollback stays assemblyai. */
+  const [activeProvider, setActiveProvider] = useState<VoiceProvider | null>(null);
   const { locale, formatMoney } = useI18n();
   const m = useMessages(voiceCatalog);
   const labels = UI_LABELS[locale];
@@ -138,6 +166,9 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
 
   // References for cleanup
   const socketRef = useRef<WebSocket | null>(null);
+  const geminiSessionRef = useRef<GeminiLiveSessionHandle | null>(null);
+  const geminiConnectorRef = useRef<GeminiLiveConnector | undefined>(geminiLiveConnector);
+  geminiConnectorRef.current = geminiLiveConnector;
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const playbackRef = useRef<PlaybackQueue | null>(null);
@@ -186,6 +217,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     lastUserActivityRef.current = 0;
     lastBackendActivityRef.current = 0;
     leaseInactiveRef.current = false;
+    setActiveProvider(null);
 
     const leaseId = leaseIdRef.current;
     leaseIdRef.current = null;
@@ -254,6 +286,17 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
           socket.send(JSON.stringify({ type: 'session.end' }));
         }
         socket.close();
+      } catch {
+        // ignore
+      }
+    }
+
+    // Close the Gemini Live session (microphone and playback close below).
+    if (geminiSessionRef.current) {
+      const gemini = geminiSessionRef.current;
+      geminiSessionRef.current = null;
+      try {
+        gemini.close();
       } catch {
         // ignore
       }
@@ -379,6 +422,25 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     speakTextFallback(copyRef.current.unavailableSpeech);
   }, [speakTextFallback]);
 
+  /**
+   * Applies the server quote to the page and scrolls to the existing
+   * order + PayPal approval step. Voice never creates an order or calls PayPal.
+   */
+  const handleApproveInPayPal = useCallback((quote: Quote) => {
+    onApplyQuote?.(quote);
+    try {
+      const target = document.querySelector('[data-testid="paypal-stepper"]')
+        ?? document.querySelector('[data-payment-quote]')
+        ?? document.querySelector('[data-paypal-section]');
+      const element = target as HTMLElement | null;
+      if (element && typeof element.scrollIntoView === 'function') {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    } catch {
+      // The quote is already applied; a missing anchor never blocks payment.
+    }
+  }, [onApplyQuote]);
+
   const handleStartVoice = async () => {
     if (startingRef.current) return;
     if (cooldownUntilRef.current > Date.now()) {
@@ -492,6 +554,13 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
           return;
         }
         leaseIdRef.current = tokenData.leaseId;
+        const tokenProvider = (tokenData as { provider?: VoiceProvider }).provider;
+        const useGemini = tokenProvider === 'gemini';
+        setActiveProvider(useGemini ? 'gemini' : 'assemblyai');
+        const geminiConfig = useGemini ? asGeminiSessionConfig(tokenData.sessionConfig) : null;
+        if (useGemini && !geminiConfig) {
+          throw new Error('Invalid Gemini session config');
+        }
 
         // Playback starts only after the gesture-time resume() has reached running.
         await resumeReady;
@@ -534,7 +603,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
             }
           },
         });
-        resamplerRef.current = new ContinuousResampler(ctx.sampleRate, 24000);
+        resamplerRef.current = new ContinuousResampler(ctx.sampleRate, useGemini ? 16000 : 24000);
 
         // 4. Setup AudioWorklet or ScriptProcessor fallback for mic capture
         const workletCode = `
@@ -600,17 +669,32 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
 
         const micSource = ctx.createMediaStreamSource(stream);
 
+        const sendMicPcm16 = (b64: string) => {
+          if (useGemini) {
+            const gemini = geminiSessionRef.current;
+            if (!gemini || gemini.closed) return;
+            try {
+              gemini.sendAudio(b64);
+            } catch {
+              // A failed realtime write never stops the microphone.
+            }
+            return;
+          }
+          if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+          socketRef.current.send(JSON.stringify({ type: 'input.audio', audio: b64 }));
+        };
+
         if (workletSupported) {
           const workletNode = new AudioWorkletNode(ctx, 'pcm-capture');
           workletNode.port.onmessage = (ev: MessageEvent) => {
-            if (!isCurrentSession() || !isReadyRef.current || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+            if (!isCurrentSession() || !isReadyRef.current) return;
             const data = ev.data as { type: string; samples: Float32Array };
             if (data?.type === 'pcm-chunk' && resamplerRef.current) {
               const resampled = resamplerRef.current.process(data.samples);
               if (resampled.length > 0) {
                 const pcm16 = floatToPCM16(resampled);
                 const b64 = pcm16ToBase64(pcm16);
-                socketRef.current.send(JSON.stringify({ type: 'input.audio', audio: b64 }));
+                sendMicPcm16(b64);
               }
             }
           };
@@ -623,14 +707,14 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
           // Safe fallback for older or restricted environments
           const scriptNode = ctx.createScriptProcessor(2048, 1, 1);
           scriptNode.onaudioprocess = (e) => {
-            if (!isCurrentSession() || !isReadyRef.current || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+            if (!isCurrentSession() || !isReadyRef.current) return;
             const inputData = e.inputBuffer.getChannelData(0);
             if (resamplerRef.current) {
               const resampled = resamplerRef.current.process(inputData);
               if (resampled.length > 0) {
                 const pcm16 = floatToPCM16(resampled);
                 const b64 = pcm16ToBase64(pcm16);
-                socketRef.current.send(JSON.stringify({ type: 'input.audio', audio: b64 }));
+                sendMicPcm16(b64);
               }
             }
           };
@@ -669,6 +753,222 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
           sendBackendActivity();
         };
 
+        // 5. Gemini Live (default) or the AssemblyAI rollback.
+        if (useGemini && geminiConfig) {
+          const beginGeminiActive = () => {
+            if (isReadyRef.current) return;
+            isReadyRef.current = true;
+            setSessionState('active');
+            setAgentStatus('listening');
+            lastUserActivityRef.current = Date.now();
+            // One timebox. No relay session is opened when it reaches zero.
+            if (tokenData.maxSeconds && tokenData.maxSeconds > 0) {
+              const startedAt = Date.now();
+              setRemainingSeconds(tokenData.maxSeconds);
+              timerRef.current = setInterval(() => {
+                if (!isCurrentSession()) return;
+                const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+                const left = Math.max(0, tokenData.maxSeconds - elapsed);
+                setRemainingSeconds(left);
+                if (left <= 0) {
+                  handleStopVoice(copyRef.current.timeLimit, 'limit');
+                  return;
+                }
+                // Real 60s inactivity. A reply still playing is never cut. While audio
+                // is actually being heard, the backend activity signal is refreshed from
+                // that playback (throttled); it is not a ping and silent mic PCM is ignored.
+                if (replyAudioPending()) {
+                  sendBackendActivity();
+                } else if (
+                  !toolsInFlightRef.current &&
+                  Date.now() - lastUserActivityRef.current >= VOICE_IDLE_MS
+                ) {
+                  handleStopVoice(copyRef.current.idle60, 'idle');
+                }
+              }, 1000);
+            }
+          };
+
+          const connector = geminiConnectorRef.current ?? connectGeminiLive;
+          const geminiSession = await connector({
+            token: tokenData.token,
+            model: geminiConfig.model,
+            apiVersion: geminiConfig.apiVersion,
+            liveConfig: geminiConfig.liveConfig,
+            callbacks: {
+              onOpen: () => {
+                if (!isCurrentSession()) return;
+                beginGeminiActive();
+              },
+              onAudio: (audioBase64) => {
+                if (!isCurrentSession()) return;
+                if (audioBase64 && playbackRef.current) {
+                  playbackRef.current.enqueueBase64(audioBase64);
+                  // A streaming reply is real activity: a long answer keeps the
+                  // server lease live while its audio actually arrives.
+                  sendBackendActivity();
+                }
+              },
+              onInputTranscript: (text) => {
+                if (!isCurrentSession()) return;
+                if (!text) return;
+                markUserActivity();
+                setUserTranscript((prev) => appendTranscriptFragment(prev, text));
+              },
+              onOutputTranscript: (text) => {
+                if (!isCurrentSession()) return;
+                if (!text) return;
+                setAgentTranscript((prev) => appendTranscriptFragment(prev, text));
+              },
+              onInterrupted: () => {
+                if (!isCurrentSession()) return;
+                // Barge-in: cut the audio in course and empty the queue.
+                toolGenerationRef.current += 1;
+                accumulatedToolsRef.current = [];
+                toolsInFlightRef.current = false;
+                try {
+                  playbackRef.current?.flush();
+                } catch {
+                  // ignore
+                }
+                playbackSpeakingRef.current = false;
+                setAgentStatus('listening');
+              },
+              onTurnComplete: () => {
+                if (!isCurrentSession()) return;
+                sendBackendActivity();
+                lastUserActivityRef.current = Date.now();
+                if (!replyAudioPending()) {
+                  setAgentStatus(toolsInFlightRef.current ? 'processing' : 'listening');
+                }
+              },
+              onToolCalls: (calls) => {
+                if (!isCurrentSession()) return;
+                if (publicAudience) return;
+                if (!leaseIdRef.current || calls.length === 0) return;
+                sendBackendActivity();
+                const toolGeneration = toolGenerationRef.current;
+                const isCurrentTurn = () => isCurrentSession() && toolGenerationRef.current === toolGeneration;
+                const executeTools = async () => {
+                  if (!isCurrentTurn()) return;
+                  toolsInFlightRef.current = true;
+                  if (!replyAudioPending()) setAgentStatus('processing');
+                  try {
+                    for (const tool of calls) {
+                      if (!isCurrentTurn()) return;
+                      try {
+                        const toolRes = organizer
+                          ? await api.executeOrganizerVoiceTool(slug, {
+                              leaseId: tokenData.leaseId,
+                              name: tool.name,
+                              arguments: tool.args,
+                            })
+                          : await api.executeVoiceTool(slug, {
+                              leaseId: tokenData.leaseId,
+                              name: tool.name,
+                              arguments: tool.args,
+                            });
+                        if (!isCurrentTurn()) return;
+                        const live = geminiSessionRef.current;
+                        if (live && !live.closed) {
+                          try {
+                            live.sendToolResponse([{
+                              id: tool.id,
+                              name: tool.name,
+                              response: toGeminiToolPayload(toolRes.response),
+                            }]);
+                          } catch {
+                            // A failed tool answer never stops the session.
+                          }
+                        }
+                        // Guest quotes stay human-confirmed. Organizer voice never applies a quote or an RSVP.
+                        if (!organizer && !publicAudience) {
+                          const guestRes = toolRes as Awaited<ReturnType<typeof api.executeVoiceTool>>;
+                          if (guestRes.quote) {
+                            setSuggestedQuote(guestRes.quote);
+                            onApplyQuote?.(guestRes.quote);
+                          }
+                          for (const act of guestRes.actions ?? []) {
+                            const parsedAction = parseRsvpAction(act);
+                            if (parsedAction) {
+                              setActionProposals((prev) => [
+                                ...prev,
+                                {
+                                  id: `${tool.id}-${Date.now()}`,
+                                  status: parsedAction.status,
+                                  companions: parsedAction.companions,
+                                  confirmed: false,
+                                },
+                              ]);
+                            }
+                          }
+                        }
+                      } catch (toolErr: unknown) {
+                        if (!isCurrentTurn()) return;
+                        if (toolErr instanceof ApiError && toolErr.status === 403) {
+                          cleanupSession('tool_forbidden');
+                          setSessionState('error');
+                          setErrorMessage(copyRef.current.toolForbidden);
+                          onShowToast('error', copyRef.current.toolForbiddenToast, copyRef.current.toolForbiddenTitle);
+                          return;
+                        }
+                        const live = geminiSessionRef.current;
+                        if (live && !live.closed) {
+                          try {
+                            live.sendToolResponse([{
+                              id: tool.id,
+                              name: tool.name,
+                              response: { error: friendlyVoiceError(toolErr, localeRef.current) },
+                            }]);
+                          } catch {
+                            // ignore
+                          }
+                        }
+                      }
+                    }
+                  } finally {
+                    if (toolGenerationRef.current === toolGeneration && isCurrentSession()) {
+                      toolsInFlightRef.current = false;
+                      setAgentStatus(replyAudioPending() ? 'speaking' : 'listening');
+                    }
+                  }
+                };
+                toolQueueRef.current = toolQueueRef.current.then(executeTools, executeTools);
+              },
+              onToolCallCancellation: (ids) => {
+                if (!isCurrentSession()) return;
+                if (ids.length > 0) toolGenerationRef.current += 1;
+              },
+              onGoAway: () => {
+                // The server will disconnect soon; onclose applies the same Stop path.
+              },
+              onError: () => {
+                if (!isCurrentSession()) return;
+                setErrorMessage(friendlyVoiceError(null, localeRef.current));
+                setSessionState('error');
+                cleanupSession('provider_error');
+                if (publicAudience) speakPublicFallback();
+                else speakUnavailableFallback();
+              },
+              onClose: () => {
+                if (!isCurrentSession()) return;
+                setSessionState('ended');
+                cleanupSession('ws_closed');
+              },
+            },
+          });
+          if (!isCurrentSession()) {
+            try {
+              geminiSession.close();
+            } catch {
+              // ignore
+            }
+            return;
+          }
+          geminiSessionRef.current = geminiSession;
+          // The greeting arrives after the locked kickoff text is sent.
+          geminiSession.sendKickoff(geminiConfig.kickoff);
+        } else {
         // 5. Connect WebSocket to AssemblyAI
         const wsUrl = `wss://agents.assemblyai.com/v1/ws?token=${encodeURIComponent(tokenData.token)}`;
         const ws = new WebSocket(wsUrl);
@@ -946,6 +1246,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
           setSessionState('ended');
           cleanupSession('ws_closed');
         };
+        }
       } catch (err: any) {
         if (!isCurrentSession()) return;
         cleanupSession('start_failed');
@@ -983,6 +1284,13 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     : cooldownSeconds > 0
       ? m.cooldownWait(cooldownSeconds)
       : null;
+  /**
+   * Engine named in consent/privacy/subtitle. The token wins once seated;
+   * before start the capabilities announce the real engine so consent names
+   * the provider that will receive audio. Absent = assemblyai.
+   */
+  const effectiveVoiceProvider: VoiceProvider = activeProvider ?? capabilities?.voiceProvider ?? 'assemblyai';
+  const geminiActive = effectiveVoiceProvider === 'gemini';
 
   return (
     <>
@@ -1057,7 +1365,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                   {publicAudience ? m.titlePublic : organizer ? m.titleOrg : m.titleGuest}
                 </strong>
                 <span style={{ fontSize: '0.72rem', opacity: 0.9 }}>
-                  {publicAudience ? m.subtitlePublic : m.subtitleAgent}
+                  {publicAudience ? m.subtitlePublic : geminiActive ? m.subtitleGemini : m.subtitleAgent}
                 </span>
               </div>
             </div>
@@ -1139,15 +1447,15 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                     {publicAudience ? (
                       <>
                         {m.privacyPublicA}
-                        {voiceAvailable ? m.privacyPublicOn : m.privacyPublicOff}
+                        {voiceAvailable ? (geminiActive ? m.privacyPublicGemini : m.privacyPublicOn) : m.privacyPublicOff}
                       </>
                     ) : organizer ? (
                       <>
-                        {m.privacyOrgA}<strong>AssemblyAI Voice Agent</strong>{m.privacyOrgB}
+                        {m.privacyOrgA}<strong>{geminiActive ? m.providerGemini : m.providerAssembly}</strong>{m.privacyOrgB}
                       </>
                     ) : (
                       <>
-                        {m.privacyGuestA}<strong>AssemblyAI Voice Agent</strong>{m.privacyGuestB1}<strong>&quot;{guest?.name}&quot;</strong>{m.privacyGuestB2}
+                        {m.privacyGuestA}<strong>{geminiActive ? m.providerGemini : m.providerAssembly}</strong>{m.privacyGuestB1}<strong>&quot;{guest?.name}&quot;</strong>{m.privacyGuestB2}
                       </>
                     )}
                   </p>
@@ -1157,7 +1465,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                       checked={consentGranted}
                       onChange={(e) => setConsentGranted(e.target.checked)}
                     />
-                    <span>{voiceAvailable ? m.consentOn : m.consentOff}</span>
+                    <span>{voiceAvailable ? (geminiActive ? m.consentGemini : m.consentOn) : m.consentOff}</span>
                   </label>
                 </div>
 
@@ -1258,7 +1566,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                       {agentTranscript && (
                         <div>
                           <span style={{ fontSize: '0.72rem', color: 'var(--color-teal)', fontWeight: 700, display: 'block' }}>
-                            {publicAudience ? m.assistantIsPublic : m.assistantIs}
+                            {publicAudience ? m.assistantIsPublic : geminiActive ? m.assistantIsGemini : m.assistantIs}
                           </span>
                           <span style={{ color: 'var(--color-ink)' }}>{agentTranscript}</span>
                         </div>
@@ -1352,7 +1660,18 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                         locale,
                       )}
                     </p>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--color-ink-muted)' }}>
+                    <p style={{ margin: '0.25rem 0', fontSize: '0.75rem', color: 'var(--color-ink)' }}>
+                      {m.quotePendingNote}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleApproveInPayPal(suggestedQuote)}
+                      className="btn btn-primary"
+                      style={{ width: '100%', marginTop: '0.35rem', fontSize: '0.8rem', padding: '0.55rem 0.6rem' }}
+                    >
+                      {m.approveInPayPal(formatMoney(suggestedQuote.amountCents))}
+                    </button>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--color-ink-muted)', display: 'block', marginTop: '0.35rem' }}>
                       {m.quoteDoneHint}
                     </span>
                   </div>

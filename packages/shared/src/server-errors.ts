@@ -221,6 +221,8 @@ export const SERVER_ERROR_EN: Readonly<Record<string, string>> = {
   'EMAIL_FROM invalido': 'EMAIL_FROM is not valid.',
   'El asistente no esta configurado: falta OPENAI_API_KEY':
     'The assistant is not configured: OPENAI_API_KEY is missing.',
+  'El asistente no esta configurado: falta GEMINI_API_KEY':
+    'The assistant is not configured: GEMINI_API_KEY is missing.',
   'OPENAI_BASE_URL debe usar https': 'OPENAI_BASE_URL must use https.',
   'OPENAI_BASE_URL invalida': 'OPENAI_BASE_URL is not valid.',
 

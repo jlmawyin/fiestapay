@@ -10,6 +10,8 @@ export const chatCatalog = defineCatalog({
     quickHelp3: '¿Cómo recupera el organizador su acceso?',
     privacy:
       'La conversación vive solo en esta pestaña abierta: al recargar o en una ventana nueva empieza vacía y aquí no se guarda historial. El servidor conserva metadatos de consumo, no el contenido de tus mensajes públicos. OpenAI procesa tus consultas para responder; no afirmamos que su retención sea cero.',
+    privacyGemini:
+      'La conversación vive solo en esta pestaña abierta: al recargar o en una ventana nueva empieza vacía y aquí no se guarda historial. El servidor conserva metadatos de consumo, no el contenido de tus mensajes públicos. Gemini procesa tus consultas para responder; no afirmamos que su retención sea cero.',
     openLabel: 'Abrir chat de FiestaPay',
     closeLabel: 'Cerrar chat de FiestaPay',
     chatShort: 'Chat',
@@ -46,6 +48,8 @@ export const chatCatalog = defineCatalog({
     quickHelp3: 'How does the organizer recover access?',
     privacy:
       'This conversation lives only in this open tab: reloading or opening a new window starts it empty, and no history is stored here. The server keeps usage metadata, not the content of your public messages. OpenAI processes your questions to answer them; we do not claim its retention is zero.',
+    privacyGemini:
+      'This conversation lives only in this open tab: reloading or opening a new window starts it empty, and no history is stored here. The server keeps usage metadata, not the content of your public messages. Gemini processes your questions to answer them; we do not claim its retention is zero.',
     openLabel: 'Open the FiestaPay chat',
     closeLabel: 'Close the FiestaPay chat',
     chatShort: 'Chat',

@@ -14,6 +14,7 @@
     "@fiestapay/shared": "*",
     "@fontsource/manrope": "^5.1.1",
     "@fontsource/nunito-sans": "^5.1.1",
+    "@google/genai": "2.31.0",
     "@paypal/paypal-js": "^8.1.1",
     "ag-grid-community": "^32.3.3",
     "ag-grid-react": "^32.3.3",

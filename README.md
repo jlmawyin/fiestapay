@@ -18,7 +18,7 @@ For that deliberately public test account only, configure `PAYPAL_DEMO_BUYER_PUB
 - Attendance and payment are separate states. A confirmed guest can still be unpaid.
 - Example: two attendees at USD 25 each → USD 50. The human reviews the quote and approves PayPal checkout.
 - Organizer dashboard uses AG Grid Community, collected amount before fees, a funding minimum, and a manually sent WhatsApp reminder.
-- OpenAI chat (`gpt-6-luna`, Responses API, low reasoning) and AssemblyAI voice share server tools. A public informational voice agent is available before joining; guest and organizer voice remain role-scoped. Tools propose attendance and prepare quotes; they cannot approve a payment.
+- **Gemini** powers every assistant (since 9 Nov 2026): real-time voice with the **Gemini Live API** (`gemini-3.8-live`, native audio, barge-in, live transcription, Spanish *Kore* / English *Puck*) through single-use **ephemeral tokens** minted by the server, and text chat with `gemini-3.5-flash`. Voice and text share the same server tools. A public informational voice agent (no tools) is available before joining; guest and organizer voice remain role-scoped. The guest agent can **prepare the payment**: it calls `prepare_quote`, the server computes the amount in integer cents, and the screen shows **Approve in PayPal $X**. Only the person approves inside PayPal, and only a server-verified capture counts as paid. See [docs/GEMINI.md](docs/GEMINI.md).
 
 ## Run locally
 
@@ -33,7 +33,7 @@ npm run dev
 
 Open http://localhost:5173. The API runs on port 3000 and applies versioned migrations on startup. For a production build: `npm run build`, then `npm start`.
 
-Keep all keys server-side. `.env` and `.env.buyers` are ignored. Set `OPENAI_API_KEY` and optionally `OPENAI_MODEL=gpt-6-luna`. `LLM_PROVIDER=openai` is accepted for compatibility; any other value is rejected. Missing keys or API failures leave the manual invitation flow available. Consumer chat subscriptions do not configure API access.
+Keep all keys server-side. `.env` and `.env.buyers` are ignored. Set `GEMINI_API_KEY` (optional `GEMINI_LIVE_MODEL`, `GEMINI_TEXT_MODEL`); the browser only ever receives a single-use ephemeral token locked to the model and configuration. `VOICE_PROVIDER=assemblyai` and `AI_TEXT_PROVIDER=openai` (with `ASSEMBLYAI_API_KEY` / `OPENAI_API_KEY`) remain as configuration rollbacks. `LLM_PROVIDER=openai` is accepted for compatibility; any other value is rejected. Missing keys or API failures leave the manual invitation flow available. Consumer chat subscriptions do not configure API access.
 
 PayPal must use one **sandbox Business merchant** and sandbox client ID/secret. Set `PAYPAL_MERCHANT_ID` to that merchant's ID and `PAYPAL_WEBHOOK_ID` to the registered webhook ID, not its URL. Register:
 

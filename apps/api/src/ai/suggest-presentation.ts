@@ -8,11 +8,12 @@ import {
   type PresentationSuggestionInput,
   type ThemeKey,
 } from '@fiestapay/shared';
-import type { Config, OpenAIConfig } from '../config.js';
+import type { Config } from '../config.js';
 import type { Pool } from '../db/pool.js';
 import { reserveAiRequest } from './budget.js';
 import { fenceData } from './assistant-policy.js';
-import { createResponse, openaiTextOf, type RespondFn } from './openai.js';
+import { openaiTextOf, type RespondFn } from './openai.js';
+import { selectTextProvider, type TextProviderSelection } from './text-provider.js';
 
 /** A description longer than this is discarded; the contract asks for a brief invitation line. */
 export const MAX_SUGGESTION_DESCRIPTION = 280;
@@ -115,21 +116,23 @@ export async function suggestPresentation(
   locale: Locale,
   providers: PresentationSuggestionProviders = {},
 ): Promise<PresentationSuggestion> {
-  const openai = config.openai;
-  if (!openai) return rulesSuggestion(input);
+  let provider: TextProviderSelection;
+  try {
+    provider = selectTextProvider(config, locale, providers.respond);
+  } catch {
+    return rulesSuggestion(input);
+  }
 
   // Same shared budget as public chat: no event, one advisory lock, 429 when exhausted.
   await reserveAiRequest(pool, sessionId, null);
 
-  const base: OpenAIConfig = openai;
-  const modelConfig: OpenAIConfig = {
-    ...base,
-    maxOutputTokens: Math.min(base.maxOutputTokens, SUGGESTION_MAX_OUTPUT_TOKENS),
+  const modelConfig = {
+    ...provider.config,
+    maxOutputTokens: Math.min(provider.maxOutputTokens, SUGGESTION_MAX_OUTPUT_TOKENS),
   };
-  const respond = providers.respond ?? createResponse;
 
   try {
-    const output = await respond(modelConfig, {
+    const output = await provider.respond(modelConfig, {
       instructions: instructionFor(input, locale),
       input: [{ role: 'user', content: 'Genera la sugerencia ahora.' }],
       tools: [],

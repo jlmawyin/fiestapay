@@ -26,6 +26,7 @@ import type {
   VoiceAudience,
   VoiceLeaseActivityResult,
   VoiceLeaseReleaseResult,
+  VoiceProvider,
 } from '@fiestapay/shared';
 import { LOCALE_HEADER, translateServerError } from '@fiestapay/shared';
 import { getActiveLocale } from '../i18n/locale-store';
@@ -375,8 +376,8 @@ export const api = {
 
   async getVoiceToken(
     slug: string
-  ): Promise<{ token: string; sessionConfig: Record<string, unknown>; maxSeconds: number; leaseId: string; audience?: VoiceAudience }> {
-    return request<{ token: string; sessionConfig: Record<string, unknown>; maxSeconds: number; leaseId: string; audience?: VoiceAudience }>(
+  ): Promise<{ token: string; sessionConfig: Record<string, unknown>; maxSeconds: number; leaseId: string; audience?: VoiceAudience; provider?: VoiceProvider }> {
+    return request<{ token: string; sessionConfig: Record<string, unknown>; maxSeconds: number; leaseId: string; audience?: VoiceAudience; provider?: VoiceProvider }>(
       `/api/events/${encodeURIComponent(slug)}/voice/token`,
       {
         method: 'POST',
@@ -395,6 +396,7 @@ export const api = {
     maxSeconds: number;
     leaseId: string;
     audience?: VoiceAudience;
+    provider?: VoiceProvider;
   }> {
     return request('/api/voice/public/token', {
       method: 'POST',
@@ -452,7 +454,7 @@ export const api = {
 
   async getOrganizerVoiceToken(
     slug: string,
-  ): Promise<{ token: string; sessionConfig: Record<string, unknown>; maxSeconds: number; leaseId: string }> {
+  ): Promise<{ token: string; sessionConfig: Record<string, unknown>; maxSeconds: number; leaseId: string; provider?: VoiceProvider }> {
     return request(`/api/events/${encodeURIComponent(slug)}/organizer-voice/token`, {
       method: 'POST',
       body: JSON.stringify({ consent: true }),

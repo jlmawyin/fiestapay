@@ -19,6 +19,9 @@ export const voiceCatalog = defineCatalog({
     titleGuest: 'Asistente de Voz',
     subtitlePublic: 'Información general · sin datos del evento',
     subtitleAgent: 'AssemblyAI Real-Time Voice Agent',
+    subtitleGemini: 'Agente de voz Gemini Live',
+    providerAssembly: 'AssemblyAI Voice Agent',
+    providerGemini: 'Gemini Live',
     closePanel: 'Cerrar panel de voz',
     joinFirstTitle: 'Únete primero',
     joinFirstBody: 'Para comenzar la conversación por voz, ingresa un alias ficticio en la invitación principal.',
@@ -29,6 +32,7 @@ export const voiceCatalog = defineCatalog({
     privacyPublicA:
       'Esta voz es informativa y funciona sin crear ni unirte a un evento. No tiene herramientas, no consulta datos de organizadores, invitados ni pagos. ',
     privacyPublicOn: 'El audio del micrófono se procesa en tiempo real mediante AssemblyAI Voice Agent.',
+    privacyPublicGemini: 'El audio del micrófono se procesa en tiempo real mediante Gemini Live.',
     privacyPublicOff: 'La información se lee con la voz del navegador; no se envía audio a ningún proveedor.',
     privacyOrgA: 'El audio del micrófono se procesa en tiempo real mediante ',
     privacyOrgB:
@@ -37,6 +41,7 @@ export const voiceCatalog = defineCatalog({
     privacyGuestB1: '. Tu sesión usa tu alias público ',
     privacyGuestB2: '. No transmitas información financiera confidencial por este canal.',
     consentOn: 'Acepto procesar mi audio con AssemblyAI',
+    consentGemini: 'Acepto procesar mi audio con Gemini Live',
     consentOff: 'Entiendo el aviso de voz',
     stoppedRevoked: 'El organizador revocó el acceso de esta sesión. No se inicia voz nueva.',
     stoppedClosed: 'Esta invitación está cerrada. No se inicia voz nueva.',
@@ -52,6 +57,7 @@ export const voiceCatalog = defineCatalog({
     organizerRole: 'organizador',
     assistantIsPublic: 'Asistente (FiestaPay):',
     assistantIs: 'Asistente (AssemblyAI):',
+    assistantIsGemini: 'Asistente (Gemini):',
     emptyPublic:
       'Pregunta cómo funcionan las invitaciones, la cuota fija o el pago de prueba. No se consultan datos privados.',
     emptyGuest:
@@ -67,6 +73,8 @@ export const voiceCatalog = defineCatalog({
     confirmedServer: 'Asistencia Confirmada en el Servidor',
     quoteDoneTitle: 'Cotización Calculada',
     quoteDoneHint: 'Revisa y confirma la orden de pago en la tarjeta de cotización de la invitación.',
+    approveInPayPal: (amount: string) => `Aprobar en PayPal ${amount}`,
+    quotePendingNote: 'El pago queda pendiente hasta que lo apruebes en PayPal y el servidor verifique la captura.',
     errorPrefix: 'Aviso:',
     cooldownToast: 'Espera unos segundos antes de volver a intentar la voz.',
     voiceTitle: 'Voz',
@@ -121,6 +129,9 @@ export const voiceCatalog = defineCatalog({
     titleGuest: 'Voice assistant',
     subtitlePublic: 'General information · no event data',
     subtitleAgent: 'AssemblyAI Real-Time Voice Agent',
+    subtitleGemini: 'Gemini Live voice agent',
+    providerAssembly: 'AssemblyAI Voice Agent',
+    providerGemini: 'Gemini Live',
     closePanel: 'Close voice panel',
     joinFirstTitle: 'Join first',
     joinFirstBody: 'To start the voice conversation, enter a fictional alias on the main invitation.',
@@ -131,6 +142,7 @@ export const voiceCatalog = defineCatalog({
     privacyPublicA:
       'This voice is informational and works without creating or joining an event. It has no tools and reads no organizer, guest, or payment data. ',
     privacyPublicOn: 'Microphone audio is processed in real time by the AssemblyAI Voice Agent.',
+    privacyPublicGemini: 'Microphone audio is processed in real time by Gemini Live.',
     privacyPublicOff: 'The information is read with the browser voice; no audio is sent to any provider.',
     privacyOrgA: 'Microphone audio is processed in real time by ',
     privacyOrgB:
@@ -139,6 +151,7 @@ export const voiceCatalog = defineCatalog({
     privacyGuestB1: '. Your session uses your public alias ',
     privacyGuestB2: '. Do not share confidential financial information on this channel.',
     consentOn: 'I consent to processing my audio with AssemblyAI',
+    consentGemini: 'I consent to processing my audio with Gemini Live',
     consentOff: 'I understand the voice notice',
     stoppedRevoked: 'The organizer revoked this session access. No new voice starts.',
     stoppedClosed: 'This invitation is closed. No new voice starts.',
@@ -154,6 +167,7 @@ export const voiceCatalog = defineCatalog({
     organizerRole: 'organizer',
     assistantIsPublic: 'Assistant (FiestaPay):',
     assistantIs: 'Assistant (AssemblyAI):',
+    assistantIsGemini: 'Assistant (Gemini):',
     emptyPublic:
       'Ask how invitations, the flat share, or the test payment work. No private data is read.',
     emptyGuest:
@@ -169,6 +183,8 @@ export const voiceCatalog = defineCatalog({
     confirmedServer: 'Attendance confirmed on the server',
     quoteDoneTitle: 'Quote calculated',
     quoteDoneHint: 'Review and confirm the payment order on the invitation quote card.',
+    approveInPayPal: (amount: string) => `Approve in PayPal ${amount}`,
+    quotePendingNote: 'Payment stays pending until you approve it in PayPal and the server verifies the capture.',
     errorPrefix: 'Notice:',
     cooldownToast: 'Wait a few seconds before retrying voice.',
     voiceTitle: 'Voice',
