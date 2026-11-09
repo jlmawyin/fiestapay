@@ -1,6 +1,6 @@
 # Devpost submission draft
 
-**Draft only — not submitted.** Updated for source `f89aee1` and the [5 November release evidence](reviews/demo-orb-20261105.md). Use the English narrative below only with the completed access/video gates at the end. Internal cutoff: 5 November 2026; functional delivery target: 31 October.
+**Draft only — not submitted.** Updated 9 November 2026 for production `f803ab3` (Gemini voice and text, live since 9 Nov ~09:10Z). Devpost closes **Thursday 12 November 2026, 15:00 ECT**. Jorge records the video and submits; nothing here has been published on his behalf. Items marked *(pending)* must be re-checked against production before they are pasted into Devpost.
 
 ## Project name
 
@@ -8,59 +8,102 @@ FiestaPay
 
 ## Elevator pitch
 
-Clear invitations, grounded AI guidance, and verified PayPal contributions for the gatherings people actually organize.
+Talk to your party: a Gemini voice agent explains the invitation, prepares your share, and hands you a verified PayPal checkout — the server does the math, you approve the payment.
 
 ## Inspiration
 
-A shared meal can begin with a simple message and turn into a long thread of repeated questions: where, when, how many people, how much, and who has paid. FiestaPay grew from the organizer's wish to use it for real gatherings. We focused the hackathon version on a single, understandable payment flow rather than adding physical contributions or several payment arrangements.
+A December meal with former schoolmates and another with former coworkers: getting everyone together was easy, settling who paid for what was not. A shared meal starts with one message and turns into a thread of repeated questions — where, when, how many, how much, and who already paid. FiestaPay answers those questions in one link and turns "I'll pay you later" into a verified PayPal payment.
 
 ## What it does
 
-An organizer creates a Meal, House party, Trip or Event invitation, reviews the details, and keeps a private management link. Guests use a separate public link and fictional demo aliases without Google sign-in. They confirm attendance and companions, review a server-calculated amount, and approve a PayPal sandbox checkout.
-
-Attendance, payment and organizer confirmation are different states. Two people at USD 25 each owe USD 50; confirming attendance alone does not make that paid. The organizer sees verified contributions, paid/unpaid attendance and progress toward the event minimum. Sharing opens a WhatsApp draft that the organizer controls.
-
-Two home cards immediately expose a public AG Grid example and a prepared sandbox-payment route, alongside ordinary invitation creation. A single orb offers text or voice; guest and organizer assistants retain distinct context and permissions. Text guidance uses event facts and server tools. AssemblyAI voice is implemented, but physical Spanish mobile acceptance and some voice-response verification are still pending; the demonstration must not present those as completed tests. Assistants cannot approve PayPal, change the recipient, confirm the gathering, or execute refunds.
+- An organizer creates a Meal, House party, Trip or Event invitation with a fixed share per person, keeps a private management link, and shares a public link (WhatsApp draft they control).
+- Guests join with an alias, confirm attendance and companions, review a **server-calculated** amount and pay through **PayPal Orders v2 (sandbox)**. Attendance, payment and the organizer's confirmation are separate states; nothing is "paid" until the server verifies the capture.
+- **Voice and text agents powered by Gemini.** A floating assistant offers *Type* or *Talk* in Spanish or English:
+  - **Public agent** (home page): explains FiestaPay; no tools, no private data.
+  - **Guest agent**: reads the invitation (`get_event_details`), the guest's status, the collection progress, proposes attendance for on-screen confirmation, and **prepares the payment** (`prepare_quote`): the server returns the amount in integer cents with status *pending approval*, and the screen shows **Approve in PayPal $25.00**. The agent can never charge, approve or claim a payment.
+  - **Organizer agent**: summarizes the event, funding and roster with the organizer key.
+- The organizer dashboard uses **AG Grid Community** (read-only grid of guests, payments and balances); a public **Judges demo** (`/demo`, also `?lang=en`) has sample data, a guided **Try a PayPal payment** walkthrough and the assistant.
+- *(pending — deploy of PR "agentic")* **Describe your gathering in one sentence** ("BBQ for 10 on Saturday with $150") pre-fills the creation assistant — the server computes the per-person share — and **Draft reminders** writes editable WhatsApp reminders for guests who still owe money; the organizer sends them by hand.
 
 ## How we built it
 
-The mobile-oriented React interface calls a Fastify API backed by PostgreSQL. PayPal Orders/capture verification and signed webhooks feed an idempotent ledger. Amounts are integer cents calculated on the server. Organizer management requires a separate secret key whose hash is stored server-side; optional verified recovery rotates that key.
+React + Vite front end, Fastify API and PostgreSQL, deployed in isolated containers on a Contabo VPS behind Nginx and Cloudflare HTTPS.
 
-The runtime text assistant uses OpenAI Responses, gpt-6-luna with low reasoning. AssemblyAI provides voice conversation transport. AG Grid Community supports the organizer view. The service runs in isolated containers on an Ubuntu Contabo VPS behind a dedicated Nginx host and Cloudflare HTTPS. Optional mail recovery uses Banahosting SMTP. Provider credentials remain server-side.
+**PayPal:** Orders v2 with intent CAPTURE, approval inside PayPal, server-side capture verification, signed webhooks and an idempotent ledger. Amounts are integer cents computed only on the server. One sandbox merchant receives all payments; no Payouts, split or escrow.
 
-Codex coordinated development and integration. Claude, Grok, AGY and DeepSeek contributed in the roles recorded in [AI_TOOLS.md](https://github.com/jlmawyin/fiestapay/blob/main/docs/AI_TOOLS.md); their output was checked against source, tests and observed behavior. Tools used only for an installation probe are not presented as application implementation.
+**Gemini (Google AI, paid API):**
+- **Gemini Live API — `gemini-3.8-live`** (native audio) for real-time voice: the browser streams 16 kHz PCM from the microphone and plays 24 kHz audio back, with barge-in and live input/output transcription on screen. Voices *Kore* (Spanish) and *Puck* (English).
+- The browser never sees the API key. After checking the voice lease (daily seconds, one active session, rate limit), the server mints a **single-use ephemeral token** that must open a session within 60 s and is **locked to the model and the full session configuration** (system instruction, voice, tools). Sessions last at most 120 s.
+- **Function calling as the agentic layer:** Gemini asks for a tool, the browser relays the call to the role's server route, and the server re-checks session, role, event and lease before answering. Tools only read or prepare; payment approval stays with the person inside PayPal.
+- **`gemini-3.5-flash`** powers the text assistants and the invitation theme suggestion, with the same tools, policy filters (never "paid" without a verified capture) and a deterministic rules fallback when the model is unavailable.
 
 ## Challenges
 
-A checkout approval is not a captured payment. We had to reconcile external-tab returns, tolerate duplicate notifications and retries, and keep financial calculations out of the model. Another challenge was keeping a public invitation useful while preventing it from revealing organizer access or private payment lists.
-
-Voice testing taught us to separate synthetic input and transport events from an actual complete response heard on a phone. An intermediate completion event can precede a tool continuation. We preserved inconclusive observations instead of counting them as successful conversations.
+- A checkout approval is not a captured payment: returns from another tab, duplicate notifications and retries must converge on one ledger entry.
+- Keeping the agent useful without letting it touch money: the model never sees or produces the amount; it calls a tool and repeats what the server says.
+- Real-time voice in the browser: microphone resampling, playback queues and interruption, and a consent notice that names the real provider before any audio is sent.
+- Securing a browser-to-Gemini connection without exposing the key (ephemeral tokens locked to the configuration).
 
 ## Accomplishments
 
-The current source passed 546 automated tests with no skips, with PostgreSQL in CI, plus lint, type checks and build. Source and deployment changes were reviewed independently. Earlier releases also received 26 independent review checks. A real sandbox campaign verified USD 50 + USD 50 + USD 25 with one capture entry per order. A separate historical USD 1 case verified an automatic refund after a funding minimum failed. These are recorded operations, not fabricated provider responses or a claim that a judge's new session has already paid.
-
-The historical 29 October browser matrix accepted 12 of 14 points, with two voice points partial. Later releases added judge discovery and the unified orb; their newer scoped browser evidence does not turn those historical partial voice results into physical-phone acceptance. We do not claim full acceptance, a physical phone test, a published video or completed submission.
+- 853 automated tests plus lint, type checks and build green with PostgreSQL; independent review of code and deployment operator.
+- Real end-to-end Gemini checks before and after deployment: a guest asked by voice "How much do I have to pay? Please prepare my payment" and the agent called the event and quote tools, the server returned USD 25.00 pending approval, and the **Approve in PayPal** card appeared. These used a synthetic microphone in Chromium; Jorge's own phone test is a separate item.
+- Earlier real sandbox campaign: USD 50 + USD 50 + USD 25 captures with exactly one ledger entry per order, and an automatic USD 1 refund when a funding minimum failed.
 
 ## What we learned
 
-Trust comes from precise states and clear boundaries. The assistant explains; the server calculates and verifies; the human approves. Independent evidence matters more than a generated success message. A small coherent flow is more useful than a long list of unverified features.
+The model explains; the server calculates and verifies; the human approves. Precise states and clear boundaries build more trust than a confident answer.
 
 ## What's next
 
-Complete the remaining physical voice checks and human walkthrough, then produce a truthful short demonstration. For an independent version, explore organizer-specific PayPal accounts and more contribution modes only after the required product, platform and approval work. They are not implemented hackathon claims.
+Organizer-specific PayPal accounts, more contribution modes and reminders on a schedule — only after the platform and approval work they require. They are not hackathon claims.
 
 ## Built with
 
-TypeScript, React, Vite, Node.js, Fastify, PostgreSQL, PayPal sandbox, OpenAI Responses API, AssemblyAI Voice Agent API, AG Grid Community, Docker, Nginx, Contabo, Cloudflare HTTPS, Banahosting SMTP.
+TypeScript, React, Vite, Node.js, Fastify, PostgreSQL, PayPal Orders v2 + Webhooks (sandbox), Google Gemini API (Gemini Live `gemini-3.8-live`, `gemini-3.5-flash`, ephemeral tokens, function calling), AG Grid Community, Lucide icons, Docker, Nginx, Contabo, Cloudflare.
+
+## Tools (models and services and how they are used)
+
+| Tool | How FiestaPay uses it |
+|---|---|
+| PayPal Orders v2 (sandbox) | Create order (CAPTURE) from a server quote, buyer approval inside PayPal, server capture verification. |
+| PayPal Webhooks | Signed notifications reconciled into an idempotent ledger. |
+| Gemini Live API (`gemini-3.8-live`) | Real-time voice agents (public, guest, organizer) with function calling and live transcription. |
+| Gemini ephemeral tokens | Single-use, short-lived browser credentials locked to model + configuration; the API key stays on the server. |
+| Gemini API (`gemini-3.5-flash`) | Text assistants with the same tools; invitation theme suggestion; *(pending)* one-sentence event drafts and reminder wording. |
+| AG Grid Community | Organizer dashboard and judges demo grid. |
+| AI coding agents (development only) | Claude Code directed the work; Muse and DeepSeek Harness built packages; Antigravity (Gemini) verified independently. See `docs/AI_TOOLS.md`. |
+
+---
+
+## Versión en español (para referencia de Jorge)
+
+**FiestaPay** — Habla con tu fiesta: un agente de voz con Gemini explica la invitación, prepara tu cuota y te entrega un pago de PayPal verificado; el servidor hace las cuentas y tú apruebas el pago.
+
+- El organizador crea la invitación con cuota fija y comparte el enlace. Los invitados se unen con un alias, confirman asistencia y pagan con **PayPal Orders v2 (sandbox)**; nada cuenta como pagado hasta que el servidor verifica la captura.
+- **Agentes de voz y texto con Gemini** (ES/EN): público (sin herramientas), invitado (consulta la invitación y su estado, propone asistencia y **prepara el pago**: el servidor calcula el importe en centavos y la pantalla muestra «Aprobar en PayPal $25.00») y organizador (resúmenes con su clave).
+- Voz en tiempo real con **Gemini Live (`gemini-3.8-live`)** mediante **tokens efímeros** de un solo uso bloqueados al modelo y la configuración; la clave nunca llega al navegador. Texto con **`gemini-3.5-flash`** y respaldo por reglas.
+- Panel del organizador con **AG Grid**; demo para jueces en `/demo`.
+
+---
+
+## Video script (≤ 2:45, record on the phone/desktop, English UI `?lang=en`, no music)
+
+| Time | Screen | Narration (English) |
+|---|---|---|
+| 0:00–0:15 | Home page | "Organizing a shared meal is easy. Collecting everyone's share is not. FiestaPay turns one invitation link into verified PayPal payments — with a Gemini voice agent that helps every guest." |
+| 0:15–0:40 | Create my invitation (wizard) *(if the one-sentence draft is live: type "BBQ for 10 on Saturday with $150", press Fill with AI)* | "The organizer creates an invitation with a fixed share per person. The server, not the AI, calculates every amount in cents." |
+| 0:40–1:30 | Guest invitation → Join → Confirm attendance → open assistant → **Talk** → consent | Say: "How much do I have to pay? Please prepare my payment." Show the agent answering and the **Approve in PayPal $25.00** card. Narrate: "Gemini Live runs in the browser with a single-use ephemeral token. The agent calls our server tools, the server returns the amount, and the agent can only prepare — never approve — the payment." |
+| 1:30–2:05 | Approve in PayPal → PayPal sandbox login (Jorge) → return → status Paid | "The guest approves inside PayPal. Only after the server verifies the capture does FiestaPay mark it as paid; a signed webhook keeps the ledger idempotent." |
+| 2:05–2:30 | Organizer dashboard (AG Grid) *(and Draft reminders if live)* | "The organizer sees verified payments, balances and progress in AG Grid, and can ask the organizer agent for a summary." |
+| 2:30–2:45 | Judges demo `/demo?lang=en` | "Everything runs in PayPal sandbox with no real money. Try it at fiestapay.somospanas.com/demo." |
+
+Recording checklist: real microphone on the device; PayPal sandbox buyer from **Try a PayPal payment → View test account**; no secrets or organizer keys on screen; upload as public YouTube video under 3 minutes.
 
 ## Links and release gates
 
-- Hosted demo: https://fiestapay.somospanas.com/
-- Reviewed application source: [f89aee1](https://github.com/jlmawyin/fiestapay/tree/f89aee1a7e9355158af715030d054d0285c28d54) — MIT; [repository](https://github.com/jlmawyin/fiestapay).
-- Testing instructions: [JUDGES.md](https://github.com/jlmawyin/fiestapay/blob/main/docs/JUDGES.md); Spanish UI labels explained in English.
-- Video: **not yet recorded or published**. Insert a verified public YouTube link only after recording, review and English narration/subtitle synchronization.
-- Test access: **Probar pago con PayPal → Ver cuenta de prueba** explicitly reveals the dedicated shared Personal sandbox buyer and copy controls. The opt-in endpoint and copy controls were verified; actual login with this new buyer remains a manual acceptance item. Its values are not in Git, bundles, this draft, logs or screenshots. Never publish Business/API credentials or organizer keys.
-- Verify a fresh invitation can be created during judging; old events expire 72 hours after their end. Keep the service and test access available through 15 December. This is an operational obligation, not evidence that future uptime is assured.
-
-The [official rules](https://paypalaihackathon.devpost.com/rules), checked 29 October, call for a working PayPal-plus-AI project, public open-source repository, usable test access, and a public YouTube demonstration under three minutes with English materials or translation. The internal cutoff remains 5 November even though the official submission date is later. This document is a local draft, not a Devpost draft saved online or a submission receipt.
+- Hosted demo: https://fiestapay.somospanas.com/ (English: `?lang=en`; judges: `/demo?lang=en`).
+- Source: https://github.com/jlmawyin/fiestapay — MIT. Testing instructions: `docs/JUDGES.md`.
+- Video: **not yet recorded** (Jorge, Wednesday 11 November).
+- Test access: **Try a PayPal payment → View test account** reveals the shared fictional sandbox buyer; never publish Business/API credentials or organizer keys.
+- Keep the service and test access available through the judging period.

@@ -12,6 +12,7 @@ import { migrate } from '../src/db/migrate.js';
 import { createPool, type Pool } from '../src/db/pool.js';
 import {
   createGeminiResponse,
+  GEMINI_THINKING_HEADROOM_TOKENS,
   geminiRequestBody,
   parseGeminiResponse,
   toGeminiContents,
@@ -125,7 +126,10 @@ describe('adaptador Gemini generateContent', () => {
     const config = geminiConfig({ GEMINI_MAX_OUTPUT_TOKENS: '1234' });
     const body = geminiRequestBody(config, signedInput());
     expect(body.systemInstruction).toEqual({ parts: [{ text: 'reglas del asistente' }] });
-    expect(body.generationConfig).toEqual({ maxOutputTokens: 1234, thinkingConfig: { thinkingLevel: 'low' } });
+    expect(body.generationConfig).toEqual({
+      maxOutputTokens: 1234 + GEMINI_THINKING_HEADROOM_TOKENS,
+      thinkingConfig: { thinkingLevel: 'low' },
+    });
     expect(body.toolConfig).toEqual({ functionCallingConfig: { mode: 'AUTO' } });
     const declarations = body.tools?.[0]?.functionDeclarations ?? [];
     expect(declarations.map((d) => d.name)).toEqual(TOOL_DECLARATIONS.map((d) => d.name));
@@ -134,6 +138,19 @@ describe('adaptador Gemini generateContent', () => {
     const props = rsvp?.parameters?.properties as Record<string, { type?: string }>;
     expect(props.status.type).toBe('STRING');
     expect(props.companions.type).toBe('INTEGER');
+  });
+
+  it('suma 2048 de margen de razonamiento al tope visible pedido por el caller', () => {
+    expect(GEMINI_THINKING_HEADROOM_TOKENS).toBe(2048);
+    for (const requested of [700, 2000]) {
+      const config = geminiConfig({ GEMINI_MAX_OUTPUT_TOKENS: String(requested) });
+      const body = geminiRequestBody(config, signedInput());
+      expect(body.generationConfig.maxOutputTokens).toBe(requested + 2048);
+      // El tope del caller no cambia: solo se traduce al presupuesto compartido de Gemini.
+      expect(config.maxOutputTokens).toBe(requested);
+    }
+    expect(geminiRequestBody(geminiConfig({ GEMINI_MAX_OUTPUT_TOKENS: '700' }), signedInput()).generationConfig.maxOutputTokens).toBe(2748);
+    expect(geminiRequestBody(geminiConfig({ GEMINI_MAX_OUTPUT_TOKENS: '2000' }), signedInput()).generationConfig.maxOutputTokens).toBe(4048);
   });
 
   it('convierte las declaraciones del servidor al contrato publico sin mutar el original', () => {
@@ -213,7 +230,10 @@ describe('adaptador Gemini generateContent', () => {
     expect(sent).toMatchObject({
       systemInstruction: { parts: [{ text: 'reglas del asistente' }] },
       toolConfig: { functionCallingConfig: { mode: 'AUTO' } },
-      generationConfig: { maxOutputTokens: 777, thinkingConfig: { thinkingLevel: 'low' } },
+      generationConfig: {
+        maxOutputTokens: 777 + GEMINI_THINKING_HEADROOM_TOKENS,
+        thinkingConfig: { thinkingLevel: 'low' },
+      },
     });
   });
 

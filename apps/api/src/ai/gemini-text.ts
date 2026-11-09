@@ -20,6 +20,14 @@ import {
 } from './openai.js';
 import type { FunctionDeclaration } from './tools.js';
 
+/**
+ * Gemini's maxOutputTokens is a shared budget: it also counts reasoning tokens
+ * (usageMetadata.thoughtsTokenCount). Every caller cap therefore means "visible text"; the
+ * request adds this headroom so low-level thinking cannot consume the caller's budget and turn
+ * an otherwise complete answer into finishReason MAX_TOKENS.
+ */
+export const GEMINI_THINKING_HEADROOM_TOKENS = 2048;
+
 const NO_ANSWER = 'El asistente no respondio a tiempo; usa los formularios de la pagina';
 const UNREADABLE = 'El asistente devolvio una respuesta ilegible';
 const FAILED = 'El asistente no pudo completar la respuesta; usa los formularios de la pagina';
@@ -209,7 +217,8 @@ export function geminiRequestBody(config: GeminiConfig, input: RespondInput): Ge
     systemInstruction: { parts: [{ text: input.instructions }] },
     contents: toGeminiContents(input.input),
     generationConfig: {
-      maxOutputTokens: config.maxOutputTokens,
+      // The caller cap is visible-text budget; reasoning gets its own headroom.
+      maxOutputTokens: config.maxOutputTokens + GEMINI_THINKING_HEADROOM_TOKENS,
       // Gemini 3.x accepts a low thinking level; reasoning stays on but inexpensive.
       thinkingConfig: { thinkingLevel: 'low' },
     },

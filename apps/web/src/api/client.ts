@@ -21,8 +21,11 @@ import type {
 } from '../types';
 import type {
   DemoKind,
+  DraftEventProposal,
   PresentationSuggestion,
   PresentationSuggestionInput,
+  ReminderDraftResult,
+  ReminderTone,
   VoiceAudience,
   VoiceLeaseActivityResult,
   VoiceLeaseReleaseResult,
@@ -315,6 +318,30 @@ export const api = {
     return request<PresentationSuggestion>('/api/ai/suggest-presentation', {
       method: 'POST',
       body: JSON.stringify(input),
+    });
+  },
+
+  /**
+   * "Describe your gathering in one sentence" (step 1 of the creation assistant).
+   * The server never creates an event from it: the proposal only pre-fills the
+   * wizard and the organizer reviews every step before creating.
+   */
+  async draftEvent(text: string): Promise<DraftEventProposal> {
+    return request<DraftEventProposal>('/api/ai/draft-event', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    });
+  },
+
+  /**
+   * Organizer-only drafted payment reminders. The drafts are returned for
+   * manual review (copy or open WhatsApp); nothing is ever sent automatically.
+   * The organizer key travels in the same header as the other organizer calls.
+   */
+  async draftReminders(slug: string, tone: ReminderTone): Promise<ReminderDraftResult> {
+    return request<ReminderDraftResult>(`/api/events/${encodeURIComponent(slug)}/reminders/draft`, {
+      method: 'POST',
+      body: JSON.stringify({ tone }),
     });
   },
 

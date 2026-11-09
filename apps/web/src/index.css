@@ -1472,6 +1472,42 @@ p, span, li, input, textarea, select, button {
   overflow-wrap: anywhere;
 }
 
+.create-wizard__draft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.create-wizard__draft-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.create-wizard__draft-row .form-input {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.create-wizard__suggested-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+  margin-left: 0.4rem;
+  border-radius: 999px;
+  background-color: var(--color-blue-tint);
+  color: var(--color-blue);
+  border: 1px solid var(--color-blue);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
 .create-wizard .form-input,
 .create-wizard .form-select,
 .create-wizard .form-textarea {
@@ -1495,4 +1531,105 @@ p, span, li, input, textarea, select, button {
   .create-wizard__step {
     padding: 0.6rem;
   }
+}
+
+.reminder-drafts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.reminder-drafts__controls {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  min-width: 0;
+}
+
+.reminder-drafts__controls .form-select {
+  min-width: 0;
+}
+
+.reminder-drafts__error {
+  color: var(--color-coral);
+  font-size: 0.875rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.reminder-drafts__results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.reminder-drafts__empty {
+  color: var(--color-ink-muted);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.reminder-drafts__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.reminder-drafts__item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.reminder-drafts__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  min-width: 0;
+}
+
+.reminder-drafts__alias {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.reminder-drafts__due {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: var(--color-coral);
+  white-space: nowrap;
+}
+
+.reminder-drafts__message {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.reminder-drafts__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.reminder-drafts__note {
+  font-size: 0.8rem;
+  color: var(--color-ink-muted);
+  margin: 0;
+  overflow-wrap: anywhere;
 }

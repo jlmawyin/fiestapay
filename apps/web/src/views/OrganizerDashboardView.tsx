@@ -8,6 +8,7 @@ import { useI18n, useMessages } from '../i18n/I18nContext';
 import { dashboardCatalog } from '../i18n/messages/organizerDashboard';
 import { GuestGrid } from '../components/dashboard/GuestGrid';
 import { ModerationPanel } from '../components/dashboard/ModerationPanel';
+import { ReminderDrafts } from '../components/dashboard/ReminderDrafts';
 import { OrganizerLinkCard } from '../components/dashboard/OrganizerLinkCard';
 import { RecoveryEmailCard } from '../components/dashboard/RecoveryEmailCard';
 import { QrShareModal } from '../components/dashboard/QrShareModal';
@@ -599,6 +600,8 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
           {m.guestsFoot}
         </p>
       </section>
+
+      <ReminderDrafts slug={slug} />
 
       {/* Audit Trail */}
       {audit && audit.length > 0 && (
