@@ -459,6 +459,7 @@ describeDb('asistentes por rol, historial y voz compartida', () => {
     });
     await withApp(script([completed(message('no'))]), {
       VOICE_ENABLED: 'true',
+        VOICE_PROVIDER: 'assemblyai',
       ASSEMBLYAI_API_KEY: 'assembly-test-key',
       VOICE_MAX_SECONDS: '60',
       VOICE_DAILY_SECONDS: '100',
@@ -492,6 +493,7 @@ describeDb('asistentes por rol, historial y voz compartida', () => {
     vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ token: 'token-de-prueba' }), { status: 200 }));
     await withApp(script([completed(message('no'))]), {
       VOICE_ENABLED: 'true',
+        VOICE_PROVIDER: 'assemblyai',
       ASSEMBLYAI_API_KEY: 'assembly-test-key',
       VOICE_MAX_SECONDS: '30',
       VOICE_DAILY_SECONDS: '300',
@@ -535,6 +537,7 @@ describeDb('asistentes por rol, historial y voz compartida', () => {
     vi.stubGlobal('fetch', async () => { throw new Error('caido'); });
     await withApp(script([completed(message('no'))]), {
       VOICE_ENABLED: 'true',
+        VOICE_PROVIDER: 'assemblyai',
       ASSEMBLYAI_API_KEY: 'assembly-test-key',
       VOICE_MAX_SECONDS: '30',
       VOICE_DAILY_SECONDS: '300',
@@ -599,6 +602,7 @@ describeDb('asistentes por rol, historial y voz compartida', () => {
     });
     await withApp(script([completed(message('no'))]), {
       VOICE_ENABLED: 'true',
+        VOICE_PROVIDER: 'assemblyai',
       ASSEMBLYAI_API_KEY: 'assembly-test-key',
       VOICE_MAX_SECONDS: '30',
       VOICE_DAILY_SECONDS: '300',

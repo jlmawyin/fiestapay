@@ -39,6 +39,7 @@ describeDb('Auditoría independiente de ciclo de vida de voz (API / DB)', () => 
       pool,
       config: testConfig({
         VOICE_ENABLED: 'true',
+        VOICE_PROVIDER: 'assemblyai',
         ASSEMBLYAI_API_KEY: 'test-fake-assembly-key',
         VOICE_MAX_SECONDS: '180',
         VOICE_DAILY_SECONDS: '1800',

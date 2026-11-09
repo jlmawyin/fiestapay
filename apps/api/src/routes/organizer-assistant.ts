@@ -2,6 +2,11 @@ import type { FastifyInstance } from 'fastify';
 import { UI_LABELS, type Locale } from '@fiestapay/shared';
 import { z } from 'zod';
 import { chatWithOrganizer, listOrganizerTranscript, organizerGreeting } from '../ai/organizer-chat.js';
+import {
+  createGeminiVoiceSession,
+  createGeminiVoiceToken,
+  toGeminiVoiceDeclarations,
+} from '../ai/gemini-live.js';
 import { ORGANIZER_TOOL_DECLARATIONS, ORGANIZER_TOOL_NAMES, runOrganizerTool } from '../ai/organizer-tools.js';
 import {
   assemblyVoiceMedia,
@@ -56,18 +61,22 @@ export function organizerVoiceInstruction(title: string, slug: string, locale: L
   ].join('\n');
 }
 
+export function organizerVoiceGreeting(locale: Locale = 'es'): string {
+  const L = UI_LABELS[locale];
+  return locale === 'en'
+    ? `Hello. I can check this event's panel and explain one step. I do not confirm or refund. Do you want to review "${L.confirmEvent}", the minimum or sharing the link?`
+    : `Hola. Puedo consultar el panel de este evento y explicar un paso. No confirmo ni reembolso. ¿Quieres revisar "${L.confirmEvent}", el mínimo o compartir el enlace?`;
+}
+
 export function organizerVoiceSessionConfig(
   title: string,
   slug: string,
   media: object = assemblyVoiceMedia(),
   locale: Locale = 'es',
 ) {
-  const L = UI_LABELS[locale];
   return {
     system_prompt: organizerVoiceInstruction(title, slug, locale),
-    greeting: locale === 'en'
-      ? `Hello. I can check this event's panel and explain one step. I do not confirm or refund. Do you want to review "${L.confirmEvent}", the minimum or sharing the link?`
-      : `Hola. Puedo consultar el panel de este evento y explicar un paso. No confirmo ni reembolso. ¿Quieres revisar "${L.confirmEvent}", el mínimo o compartir el enlace?`,
+    greeting: organizerVoiceGreeting(locale),
     ...media,
     tools: ORGANIZER_TOOL_DECLARATIONS.map((tool) => ({
       type: 'function',
@@ -159,6 +168,35 @@ export async function registerOrganizerAssistantRoutes(app: FastifyInstance, dep
         },
       });
       // A failed provider call keeps the reservation and its reserved seconds.
+      if (voice.provider === 'gemini') {
+        const gemini = config.gemini;
+        if (!gemini) throw unavailable(locale === 'en' ? 'Could not start voice. Continue by text' : 'No se pudo iniciar la voz. Continúa por texto');
+        const current = await getEventBySlug(pool, slug);
+        if (current.id !== event.id || current.archived) throw gone(goneText(locale));
+        await concealExpired(pool, current);
+        assertAdminKey(current, presentedKey);
+        const issued = await createGeminiVoiceSession(gemini, deps.createVoiceToken ?? createGeminiVoiceToken, {
+          locale,
+          maxSeconds: voice.maxSeconds,
+          systemInstruction: organizerVoiceInstruction(current.title, current.slug, locale),
+          kickoff: organizerVoiceGreeting(locale),
+          tools: toGeminiVoiceDeclarations(ORGANIZER_TOOL_DECLARATIONS),
+        });
+        // The key and the event are checked again after the slow provider call.
+        const after = await getEventBySlug(pool, slug);
+        if (after.id !== event.id || after.archived) throw gone(goneText(locale));
+        await concealExpired(pool, after);
+        assertAdminKey(after, presentedKey);
+        reply.header('Cache-Control', 'no-store');
+        return {
+          token: issued.token,
+          sessionConfig: issued.sessionConfig,
+          maxSeconds: voice.maxSeconds,
+          leaseId,
+          audience: 'organizer',
+          provider: 'gemini',
+        };
+      }
       const token = await fetchAssemblyRealtimeToken(voice, locale);
       const current = await getEventBySlug(pool, slug);
       if (current.id !== event.id || current.archived) throw gone(goneText(locale));

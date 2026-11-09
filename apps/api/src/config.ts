@@ -1,19 +1,34 @@
 import { join } from 'node:path';
-import type { LlmProvider } from '@fiestapay/shared';
+import {
+  GEMINI_DEFAULT_LIVE_MODEL,
+  GEMINI_DEFAULT_TEXT_MODEL,
+  type LlmProvider,
+  type VoiceProvider,
+} from '@fiestapay/shared';
 import { normalizeMailbox } from './email/address.js';
+
+/** Text provider chosen by AI_TEXT_PROVIDER. */
+export type TextProvider = 'gemini' | 'openai';
 
 /**
  * Voice timebox. A live session lasts up to 180 seconds by default and the cap admits
- * 180s for deployments that raised it. The daily total is a UTC calendar-day cap and is
- * charged in full before the provider token is requested, so a failed token or an early
- * release never returns budget. No relay/second session is opened by the server.
+ * 300s for deployments that raised it. Gemini Live is capped at 120s by the same rule the
+ * route reservation uses, so the ephemeral token and the lease never disagree. The daily
+ * total is a UTC calendar-day cap and is charged in full before the provider token is
+ * requested, so a failed token or an early release never returns budget.
  */
 export function voiceConfig(env: NodeJS.ProcessEnv = process.env) {
   const bounded = (v: string | undefined, fallback: number, cap: number) => Math.min(cap, Math.max(1, Number(v) || fallback));
+  const requested = (env.VOICE_PROVIDER ?? '').trim().toLowerCase();
+  const provider: VoiceProvider = requested === 'assemblyai' ? 'assemblyai' : 'gemini';
+  const providerKey = provider === 'gemini' ? env.GEMINI_API_KEY : env.ASSEMBLYAI_API_KEY;
+  const configuredMax = Math.floor(bounded(env.VOICE_MAX_SECONDS, 180, 300));
   return {
-    enabled: env.VOICE_ENABLED === 'true' && Boolean(env.ASSEMBLYAI_API_KEY),
+    enabled: env.VOICE_ENABLED === 'true' && Boolean(providerKey),
     key: env.ASSEMBLYAI_API_KEY ?? '',
-    maxSeconds: Math.floor(bounded(env.VOICE_MAX_SECONDS, 180, 300)),
+    provider,
+    // Gemini ephemeral sessions are short-lived; the lease must match the token timebox.
+    maxSeconds: provider === 'gemini' ? Math.min(configuredMax, 120) : configuredMax,
     dailySeconds: Math.floor(bounded(env.VOICE_DAILY_SECONDS, 1800, 3600)),
   };
 }
@@ -40,6 +55,21 @@ export interface OpenAIConfig {
   maxOutputTokens: number;
   /** Fixed for the approved model; not configurable from the environment. */
   reasoningEffort: 'low';
+}
+
+/**
+ * Paid Gemini provider. `liveModel` is locked into every ephemeral voice token and
+ * `textModel` is used by generateContent. Model names come from validated environment
+ * values or the shared defaults; an invalid name is replaced, never echoed.
+ */
+export interface GeminiConfig {
+  apiKey: string;
+  liveModel: string;
+  textModel: string;
+  timeoutMs: number;
+  maxToolRounds: number;
+  maxHistoryMessages: number;
+  maxOutputTokens: number;
 }
 
 /**
@@ -86,9 +116,13 @@ export interface Config {
   webDir: string;
   serveWeb: boolean;
   paypal: PayPalConfig | null;
-  /** Compatibility marker. The only accepted value is openai. */
+  /** Compatibility marker. The only accepted legacy value is openai. */
   llmProvider: LlmProvider;
+  /** Provider the text assistants actually use. */
+  textProvider: TextProvider;
   openai: OpenAIConfig | null;
+  gemini: GeminiConfig | null;
+  geminiDisabledReason: string | null;
   voice: ReturnType<typeof voiceConfig>;
   email: EmailConfig | null;
   /** Opt-in public disclosure for the dedicated PayPal Personal sandbox buyer only. */
@@ -230,6 +264,39 @@ function readLlmProvider(env: NodeJS.ProcessEnv): LlmProvider {
   throw new Error('LLM_PROVIDER invalido: solo se admite openai');
 }
 
+const GEMINI_MODEL_RE = /^gemini-[a-z0-9.-]+$/;
+
+/** Validated model name. Anything outside the Gemini namespace is replaced silently. */
+function readGeminiModel(raw: string | undefined, fallback: string): string {
+  const value = str(raw);
+  return value && GEMINI_MODEL_RE.test(value) ? value : fallback;
+}
+
+/** AI_TEXT_PROVIDER wins; without it, a Gemini key selects Gemini and OpenAI is the fallback. */
+function readTextProvider(env: NodeJS.ProcessEnv): TextProvider {
+  const raw = (str(env.AI_TEXT_PROVIDER) ?? '').toLowerCase();
+  if (raw === 'gemini' || raw === 'openai') return raw;
+  return str(env.GEMINI_API_KEY) ? 'gemini' : 'openai';
+}
+
+function readGemini(env: NodeJS.ProcessEnv): { config: GeminiConfig | null; reason: string | null } {
+  const apiKey = str(env.GEMINI_API_KEY);
+  if (!apiKey) return { config: null, reason: 'El asistente no esta configurado: falta GEMINI_API_KEY' };
+  // GEMINI_MODEL is the retired alias and is deliberately ignored.
+  return {
+    config: {
+      apiKey,
+      liveModel: readGeminiModel(env.GEMINI_LIVE_MODEL, GEMINI_DEFAULT_LIVE_MODEL),
+      textModel: readGeminiModel(env.GEMINI_TEXT_MODEL, GEMINI_DEFAULT_TEXT_MODEL),
+      timeoutMs: capped(env.GEMINI_TIMEOUT_MS, 20000, 60000),
+      maxToolRounds: capped(env.GEMINI_MAX_TOOL_ROUNDS, 4, 6),
+      maxHistoryMessages: capped(env.GEMINI_MAX_HISTORY, 24, 60),
+      maxOutputTokens: capped(env.GEMINI_MAX_OUTPUT_TOKENS, 2000, 4000),
+    },
+    reason: null,
+  };
+}
+
 function readOpenAI(env: NodeJS.ProcessEnv): { config: OpenAIConfig | null; reason: string | null } {
   const apiKey = str(env.OPENAI_API_KEY);
   if (!apiKey) return { config: null, reason: 'El asistente no esta configurado: falta OPENAI_API_KEY' };
@@ -284,7 +351,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const paypal = readPayPal(env);
   const email = readEmail(env, publicOrigin === null ? null : publicOrigin.replace(/\/+$/, ''));
   const llmProvider = readLlmProvider(env);
+  const textProvider = readTextProvider(env);
   const openai = readOpenAI(env);
+  const gemini = readGemini(env);
   const webDir = str(env.WEB_DIST_DIR) ?? join(import.meta.dirname, '..', '..', 'web', 'dist');
 
   return {
@@ -306,8 +375,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     paypal: paypal.config,
     paypalDisabledReason: paypal.reason,
     llmProvider,
+    textProvider,
     openai: openai.config,
     openaiDisabledReason: openai.reason,
+    gemini: gemini.config,
+    geminiDisabledReason: gemini.reason,
     voice: voiceConfig(env),
     email: email.config,
     emailDisabledReason: email.reason,

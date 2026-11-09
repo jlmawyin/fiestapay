@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { reserveAiRequest } from '../ai/budget.js';
-import type { OpenAIConfig } from '../config.js';
+import type { GeminiConfig, OpenAIConfig } from '../config.js';
 import { loadConfig } from '../config.js';
 import type { RespondFn, RespondInput, RespondOutput } from '../ai/openai.js';
 import { buildApp } from '../app.js';
@@ -102,7 +102,7 @@ describe.skipIf(databaseUrl.length === 0)('chat publico informativo (FP-PUBLIC-C
   });
 
   it('funciona sin evento ni invitado, emite cookie propia y no guarda el chat publico', async () => {
-    let capturedConfig: OpenAIConfig | null = null;
+    let capturedConfig: OpenAIConfig | GeminiConfig | null = null;
     let capturedInput: RespondInput | null = null;
     respondImpl = async (config, input) => {
       capturedConfig = config;
@@ -117,14 +117,14 @@ describe.skipIf(databaseUrl.length === 0)('chat publico informativo (FP-PUBLIC-C
     const cookie = cookieFrom(response.headers['set-cookie']);
     expect(cookie).toContain('fp_session=');
 
-    const model = requireValue<OpenAIConfig>(capturedConfig);
+    const model = capturedConfig as unknown as OpenAIConfig;
     const input = requireValue<RespondInput>(capturedInput);
     expect(model.model).toBe('gpt-6-luna');
     expect(model.reasoningEffort).toBe('low');
     expect(input.tools).toEqual([]);
     expect(input.input).toEqual([{ role: 'user', content: '¿Qué es FiestaPay?' }]);
     expect(input.instructions).toContain('separado de cualquier evento');
-    expect(input.instructions).toContain('OpenAI');
+    expect(input.instructions).toContain('Gemini');
     expect(input.instructions).toContain('AG Grid');
     expect(input.instructions).toContain('/recover');
 
@@ -340,7 +340,7 @@ describe.skipIf(databaseUrl.length === 0)('chat publico informativo (FP-PUBLIC-C
   });
 
   it('acota el texto, no afirma ejecuciones y conserva la configuracion existente', async () => {
-    let capturedConfig: OpenAIConfig | null = null;
+    let capturedConfig: OpenAIConfig | GeminiConfig | null = null;
     let capturedInput: RespondInput | null = null;
     respondImpl = async (config, input) => {
       capturedConfig = config;
@@ -356,7 +356,7 @@ describe.skipIf(databaseUrl.length === 0)('chat publico informativo (FP-PUBLIC-C
     const input = requireValue<RespondInput>(capturedInput);
     expect(input.tools).toEqual([]);
     expect(input.instructions).toContain('No ejecutas acciones');
-    expect(requireValue<OpenAIConfig>(capturedConfig).reasoningEffort).toBe('low');
+    expect((capturedConfig as unknown as OpenAIConfig).reasoningEffort).toBe('low');
 
     respondImpl = async () => completed('Ya procesé el reembolso de todos y confirmé el evento.');
     const claim = await postPublic({ message: '¿Reembolsaste?' });

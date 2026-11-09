@@ -1,3 +1,4 @@
+import type { CreateGeminiVoiceTokenFn } from '../ai/gemini-live.js';
 import type { RespondFn } from '../ai/openai.js';
 import type { Config } from '../config.js';
 import type { Pool } from '../db/pool.js';
@@ -11,6 +12,8 @@ export interface RouteDeps {
   paypal: PayPalAdapter | null;
   /** Null when email is not configured. Tests inject a fake; browsers cannot select it. */
   email: EmailAdapter | null;
-  /** Overridden only by tests with a scripted model; production uses the OpenAI REST call. */
+  /** Overridden only by tests with a scripted model; production uses the selected provider. */
   respond?: RespondFn;
+  /** Overridden only by tests; production creates the Gemini ephemeral token with the SDK. */
+  createVoiceToken?: CreateGeminiVoiceTokenFn;
 }

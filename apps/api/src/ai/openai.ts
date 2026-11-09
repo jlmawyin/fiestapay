@@ -1,4 +1,4 @@
-import type { OpenAIConfig } from '../config.js';
+import type { GeminiConfig, OpenAIConfig } from '../config.js';
 import { unavailable } from '../errors.js';
 import { isOpenAITurn, visibleText, type StoredTurn } from './history.js';
 import type { FunctionDeclaration } from './tools.js';
@@ -18,6 +18,11 @@ export interface OpenAIFunctionCallItem {
   name: string;
   /** JSON text produced by the model; parsed and validated before any tool runs. */
   arguments: string;
+  /**
+   * Opaque Gemini thought signature attached to this functionCall part. It is stored and
+   * replayed exactly as received; an older turn without it is replayed as visible text only.
+   */
+  gemini_signature?: string;
 }
 
 export type OpenAIMessageContent =
@@ -30,6 +35,8 @@ export interface OpenAIMessageItem {
   id?: string;
   status: 'completed';
   content: OpenAIMessageContent[];
+  /** Optional Gemini signature on the last text part; replay is recommended, not validated. */
+  gemini_signature?: string;
 }
 
 export interface OpenAIFunctionOutputItem {
@@ -74,8 +81,14 @@ export interface RespondOutput {
   status: 'completed' | 'incomplete';
 }
 
-/** Seam for tests: a scripted model can replace the HTTP round trip. */
-export type RespondFn = (config: OpenAIConfig, input: RespondInput) => Promise<RespondOutput>;
+/**
+ * Seam for tests: a scripted model can replace the HTTP round trip. The bivariant form lets
+ * the OpenAI and Gemini production functions, and existing scripts typed for OpenAIConfig,
+ * stay assignable while each provider receives its own configuration object.
+ */
+export type RespondFn = {
+  bivarianceHack(config: OpenAIConfig | GeminiConfig, input: RespondInput): Promise<RespondOutput>;
+}['bivarianceHack'];
 
 /** Arguments longer than this are refused without parsing. */
 const MAX_ARGUMENT_CHARS = 2000;
@@ -212,11 +225,18 @@ export function sanitizeOutput(raw: unknown[]): OpenAIOutputItem[] {
         break;
       }
       case 'function_call': {
-        const { call_id: callId, name, arguments: args, id } = item;
+        const { call_id: callId, name, arguments: args, id, gemini_signature: signature } = item;
         if (typeof callId !== 'string' || callId.length === 0 || typeof name !== 'string' || typeof args !== 'string') {
           throw unavailable(UNREADABLE);
         }
-        items.push({ type: 'function_call', ...(typeof id === 'string' ? { id } : {}), call_id: callId, name, arguments: args });
+        items.push({
+          type: 'function_call',
+          ...(typeof id === 'string' ? { id } : {}),
+          call_id: callId,
+          name,
+          arguments: args,
+          ...(typeof signature === 'string' && signature.length > 0 ? { gemini_signature: signature } : {}),
+        });
         break;
       }
       case 'message': {
@@ -230,13 +250,14 @@ export function sanitizeOutput(raw: unknown[]): OpenAIOutputItem[] {
           return [];
         });
         if (content.length === 0) break;
-        const { id } = item;
+        const { id, gemini_signature: signature } = item;
         items.push({
           type: 'message',
           role: 'assistant',
           ...(typeof id === 'string' ? { id } : {}),
           status: 'completed',
           content,
+          ...(typeof signature === 'string' && signature.length > 0 ? { gemini_signature: signature } : {}),
         });
         break;
       }
@@ -250,8 +271,14 @@ export function sanitizeOutput(raw: unknown[]): OpenAIOutputItem[] {
   if (!reasoningDropped) return items;
   return items.map((item): OpenAIOutputItem => {
     if (item.type !== 'function_call') return item;
-    const { call_id, name, arguments: args } = item;
-    return { type: 'function_call', call_id, name, arguments: args };
+    const { call_id, name, arguments: args, gemini_signature: signature } = item;
+    return {
+      type: 'function_call',
+      call_id,
+      name,
+      arguments: args,
+      ...(signature ? { gemini_signature: signature } : {}),
+    };
   });
 }
 

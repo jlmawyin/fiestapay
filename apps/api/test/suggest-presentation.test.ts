@@ -11,7 +11,7 @@ import {
 import { buildApp } from '../src/app.js';
 import { migrate } from '../src/db/migrate.js';
 import { createPool, type Pool } from '../src/db/pool.js';
-import type { OpenAIConfig } from '../src/config.js';
+import type { GeminiConfig, OpenAIConfig } from '../src/config.js';
 import { sha256 } from '../src/lib/ids.js';
 import type { RespondFn, RespondInput, RespondOutput } from '../src/ai/openai.js';
 import { completed, message, scriptedOpenAI } from './openai-script.js';
@@ -28,7 +28,7 @@ const validAnswer = (theme: string, description: string): RespondOutput =>
 
 interface Captured {
   inputs: RespondInput[];
-  configs: OpenAIConfig[];
+  configs: Array<OpenAIConfig | GeminiConfig>;
 }
 
 interface AppOptions {
@@ -127,7 +127,7 @@ describeDb('sugerencia de presentación', () => {
         expect(captured.inputs[1]!.instructions).toContain('camino, montana, costa, ciudad');
         for (const config of captured.configs) {
           expect(config.maxOutputTokens).toBeLessThanOrEqual(400);
-          expect(config.model).toBe('gpt-6-luna');
+          expect((config as OpenAIConfig).model).toBe('gpt-6-luna');
         }
       },
       {

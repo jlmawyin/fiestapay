@@ -36,18 +36,17 @@ describe('configuracion del proveedor de chat', () => {
     const config = loadConfig({
       NODE_ENV: 'test',
       OPENAI_API_KEY: KEY,
-      GEMINI_API_KEY: 'g-key-should-not-appear',
       GEMINI_MODEL: 'modelo-ajeno',
       GEMINI_BASE_URL: 'https://example.invalid',
     } as NodeJS.ProcessEnv);
     expect(config.llmProvider).toBe('openai');
     expect(config.openai).toMatchObject({ model: 'gpt-6-luna', reasoningEffort: 'low', baseUrl: 'https://api.openai.com/v1' });
-    expect(config).not.toHaveProperty('gemini');
-    const packed = JSON.stringify(config);
-    expect(packed).not.toContain('g-key-should-not-appear');
+    expect(config.gemini).toBeNull();
+    expect(config.textProvider).toBe('openai');
+    const packed = JSON.stringify(config.openai);
     expect(packed).not.toContain('modelo-ajeno');
     expect(packed).not.toContain('example.invalid');
-    expect(packed.toLowerCase()).not.toContain('gemini');
+    expect(JSON.stringify(config)).not.toContain('g-key-should-not-appear');
   });
 
   it('acepta solo LLM_PROVIDER=openai y no repite un valor rechazado', () => {
@@ -64,12 +63,12 @@ describe('configuracion del proveedor de chat', () => {
   });
 
   it('sin clave deja el chat apagado con un motivo sin secretos', () => {
-    const config = loadConfig({ NODE_ENV: 'test', GEMINI_API_KEY: 'g-key-should-not-appear' } as NodeJS.ProcessEnv);
+    const config = loadConfig({ NODE_ENV: 'test' } as NodeJS.ProcessEnv);
     expect(config.openai).toBeNull();
-    expect(config).not.toHaveProperty('gemini');
+    expect(config.gemini).toBeNull();
+    expect(config.textProvider).toBe('openai');
     expect(config.openaiDisabledReason).toContain('OPENAI_API_KEY');
     expect(config.openaiDisabledReason).not.toContain('g-key');
-    expect(JSON.stringify(config).toLowerCase()).not.toContain('gemini');
   });
 
   it('acota tiempos, rondas, historial y salida', () => {
@@ -105,19 +104,21 @@ describe('capacidades segun el proveedor seleccionado', () => {
     }
   }
 
-  it('OpenAI configurado anuncia chat y omite un proveedor retirado', async () => {
-    const announced = await caps({ OPENAI_API_KEY: KEY, GEMINI_API_KEY: 'g-key-should-not-appear' });
+  it('OpenAI configurado anuncia chat y omite el otro proveedor', async () => {
+    const announced = await caps({
+      AI_TEXT_PROVIDER: 'openai',
+      OPENAI_API_KEY: KEY,
+      GEMINI_API_KEY: 'g-key-should-not-appear',
+    });
     expect(announced).toMatchObject({ chat: true, llmProvider: 'openai' });
     expect(announced).not.toHaveProperty('gemini');
     const packed = JSON.stringify(announced);
-    expect(packed.toLowerCase()).not.toContain('gemini');
     expect(packed).not.toContain('g-key');
   });
 
-  it('sin clave anuncia chat apagado aunque el entorno traiga una clave ajena', async () => {
-    const announced = await caps({ GEMINI_API_KEY: 'g-key-should-not-appear' });
+  it('sin clave anuncia chat apagado', async () => {
+    const announced = await caps({});
     expect(announced).toMatchObject({ chat: false, llmProvider: 'openai' });
-    expect(JSON.stringify(announced).toLowerCase()).not.toContain('gemini');
     expect(JSON.stringify(announced)).not.toContain('g-key');
   });
 });

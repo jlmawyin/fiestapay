@@ -5,9 +5,9 @@ import { withTransaction, type Pool } from '../db/pool.js';
 import { assertAdminKey } from '../domain/access.js';
 import { findEventById, getEventBySlug, lockEvent, type EventRow } from '../domain/read.js';
 import { concealExpired, isPastRetention, tombstoneEvent } from '../domain/retention.js';
-import { HttpError, forbidden, gone, unavailable } from '../errors.js';
+import { HttpError, forbidden, gone } from '../errors.js';
 import { visibleText, type HistoryRole, type StoredPart, type StoredTurn } from './history.js';
-import { createResponse, openaiTextOf, type RespondFn } from './openai.js';
+import { openaiTextOf } from './openai.js';
 import { reserveAiRequest } from './budget.js';
 import {
   decideAssistantTurn,
@@ -17,7 +17,8 @@ import {
   organizerSystemInstruction,
   policyAnswer,
 } from './assistant-policy.js';
-import { converse, countScopedUserMessages, MAX_MESSAGES_PER_SCOPE, openaiAdapter, type ChatProviders } from './chat.js';
+import { converse, countScopedUserMessages, MAX_MESSAGES_PER_SCOPE, textAdapter, type ChatProviders } from './chat.js';
+import { selectTextProvider } from './text-provider.js';
 import { ORGANIZER_TOOL_DECLARATIONS, ORGANIZER_TOOL_NAMES, runOrganizerTool } from './organizer-tools.js';
 
 export type { ChatProviders };
@@ -94,16 +95,10 @@ export function organizerGreeting(event: EventRow, locale: Locale = 'es'): strin
 }
 
 function selectProvider(config: Config, providers: ChatProviders, locale: Locale = 'es') {
-  const openai = config.openai;
-  if (!openai) {
-    throw unavailable(locale === 'en'
-      ? 'The assistant is not configured'
-      : (config.openaiDisabledReason ?? 'El asistente no esta configurado'));
-  }
-  const respond: RespondFn = providers.respond ?? createResponse;
+  const selection = selectTextProvider(config, locale, providers.respond);
   return {
-    maxHistoryMessages: openai.maxHistoryMessages,
-    adapter: (instruction: string) => openaiAdapter(openai, instruction, respond, ORGANIZER_TOOL_DECLARATIONS),
+    maxHistoryMessages: selection.maxHistoryMessages,
+    adapter: (instruction: string) => textAdapter(selection, instruction, ORGANIZER_TOOL_DECLARATIONS),
   };
 }
 

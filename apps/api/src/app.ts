@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
+import type { CreateGeminiVoiceTokenFn } from './ai/gemini-live.js';
 import type { RespondFn } from './ai/openai.js';
 import { loadConfig, type Config } from './config.js';
 import { createSmtpEmail } from './email/smtp.js';
@@ -36,8 +37,10 @@ export interface BuildAppOptions {
    * and an unconfigured server stays on null instead of pretending mail was sent.
    */
   email?: EmailAdapter | null;
-  /** Scripted model for tests; omitted in production so the OpenAI REST call is used. */
+  /** Scripted model for tests; omitted in production so the selected provider REST call is used. */
   respond?: RespondFn;
+  /** Scripted Gemini token seam for tests; omitted in production so the SDK is used. */
+  createVoiceToken?: CreateGeminiVoiceTokenFn;
   logger?: boolean;
 }
 
@@ -147,6 +150,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     paypal,
     email,
     ...(options.respond ? { respond: options.respond } : {}),
+    ...(options.createVoiceToken ? { createVoiceToken: options.createVoiceToken } : {}),
   };
   await app.register(
     async (api) => {
