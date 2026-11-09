@@ -20,6 +20,7 @@ import type {
   RecoveryConsumeResult,
 } from '../types';
 import type {
+  AssistantContext,
   DemoKind,
   DraftEventProposal,
   PresentationSuggestion,
@@ -417,7 +418,7 @@ export const api = {
    * Public informational voice. No event and no guest are created; only the session
    * cookie, the shared daily budget and the per-session lease are used.
    */
-  async getPublicVoiceToken(): Promise<{
+  async getPublicVoiceToken(context: AssistantContext = 'landing'): Promise<{
     token: string;
     sessionConfig: Record<string, unknown>;
     maxSeconds: number;
@@ -427,7 +428,7 @@ export const api = {
   }> {
     return request('/api/voice/public/token', {
       method: 'POST',
-      body: JSON.stringify({ consent: true }),
+      body: JSON.stringify({ consent: true, context }),
     });
   },
 

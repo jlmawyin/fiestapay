@@ -127,6 +127,38 @@ describe('API Client Specification Compliance (docs/API.md)', () => {
     );
   });
 
+  it('sends the current public page context when requesting the public voice token', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        token: 'tok-public',
+        sessionConfig: { sample_rate: 24000 },
+        maxSeconds: 120,
+        leaseId: 'lease-public',
+      }),
+    } as Response);
+
+    await api.getPublicVoiceToken('demo');
+    await api.getPublicVoiceToken();
+    await api.getPublicVoiceToken('landing');
+
+    expect(fetchSpy).toHaveBeenNthCalledWith(
+      1,
+      '/api/voice/public/token',
+      expect.objectContaining({ body: JSON.stringify({ consent: true, context: 'demo' }) }),
+    );
+    expect(fetchSpy).toHaveBeenNthCalledWith(
+      2,
+      '/api/voice/public/token',
+      expect.objectContaining({ body: JSON.stringify({ consent: true, context: 'landing' }) }),
+    );
+    expect(fetchSpy).toHaveBeenNthCalledWith(
+      3,
+      '/api/voice/public/token',
+      expect.objectContaining({ body: JSON.stringify({ consent: true, context: 'landing' }) }),
+    );
+  });
+
   it('executes voice tool with leaseId and arguments', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,

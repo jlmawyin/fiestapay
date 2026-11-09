@@ -1,5 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import { UI_LABELS, type Locale } from '@fiestapay/shared';
+import {
+  ASSISTANT_CONTEXTS,
+  UI_LABELS,
+  type AssistantContext,
+  type Locale,
+} from '@fiestapay/shared';
 import { z } from 'zod';
 import {
   createGeminiVoiceSession,
@@ -24,7 +29,7 @@ import { forbidden, unavailable } from '../errors.js';
 import { requestLocale } from '../lib/locale.js';
 import { parseOr400, slugParamSchema } from '../lib/schemas.js';
 import { ensureSession, requireSession } from '../lib/session.js';
-import { programGuide } from '../ai/program-guide.js';
+import { programGuide, publicPageContext } from '../ai/program-guide.js';
 import type { RouteDeps } from './deps.js';
 
 export function guestVoiceInstruction(locale: Locale = 'es'): string {
@@ -87,13 +92,13 @@ export function voiceSessionConfig(media: object = assemblyVoiceMedia(), locale:
  * Public informational voice. It runs before any event or guest exists, so it has no
  * tools, no private event data and no organizer key. It only explains FiestaPay.
  */
-export function publicVoiceInstruction(locale: Locale = 'es'): string {
+export function publicVoiceInstruction(locale: Locale = 'es', context: AssistantContext = 'landing'): string {
   if (locale === 'en') {
     return [
       'You are the FiestaPay voice assistant. Speak brief, clear, friendly English. This is a PayPal SANDBOX demonstration, with no real money.',
       'Explain what FiestaPay is: invitations with a fixed fee, attendance confirmation, capacity and a test payment with PayPal.',
       'Explain the general steps: create an invitation, share its link, join with an alias, confirm attendance and pay the fixed fee.',
-      'This voice is the public landing context: explain the product and how to create an invitation of your own. Do not present the judge /demo flow as already open; mention it only as an optional demo the person can open.',
+      publicPageContext(locale, context),
       'You have no tools. Do not query, create, change or cancel events, guests, payments, refunds, capacity or attendance.',
       'Do not ask for or repeat organizer keys, private codes, emails, sessions, addresses, phone numbers or card or PayPal data. Do not repeat real or fictional values of the test account either.',
       'Do not claim that a payment, refund or funding happened. For real status, ask the person to review the screen or the panel.',
@@ -106,7 +111,7 @@ export function publicVoiceInstruction(locale: Locale = 'es'): string {
     'Eres el asistente de voz de FiestaPay. Habla de forma breve, clara y amable. Es una demostración con PayPal SANDBOX, sin dinero real.',
     'Explica qué es FiestaPay: invitaciones con cuota fija, confirmación de asistencia, cupo y pago de prueba con PayPal.',
     'Explica los pasos generales: crear una invitación, compartir el enlace, unirse con un alias, confirmar asistencia y pagar la cuota fija.',
-    'Esta voz es el contexto público de portada: explica el producto y cómo crear una invitación propia. No presentes la demo para jueces de /demo como ya abierta; menciónala solo como una demo opcional que la persona puede abrir.',
+    publicPageContext(locale, context),
     'No tienes herramientas. No consultes, crees, cambies ni canceles eventos, invitados, pagos, reembolsos, cupos ni asistencia.',
     'No pidas ni repitas claves de organizador, códigos privados, correos, sesiones, direcciones, teléfonos ni datos de tarjeta o PayPal. Tampoco repitas valores reales o ficticios de la cuenta de prueba.',
     'No afirmes que un pago, reembolso o financiamiento ocurrió. Para el estado real, pide revisar la pantalla o el panel.',
@@ -116,21 +121,36 @@ export function publicVoiceInstruction(locale: Locale = 'es'): string {
   ].join('\n');
 }
 
-export function publicVoiceGreeting(locale: Locale = 'es'): string {
+export function publicVoiceGreeting(locale: Locale = 'es', context: AssistantContext = 'landing'): string {
   const L = UI_LABELS[locale];
-  return locale === 'en'
-    ? `Hello, I am the FiestaPay voice assistant. I can explain the demo or the test payment. Would you like to go to "${L.previewPanel}" or "${L.paymentDemo}"?`
-    : `Hola, soy el asistente de voz de FiestaPay. Puedo explicarte la demo o el pago de prueba. ¿Quieres orientarte a "${L.previewPanel}" o a "${L.paymentDemo}"?`;
+  if (locale === 'en') {
+    return context === 'demo'
+      ? `Hello, I am the FiestaPay voice assistant. You are in "${L.judgesDemo}". Would you like me to guide you through the sample dashboard, the test payment, or the assistant?`
+      : `Hello, I am the FiestaPay voice assistant. I can explain FiestaPay or guide you to "${L.judgesDemo}", where the sample dashboard and the test payment are. What would you like to do?`;
+  }
+  return context === 'demo'
+    ? `Hola, soy el asistente de voz de FiestaPay. Estás en "${L.judgesDemo}". ¿Quieres que te guíe por el panel de ejemplo, el pago de prueba o el asistente?`
+    : `Hola, soy el asistente de voz de FiestaPay. Puedo explicarte FiestaPay o acompañarte a abrir "${L.judgesDemo}", donde están el panel de ejemplo y el pago de prueba. ¿Qué quieres hacer?`;
 }
 
-export function publicVoiceSessionConfig(media: object = assemblyVoiceMedia(), locale: Locale = 'es') {
+export function publicVoiceSessionConfig(
+  media: object = assemblyVoiceMedia(),
+  locale: Locale = 'es',
+  context: AssistantContext = 'landing',
+) {
   return {
-    system_prompt: publicVoiceInstruction(locale),
-    greeting: publicVoiceGreeting(locale),
+    system_prompt: publicVoiceInstruction(locale, context),
+    greeting: publicVoiceGreeting(locale, context),
     ...media,
     tools: [],
   };
 }
+
+/** Public voice accepts the same optional page context as public text; absent means landing. */
+export const publicVoiceTokenSchema = z.object({
+  consent: z.literal(true),
+  context: z.enum(ASSISTANT_CONTEXTS).optional(),
+});
 
 export async function registerVoiceRoutes(app: FastifyInstance, deps: RouteDeps) {
   const { pool, config } = deps;
@@ -140,7 +160,8 @@ export async function registerVoiceRoutes(app: FastifyInstance, deps: RouteDeps)
    * session cookie, lease, daily budget and rate limit as guest and organizer voice.
    */
   app.post('/voice/public/token', {config:{rateLimit:{max:5,timeWindow:'1 minute'}}}, async (req, reply) => {
-    parseOr400(z.object({consent:z.literal(true)}), req.body);
+    const { context } = parseOr400(publicVoiceTokenSchema, req.body);
+    const voiceContext: AssistantContext = context ?? 'landing';
     const session = await ensureSession(pool, config, req, reply);
     const locale = requestLocale(req);
     const voice = config.voice;
@@ -161,8 +182,8 @@ export async function registerVoiceRoutes(app: FastifyInstance, deps: RouteDeps)
       const issued = await createGeminiVoiceSession(gemini, deps.createVoiceToken ?? createGeminiVoiceToken, {
         locale,
         maxSeconds: voice.maxSeconds,
-        systemInstruction: publicVoiceInstruction(locale),
-        kickoff: publicVoiceGreeting(locale),
+        systemInstruction: publicVoiceInstruction(locale, voiceContext),
+        kickoff: publicVoiceGreeting(locale, voiceContext),
         tools: [],
       });
       reply.header('Cache-Control','no-store');
@@ -177,7 +198,7 @@ export async function registerVoiceRoutes(app: FastifyInstance, deps: RouteDeps)
     }
     const token = await fetchAssemblyRealtimeToken(voice, locale);
     reply.header('Cache-Control','no-store');
-    return {token, sessionConfig:publicVoiceSessionConfig(assemblyVoiceMedia(locale), locale), maxSeconds:voice.maxSeconds, leaseId, audience:'public'};
+    return {token, sessionConfig:publicVoiceSessionConfig(assemblyVoiceMedia(locale), locale, voiceContext), maxSeconds:voice.maxSeconds, leaseId, audience:'public'};
   });
 
   /**

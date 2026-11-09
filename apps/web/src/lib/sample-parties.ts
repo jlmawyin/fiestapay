@@ -85,3 +85,30 @@ export function samplePartyById(id: string): SampleParty {
 export function sampleCollectedCents(party: SampleParty): number {
   return party.guests.reduce((sum, guest) => sum + guest.paidCents, 0);
 }
+
+export function sampleDueCents(party: SampleParty): number {
+  return party.guests.reduce((sum, guest) => sum + guest.dueCents, 0);
+}
+
+/** Confirmed people (1 + companions per "yes" guest), like the server totals. */
+export function samplePeople(party: SampleParty): number {
+  return party.guests.reduce(
+    (sum, guest) => sum + (guest.attendance === 'yes' ? 1 + guest.companions : 0),
+    0,
+  );
+}
+
+/** Fictional pinned-row totals for the judges-demo grid. Labeled fictional at the call site. */
+export interface SampleTotals {
+  people: number;
+  paidCents: number;
+  dueCents: number;
+}
+
+export function sampleTotals(party: SampleParty): SampleTotals {
+  return {
+    people: samplePeople(party),
+    paidCents: sampleCollectedCents(party),
+    dueCents: sampleDueCents(party),
+  };
+}

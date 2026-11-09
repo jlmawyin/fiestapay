@@ -1,4 +1,4 @@
-import type { Dashboard, Guest, PaymentListItem, RsvpStatus } from '@fiestapay/shared';
+import type { Dashboard, Guest, GuestTotals, PaymentListItem, RsvpStatus } from '@fiestapay/shared';
 import { sumToCents, type Pool } from '../db/pool.js';
 import { assertAdminKey } from './access.js';
 import { auditTrail } from './audit.js';
@@ -49,6 +49,25 @@ export async function loadGuestBalances(db: Queryable, event: EventRow): Promise
   );
 }
 
+/**
+ * Totals over exactly the rows returned to the organizer. People are confirmed attendees
+ * (1 + companions per "yes"), while amounts come from each row's server-computed balance.
+ */
+function guestTotalsOf(guests: Guest[]): GuestTotals {
+  let people = 0;
+  let paidCents = 0;
+  let dueCents = 0;
+  for (const guest of guests) {
+    if (guest.status === 'yes') people += 1 + guest.companions;
+    paidCents += guest.paidCents;
+    dueCents += guest.dueCents;
+  }
+  if (![people, paidCents, dueCents].every(Number.isSafeInteger)) {
+    throw new Error('Totales de invitados invalidos');
+  }
+  return { people, paidCents, dueCents };
+}
+
 /** Organizer view. A keyed event accepts only X-Fiesta-Admin-Key, never the session cookie. */
 export async function dashboardFor(pool: Pool, slug: string, presentedKey: string | null): Promise<Dashboard> {
   const eventRow = await getEventBySlug(pool, slug);
@@ -87,6 +106,7 @@ export async function dashboardFor(pool: Pool, slug: string, presentedKey: strin
   return {
     event: await loadFiestaEvent(pool, eventRow),
     guests,
+    guestTotals: guestTotalsOf(guests),
     payments: paymentItems,
     audit: await auditTrail(pool, eventRow.id),
   };

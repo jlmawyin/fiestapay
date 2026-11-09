@@ -10,6 +10,7 @@ import { dashboardCatalog } from './organizerDashboard';
 import { gridCatalog } from './organizerGrid';
 import { moderationCatalog } from './organizerModeration';
 import { coversCatalog } from './organizerCovers';
+import { paypalAiCatalog } from './demoPaypalAi';
 import {
   organizerLinkCatalog,
   qrShareCatalog,
@@ -52,4 +53,5 @@ export {
   recoveryEmailCatalog,
   organizerLinkCatalog,
   qrShareCatalog,
+  paypalAiCatalog,
 };

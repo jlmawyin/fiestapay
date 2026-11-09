@@ -23,10 +23,16 @@ import {
 } from '../routes/organizer-assistant.js';
 import {
   guestVoiceInstruction,
+  publicVoiceGreeting,
   publicVoiceInstruction,
   publicVoiceSessionConfig,
+  publicVoiceTokenSchema,
   voiceSessionConfig,
 } from '../routes/voice.js';
+import { parseOr400 } from '../lib/schemas.js';
+import { buildApp } from '../app.js';
+import { loadConfig } from '../config.js';
+import type { Pool } from '../db/pool.js';
 
 const event = {
   title: 'Cena de prueba',
@@ -349,6 +355,121 @@ describe('guía del asistente de creación FP-CREATE-A1', () => {
       for (const key of CREATE_LABEL_KEYS) {
         expect(prompt, `${name} debe citar ${key}: ${labels[key]}`).toContain(labels[key]);
       }
+    }
+  });
+});
+
+describe('voz pública con contexto de página', () => {
+  it.each(LOCALES)('produce instrucciones distintas y válidas para portada y demo (%s)', (locale) => {
+    const labels = UI_LABELS[locale];
+    const landing = publicVoiceInstruction(locale, 'landing');
+    const demo = publicVoiceInstruction(locale, 'demo');
+
+    expect(landing).not.toBe(demo);
+    expect(landing).toContain(PROGRAM_GUIDE_HEADINGS[locale]);
+    expect(demo).toContain(PROGRAM_GUIDE_HEADINGS[locale]);
+    expect(landing).toContain(labels.judgesDemo);
+    expect(demo).toContain(labels.judgesDemo);
+    expect(landing).toContain(labels.paymentDemo);
+    expect(demo).toContain(labels.paymentDemo);
+    expect(demo).toContain(labels.previewPanel);
+    expect(demo).toMatch(/directamente|directly/i);
+    expect(demo).not.toMatch(/desde la portada|from the home page/i);
+    expect(landing).toMatch(/primero|first/i);
+    expect(publicVoiceGreeting(locale, 'demo')).not.toBe(publicVoiceGreeting(locale, 'landing'));
+  });
+
+  it.each(LOCALES)('usa portada por defecto y conserva la guía compartida (%s)', (locale) => {
+    const landing = publicVoiceInstruction(locale, 'landing');
+    expect(publicVoiceInstruction(locale)).toBe(landing);
+    expect(publicVoiceSessionConfig({}, locale).system_prompt).toBe(landing);
+    expect(publicVoiceSessionConfig({}, locale, 'demo').system_prompt).toBe(publicVoiceInstruction(locale, 'demo'));
+    expect(publicVoiceSessionConfig({}, locale, 'demo').tools).toEqual([]);
+  });
+
+  it('acepta context demo/landing y rechaza un contexto inválido con 400', async () => {
+    expect(parseOr400(publicVoiceTokenSchema, { consent: true })).toEqual({ consent: true });
+    expect(parseOr400(publicVoiceTokenSchema, { consent: true, context: 'demo' })).toEqual({
+      consent: true,
+      context: 'demo',
+    });
+    expect(parseOr400(publicVoiceTokenSchema, { consent: true, context: 'landing' })).toEqual({
+      consent: true,
+      context: 'landing',
+    });
+    try {
+      parseOr400(publicVoiceTokenSchema, { consent: true, context: 'pricing' });
+      throw new Error('El contexto inválido debía rechazarse');
+    } catch (error) {
+      expect(error).toMatchObject({ statusCode: 400 });
+    }
+
+    // The real route parses the body before any session or lease, so no database is touched.
+    const origin = 'http://localhost:5173';
+    const app = await buildApp({
+      pool: {} as Pool,
+      config: loadConfig({
+        NODE_ENV: 'test',
+        DATABASE_URL: 'postgres://unused',
+        RATE_LIMIT: '0',
+        SERVE_WEB: '0',
+        PUBLIC_ORIGIN: origin,
+      }),
+      logger: false,
+    });
+    try {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/voice/public/token',
+        payload: { consent: true, context: 'pricing' },
+        headers: { origin },
+      });
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).not.toHaveProperty('token');
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+describe('guía de funciones nuevas y regla de intención', () => {
+  const NEW_LABEL_KEYS = [
+    'describeInvitation',
+    'fillWithAi',
+    'prepareReminders',
+    'reminderTone',
+    'reminderToneFriendly',
+    'reminderToneFun',
+    'reminderToneFormal',
+    'copy',
+    'openWhatsapp',
+    'searchGuests',
+    'searchFictional',
+    'pendingOnly',
+    'exportCsv',
+    'totals',
+    'totalsFictional',
+    'paypalAiPanel',
+    'approveInPayPal',
+  ] as const;
+
+  it.each(LOCALES)('cita las etiquetas nuevas en texto y voz (%s)', (locale) => {
+    const labels = UI_LABELS[locale];
+    const prompts = actualPrompts(locale);
+    for (const [name, prompt] of Object.entries(prompts)) {
+      for (const key of NEW_LABEL_KEYS) {
+        expect(prompt, `${name} debe citar ${key}: ${labels[key]}`).toContain(labels[key]);
+      }
+    }
+  });
+
+  it.each(LOCALES)('contiene la regla de intención y no manda el pago de prueba a la portada (%s)', (locale) => {
+    const prompts = actualPrompts(locale);
+    for (const prompt of Object.values(prompts)) {
+      expect(prompt).toMatch(/ya dijo lo que quiere|already said what they want/i);
+      expect(prompt).toMatch(/no ofrezcas un menú|do not offer a menu/i);
+      expect(prompt).not.toMatch(/desde la portada|from the home page/i);
+      expect(prompt).toContain(UI_LABELS[locale].paymentDemo);
     }
   });
 });
