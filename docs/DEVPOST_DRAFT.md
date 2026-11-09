@@ -46,7 +46,7 @@ React + Vite front end, Fastify API and PostgreSQL, deployed in isolated contain
 
 ## Accomplishments
 
-- 822 automated tests (lint, type checks, build) green in CI with PostgreSQL; independent review of code and deployment operator.
+- 853 automated tests plus lint, type checks and build green with PostgreSQL; independent review of code and deployment operator.
 - Real end-to-end Gemini checks before and after deployment: a guest asked by voice "How much do I have to pay? Please prepare my payment" and the agent called the event and quote tools, the server returned USD 25.00 pending approval, and the **Approve in PayPal** card appeared. These used a synthetic microphone in Chromium; Jorge's own phone test is a separate item.
 - Earlier real sandbox campaign: USD 50 + USD 50 + USD 25 captures with exactly one ledger entry per order, and an automatic USD 1 refund when a funding minimum failed.
 
