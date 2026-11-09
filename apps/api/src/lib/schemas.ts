@@ -129,6 +129,20 @@ export const presentationSuggestionSchema = z
     hints: z.array(requiredText(60)).max(10).optional(),
   })
   .strict();
+/** "Describe your party in one sentence". Data only: the route never creates an event. */
+export const draftEventSchema = z
+  .object({
+    text: z.string().trim().min(3).max(400),
+  })
+  .strict();
+
+/** Organizer-only reminder drafts. The tone is a closed set so the prompt cannot be steered. */
+export const reminderDraftSchema = z
+  .object({
+    tone: z.enum(['amable', 'divertido', 'formal']),
+  })
+  .strict();
+
 const MESSAGE_ID_RE = /^[1-9][0-9]{0,18}$/;
 
 export const slugParamSchema = z.object({

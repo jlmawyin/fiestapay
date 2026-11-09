@@ -2,20 +2,26 @@ import type { Dashboard, Guest, PaymentListItem, RsvpStatus } from '@fiestapay/s
 import { sumToCents, type Pool } from '../db/pool.js';
 import { assertAdminKey } from './access.js';
 import { auditTrail } from './audit.js';
-import { getEventBySlug, loadFiestaEvent, toGuestWithPrice, type GuestRow } from './read.js';
+import {
+  getEventBySlug,
+  loadFiestaEvent,
+  toGuestWithPrice,
+  type EventRow,
+  type GuestRow,
+  type Queryable,
+} from './read.js';
 import { concealExpired } from './retention.js';
 
 interface GuestWithPaidRow extends GuestRow {
   paid: string | null;
 }
 
-/** Organizer view. A keyed event accepts only X-Fiesta-Admin-Key, never the session cookie. */
-export async function dashboardFor(pool: Pool, slug: string, presentedKey: string | null): Promise<Dashboard> {
-  const eventRow = await getEventBySlug(pool, slug);
-  assertAdminKey(eventRow, presentedKey);
-  await concealExpired(pool, eventRow);
-
-  const { rows } = await pool.query<GuestWithPaidRow>(
+/**
+ * Guest balances from SQL in integer cents. Dashboard and reminder drafts share this exact
+ * query and the same due formula (`toGuestWithPrice`), so no route re-implements the math.
+ */
+export async function loadGuestBalances(db: Queryable, event: EventRow): Promise<Guest[]> {
+  const { rows } = await db.query<GuestWithPaidRow>(
     `SELECT g.id, g.event_id, g.session_id, g.name, g.status, g.companions, g.obligation_version,
             COALESCE(SUM(CASE WHEN l.kind = 'capture' THEN l.amount_cents ELSE -l.amount_cents END), 0) AS paid
        FROM guests g
@@ -23,10 +29,10 @@ export async function dashboardFor(pool: Pool, slug: string, presentedKey: strin
       WHERE g.event_id = $1
       GROUP BY g.id
       ORDER BY g.created_at ASC`,
-    [eventRow.id],
+    [event.id],
   );
 
-  const guests: Guest[] = rows.map((row) =>
+  return rows.map((row) =>
     toGuestWithPrice(
       {
         id: row.id,
@@ -37,10 +43,19 @@ export async function dashboardFor(pool: Pool, slug: string, presentedKey: strin
         companions: row.companions,
         obligation_version: row.obligation_version,
       },
-      eventRow.price_cents,
+      event.price_cents,
       sumToCents(row.paid),
     ),
   );
+}
+
+/** Organizer view. A keyed event accepts only X-Fiesta-Admin-Key, never the session cookie. */
+export async function dashboardFor(pool: Pool, slug: string, presentedKey: string | null): Promise<Dashboard> {
+  const eventRow = await getEventBySlug(pool, slug);
+  assertAdminKey(eventRow, presentedKey);
+  await concealExpired(pool, eventRow);
+
+  const guests = await loadGuestBalances(pool, eventRow);
 
   const payments = await pool.query<{
     order_id: string;

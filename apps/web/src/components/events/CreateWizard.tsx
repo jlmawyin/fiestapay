@@ -7,13 +7,14 @@ import {
   themeLabel,
   themePhrase,
   themesForTemplate,
+  type DraftEventProposal,
   type PresentationSuggestionInput,
   type ThemeKey,
 } from '@fiestapay/shared';
 import type { AgendaItem, EventInput, TemplateKind } from '../../types';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { createEventCatalog } from '../../i18n/messages/organizerCreate';
-import { api } from '../../api/client';
+import { ApiError, api } from '../../api/client';
 import {
   buildEventInput,
   capitalLabel,
@@ -134,6 +135,42 @@ const splitIncludesFree = (text: string): string[] =>
     .map((s) => s.trim())
     .filter(Boolean);
 
+/** Wizard fields that can carry a "suggested" mark from POST /api/ai/draft-event. */
+type DraftMark =
+  | 'template'
+  | 'title'
+  | 'meal'
+  | 'date'
+  | 'startTime'
+  | 'duration'
+  | 'location'
+  | 'includes'
+  | 'capacity'
+  | 'price';
+
+const isTemplateKind = (value: unknown): value is TemplateKind =>
+  value === 'comida' || value === 'casa' || value === 'viaje' || value === 'evento';
+
+const isDraftDate = (value: unknown): value is string =>
+  typeof value === 'string' &&
+  /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+  !Number.isNaN(new Date(`${value}T12:00`).getTime());
+
+const isDraftTime = (value: unknown): value is string =>
+  typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+
+const durationHoursForComida = (minutes: number): 2 | 3 | 4 =>
+  minutes < 150 ? 2 : minutes < 210 ? 3 : 4;
+
+/** HH:MM plus minutes, or null when it would leave the same day. */
+const addMinutesToTime = (time: string, minutes: number): string | null => {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(time);
+  if (!match || !match[1] || !match[2]) return null;
+  const total = Number(match[1]) * 60 + Number(match[2]) + minutes;
+  if (total < 0 || total >= 24 * 60) return null;
+  return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
+};
+
 /**
  * Creation assistant: one open step, later steps locked, finished steps
  * folded with «Cambiar». The payload and its validation are the shared
@@ -178,6 +215,12 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
   const [aiError, setAiError] = useState(false);
   const [aiApplied, setAiApplied] = useState<string | null>(null);
   const [aiProposal, setAiProposal] = useState<{ theme: ThemeKey; description: string } | null>(null);
+  const [draftText, setDraftText] = useState('');
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [draftError, setDraftError] = useState<string | null>(null);
+  const [draftNotice, setDraftNotice] = useState<string | null>(null);
+  const [draftSource, setDraftSource] = useState<'ai' | 'rules' | null>(null);
+  const [suggestedMarks, setSuggestedMarks] = useState<ReadonlySet<DraftMark>>(new Set());
   const [openStep, setOpenStep] = useState<CreateWizardStep>(1);
   const [stepError, setStepError] = useState<string | null>(null);
   const [errorStep, setErrorStep] = useState<CreateWizardStep | null>(null);
@@ -328,8 +371,27 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
     setWhenTouched(true);
   };
 
+  /** A manual edit clears the "suggested" mark of that field. */
+  const clearMark = (key: DraftMark) => {
+    setSuggestedMarks((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  };
+
+  /** Per-field mark. Rules output never claims to be AI. */
+  const markBadge = (key: DraftMark) =>
+    suggestedMarks.has(key) ? (
+      <span className="create-wizard__suggested-badge">
+        {draftSource === 'rules' ? m.draftRules : m.draftSuggestedBadge}
+      </span>
+    ) : null;
+
   const handleStartTimeChange = (time: string) => {
     touchWhen({ ...when, time });
+    clearMark('startTime');
     if (!mealTouched) {
       const h = Number.parseInt(time.slice(0, 2), 10);
       if (!Number.isNaN(h)) setMeal(mealForHour(h));
@@ -341,6 +403,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
     setAiProposal(null);
     setAiApplied(null);
     setAiError(false);
+    clearMark('template');
     if (!themesForTemplate(t).some((item) => item.key === theme)) {
       setTheme(defaultThemeFor(t).key);
       setThemeTouched(false);
@@ -584,6 +647,157 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
     setCalcResult(m.calcResult(formatMoneyInLocale(shareCents)));
   };
 
+  /**
+   * Applies a DraftEventProposal to the wizard steps without creating anything.
+   * Only fields listed in `suggested` with a usable value are applied, and only
+   * applied fields are marked. Dates stay "suggested" (whenTouched is untouched)
+   * so the review keeps describing them as a suggestion until the person edits.
+   * The per-person share always comes from the server `perPersonCents`, as is.
+   */
+  const applyDraftProposal = (proposal: DraftEventProposal) => {
+    const wants = new Set(proposal.suggested ?? []);
+    const marks = new Set<DraftMark>();
+    const nextTemplate =
+      wants.has('template') && isTemplateKind(proposal.template) ? proposal.template : template;
+
+    if (wants.has('template') && isTemplateKind(proposal.template)) {
+      handleSelectTemplate(proposal.template);
+      marks.add('template');
+    }
+    if (wants.has('title') && proposal.title.trim()) {
+      setTitle(proposal.title);
+      marks.add('title');
+    }
+    if (wants.has('meal') && proposal.meal) {
+      setMeal(proposal.meal);
+      setMealTouched(true);
+      marks.add('meal');
+    }
+
+    const dateValue = wants.has('date') && isDraftDate(proposal.date) ? proposal.date : null;
+    const timeValue =
+      wants.has('startTime') && isDraftTime(proposal.startTime) ? proposal.startTime : null;
+    const durationValue =
+      wants.has('durationMinutes') &&
+      Number.isSafeInteger(proposal.durationMinutes) &&
+      (proposal.durationMinutes ?? 0) > 0
+        ? (proposal.durationMinutes as number)
+        : null;
+
+    if (!proposal.meal && timeValue && !mealTouched) {
+      const h = Number.parseInt(timeValue.slice(0, 2), 10);
+      if (!Number.isNaN(h)) setMeal(mealForHour(h));
+    }
+
+    const nextWhen: WhenState = { ...when };
+    let whenChanged = false;
+    if (dateValue) {
+      if (nextTemplate === 'viaje') {
+        nextWhen.departDate = dateValue;
+        if (nextWhen.returnDate <= dateValue) nextWhen.returnDate = addDays(dateValue, 1);
+      } else {
+        nextWhen.date = dateValue;
+      }
+      marks.add('date');
+      whenChanged = true;
+    }
+    if (timeValue) {
+      nextWhen.time = timeValue;
+      marks.add('startTime');
+      whenChanged = true;
+    }
+    if (durationValue !== null) {
+      const baseTime = timeValue ?? when.time;
+      if (nextTemplate === 'comida') {
+        nextWhen.durationHours = durationHoursForComida(durationValue);
+        marks.add('duration');
+        whenChanged = true;
+      } else if (nextTemplate === 'casa') {
+        if (durationValue === 180) nextWhen.departMode = 'plus3';
+        else if (durationValue === 240) nextWhen.departMode = 'plus4';
+        else {
+          const exact = addMinutesToTime(baseTime, durationValue);
+          if (exact) {
+            nextWhen.departMode = 'exact';
+            nextWhen.exactTime = exact;
+          } else {
+            nextWhen.departMode = durationValue <= 210 ? 'plus3' : 'plus4';
+          }
+        }
+        marks.add('duration');
+        whenChanged = true;
+      } else if (nextTemplate === 'evento') {
+        const end = addMinutesToTime(baseTime, durationValue);
+        if (end) {
+          nextWhen.endTime = end;
+          marks.add('duration');
+          whenChanged = true;
+        }
+      }
+      // viaje spans several days: a minutes duration does not apply, so no mark.
+    }
+    if (whenChanged) setWhen(nextWhen);
+
+    if (wants.has('location') && proposal.location?.trim()) {
+      setLocation(proposal.location.trim());
+      marks.add('location');
+    }
+    if (wants.has('includes')) {
+      const items = (proposal.includes ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 20);
+      setIncludesFree(items.join(', '));
+      marks.add('includes');
+    }
+    if (
+      wants.has('headcount') &&
+      Number.isInteger(proposal.headcount) &&
+      (proposal.headcount ?? 0) >= 1 &&
+      (proposal.headcount ?? 0) <= 500
+    ) {
+      setCapacity(String(proposal.headcount));
+      marks.add('capacity');
+    }
+    if (
+      wants.has('budgetCents') &&
+      Number.isSafeInteger(proposal.perPersonCents) &&
+      (proposal.perPersonCents ?? 0) > 0
+    ) {
+      setPriceDollars(((proposal.perPersonCents as number) / 100).toFixed(2));
+      marks.add('price');
+    }
+
+    setSuggestedMarks(marks);
+    setDraftSource(proposal.source);
+    setDraftNotice(
+      proposal.source === 'rules' ? `${m.draftApplied} ${m.draftRules}.` : m.draftApplied,
+    );
+  };
+
+  const handleDraftFill = async () => {
+    if (draftLoading || isLoading || posting.current) return;
+    const text = draftText.trim();
+    if (text.length < 3) {
+      setDraftError(m.draftEmpty);
+      setDraftNotice(null);
+      return;
+    }
+    setDraftLoading(true);
+    setDraftError(null);
+    setDraftNotice(null);
+    try {
+      const proposal = await api.draftEvent(text);
+      applyDraftProposal(proposal);
+    } catch (err: unknown) {
+      // 429/503 keep the existing bilingual AI message; the manual form stays usable.
+      if (err instanceof ApiError && (err.status === 429 || err.status === 503)) {
+        setDraftError(m.aiError);
+      } else {
+        setDraftError(err instanceof Error && err.message ? err.message : m.aiError);
+      }
+    } finally {
+      setDraftLoading(false);
+    }
+  };
+
   const handleSuggestAi = async () => {
     if (aiLoading || isLoading || posting.current) return;
     setAiLoading(true);
@@ -674,9 +888,47 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
   const renderWhat = () => (
     <>
       <p className="create-wizard__explain">{m.explainWhat}</p>
+      <div className="create-wizard__draft">
+        <label className="form-label" htmlFor="wizard-draft-text">
+          {m.draftTitle}
+        </label>
+        <div className="create-wizard__draft-row">
+          <input
+            id="wizard-draft-text"
+            className="form-input"
+            value={draftText}
+            onChange={(e) => setDraftText(e.target.value)}
+            placeholder={m.draftPlaceholder}
+            maxLength={400}
+            autoComplete="off"
+            aria-describedby="wizard-draft-help"
+          />
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => void handleDraftFill()}
+            disabled={draftLoading || isLoading}
+          >
+            {draftLoading ? m.draftFilling : m.draftFill}
+          </button>
+        </div>
+        <span id="wizard-draft-help" className="form-label-desc">
+          {m.draftHelp}
+        </span>
+        {draftError ? (
+          <p role="alert" className="create-wizard__error">
+            {draftError}
+          </p>
+        ) : null}
+        {draftNotice ? (
+          <p role="status" className="create-wizard__ai-note">
+            {draftNotice}
+          </p>
+        ) : null}
+      </div>
       <div>
         <span className="form-label" id="wizard-type-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
-          {m.typeLabel}
+          {m.typeLabel} {markBadge('template')}
         </span>
         <div className="create-wizard__type-grid" role="radiogroup" aria-label={m.typeGroupAria}>
           {(['comida', 'casa', 'viaje', 'evento'] as TemplateKind[]).map((t) => {
@@ -703,20 +955,26 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
       </div>
       <div className="form-group" style={{ marginBottom: 0 }}>
         <label className="form-label" htmlFor="event-title">
-          {m.titleLabel}
+          {m.titleLabel} {markBadge('title')}
         </label>
         <input
           id="event-title"
           className="form-input"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            clearMark('title');
+            setTitle(e.target.value);
+          }}
           required
           placeholder={typeExample(template)}
         />
         <button
           type="button"
           className="create-wizard__example-chip"
-          onClick={() => setTitle(typeExample(template))}
+          onClick={() => {
+            clearMark('title');
+            setTitle(typeExample(template));
+          }}
         >
           {m.titleUseExample(typeExample(template))}
         </button>
@@ -744,20 +1002,23 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
       <div className="create-wizard__field-row">
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label className="form-label" htmlFor="wizard-date">
-            {m.whenDateLabel}
+            {m.whenDateLabel} {markBadge('date')}
           </label>
           <input
             id="wizard-date"
             type="date"
             className="form-input"
             value={when.date}
-            onChange={(e) => touchWhen({ ...when, date: e.target.value })}
+            onChange={(e) => {
+              clearMark('date');
+              touchWhen({ ...when, date: e.target.value });
+            }}
             required
           />
         </div>
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label className="form-label" htmlFor="wizard-time">
-            {m.whenTimeLabel}
+            {m.whenTimeLabel} {markBadge('startTime')}
           </label>
           <input
             id="wizard-time"
@@ -771,7 +1032,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
       </div>
       <div>
         <span className="form-label" id="wizard-duration-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
-          {m.durationLabel}
+          {m.durationLabel} {markBadge('duration')}
         </span>
         <div className="create-wizard__chips" role="radiogroup" aria-labelledby="wizard-duration-label">
           {([2, 3, 4] as const).map((d) => (
@@ -782,7 +1043,10 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
               aria-checked={when.durationHours === d}
               data-selected={when.durationHours === d}
               className="create-wizard__chip"
-              onClick={() => touchWhen({ ...when, durationHours: d })}
+              onClick={() => {
+                clearMark('duration');
+                touchWhen({ ...when, durationHours: d });
+              }}
             >
               {m.durationHours(d)}
             </button>
@@ -791,13 +1055,14 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
       </div>
       <div className="form-group" style={{ marginBottom: 0 }}>
         <label className="form-label" htmlFor="wizard-meal">
-          {m.mealLabel}
+          {m.mealLabel} {markBadge('meal')}
         </label>
         <select
           id="wizard-meal"
           className="form-select"
           value={meal}
           onChange={(e) => {
+            clearMark('meal');
             setMealTouched(true);
             setMeal(e.target.value as 'desayuno' | 'almuerzo' | 'cena');
           }}
@@ -846,20 +1111,23 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
       <div className="create-wizard__field-row">
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label className="form-label" htmlFor="wizard-date">
-            {m.whenDateLabel}
+            {m.whenDateLabel} {markBadge('date')}
           </label>
           <input
             id="wizard-date"
             type="date"
             className="form-input"
             value={when.date}
-            onChange={(e) => touchWhen({ ...when, date: e.target.value })}
+            onChange={(e) => {
+              clearMark('date');
+              touchWhen({ ...when, date: e.target.value });
+            }}
             required
           />
         </div>
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label className="form-label" htmlFor="wizard-time">
-            {m.casaArrivalLabel}
+            {m.casaArrivalLabel} {markBadge('startTime')}
           </label>
           <input
             id="wizard-time"
@@ -873,7 +1141,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
       </div>
       <div>
         <span className="form-label" id="wizard-depart-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
-          {m.casaDepartureLabel}
+          {m.casaDepartureLabel} {markBadge('duration')}
         </span>
         <div className="create-wizard__chips" role="radiogroup" aria-labelledby="wizard-depart-label">
           {(
@@ -891,7 +1159,10 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
               aria-checked={when.departMode === mode}
               data-selected={when.departMode === mode}
               className="create-wizard__chip"
-              onClick={() => touchWhen({ ...when, departMode: mode })}
+              onClick={() => {
+                clearMark('duration');
+                touchWhen({ ...when, departMode: mode });
+              }}
             >
               {label}
             </button>
@@ -907,7 +1178,10 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
               type="time"
               className="form-input"
               value={when.exactTime}
-              onChange={(e) => touchWhen({ ...when, exactTime: e.target.value })}
+              onChange={(e) => {
+                clearMark('duration');
+                touchWhen({ ...when, exactTime: e.target.value });
+              }}
               required
             />
           </div>
@@ -921,14 +1195,17 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
       <div className="create-wizard__field-row">
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label className="form-label" htmlFor="wizard-depart-date">
-            {m.viajeDepartLabel}
+            {m.viajeDepartLabel} {markBadge('date')}
           </label>
           <input
             id="wizard-depart-date"
             type="date"
             className="form-input"
             value={when.departDate}
-            onChange={(e) => touchWhen({ ...when, departDate: e.target.value })}
+            onChange={(e) => {
+              clearMark('date');
+              touchWhen({ ...when, departDate: e.target.value });
+            }}
             required
           />
         </div>
@@ -948,7 +1225,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
       </div>
       <div className="form-group" style={{ marginBottom: 0 }}>
         <label className="form-label" htmlFor="wizard-time">
-          {m.viajeTimeLabel}
+          {m.viajeTimeLabel} {markBadge('startTime')}
         </label>
         <input
           id="wizard-time"
@@ -1034,20 +1311,23 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
       <div className="create-wizard__field-row">
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label className="form-label" htmlFor="wizard-date">
-            {m.whenDateLabel}
+            {m.whenDateLabel} {markBadge('date')}
           </label>
           <input
             id="wizard-date"
             type="date"
             className="form-input"
             value={when.date}
-            onChange={(e) => touchWhen({ ...when, date: e.target.value })}
+            onChange={(e) => {
+              clearMark('date');
+              touchWhen({ ...when, date: e.target.value });
+            }}
             required
           />
         </div>
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label className="form-label" htmlFor="wizard-time">
-            {m.whenTimeLabel}
+            {m.whenTimeLabel} {markBadge('startTime')}
           </label>
           <input
             id="wizard-time"
@@ -1061,14 +1341,17 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
       </div>
       <div className="form-group" style={{ marginBottom: 0 }}>
         <label className="form-label" htmlFor="wizard-end-time">
-          {m.whenEndLabel}
+          {m.whenEndLabel} {markBadge('duration')}
         </label>
         <input
           id="wizard-end-time"
           type="time"
           className="form-input"
           value={when.endTime}
-          onChange={(e) => touchWhen({ ...when, endTime: e.target.value })}
+          onChange={(e) => {
+            clearMark('duration');
+            touchWhen({ ...when, endTime: e.target.value });
+          }}
           required
         />
       </div>
@@ -1096,13 +1379,16 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
       <p className="create-wizard__explain">{m.explainWhere}</p>
       <div className="form-group" style={{ marginBottom: 0 }}>
         <label className="form-label" htmlFor="event-location">
-          {m.locationLabel}
+          {m.locationLabel} {markBadge('location')}
         </label>
         <input
           id="event-location"
           className="form-input"
           value={location}
-          onChange={(e) => setLocation(e.target.value)}
+          onChange={(e) => {
+            clearMark('location');
+            setLocation(e.target.value);
+          }}
           required
           placeholder={m.locationPlaceholder}
         />
@@ -1115,7 +1401,10 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
               <input
                 type="checkbox"
                 checked={!!checks[`${template}:${key}`]}
-                onChange={(e) => setChecks({ ...checks, [`${template}:${key}`]: e.target.checked })}
+                onChange={(e) => {
+                  clearMark('includes');
+                  setChecks({ ...checks, [`${template}:${key}`]: e.target.checked });
+                }}
               />
               {includeLabel(key)}
             </label>
@@ -1124,13 +1413,16 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
       ) : null}
       <div className="form-group" style={{ marginBottom: 0 }}>
         <label className="form-label" htmlFor="event-includes">
-          {m.includesLabel}
+          {m.includesLabel} {markBadge('includes')}
         </label>
         <input
           id="event-includes"
           className="form-input"
           value={includesFree}
-          onChange={(e) => setIncludesFree(e.target.value)}
+          onChange={(e) => {
+            clearMark('includes');
+            setIncludesFree(e.target.value);
+          }}
           placeholder={m.includesPlaceholder}
         />
       </div>
@@ -1156,7 +1448,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
       <div className="create-wizard__field-row">
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label className="form-label" htmlFor="event-price">
-            {m.priceLabel}
+            {m.priceLabel} {markBadge('price')}
           </label>
           <div style={{ position: 'relative' }}>
             <span style={{ position: 'absolute', left: '0.75rem', top: '0.65rem', color: 'var(--color-ink-muted)' }}>
@@ -1170,7 +1462,10 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
               className="form-input"
               style={{ paddingLeft: '1.75rem' }}
               value={priceDollars}
-              onChange={(e) => setPriceDollars(e.target.value)}
+              onChange={(e) => {
+                clearMark('price');
+                setPriceDollars(e.target.value);
+              }}
               placeholder="0.00"
               required
             />
@@ -1179,7 +1474,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
         </div>
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label className="form-label" htmlFor="event-capacity">
-            {m.capacityLabel}
+            {m.capacityLabel} {markBadge('capacity')}
           </label>
           <input
             id="event-capacity"
@@ -1188,7 +1483,10 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
             max="1000"
             className="form-input"
             value={capacity}
-            onChange={(e) => setCapacity(e.target.value)}
+            onChange={(e) => {
+              clearMark('capacity');
+              setCapacity(e.target.value);
+            }}
             placeholder={m.capacityPlaceholder}
             required
           />

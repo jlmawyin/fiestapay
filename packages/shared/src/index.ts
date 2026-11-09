@@ -264,6 +264,53 @@ export interface PresentationSuggestion {
   description: string | null;
   source: 'ai' | 'rules';
 }
+/**
+ * "Describe your party in one sentence" (POST /api/ai/draft-event). The server never creates an
+ * event from it: the proposal only pre-fills the creation assistant and the organizer confirms.
+ */
+export interface DraftEventInput {
+  /** 3..400 chars, e.g. "asado para 10 el sábado con $150". */
+  text: string;
+}
+export interface DraftEventProposal {
+  template: TemplateKind;
+  title: string;
+  meal?: 'desayuno' | 'almuerzo' | 'cena';
+  /** YYYY-MM-DD in America/Guayaquil, only when the sentence states or clearly implies it. */
+  date?: string;
+  /** HH:MM 24 h, America/Guayaquil. */
+  startTime?: string;
+  durationMinutes?: number;
+  location?: string;
+  /** What the share covers, max 8 x 60 chars. */
+  includes: string[];
+  /** People including the organizer when stated; 1..500. */
+  headcount?: number;
+  /** Total budget in integer USD cents when stated. */
+  budgetCents?: number;
+  /** Computed by the server only: ceil(budgetCents / headcount). Never taken from the model. */
+  perPersonCents?: number;
+  /** Fields the AI filled, so the UI can mark them as suggestions. */
+  suggested: Array<'template' | 'title' | 'meal' | 'date' | 'startTime' | 'durationMinutes' | 'location' | 'includes' | 'headcount' | 'budgetCents'>;
+  source: 'ai' | 'rules';
+}
+/** Organizer-only: drafted payment reminders (POST /api/events/:slug/reminders/draft). Never sent. */
+export type ReminderTone = 'amable' | 'divertido' | 'formal';
+export interface ReminderDraftRequest { tone: ReminderTone }
+export interface ReminderDraft {
+  guestId: string;
+  alias: string;
+  /** Server balance in integer cents (> 0). */
+  dueCents: number;
+  /** Full message: AI-written friendly text + amount and invitation link inserted by the server. */
+  message: string;
+}
+export interface ReminderDraftResult {
+  drafts: ReminderDraft[];
+  source: 'ai' | 'rules';
+  /** True when more guests owe money than the per-call cap returned. */
+  truncated: boolean;
+}
 export interface ChatResult {
   text: string;
   quote?: Quote;
