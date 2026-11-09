@@ -125,7 +125,10 @@ export async function registerOrganizerAssistantRoutes(app: FastifyInstance, dep
       const locale = requestLocale(req);
       await authorizeOrganizer(pool, slug, presentedKey, locale);
       const session = await ensureSession(pool, config, req, reply);
-      return chatWithOrganizer(pool, config, session.id, slug, message, presentedKey, { respond: deps.respond }, locale);
+      return chatWithOrganizer(pool, config, session.id, slug, message, presentedKey, {
+        respond: deps.respond,
+        deadlineMs: deps.assistantDeadlineMs,
+      }, locale);
     },
   );
 

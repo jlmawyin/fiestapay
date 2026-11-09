@@ -673,7 +673,11 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         </div>
       </Modal>
 
-      <OrganizerAssistant slug={slug} capabilities={capabilities} />
+      <OrganizerAssistant
+        slug={slug}
+        capabilities={capabilities}
+        theme={{ template: event.template, themeKey: event.theme, meal: event.meal }}
+      />
     </div>
     </ThemeScope>
   );

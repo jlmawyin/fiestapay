@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, ClipboardList, Mic, Receipt, Sparkles, TriangleAlert, X } from 'lucide-react';
+import { Check, ClipboardList, Receipt, Sparkles, TriangleAlert, X } from 'lucide-react';
 import { EVENT_TIME_ZONE, intlLocale, type Locale } from '@fiestapay/shared';
 import type { Capabilities, Quote, ChatResult, ChatTranscriptMessage, RsvpStatus } from '../../types';
 import { ApiError, api } from '../../api/client';
@@ -7,6 +7,9 @@ import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { guestChatCatalog } from '../../i18n/messages/guestChat';
 import { peopleWord } from '../../lib/event-presentation';
 import { AssistantText } from './AssistantText';
+import { AboutChat } from './AboutChat';
+import { ChatComposer } from './ChatComposer';
+import { scrollContainerToBottom, scrollMessageToTop, useElapsedSeconds } from './chat-hooks';
 
 interface ChatAssistantProps {
   slug: string;
@@ -52,10 +55,44 @@ interface ChatMessage {
   quote?: Quote;
   actions?: string[];
   timestamp: string;
+  /** Epoch ms. The list is always sorted by it, so polling never reorders. */
+  createdAt: number;
+  /** User-message delivery. Sent/assistant messages leave it undefined. */
+  delivery?: 'sending' | 'failed';
+}
+
+interface SendFailure {
+  message: string;
+  failedQuestion: string;
 }
 
 const GREETING_ID = 'init-1';
 let pendingSerial = 0;
+
+/** Server echo comparison: trim and collapse whitespace. */
+export function normalizeChatText(text: string): string {
+  return text.trim().replace(/\s+/g, ' ');
+}
+
+function parseChatTime(value: string): number {
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+/** Stable chronological order (Array.sort is stable: ties keep their order). */
+function sortChatMessages(list: ChatMessage[]): ChatMessage[] {
+  return [...list].sort((a, b) => a.createdAt - b.createdAt);
+}
+
+/** HTTP status when the failure carries one (ApiError or any status-carrying error). */
+function errorStatusOf(err: unknown): number | undefined {
+  if (err instanceof ApiError) return err.status;
+  if (typeof err === 'object' && err !== null && 'status' in err) {
+    const status = (err as { status?: unknown }).status;
+    return typeof status === 'number' ? status : undefined;
+  }
+  return undefined;
+}
 
 function applyTranscript(
   prev: ChatMessage[],
@@ -70,15 +107,25 @@ function applyTranscript(
       sender: message.role === 'user' ? 'user' : 'assistant',
       text: message.text,
       timestamp: stampMessage(message.createdAt, locale),
+      createdAt: parseChatTime(message.createdAt),
       ...(previous?.quote ? { quote: previous.quote } : {}),
       ...(previous?.actions ? { actions: previous.actions } : {}),
     };
   });
-  const serverTexts = new Set(fromServer.map((message) => `${message.sender}:${message.text}`));
-  const pending = prev.filter(
-    (message) => message.id.startsWith('pending-') && !serverTexts.has(`${message.sender}:${message.text}`),
+  // A pending message is dropped once the server echoes it, by returned id or
+  // by normalized text. Survivors (still sending, failed) keep their original
+  // spot in chronological order instead of floating at the end.
+  const serverIds = new Set(fromServer.map((message) => message.id));
+  const serverTexts = new Set(
+    fromServer.map((message) => `${message.sender}:${normalizeChatText(message.text)}`),
   );
-  return [...greeting, ...fromServer, ...pending];
+  const pending = prev.filter(
+    (message) =>
+      message.id.startsWith('pending-') &&
+      !serverIds.has(message.id) &&
+      !serverTexts.has(`${message.sender}:${normalizeChatText(message.text)}`),
+  );
+  return [...greeting, ...sortChatMessages([...fromServer, ...pending])];
 }
 
 export const ChatAssistant: React.FC<ChatAssistantProps> = ({
@@ -118,11 +165,38 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
       sender: 'assistant',
       text: organizer ? m.orgLoading : m.greeting,
       timestamp: stampMessage(new Date(), locale),
+      createdAt: Date.now(),
     },
   ]);
-  const [errorNotice, setErrorNotice] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<SendFailure | null>(null);
+  /** Own answers scroll into view even when pinned mid-list by a retry. */
+  const [scrollTarget, setScrollTarget] = useState<string | null>(null);
+  const elapsedSecs = useElapsedSeconds(isLoading);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const lastAssistantIdRef = useRef<string | null>(GREETING_ID);
 
   const chatAvailable = Boolean(capabilities?.chat);
+
+  // Sending shows the question plus the thinking indicator; an answer scrolls
+  // so the START of that answer sits at the top of the list.
+  useEffect(() => {
+    if (isLoading) scrollContainerToBottom(scrollRef.current);
+  }, [isLoading]);
+
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (last?.sender === 'assistant' && last.id !== lastAssistantIdRef.current) {
+      lastAssistantIdRef.current = last.id;
+      scrollMessageToTop(scrollRef.current, last.id);
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (!scrollTarget) return;
+    scrollMessageToTop(scrollRef.current, scrollTarget);
+    setScrollTarget(null);
+  }, [scrollTarget, messages]);
 
   const forgetOrganizerTranscript = useCallback((notice: string) => {
     setMessages([
@@ -131,9 +205,11 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
         sender: 'assistant',
         text: copyRef.current.orgKeyDead,
         timestamp: stampMessage(new Date(), localeRef.current),
+        createdAt: Date.now(),
       },
     ]);
-    setErrorNotice(notice);
+    setHistoryError(notice);
+    setSendError(null);
     setIsLoading(false);
   }, []);
 
@@ -156,7 +232,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
         return;
       }
       const message = err instanceof Error ? err.message : copyRef.current.historyError;
-      setErrorNotice(message);
+      setHistoryError(message);
     }
   }, [forgetOrganizerTranscript, organizer, slug]);
 
@@ -167,52 +243,134 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
     return () => window.clearInterval(timer);
   }, [isOpen, pullHistory]);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputMessage.trim() || isLoading || composerDisabled) return;
+  const friendlySendError = (err: unknown): string => {
+    const status = errorStatusOf(err);
+    if (status === 408 || status === 504) return copyRef.current.errorTimeout;
+    if (status === 503) return organizer ? copyRef.current.org503 : copyRef.current.error503;
+    if (status === 429) return copyRef.current.error429;
+    if (err instanceof Error && err.message) return err.message;
+    return copyRef.current.errorGeneric;
+  };
 
-    const userText = inputMessage.trim();
+  const sendMessage = async (rawText: string) => {
+    const userText = rawText.trim().slice(0, 1200);
+    if (!userText || isLoading || composerDisabled) return;
+
     pendingSerial += 1;
+    const now = Date.now();
     const userMsg: ChatMessage = {
       id: `pending-user-${pendingSerial}`,
       sender: 'user',
       text: userText,
-      timestamp: stampMessage(new Date(), localeRef.current),
+      timestamp: stampMessage(now, localeRef.current),
+      createdAt: now,
+      delivery: 'sending',
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => sortChatMessages([...prev, userMsg]));
     setInputMessage('');
     setIsLoading(true);
-    setErrorNotice(null);
+    setSendError(null);
+    setHistoryError(null);
 
     try {
       const res: ChatResult = organizer ? await api.sendOrganizerChat(slug, userText) : await api.sendChat(slug, userText);
+      const answeredAt = Date.now();
       const assistantMsg: ChatMessage = {
         id: res.assistantMessageId ?? `pending-assistant-${pendingSerial}`,
         sender: 'assistant',
         text: res.text,
         ...(organizer ? {} : { quote: res.quote, actions: res.actions }),
-        timestamp: stampMessage(new Date(), localeRef.current),
+        timestamp: stampMessage(answeredAt, localeRef.current),
+        createdAt: answeredAt,
       };
       setMessages((prev) => {
-        const withoutPending = prev.map((message) =>
-          message.id === userMsg.id ? { ...message, id: res.userMessageId ?? message.id } : message,
+        const confirmed = prev.map((message) =>
+          message.id === userMsg.id
+            ? { ...message, id: res.userMessageId ?? message.id, delivery: undefined }
+            : message,
         );
-        if (withoutPending.some((message) => message.id === assistantMsg.id)) return withoutPending;
-        return [...withoutPending, assistantMsg];
+        if (confirmed.some((message) => message.id === assistantMsg.id)) return sortChatMessages(confirmed);
+        return sortChatMessages([...confirmed, assistantMsg]);
       });
+      setScrollTarget(assistantMsg.id);
       void pullHistory();
-    } catch (err: any) {
-      if (organizer && err?.status === 403) {
-        forgetOrganizerTranscript(err.message || copyRef.current.orgKeyInvalid);
-      } else if (err.status === 503) {
-        setErrorNotice(organizer ? copyRef.current.org503 : copyRef.current.error503);
+    } catch (err: unknown) {
+      if (organizer && errorStatusOf(err) === 403) {
+        forgetOrganizerTranscript(err instanceof Error && err.message ? err.message : copyRef.current.orgKeyInvalid);
       } else {
-        setErrorNotice(err.message || copyRef.current.errorGeneric);
+        // The failed question stays in its chronological spot, marked inline.
+        setMessages((prev) =>
+          prev.map((message) => (message.id === userMsg.id ? { ...message, delivery: 'failed' } : message)),
+        );
+        setSendError({ message: friendlySendError(err), failedQuestion: userText });
       }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  /** Resends a failed message in place: no duplicate bubble, same spot. */
+  const retryMessage = async (id: string) => {
+    const target = messages.find((message) => message.id === id && message.delivery === 'failed');
+    if (!target || isLoading || composerDisabled) return;
+    // Fresh serial so the answer id can never collide with an existing one.
+    pendingSerial += 1;
+
+    setMessages((prev) => prev.map((message) => (message.id === id ? { ...message, delivery: 'sending' } : message)));
+    setIsLoading(true);
+    setSendError(null);
+    setHistoryError(null);
+
+    try {
+      const res: ChatResult = organizer
+        ? await api.sendOrganizerChat(slug, target.text)
+        : await api.sendChat(slug, target.text);
+      const answeredAt = Date.now();
+      const assistantMsg: ChatMessage = {
+        id: res.assistantMessageId ?? `pending-assistant-${pendingSerial}`,
+        sender: 'assistant',
+        text: res.text,
+        ...(organizer ? {} : { quote: res.quote, actions: res.actions }),
+        timestamp: stampMessage(answeredAt, localeRef.current),
+        // Pinned below its question however much was asked since the failure.
+        createdAt: target.createdAt,
+      };
+      setMessages((prev) => {
+        const confirmed = prev.map((message) =>
+          message.id === id ? { ...message, id: res.userMessageId ?? message.id, delivery: undefined } : message,
+        );
+        if (confirmed.some((message) => message.id === assistantMsg.id)) return sortChatMessages(confirmed);
+        return sortChatMessages([...confirmed, assistantMsg]);
+      });
+      setScrollTarget(assistantMsg.id);
+      void pullHistory();
+    } catch (err: unknown) {
+      if (organizer && errorStatusOf(err) === 403) {
+        forgetOrganizerTranscript(err instanceof Error && err.message ? err.message : copyRef.current.orgKeyInvalid);
+      } else {
+        setMessages((prev) =>
+          prev.map((message) => (message.id === id ? { ...message, delivery: 'failed' } : message)),
+        );
+        setSendError({ message: friendlySendError(err), failedQuestion: target.text });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /** The alert explains why; its retry reuses the failed bubble in place. */
+  const retryAlert = () => {
+    if (!sendError) return;
+    const target = messages.find(
+      (message) => message.delivery === 'failed' && message.text === sendError.failedQuestion,
+    );
+    if (target) void retryMessage(target.id);
+  };
+
+  const handleSubmit = () => {
+    if (!inputMessage.trim() || isLoading || composerDisabled) return;
+    void sendMessage(inputMessage);
   };
 
   return (
@@ -300,33 +458,17 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
           </div>
           )}
 
-          {/* Voice status notice */}
-          <div
-            style={{
-              backgroundColor: 'var(--color-surface-subtle)',
-              padding: '0.45rem 0.75rem',
-              fontSize: '0.75rem',
-              color: 'var(--color-ink-muted)',
-              borderBottom: '1px solid var(--color-border)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-            }}
-          >
-            <Mic size={16} aria-hidden="true" />
-            <span>
-              {organizer ? m.orgNotice : m.notice}
-            </span>
-          </div>
+          <AboutChat title={m.aboutTitle}>
+            <span>{organizer ? m.orgNotice : m.notice}</span>
+          </AboutChat>
 
           {/* Chat Messages */}
           <div
+            ref={scrollRef}
+            data-testid="chat-messages"
+            className="fp-chat-messages"
             style={{
-              flex: 1,
               padding: '0.85rem',
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
               gap: '0.75rem',
               backgroundColor: 'var(--color-cloudwhite)',
             }}
@@ -361,6 +503,8 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
               return (
                 <div
                   key={msg.id}
+                  data-mid={msg.id}
+                  {...(msg.delivery ? { 'data-delivery': msg.delivery } : {})}
                   style={{
                     alignSelf: isUser ? 'flex-end' : 'flex-start',
                     maxWidth: '85%',
@@ -372,14 +516,51 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                       color: isUser ? '#FFFFFF' : 'var(--color-ink)',
                       padding: '0.65rem 0.85rem',
                       borderRadius: 'var(--radius-md)',
-                      fontSize: '0.85rem',
+                      fontSize: isUser ? '0.85rem' : '0.95rem',
+                      lineHeight: isUser ? 1.45 : 1.55,
                       border: isUser ? 'none' : '1px solid var(--color-border)',
                       boxShadow: 'var(--shadow-sm)',
                     }}
                   >
-                    <div style={{ whiteSpace: 'pre-wrap' }}>
-                      <AssistantText text={msg.text} />
-                    </div>
+                    <AssistantText text={msg.text} />
+
+                    {isUser && msg.delivery === 'failed' && (
+                      <div
+                        style={{
+                          marginTop: '0.5rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.45rem',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <span
+                          style={{
+                            backgroundColor: 'var(--color-coral-tint)',
+                            border: '1px solid var(--color-coral)',
+                            color: 'var(--color-ink)',
+                            borderRadius: 'var(--radius-full)',
+                            padding: '0.1rem 0.55rem',
+                            fontSize: '0.72rem',
+                            fontWeight: 800,
+                          }}
+                        >
+                          {m.notSent}
+                        </span>
+                        <span aria-hidden="true" style={{ color: 'var(--color-ink-light)' }}>
+                          ·
+                        </span>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => void retryMessage(msg.id)}
+                          disabled={isLoading || composerDisabled}
+                          style={{ padding: '0.25rem 0.6rem', fontSize: '0.72rem' }}
+                        >
+                          {m.retry}
+                        </button>
+                      </div>
+                    )}
 
                     {/* Quote Action Card returned by assistant */}
                     {msg.quote && (
@@ -517,11 +698,11 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                 role="status"
                 aria-live="polite"
               >
-                {m.typing}
+                {m.thinking(elapsedSecs)}
               </div>
             )}
 
-            {errorNotice && (
+            {historyError && (
               <div
                 style={{
                   backgroundColor: 'var(--color-coral-tint)',
@@ -531,48 +712,65 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                   fontSize: '0.8rem',
                 }}
               >
-                {errorNotice}
+                {historyError}
+              </div>
+            )}
+
+            {sendError && (
+              <div
+                role="alert"
+                style={{
+                  backgroundColor: 'var(--color-coral-tint)',
+                  border: '1px solid var(--color-coral)',
+                  color: 'var(--color-ink)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '0.65rem',
+                  fontSize: '0.8rem',
+                  lineHeight: 1.45,
+                }}
+              >
+                <div>{sendError.message}</div>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={retryAlert}
+                  disabled={isLoading || composerDisabled}
+                  style={{ marginTop: '0.5rem', padding: '0.35rem 0.7rem', fontSize: '0.78rem' }}
+                >
+                  {m.retry}
+                </button>
               </div>
             )}
           </div>
 
-          {/* Chat Input Form */}
-          <form
-            onSubmit={handleSend}
-            style={{
-              padding: '0.65rem',
-              backgroundColor: '#FFFFFF',
-              borderTop: '1px solid var(--color-border)',
-              display: 'flex',
-              gap: '0.4rem',
+          <ChatComposer
+            value={inputMessage}
+            onValueChange={setInputMessage}
+            onSubmit={handleSubmit}
+            disabled={isLoading || composerDisabled}
+            placeholder={m.placeholder}
+            composerLabel={m.composerLabel}
+            composerAria={m.composerAria}
+            sendLabel={m.send}
+            maxLength={1200}
+            extra={
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: '0.5rem 0.7rem', fontSize: '0.75rem', marginBottom: '0.1rem', flex: '0 0 auto' }}
+                onClick={() => void pullHistory()}
+              >
+                {m.refresh}
+              </button>
+            }
+            strings={{
+              enterSend: m.enterSend,
+              enterButtonOnly: m.enterButtonOnly,
+              enterHintSend: m.enterHintSend,
+              enterHintButton: m.enterHintButton,
+              enterGroupLabel: m.enterGroupLabel,
             }}
-          >
-            <input
-              className="form-input"
-              style={{ fontSize: '0.85rem', padding: '0.5rem 0.75rem' }}
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              placeholder={m.placeholder}
-              disabled={isLoading || composerDisabled}
-              aria-label={m.composerAria}
-            />
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ padding: '0.5rem 0.7rem', fontSize: '0.75rem' }}
-              onClick={() => void pullHistory()}
-            >
-              {m.refresh}
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              style={{ padding: '0.5rem 0.85rem', fontSize: '0.85rem' }}
-              disabled={isLoading || !inputMessage.trim() || composerDisabled}
-            >
-              {m.send}
-            </button>
-          </form>
+          />
         </div>
       )}
     </>

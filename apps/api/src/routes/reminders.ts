@@ -54,7 +54,10 @@ export async function registerReminderRoutes(app: FastifyInstance, deps: RouteDe
         tone,
         locale,
         () => link,
-        { ...(deps.respond ? { respond: deps.respond } : {}) },
+        {
+          ...(deps.respond ? { respond: deps.respond } : {}),
+          ...(deps.assistantDeadlineMs ? { deadlineMs: deps.assistantDeadlineMs } : {}),
+        },
       );
     },
   );

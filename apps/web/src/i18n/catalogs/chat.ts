@@ -1,10 +1,9 @@
 import { defineCatalog } from '../catalog';
 
-/** Public chat assistant. Spanish strings stay byte-identical to the current UI. */
+/** Public chat assistant. FP-UX-2 shortens the welcome and adds about/thinking/enter keys. */
 export const chatCatalog = defineCatalog({
   es: {
-    welcome:
-      'Hola. Este es un chat público general y separado de tu evento o del panel del organizador. Puedo explicarte cómo funciona FiestaPay, el flujo de prueba con PayPal Sandbox, la tabla de invitados y la recuperación del organizador. No creo eventos, no reservo y no muevo dinero.',
+    welcome: 'Hola, soy el Agente FiestaPay. Pregúntame cómo funciona FiestaPay.',
     quickHelp1: '¿Cómo funciona FiestaPay?',
     quickHelp2: '¿Qué significa pagar en PayPal Sandbox?',
     quickHelp3: '¿Cómo recupera el organizador su acceso?',
@@ -22,7 +21,9 @@ export const chatCatalog = defineCatalog({
     headerClose: 'Cerrar chat público',
     infoStrip:
       'Este chat es general y separado de tu evento o del panel del organizador. No crea eventos ni modifica asistencias o pagos.',
-    typing: 'El asistente público está escribiendo…',
+    aboutTitle: 'Sobre este chat',
+    showSuggestions: 'Preguntas sugeridas',
+    thinking: (secs: number) => `Pensando… ${secs} s`,
     checkingAvailability:
       'Comprobando la disponibilidad del chat público. Mientras tanto puedes usar los formularios y el panel manualmente.',
     unavailable:
@@ -31,6 +32,8 @@ export const chatCatalog = defineCatalog({
       'Se alcanzó el límite temporal de consultas (429). Tu pregunta no se respondió. Espera un minuto y pulsa «Reintentar» cuando quieras; los formularios y el panel siguen disponibles.',
     error503:
       'El chat público no está disponible ahora (503). Tu pregunta no obtuvo respuesta. Pulsa «Reintentar» manualmente o continúa con los formularios y el panel; la recuperación del organizador sigue disponible si el correo está configurado. Nada se creó, pagó ni reembolsó.',
+    errorTimeout:
+      'El agente tardó demasiado. Tu pregunta no se procesó; pulsa «Reintentar».',
     errorGeneric:
       'No se pudo enviar la consulta al chat público. Tu pregunta no obtuvo respuesta. Pulsa «Reintentar» manualmente; los formularios y el panel siguen disponibles.',
     retry: 'Reintentar',
@@ -39,10 +42,14 @@ export const chatCatalog = defineCatalog({
     placeholder: 'Escribe una pregunta general…',
     composerAria: 'Pregunta para el chat público',
     send: 'Enviar',
+    enterSend: 'Enter envía',
+    enterButtonOnly: 'Solo con el botón',
+    enterHintSend: 'Enter envía · Mayús+Enter = nueva línea',
+    enterHintButton: 'Enter hace nueva línea; envía con el botón',
+    enterGroupLabel: 'Cómo se envía',
   },
   en: {
-    welcome:
-      'Hi. This is a general public chat, separate from your event or the organizer dashboard. I can explain how FiestaPay works, the PayPal Sandbox test flow, the guest table, and organizer recovery. I do not create events, take seats, or move money.',
+    welcome: "Hi, I'm the FiestaPay agent. Ask me how FiestaPay works.",
     quickHelp1: 'How does FiestaPay work?',
     quickHelp2: 'What does paying in PayPal Sandbox mean?',
     quickHelp3: 'How does the organizer recover access?',
@@ -60,7 +67,9 @@ export const chatCatalog = defineCatalog({
     headerClose: 'Close public chat',
     infoStrip:
       'This chat is general and separate from your event or the organizer dashboard. It creates no events and changes no attendance or payments.',
-    typing: 'The public assistant is typing…',
+    aboutTitle: 'About this chat',
+    showSuggestions: 'Suggested questions',
+    thinking: (secs: number) => `Thinking… ${secs} s`,
     checkingAvailability:
       'Checking whether the public chat is available. Meanwhile you can use the forms and the dashboard manually.',
     unavailable:
@@ -69,6 +78,8 @@ export const chatCatalog = defineCatalog({
       'The temporary question limit was reached (429). Your question was not answered. Wait a minute and press “Retry” whenever you want; the forms and the dashboard stay available.',
     error503:
       'The public chat is not available right now (503). Your question was not answered. Press “Retry” manually or continue with the forms and the dashboard; organizer recovery is still available if email is configured. Nothing was created, paid, or refunded.',
+    errorTimeout:
+      'The agent took too long. Your question was not processed; press “Retry”.',
     errorGeneric:
       'Your question could not be sent to the public chat. Your question was not answered. Press “Retry” manually; the forms and the dashboard stay available.',
     retry: 'Retry',
@@ -77,5 +88,10 @@ export const chatCatalog = defineCatalog({
     placeholder: 'Write a general question…',
     composerAria: 'Question for the public chat',
     send: 'Send',
+    enterSend: 'Enter sends',
+    enterButtonOnly: 'Button only',
+    enterHintSend: 'Enter sends · Shift+Enter = new line',
+    enterHintButton: 'Enter adds a new line; send with the button',
+    enterGroupLabel: 'How sending works',
   },
 });

@@ -54,7 +54,7 @@ let getUserMedia: ReturnType<typeof vi.fn>;
 let stopTrack: ReturnType<typeof vi.fn>;
 
 function openOrb(): void {
-  fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente FiestaPay' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Abrir Agente FiestaPay' }));
 }
 
 function publicOrb(overrides: Partial<ComponentProps<typeof AssistantOrb>> = {}) {
@@ -93,14 +93,14 @@ describe('unified AssistantOrb', () => {
     const tokenSpy = vi.spyOn(api, 'getPublicVoiceToken');
     render(publicOrb());
 
-    expect(screen.getAllByRole('button', { name: 'Abrir asistente FiestaPay' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Abrir Agente FiestaPay' })).toHaveLength(1);
     expect(screen.queryByRole('button', { name: 'Abrir asistente de voz' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Abrir asistente IA' })).toBeNull();
-    expect(screen.queryByRole('dialog', { name: 'Asistente FiestaPay' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Agente FiestaPay' })).toBeNull();
 
     openOrb();
 
-    expect(screen.getByRole('dialog', { name: 'Asistente FiestaPay' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Agente FiestaPay' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Escribir' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Hablar' })).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Pregunta para el chat público' })).toBeInTheDocument();
@@ -142,7 +142,7 @@ describe('unified AssistantOrb', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Escribir' }));
     expect(screen.getByText('Respuesta que debe sobrevivir al cierre.')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cerrar asistente FiestaPay' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar Agente FiestaPay' }));
     expect(screen.queryByText('Respuesta que debe sobrevivir al cierre.')).toBeNull();
 
     openOrb();
@@ -188,7 +188,7 @@ describe('unified AssistantOrb', () => {
 
     await screen.findByText('Saludo privado del panel.');
     expect(history).toHaveBeenCalledWith('panel-1');
-    expect(screen.getByText(/Asistente del organizador/)).toBeInTheDocument();
+    expect(screen.getByText(/Agente del organizador/)).toBeInTheDocument();
     expect(guestHistory).not.toHaveBeenCalled();
   });
 
@@ -236,7 +236,7 @@ describe('unified AssistantOrb', () => {
     await waitFor(() => expect(api.getPublicVoiceToken).toHaveBeenCalledOnce());
     await act(async () => { await Promise.resolve(); });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cerrar asistente FiestaPay' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar Agente FiestaPay' }));
 
     await waitFor(() =>
       expect(api.releaseVoiceLease).toHaveBeenCalledWith('lease-orb', expect.any(String), expect.any(Boolean)),

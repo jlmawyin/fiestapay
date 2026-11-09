@@ -288,14 +288,14 @@ describe('guest chat in English', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Open AI assistant' }));
-    expect(await screen.findByText(/I am your FiestaPay assistant for this invitation/)).toBeInTheDocument();
+    expect(await screen.findByText(/I am your FiestaPay agent for this invitation/)).toBeInTheDocument();
     expect(screen.getByText('Historial del servidor sin traducir')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Write a message or question...')).toBeInTheDocument();
 
     const input = screen.getByRole('textbox', { name: 'Message for the assistant' });
     fireEvent.change(input, { target: { value: 'How much is it?' } });
     fireEvent.submit(input.closest('form')!);
-    expect(await screen.findByText('The assistant is typing…')).toBeInTheDocument();
+    expect(await screen.findByText(/Thinking… \d+ s/)).toBeInTheDocument();
     expect(send).toHaveBeenCalledWith('sunday-lunch', 'How much is it?');
     await act(async () => { resolveSend({ text: 'Respuesta del modelo' }); });
     expect(await screen.findByText('Respuesta del modelo')).toBeInTheDocument();

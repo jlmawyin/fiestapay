@@ -5,10 +5,11 @@ import { withTransaction, type Pool } from '../db/pool.js';
 import { assertAdminKey } from '../domain/access.js';
 import { findEventById, getEventBySlug, lockEvent, type EventRow } from '../domain/read.js';
 import { concealExpired, isPastRetention, tombstoneEvent } from '../domain/retention.js';
-import { HttpError, forbidden, gone } from '../errors.js';
+import { HttpError, annotateHttpError, forbidden, gone, unavailable } from '../errors.js';
 import { visibleText, type HistoryRole, type StoredPart, type StoredTurn } from './history.js';
 import { openaiTextOf } from './openai.js';
 import { reserveAiRequest } from './budget.js';
+import { assistantDeadline, assistantTimeoutError, isAbortLike } from './deadlines.js';
 import {
   decideAssistantTurn,
   fenceData,
@@ -28,8 +29,16 @@ const FALLBACK_TEXT_ES =
 const FALLBACK_TEXT_EN =
   'I could not draft an answer. The panel remains available to edit, share and review. Nothing was confirmed or refunded.';
 
+const PROVIDER_FAILED_ES =
+  'El asistente no pudo completar la respuesta; usa los formularios de la pagina';
+const PROVIDER_FAILED_EN = 'The assistant could not complete the answer. Use the forms on the page.';
+
 function fallbackText(locale: Locale): string {
   return locale === 'en' ? FALLBACK_TEXT_EN : FALLBACK_TEXT_ES;
+}
+
+function providerFailed(locale: Locale): string {
+  return locale === 'en' ? PROVIDER_FAILED_EN : PROVIDER_FAILED_ES;
 }
 
 function goneText(locale: Locale): string {
@@ -218,6 +227,8 @@ export async function chatWithOrganizer(
   providers: ChatProviders = {},
   locale: Locale = 'es',
 ): Promise<ChatResult> {
+  const startedAt = Date.now();
+  const signal = assistantDeadline(providers.deadlineMs);
   const loaded = await getEventBySlug(pool, slug);
   assertReadable(loaded, presentedKey, locale);
   const provider = selectProvider(config, providers, locale);
@@ -244,32 +255,50 @@ export async function chatWithOrganizer(
   const history = await loadHistory(pool, loaded.id, sessionId, provider.maxHistoryMessages);
   const assistantIds: string[] = [];
   const instructionEvent = await freshEvent(pool, loaded.id, presentedKey, locale);
-  const result = await converse(
-    provider.adapter(organizerSystemInstruction({
-      title: instructionEvent.title,
-      slug: instructionEvent.slug,
-      template: instructionEvent.template,
-      locale,
-    })),
-    history,
-    async (name, args) => {
-      if (!ORGANIZER_TOOL_NAMES.has(name)) return { response: { ok: false, motivo: 'Herramienta no disponible' } };
-      await freshEvent(pool, loaded.id, presentedKey, locale);
-      const outcome = await runOrganizerTool(
-        { pool, eventId: loaded.id, presentedKey, publicOrigin: config.publicOrigin },
-        name,
-        args,
-      );
-      await freshEvent(pool, loaded.id, presentedKey, locale);
-      return { response: outcome.response };
-    },
-    async (turn) => {
-      const safe = turn.role === 'user' ? turn : sanitizeTurn(turn, secrets, locale);
-      const saved = await appendOrganizerTurn(pool, loaded.id, sessionId, safe.role, safe.parts, presentedKey, locale);
-      if (safe.role === 'model') assistantIds.push(saved.id);
-    },
-    { allowedTools: ORGANIZER_TOOL_NAMES, rethrow: rethrowOrganizer },
-  );
+  let result;
+  try {
+    result = await converse(
+      provider.adapter(organizerSystemInstruction({
+        title: instructionEvent.title,
+        slug: instructionEvent.slug,
+        template: instructionEvent.template,
+        locale,
+      })),
+      history,
+      async (name, args) => {
+        if (!ORGANIZER_TOOL_NAMES.has(name)) return { response: { ok: false, motivo: 'Herramienta no disponible' } };
+        await freshEvent(pool, loaded.id, presentedKey, locale);
+        const outcome = await runOrganizerTool(
+          { pool, eventId: loaded.id, presentedKey, publicOrigin: config.publicOrigin },
+          name,
+          args,
+        );
+        await freshEvent(pool, loaded.id, presentedKey, locale);
+        return { response: outcome.response };
+      },
+      async (turn) => {
+        const safe = turn.role === 'user' ? turn : sanitizeTurn(turn, secrets, locale);
+        const saved = await appendOrganizerTurn(pool, loaded.id, sessionId, safe.role, safe.parts, presentedKey, locale);
+        if (safe.role === 'model') assistantIds.push(saved.id);
+      },
+      { allowedTools: ORGANIZER_TOOL_NAMES, rethrow: rethrowOrganizer, signal, locale, startedAt },
+    );
+  } catch (err) {
+    if (isAbortLike(err, signal) || (err instanceof HttpError && err.logCause === 'timeout')) {
+      throw assistantTimeoutError(locale, Date.now() - startedAt);
+    }
+    if (err instanceof HttpError && err.statusCode >= 500) {
+      throw annotateHttpError(err, {
+        logCause: err.logCause ?? 'unreadable',
+        elapsedMs: err.elapsedMs ?? Date.now() - startedAt,
+      });
+    }
+    if (err instanceof HttpError) throw err;
+    throw unavailable(providerFailed(locale), {
+      logCause: 'unreadable',
+      elapsedMs: Date.now() - startedAt,
+    });
+  }
 
   const assistantMessageId = assistantIds[assistantIds.length - 1];
   const text = organizerSafeText(result.text, secrets, locale);

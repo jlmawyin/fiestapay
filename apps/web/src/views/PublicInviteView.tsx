@@ -668,6 +668,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         slug={slug}
         capabilities={capabilities}
         guest={guest}
+        theme={{ template: event.template, themeKey: event.theme, meal: event.meal }}
         accessRevoked={sessionRevoked}
         eventClosed={activityBlocked}
         onApplyQuote={(q) => {

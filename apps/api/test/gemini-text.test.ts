@@ -192,7 +192,7 @@ describe('adaptador Gemini generateContent', () => {
   it('marca incompleto MAX_TOKENS y rechaza un error del proveedor sin cuerpo', () => {
     expect(parseGeminiResponse({
       candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [{ text: 'parcial' }] } }],
-    })).toEqual({ items: [], status: 'incomplete' });
+    })).toEqual({ items: [], status: 'incomplete', incompleteReason: 'MAX_TOKENS' });
     expect(() => parseGeminiResponse({ error: { message: 'detalle secreto' } })).toThrow(/no pudo completar/);
   });
 

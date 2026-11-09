@@ -36,12 +36,12 @@ describe('public voice launcher placement', () => {
   it('shows exactly one launcher on home without any event or guest', async () => {
     render(<App />);
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Abrir asistente FiestaPay' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Abrir Agente FiestaPay' })).toBeInTheDocument();
     });
-    expect(screen.getAllByRole('button', { name: 'Abrir asistente FiestaPay' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Abrir Agente FiestaPay' })).toHaveLength(1);
     expect(screen.queryByRole('button', { name: 'Abrir asistente de voz' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Abrir asistente IA' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente FiestaPay' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir Agente FiestaPay' }));
     expect(screen.getByRole('tab', { name: 'Escribir' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByRole('tabpanel', { name: 'Hablar' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Hablar' }));
@@ -52,18 +52,18 @@ describe('public voice launcher placement', () => {
   it('keeps exactly one launcher after a client-side route to create', async () => {
     render(<App />);
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Abrir asistente FiestaPay' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Abrir Agente FiestaPay' })).toBeInTheDocument();
     });
     await act(async () => {
       window.history.pushState({}, '', '/create');
       window.dispatchEvent(new PopStateEvent('popstate'));
     });
-    expect(screen.getAllByRole('button', { name: 'Abrir asistente FiestaPay' })).toHaveLength(1);
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente FiestaPay' }));
+    expect(screen.getAllByRole('button', { name: 'Abrir Agente FiestaPay' })).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir Agente FiestaPay' }));
     fireEvent.click(screen.getByRole('tab', { name: 'Hablar' }));
     expect(screen.getByRole('tabpanel', { name: 'Hablar' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Cerrar panel del asistente' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar panel del agente' }));
     expect(screen.queryByRole('tabpanel', { name: 'Hablar' })).not.toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Abrir asistente FiestaPay' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Abrir Agente FiestaPay' })).toHaveLength(1);
   });
 });

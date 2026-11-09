@@ -1,15 +1,19 @@
 import type { AssistantContext, Locale } from '@fiestapay/shared';
 import type { Config } from '../config.js';
 import type { Pool } from '../db/pool.js';
-import { unavailable } from '../errors.js';
+import { HttpError, unavailable } from '../errors.js';
 import { claimsSensitiveExecution } from './assistant-policy.js';
 import { reserveAiRequest } from './budget.js';
-import { openaiCallsOf, openaiTextOf, type RespondFn } from './openai.js';
+import { assistantDeadline, assistantTimeoutError, isAbortLike, safeReason, withinDeadline } from './deadlines.js';
+import { openaiCallsOf, openaiTextOf, withRespondSignal, type RespondFn } from './openai.js';
 import { programGuide, publicPageContext } from './program-guide.js';
 import { selectTextProvider, type TextProviderSelection } from './text-provider.js';
 
 /** Public replies stay readable in the small drawer and bounded before they reach the browser. */
 export const MAX_PUBLIC_REPLY_CHARS = 2000;
+
+/** Visible text budget of the public chat; Gemini adds its own reasoning headroom separately. */
+export const PUBLIC_CHAT_MAX_OUTPUT_TOKENS = 700;
 
 const PUBLIC_CHAT_UNAVAILABLE_ES =
   'El chat público no está disponible en este momento. Tu pregunta no obtuvo respuesta. Puedes reintentar manualmente o continuar con los formularios y el panel; la recuperación del organizador sigue disponible cuando está configurada.';
@@ -26,6 +30,8 @@ export const PUBLIC_CHAT_UNAVAILABLE = PUBLIC_CHAT_UNAVAILABLE_ES;
 /** Test seam: a scripted model replaces the OpenAI HTTP round trip. */
 export interface PublicChatProviders {
   respond?: RespondFn | undefined;
+  /** Shorter deadline for deterministic tests; production always uses 40 s. */
+  deadlineMs?: number | undefined;
 }
 
 const PRODUCT_BASE_ES = [
@@ -74,6 +80,8 @@ export async function chatPublic(
   providers: PublicChatProviders = {},
   options: { locale?: Locale; context?: AssistantContext } = {},
 ): Promise<{ text: string }> {
+  const startedAt = Date.now();
+  const signal = assistantDeadline(providers.deadlineMs);
   const locale = options.locale ?? 'es';
   const context = options.context ?? 'landing';
   const unavailableText = publicChatUnavailable(locale);
@@ -85,21 +93,53 @@ export async function chatPublic(
   // same advisory lock, UTC daily total and per-session ceiling as guest and organizer chat.
   await reserveAiRequest(pool, sessionId, null);
 
+  // The public drawer is small: cap visible tokens at 700 while the shared deadline still
+  // bounds the whole request, retries included.
+  const modelConfig = {
+    ...provider.config,
+    maxOutputTokens: Math.min(provider.config.maxOutputTokens, PUBLIC_CHAT_MAX_OUTPUT_TOKENS),
+  };
+
   let output;
   try {
-    output = await provider.respond(provider.config, {
-      instructions: publicChatInstruction(locale, context),
-      input: [{ role: 'user', content: message }],
-      tools: [],
-    });
-  } catch {
+    output = await withinDeadline(
+      signal,
+      provider.respond(modelConfig, withRespondSignal({
+        instructions: publicChatInstruction(locale, context),
+        input: [{ role: 'user', content: message }],
+        tools: [],
+      }, signal)),
+      locale,
+      startedAt,
+    );
+  } catch (err) {
+    if (isAbortLike(err, signal) || (err instanceof HttpError && err.logCause === 'timeout')) {
+      throw assistantTimeoutError(locale, Date.now() - startedAt);
+    }
     // Provider failures are never turned into a fabricated assistant answer.
-    throw unavailable(unavailableText);
+    const cause = err instanceof HttpError && err.logCause ? err.logCause : 'unreadable';
+    throw unavailable(unavailableText, {
+      logCause: cause,
+      elapsedMs: err instanceof HttpError && err.elapsedMs !== undefined ? err.elapsedMs : Date.now() - startedAt,
+    });
   }
 
-  if (output.status !== 'completed' || openaiCallsOf(output.items).length > 0) throw unavailable(unavailableText);
+  if (output.status !== 'completed') {
+    throw unavailable(unavailableText, {
+      logCause: `incomplete_${safeReason(output.incompleteReason)}`,
+      elapsedMs: Date.now() - startedAt,
+    });
+  }
+  if (openaiCallsOf(output.items).length > 0) {
+    throw unavailable(unavailableText, { logCause: 'tool_call', elapsedMs: Date.now() - startedAt });
+  }
   const text = openaiTextOf(output.items).trim();
-  if (text.length === 0 || !isPublicAnswerSafe(text)) throw unavailable(unavailableText);
+  if (text.length === 0) {
+    throw unavailable(unavailableText, { logCause: 'empty', elapsedMs: Date.now() - startedAt });
+  }
+  if (!isPublicAnswerSafe(text)) {
+    throw unavailable(unavailableText, { logCause: 'unsafe', elapsedMs: Date.now() - startedAt });
+  }
 
   return { text: text.slice(0, MAX_PUBLIC_REPLY_CHARS) };
 }

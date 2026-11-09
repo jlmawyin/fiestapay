@@ -21,6 +21,7 @@ export async function registerSuggestRoutes(app: FastifyInstance, deps: RouteDep
       reply.header('Cache-Control', 'no-store');
       return draftEvent(pool, config, session.id, text, requestLocale(req), {
         ...(deps.respond ? { respond: deps.respond } : {}),
+        ...(deps.assistantDeadlineMs ? { deadlineMs: deps.assistantDeadlineMs } : {}),
       });
     },
   );
@@ -35,6 +36,7 @@ export async function registerSuggestRoutes(app: FastifyInstance, deps: RouteDep
       const session = await ensureSession(pool, config, req, reply);
       return suggestPresentation(pool, config, session.id, input, requestLocale(req), {
         ...(deps.respond ? { respond: deps.respond } : {}),
+        ...(deps.assistantDeadlineMs ? { deadlineMs: deps.assistantDeadlineMs } : {}),
       });
     },
   );

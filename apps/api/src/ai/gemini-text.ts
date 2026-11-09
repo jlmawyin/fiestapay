@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { GEMINI_LIVE_API_VERSION, type GeminiFunctionDeclaration } from '@fiestapay/shared';
 import type { GeminiConfig } from '../config.js';
-import { unavailable } from '../errors.js';
+import { annotateHttpError, unavailable } from '../errors.js';
 import type { StoredTurn } from './history.js';
 import type { ProviderAdapter } from './chat.js';
+import { isAbortLike, safeReason, textCallSignal } from './deadlines.js';
 import {
   openaiCallsOf,
   openaiTextOf,
@@ -17,6 +18,7 @@ import {
   type RespondFn,
   type RespondInput,
   type RespondOutput,
+  withRespondSignal,
 } from './openai.js';
 import type { FunctionDeclaration } from './tools.js';
 
@@ -244,16 +246,20 @@ const INCOMPLETE_REASONS = new Set([
 /** Normalizes one generateContent answer to the shared output contract. Body text is never echoed. */
 export function parseGeminiResponse(raw: unknown): RespondOutput {
   const res = asRecord(raw);
-  if (res.error !== undefined && res.error !== null) throw unavailable(FAILED);
+  if (res.error !== undefined && res.error !== null) throw unavailable(FAILED, { logCause: 'unreadable' });
   const candidates = Array.isArray(res.candidates) ? res.candidates : [];
   const candidate = asRecord(candidates[0]);
   const finishReason = typeof candidate.finishReason === 'string' ? candidate.finishReason : '';
-  if (finishReason && finishReason !== 'STOP') return { items: [], status: 'incomplete' };
-  if (candidates.length === 0) throw unavailable(UNREADABLE);
+  if (finishReason && finishReason !== 'STOP') {
+    return { items: [], status: 'incomplete', incompleteReason: safeReason(finishReason) };
+  }
+  if (candidates.length === 0) throw unavailable(UNREADABLE, { logCause: 'unreadable' });
   const content = asRecord(candidate.content);
   const parts = Array.isArray(content.parts) ? content.parts : [];
   if (parts.length === 0) {
-    return finishReason === 'STOP' ? { items: [], status: 'completed' } : { items: [], status: 'incomplete' };
+    return finishReason === 'STOP'
+      ? { items: [], status: 'completed' }
+      : { items: [], status: 'incomplete', incompleteReason: safeReason(finishReason) };
   }
 
   const items: OpenAIOutputItem[] = [];
@@ -286,7 +292,9 @@ export function parseGeminiResponse(raw: unknown): RespondOutput {
       items.push(item);
     }
   }
-  if (items.length === 0 && INCOMPLETE_REASONS.has(finishReason)) return { items: [], status: 'incomplete' };
+  if (items.length === 0 && INCOMPLETE_REASONS.has(finishReason)) {
+    return { items: [], status: 'incomplete', incompleteReason: safeReason(finishReason) };
+  }
   return { items, status: 'completed' };
 }
 
@@ -295,8 +303,10 @@ export function parseGeminiResponse(raw: unknown): RespondOutput {
  * reports its status, never the provider body, request or key.
  */
 export async function createGeminiResponse(config: GeminiConfig, input: RespondInput): Promise<RespondOutput> {
+  const startedAt = Date.now();
   const body = JSON.stringify(geminiRequestBody(config, input));
   const url = `https://generativelanguage.googleapis.com/${GEMINI_LIVE_API_VERSION}/models/${encodeURIComponent(config.textModel)}:generateContent`;
+  const signal = textCallSignal(config.timeoutMs, input.signal);
 
   let response: Response;
   let text: string;
@@ -308,25 +318,35 @@ export async function createGeminiResponse(config: GeminiConfig, input: RespondI
         'x-goog-api-key': config.apiKey,
       },
       body,
-      signal: AbortSignal.timeout(config.timeoutMs),
+      signal,
     });
     text = await response.text();
-  } catch {
-    throw unavailable(NO_ANSWER);
+  } catch (err) {
+    throw unavailable(NO_ANSWER, {
+      logCause: isAbortLike(err, signal) ? 'timeout' : 'unreadable',
+      elapsedMs: Date.now() - startedAt,
+    });
   }
 
   if (!response.ok) {
     // Status only: the body can echo prompt content and provider detail.
-    throw unavailable(`El asistente no esta disponible (proveedor respondio ${response.status})`);
+    throw unavailable(`El asistente no esta disponible (proveedor respondio ${response.status})`, {
+      logCause: `http_${response.status}`,
+      elapsedMs: Date.now() - startedAt,
+    });
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw unavailable(UNREADABLE);
+    throw unavailable(UNREADABLE, { logCause: 'unreadable', elapsedMs: Date.now() - startedAt });
   }
-  return parseGeminiResponse(parsed);
+  try {
+    return parseGeminiResponse(parsed);
+  } catch (err) {
+    throw annotateHttpError(err, { logCause: 'unreadable', elapsedMs: Date.now() - startedAt });
+  }
 }
 
 /** Gemini counterpart of openaiAdapter, with the same provider-neutral round contract. */
@@ -339,12 +359,12 @@ export function geminiAdapter(
   const tools = toOpenAITools(declarations);
   return {
     maxToolRounds: config.maxToolRounds,
-    async round(history: StoredTurn[]) {
-      const output = await respond(config, {
+    async round(history: StoredTurn[], signal?: AbortSignal) {
+      const output = await respond(config, withRespondSignal({
         instructions: instruction,
         input: toOpenAIInput(history),
         tools,
-      });
+      }, signal));
       if (output.status !== 'completed') return { turn: null, calls: [], text: '' };
       return {
         turn: output.items.length > 0 ? { role: 'model', parts: output.items.map((item) => ({ openai: item })) } : null,

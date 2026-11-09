@@ -312,7 +312,7 @@ describe('payment wizard PayPal step', () => {
     await screen.findByText(labels.paymentPathTitle);
     fireEvent.click(screen.getByRole('button', { name: labels.askAboutStep }));
 
-    expect(await screen.findByRole('dialog', { name: 'Asistente FiestaPay' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Agente FiestaPay' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Escribir' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('textbox', { name: /Mensaje para el asistente/i })).toBeInTheDocument();
     expect(send).not.toHaveBeenCalled();

@@ -159,7 +159,7 @@ describe('moderacion en la interfaz', () => {
     expect(screen.queryByText(/Proveedor PayPal no configurado/)).not.toBeInTheDocument();
     expect(screen.getByText(/13,33/, { selector: 'strong' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente FiestaPay' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir Agente FiestaPay' }));
     expect(await screen.findByText('Historial real del servidor')).toBeInTheDocument();
     expect(screen.getByText(/El organizador revoco el acceso de esta sesion/)).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Mensaje para el asistente' })).toBeDisabled();

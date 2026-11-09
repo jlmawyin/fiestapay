@@ -51,7 +51,7 @@ afterEach(() => {
 });
 
 describe('PublicChatAssistant', () => {
-  it('abre como chat general separado, no llama al abrir ni al usar ayuda rápida y no usa almacenamiento', () => {
+  it('abre como chat general separado, no llama al abrir ni al usar ayuda rápida y no guarda la charla', () => {
     localStorage.setItem('fp_admin_fiesta', 'clave-existente');
     const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
     const getItemSpy = vi.spyOn(Storage.prototype, 'getItem');
@@ -67,8 +67,13 @@ describe('PublicChatAssistant', () => {
     fireEvent.click(screen.getByRole('button', { name: '¿Cómo funciona FiestaPay?' }));
     expect(questionBox()).toHaveValue('¿Cómo funciona FiestaPay?');
     expect(fetchMock).not.toHaveBeenCalled();
+    // Only the shared Enter preference may touch storage; the chat itself never does.
+    const touched = [
+      ...setItemSpy.mock.calls.map((call) => call[0]),
+      ...getItemSpy.mock.calls.map((call) => call[0]),
+    ];
+    expect(touched.filter((key) => key !== 'fp_enter_mode')).toEqual([]);
     expect(setItemSpy).not.toHaveBeenCalled();
-    expect(getItemSpy).not.toHaveBeenCalled();
   });
 
   it('envía solo al botón, sin cabecera de administrador, y conserva la charla al cerrar hasta recargar', async () => {
@@ -114,7 +119,7 @@ describe('PublicChatAssistant', () => {
     openChat();
     ask('¿Cómo funciona el sandbox?');
 
-    expect(await screen.findByRole('status')).toHaveTextContent('El asistente público está escribiendo…');
+    expect(await screen.findByRole('status')).toHaveTextContent(/Pensando… \d+ s/);
     expect(questionBox()).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Enviar' })).toBeDisabled();
     fireEvent.submit(questionBox().closest('form')!);
@@ -138,7 +143,7 @@ describe('PublicChatAssistant', () => {
     const first = render(<PublicChatAssistant capabilities={enabledCapabilities} />);
     openChat();
     ask('Pregunta de la instancia vieja');
-    expect(await screen.findByRole('status')).toHaveTextContent('escribiendo…');
+    expect(await screen.findByRole('status')).toHaveTextContent(/Pensando… \d+ s/);
     first.unmount();
 
     render(<PublicChatAssistant capabilities={enabledCapabilities} />);
