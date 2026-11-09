@@ -363,7 +363,12 @@ export interface ModerationMessagePage {
   nextBefore?: string;
 }
 export interface PaymentListItem { orderId: string; guestName: string; amountCents: number; status: string; createdAt: string }
-export interface Dashboard { event: FiestaEvent; guests: Guest[]; payments?: PaymentListItem[]; audit: { action: string; createdAt: string }[] }
+/**
+ * Organizer-only grid totals, summed on the server in integer cents from the same rows as `guests`.
+ * `people` counts confirmed attendees (1 + companions per "yes" guest). The web never re-adds amounts.
+ */
+export interface GuestTotals { people: number; paidCents: number; dueCents: number }
+export interface Dashboard { event: FiestaEvent; guests: Guest[]; guestTotals?: GuestTotals; payments?: PaymentListItem[]; audit: { action: string; createdAt: string }[] }
 export const TEMPLATE_LABELS: Record<TemplateKind,string> = {comida:'Comida',casa:'Fiesta en casa',viaje:'Viaje conjunto',evento:'Evento'};
 export function usd(cents: number): string { return new Intl.NumberFormat('es-EC',{style:'currency',currency:'USD'}).format(cents/100); }
 export function fixedQuote(priceCents: number, people: number, paidCents=0) {

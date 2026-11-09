@@ -38,6 +38,12 @@ export const gridCatalog = defineCatalog({
     modRemove: 'Retirar',
     reminderMsg: (guestName: string, eventTitle: string, amount: string, link: string) =>
       `¡Hola ${guestName}! Te recordamos tu confirmación para "${eventTitle}". Tienes una cuota pendiente de ${amount}. Puedes revisar los detalles y pagar aquí: ${link}`,
+    searchLabel: 'Buscar invitados',
+    searchPlaceholder: 'Nombre, asistencia o importe',
+    pendingOnly: 'Solo pendientes',
+    exportCsv: 'Exportar CSV',
+    totals: 'Totales',
+    csvSlugFallback: 'evento',
   },
   en: {
     colGuest: 'Guest',
@@ -70,5 +76,11 @@ export const gridCatalog = defineCatalog({
     modRemove: 'Withdraw',
     reminderMsg: (guestName: string, eventTitle: string, amount: string, link: string) =>
       `Hi ${guestName}! This is a reminder of your confirmation for "${eventTitle}". You have a pending share of ${amount}. You can review the details and pay here: ${link}`,
+    searchLabel: 'Search guests',
+    searchPlaceholder: 'Name, attendance, or amount',
+    pendingOnly: 'Only pending',
+    exportCsv: 'Export CSV',
+    totals: 'Totals',
+    csvSlugFallback: 'event',
   },
 });

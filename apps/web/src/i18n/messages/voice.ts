@@ -107,6 +107,8 @@ export const voiceCatalog = defineCatalog({
     publicToastTitle: 'Voz informativa',
     localeChanged:
       'El idioma cambió. La sesión de voz se detuvo; inicia una nueva conversación en el idioma actual.',
+    contextChanged:
+      'La página cambió. La sesión de voz se detuvo; inicia una nueva conversación en esta página.',
     faultOverflow: 'No se reprodujo el audio completo. Lee la respuesta del asistente en el texto.',
     faultResume: 'No se pudo reanudar el audio. Lee la respuesta del asistente en el texto.',
     faultGeneric: 'No se pudo reproducir el audio. Lee la respuesta del asistente en el texto.',
@@ -217,6 +219,8 @@ export const voiceCatalog = defineCatalog({
     publicToastTitle: 'Informational voice',
     localeChanged:
       'The language changed. The voice session stopped; start a new conversation in the current language.',
+    contextChanged:
+      'The page changed. The voice session stopped; start a new conversation on this page.',
     faultOverflow: 'The full audio was not played. Read the assistant answer in the text.',
     faultResume: 'Could not resume the audio. Read the assistant answer in the text.',
     faultGeneric: 'Could not play the audio. Read the assistant answer in the text.',

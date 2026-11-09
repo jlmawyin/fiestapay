@@ -69,6 +69,9 @@ export const demoCatalog = defineCatalog({
     confirmReset: 'Sí, reiniciar mis demos',
     resetting: 'Reiniciando…',
     back: 'Volver al inicio',
+    pendingOnly: 'Solo pendientes',
+    exportCsv: 'Exportar CSV',
+    totals: 'Totales (ficticio)',
   },
   en: {
     banner: 'Fictional data · Sandbox · No real money',
@@ -134,5 +137,8 @@ export const demoCatalog = defineCatalog({
     confirmReset: 'Yes, reset my demos',
     resetting: 'Resetting…',
     back: 'Back to home',
+    pendingOnly: 'Only pending',
+    exportCsv: 'Export CSV',
+    totals: 'Totals (fictional)',
   },
 });

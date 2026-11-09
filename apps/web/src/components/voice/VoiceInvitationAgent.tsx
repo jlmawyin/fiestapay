@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Check, ClipboardList, Lock, Mic, Receipt, X } from 'lucide-react';
-import { UI_LABELS, type VoiceAudience, type VoiceProvider } from '@fiestapay/shared';
+import { UI_LABELS, type AssistantContext, type VoiceAudience, type VoiceProvider } from '@fiestapay/shared';
 import type { Capabilities, Guest, Quote, RsvpStatus } from '../../types';
 import { ApiError, api } from '../../api/client';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
@@ -42,6 +42,8 @@ interface VoiceInvitationAgentProps {
    * public: informational voice on home/create/recover; no event, no guest, no tools.
    */
   audience?: VoiceAudience;
+  /** Public only: landing or demo, sent with the token so the prompt describes the current page. */
+  context?: AssistantContext;
   /** Presentation seam: render without its own floating trigger inside a host panel. */
   embedded?: boolean;
   /** Optional controlled visibility. Standalone use keeps its internal state. */
@@ -127,6 +129,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   accessRevoked = false,
   eventClosed = false,
   audience = 'guest',
+  context = 'landing',
   embedded = false,
   open,
   onOpenChange,
@@ -344,6 +347,19 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     setConsentGranted(false);
   }, [locale, handleStopVoice]);
 
+  // A page-context change (landing <-> demo) stops an active public voice session through
+  // the same Stop path, so the next session requests a token for the page now on screen.
+  const previousContextRef = useRef(context);
+  useEffect(() => {
+    if (previousContextRef.current === context) return;
+    previousContextRef.current = context;
+    const state = sessionStateRef.current;
+    const active = leaseIdRef.current !== null || state === 'requesting_permission' || state === 'connecting' || state === 'ready' || state === 'active';
+    if (!active) return;
+    handleStopVoice(copyRef.current.contextChanged, 'context_change');
+    setConsentGranted(false);
+  }, [context, handleStopVoice]);
+
   // Controlled hosts (the unified orb) close this panel without unmounting it. Stop the
   // existing session and release its lease through the same handleStopVoice seam used by
   // standalone Stop; the generation guard also releases a token that arrives late.
@@ -540,7 +556,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
         // 2. Request voice token from server
         setSessionState('connecting');
         const tokenData = publicAudience
-          ? await api.getPublicVoiceToken()
+          ? await api.getPublicVoiceToken(context)
           : organizer
             ? await api.getOrganizerVoiceToken(slug)
             : await api.getVoiceToken(slug);

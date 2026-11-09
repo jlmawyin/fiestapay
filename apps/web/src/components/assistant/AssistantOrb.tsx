@@ -372,6 +372,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
               capabilities={capabilities}
               guest={guest}
               audience={audience}
+              context={activeContext}
               embedded
               open
               accessRevoked={accessRevoked}

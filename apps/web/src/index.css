@@ -1633,3 +1633,153 @@ p, span, li, input, textarea, select, button {
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+/* AG Grid judges toolbar (FP-GEM-D1). Wraps to several lines at 375px. */
+.fp-grid-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.6rem 0.75rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.fp-grid-toolbar__search {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1 1 12rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.fp-grid-toolbar__search .form-input {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.fp-grid-toolbar__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  min-height: 42px;
+  padding: 0 0.25rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.fp-grid-toolbar__check input[type='checkbox'] {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--color-teal);
+}
+
+.fp-grid-toolbar__export {
+  font-size: 0.85rem;
+  padding: 0.55rem 0.9rem;
+  white-space: nowrap;
+}
+
+/* AG Grid row states (FP-GEM-D1). Pending is tint + bar + bold name,
+   never color alone; blocked/withdrawn rows are dimmed. */
+.ag-theme-fiestapay .ag-row.fp-grid-row-pending {
+  background-color: var(--color-yellow-tint);
+  box-shadow: inset 3px 0 0 var(--color-yellow-dark);
+}
+
+.ag-theme-fiestapay .ag-row.fp-grid-row-pending .ag-cell[col-id='name'] {
+  font-weight: 800;
+}
+
+.ag-theme-fiestapay .ag-row.fp-grid-row-muted {
+  opacity: 0.6;
+}
+
+.ag-theme-fiestapay .ag-row.ag-row-pinned {
+  background-color: var(--color-surface-subtle);
+  font-weight: 700;
+}
+
+/* PayPal + AI judges panel (FP-GEM-D1). Two columns, one on mobile. */
+.fp-payai-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+@media (min-width: 720px) {
+  .fp-payai-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.fp-payai-col {
+  min-width: 0;
+}
+
+.fp-payai-coltitle {
+  font-size: 1.05rem;
+  margin-bottom: 0.6rem;
+}
+
+.fp-payai-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.fp-payai-step {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  min-width: 0;
+}
+
+.fp-payai-step span:last-child,
+.fp-payai-note span:last-child {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.fp-payai-icon {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  color: var(--color-teal);
+}
+
+.fp-payai-note {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  min-width: 0;
+}
+
+.fp-payai-repo {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.85rem;
+  color: var(--color-ink-muted);
+  min-width: 0;
+}
+
+.fp-payai-repo a {
+  color: var(--color-blue);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}

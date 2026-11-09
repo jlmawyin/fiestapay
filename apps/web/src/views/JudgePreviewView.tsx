@@ -1,19 +1,30 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, X } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type {
+  ColDef,
+  GridApi,
+  GridReadyEvent,
+  ICellRendererParams,
+  IRowNode,
+  ProcessCellForExportParams,
+  RowClassParams,
+} from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { UI_LABELS } from '@fiestapay/shared';
 import type { FiestaEvent } from '../types';
 import { Modal } from '../components/common/Modal';
+import { GridToolbar } from '../components/common/GridToolbar';
 import { EventCard } from '../components/demo/EventCard';
+import { PayPalAiPanel } from '../components/demo/PayPalAiPanel';
 import { SamplePartyCards } from '../components/demo/SamplePartyCards';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { cardsCatalog } from '../i18n/catalogs/cards';
 import { demoCatalog } from '../i18n/catalogs/demo';
 import { isDemoEvent } from '../lib/event-presentation';
-import { SAMPLE_PARTIES, samplePartyById, type SampleGuest } from '../lib/sample-parties';
+import { centsToDecimalText, reconciliationCsvFileName } from '../lib/grid-export';
+import { SAMPLE_PARTIES, samplePartyById, sampleTotals, type SampleGuest } from '../lib/sample-parties';
 
 export interface JudgePreviewViewProps {
   /** Session events; only `isDemo === true` rows are listed here. */
@@ -89,8 +100,10 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
   const cards = useMessages(cardsCatalog);
   const labels = UI_LABELS[locale];
   const [quickFilter, setQuickFilter] = useState('');
+  const [pendingOnly, setPendingOnly] = useState(false);
   const [selectedPartyId, setSelectedPartyId] = useState(SAMPLE_PARTIES[0].id);
   const selectedParty = samplePartyById(selectedPartyId);
+  const gridApiRef = useRef<GridApi<SampleGuest> | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
@@ -102,6 +115,63 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
   const goDashboard = onNavigateDashboard ?? (() => undefined);
   const goRecover = onNavigateRecover ?? (() => undefined);
 
+  const onGridReady = useCallback((event: GridReadyEvent<SampleGuest>) => {
+    gridApiRef.current = event.api;
+  }, []);
+
+  /** Community external filter: pending-only means fictional dueCents > 0. */
+  const isExternalFilterPresent = useCallback(() => pendingOnly, [pendingOnly]);
+  const doesExternalFilterPass = useCallback(
+    (node: IRowNode<SampleGuest>) => (node.data?.dueCents ?? 0) > 0,
+    [],
+  );
+
+  useEffect(() => {
+    gridApiRef.current?.onFilterChanged();
+  }, [pendingOnly]);
+
+  /** Fictional pinned totals, computed with fixture functions like sampleCollectedCents. */
+  const pinnedBottomRowData = useMemo<SampleGuest[]>(() => {
+    const totals = sampleTotals(selectedParty);
+    return [
+      {
+        id: '__totals__',
+        name: m.totals,
+        attendance: 'yes',
+        companions: 0,
+        paidCents: totals.paidCents,
+        dueCents: totals.dueCents,
+      },
+    ];
+  }, [selectedParty, m]);
+
+  const handleExport = useCallback(() => {
+    const api = gridApiRef.current;
+    if (!api) return;
+    void api.exportDataAsCsv({
+      fileName: reconciliationCsvFileName(selectedParty.id, locale),
+      columnKeys: ['name', 'attendance', 'companions', 'paidCents', 'dueCents'],
+      processCellCallback: (params: ProcessCellForExportParams<SampleGuest>) => {
+        const colId = params.column?.getColId();
+        if (params.node?.rowPinned && (colId === 'attendance' || colId === 'companions')) return '';
+        if (colId === 'paidCents' || colId === 'dueCents') {
+          return centsToDecimalText(Number(params.value) || 0);
+        }
+        if (colId === 'attendance') {
+          return attendanceLabelFor((params.value ?? 'no') as SampleGuest['attendance'], m);
+        }
+        return String(params.value ?? '');
+      },
+    });
+  }, [locale, m, selectedParty.id]);
+
+  const rowClassRules = useMemo<Record<string, (params: RowClassParams<SampleGuest>) => boolean>>(
+    () => ({
+      'fp-grid-row-pending': (params) => !params.node?.rowPinned && (params.data?.dueCents ?? 0) > 0,
+    }),
+    [],
+  );
+
   const columnDefs = useMemo<ColDef<SampleGuest>[]>(
     () => [
       {
@@ -110,6 +180,10 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         flex: 1.4,
         minWidth: 190,
         filter: true,
+        cellRenderer: (params: ICellRendererParams<SampleGuest>) => {
+          if (params.node?.rowPinned) return <strong>{m.totals}</strong>;
+          return <span>{params.value}</span>;
+        },
       },
       {
         headerName: m.colAttendance,
@@ -118,6 +192,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         minWidth: 145,
         filter: true,
         cellRenderer: (params: ICellRendererParams<SampleGuest>) => {
+          if (params.node?.rowPinned) return null;
           const guest = params.data;
           if (!guest) return null;
           const className =
@@ -141,7 +216,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         width: 130,
         minWidth: 120,
         filter: true,
-        valueFormatter: (params) => `+${params.value ?? 0}`,
+        valueFormatter: (params) => (params.node?.rowPinned ? '' : `+${params.value ?? 0}`),
       },
       {
         headerName: m.colPaid,
@@ -169,7 +244,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         flex: 1.1,
         minWidth: 170,
         filter: true,
-        valueGetter: (params) => paymentStateFor(params.data, m),
+        valueGetter: (params) => (params.node?.rowPinned ? '' : paymentStateFor(params.data, m)),
       },
     ],
     [formatMoney, m],
@@ -258,6 +333,8 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         <SamplePartyCards parties={SAMPLE_PARTIES} selectedId={selectedPartyId} onSelect={setSelectedPartyId} />
       </section>
 
+      <PayPalAiPanel />
+
       <ol style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: 0, margin: 0 }}>
         <li
           className="panel"
@@ -292,25 +369,28 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
             <strong>{m.fictionNoteTitle}</strong> {m.fictionNoteText}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <div>
-              <h3 style={{ fontSize: '1.1rem' }}>{m.gridOf(selectedParty.title)}</h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--color-ink-muted)' }}>
-                {m.guestsSub}
-              </p>
-            </div>
-            <label className="form-label" htmlFor="judge-preview-filter" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '220px', maxWidth: '100%' }}>
-              {m.filterLabel}
-              <input
-                id="judge-preview-filter"
-                className="form-input"
-                value={quickFilter}
-                onChange={(event) => setQuickFilter(event.target.value)}
-                placeholder={m.filterPlaceholder}
-                autoComplete="off"
-              />
-            </label>
+          <div>
+            <h3 style={{ fontSize: '1.1rem' }}>{m.gridOf(selectedParty.title)}</h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--color-ink-muted)' }}>
+              {m.guestsSub}
+            </p>
           </div>
+
+          <GridToolbar
+            searchId="judge-preview-filter"
+            searchLabel={m.filterLabel}
+            searchPlaceholder={m.filterPlaceholder}
+            searchValue={quickFilter}
+            onSearchChange={setQuickFilter}
+            pendingOnly={pendingOnly}
+            onPendingOnlyChange={setPendingOnly}
+            pendingOnlyLabel={m.pendingOnly}
+            onExport={handleExport}
+            exportLabel={m.exportCsv}
+            searchTestId="judge-grid-search"
+            pendingTestId="judge-grid-pending-only"
+            exportTestId="judge-grid-export"
+          />
 
           {/* The scroll belongs to this wrapper, never to the page body. */}
           <div style={{ width: '100%', maxWidth: '100%', minWidth: 0, overflowX: 'auto' }}>
@@ -323,6 +403,11 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
                 columnDefs={columnDefs}
                 defaultColDef={defaultColDef}
                 quickFilterText={quickFilter}
+                isExternalFilterPresent={isExternalFilterPresent}
+                doesExternalFilterPass={doesExternalFilterPass}
+                pinnedBottomRowData={pinnedBottomRowData}
+                rowClassRules={rowClassRules}
+                onGridReady={onGridReady}
                 domLayout="normal"
                 pagination={true}
                 paginationPageSize={10}

@@ -1,12 +1,11 @@
 import type { AssistantContext, Locale } from '@fiestapay/shared';
-import { UI_LABELS, formatMoney } from '@fiestapay/shared';
 import type { Config } from '../config.js';
 import type { Pool } from '../db/pool.js';
 import { unavailable } from '../errors.js';
 import { claimsSensitiveExecution } from './assistant-policy.js';
 import { reserveAiRequest } from './budget.js';
 import { openaiCallsOf, openaiTextOf, type RespondFn } from './openai.js';
-import { programGuide } from './program-guide.js';
+import { programGuide, publicPageContext } from './program-guide.js';
 import { selectTextProvider, type TextProviderSelection } from './text-provider.js';
 
 /** Public replies stay readable in the small drawer and bounded before they reach the browser. */
@@ -51,34 +50,10 @@ const PRODUCT_BASE_EN = [
 
 /** Public chat has two contexts and shares one informational policy. No event data in either. */
 export function publicChatInstruction(locale: Locale = 'es', context: AssistantContext = 'landing'): string {
-  const L = UI_LABELS[locale];
-  const perPerson = formatMoney(2500, locale);
   const base = locale === 'en' ? PRODUCT_BASE_EN : PRODUCT_BASE_ES;
-  const landing = locale === 'en'
-    ? [
-      'Landing context: explain the product and how to create an invitation of your own.',
-      `From the "/" home page, "${L.createInvitation}" goes to /create, "${L.judgesDemo}" opens /demo, "${L.myInvitations}" lists only the person's own invitations, "${L.newInvitation}" is in the header, "${L.languageSelector}" changes the language and "${L.recoverLink}" is on /recover with an optional verified email.`,
-      'Do not describe the judge demo as if the person were already inside it; invite them to open it instead.',
-    ].join('\n')
-    : [
-      'Contexto portada: explica el producto y cómo crear una invitación propia.',
-      `Desde la portada "/", "${L.createInvitation}" lleva a /create, "${L.judgesDemo}" abre /demo, "${L.myInvitations}" lista solo las invitaciones propias, "${L.newInvitation}" está en la cabecera, "${L.languageSelector}" cambia el idioma y "${L.recoverLink}" está en /recover con correo opcional verificado.`,
-      'No describas la demo para jueces como si la persona ya estuviera dentro; invítala a abrirla.',
-    ].join('\n');
-  const demo = locale === 'en'
-    ? [
-      'Demo context: guide the judge through the three steps of /demo without inventing results.',
-      `Step 1: "${L.previewPanel}" shows 10 fictional read-only rows on the same page; it creates or modifies no event. Step 2: "${L.paymentDemo}" creates a fictional demo meal of ${perPerson} per person, joins as the fictional demo guest with one companion and opens the normal invitation; it does not create the order or pay by itself. Step 3: "${L.talkToAssistant}".`,
-      `Also explain "${L.privateDemo}", "${L.myDemos}" and "${L.resetDemos}", which archives only this browser's demos and never touches own or other people's invitations. The "${L.sandboxBadge}" banner means fictional data and no real money.`,
-    ].join('\n')
-    : [
-      'Contexto demo: guía al juez por los tres pasos de /demo sin inventar resultados.',
-      `Paso 1: "${L.previewPanel}" muestra 10 filas ficticias de solo lectura en la misma página; no crea ni modifica ningún evento. Paso 2: "${L.paymentDemo}" crea una comida demo ficticia de ${perPerson} por persona, se une como el invitado demo ficticio con un acompañante y abre la invitación normal; no crea la orden ni paga por sí solo. Paso 3: "${L.talkToAssistant}".`,
-      `Explica también "${L.privateDemo}", "${L.myDemos}" y "${L.resetDemos}", que archiva solo las demos de este navegador y nunca toca invitaciones propias ni ajenas. El banner "${L.sandboxBadge}" indica datos ficticios y ningún dinero real.`,
-    ].join('\n');
   return [
     ...base,
-    context === 'demo' ? demo : landing,
+    publicPageContext(locale, context),
     programGuide('public', 'text', locale),
   ].join('\n');
 }

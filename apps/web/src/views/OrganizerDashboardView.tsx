@@ -316,7 +316,7 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
     }
   };
 
-  const { event, guests, audit, payments } = dashboard;
+  const { event, guests, guestTotals, audit, payments } = dashboard;
   const copy = gatheringCopy(event.template, locale);
   const canConfirm = !event.minimumCents || event.minimumReached;
   const theme = resolveTheme(event.template, event.theme);
@@ -588,6 +588,7 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
           })}
           eventTitle={event.title}
           inviteUrl={inviteUrl}
+          guestTotals={guestTotals}
           moderation={{
             busyId: moderationBusyId,
             onBlock: (guestId) => void moderateGuest('block', guestId),

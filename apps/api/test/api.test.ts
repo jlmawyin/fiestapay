@@ -266,6 +266,62 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
     });
   });
 
+  describe('totales del organizador calculados en el servidor', () => {
+    it('suma personas, pagado y pendiente de las mismas filas que devuelve', async () => {
+      const { client: org, event } = await organizer();
+
+      // Yes with one companion, fully paid.
+      const ana = await guestOn(event.slug, 'Ana Totales', 1);
+      const anaOrder = await quoteAndOrder(ana, event.slug);
+      expect((await ana.post(`/api/orders/${anaOrder.orderId}/capture`)).statusCode).toBe(200);
+
+      // Maybe and no keep their companions out of `people` and owe nothing.
+      const beto = new Client(app);
+      await beto.post(`/api/events/${event.slug}/join`, { name: 'Beto Quizas' });
+      expect((await beto.post(`/api/events/${event.slug}/rsvp`, { status: 'maybe', companions: 2 })).statusCode).toBe(200);
+      const carla = new Client(app);
+      await carla.post(`/api/events/${event.slug}/join`, { name: 'Carla No' });
+      expect((await carla.post(`/api/events/${event.slug}/rsvp`, { status: 'no', companions: 3 })).statusCode).toBe(200);
+
+      // Yes paying one quota, then adding two companions: a genuine partial payment.
+      const diego = await guestOn(event.slug, 'Diego Parcial', 0);
+      const diegoOrder = await quoteAndOrder(diego, event.slug);
+      expect((await diego.post(`/api/orders/${diegoOrder.orderId}/capture`)).statusCode).toBe(200);
+      expect((await diego.post(`/api/events/${event.slug}/rsvp`, { status: 'yes', companions: 2 })).statusCode).toBe(200);
+
+      const dash = body<Dashboard>(await org.get(`/api/events/${event.slug}/dashboard`));
+      expect(dash.guestTotals).toEqual({ people: 5, paidCents: 7500, dueCents: 5000 });
+      const rows = dash.guests.reduce(
+        (totals, guest) => ({
+          people: totals.people + (guest.status === 'yes' ? 1 + guest.companions : 0),
+          paidCents: totals.paidCents + guest.paidCents,
+          dueCents: totals.dueCents + guest.dueCents,
+        }),
+        { people: 0, paidCents: 0, dueCents: 0 },
+      );
+      expect(dash.guestTotals).toEqual(rows);
+      for (const value of Object.values(dash.guestTotals!)) expect(Number.isSafeInteger(value)).toBe(true);
+    });
+
+    it('un evento sin invitados devuelve totales en cero', async () => {
+      const { client: org, event } = await organizer();
+      const dash = body<Dashboard>(await org.get(`/api/events/${event.slug}/dashboard`));
+      expect(dash.guests).toEqual([]);
+      expect(dash.guestTotals).toEqual({ people: 0, paidCents: 0, dueCents: 0 });
+    });
+
+    it('sin clave de organizador sigue respondiendo 403 y sin totales', async () => {
+      const { event } = await organizer();
+      await guestOn(event.slug, 'Eva Presente', 1);
+
+      const stranger = new Client(app);
+      const denied = await stranger.get(`/api/events/${event.slug}/dashboard`);
+      expect(denied.statusCode).toBe(403);
+      expect(Object.keys(body<Record<string, unknown>>(denied))).toEqual(['error']);
+      expect(body<Record<string, unknown>>(denied)).not.toHaveProperty('guestTotals');
+    });
+  });
+
   describe('cotizaciones calculadas en el servidor', () => {
     it('cobra la cuota completa por titular y acompanante', async () => {
       const { event } = await organizer();
