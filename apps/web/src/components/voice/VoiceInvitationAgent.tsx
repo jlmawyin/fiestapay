@@ -55,7 +55,7 @@ interface VoiceInvitationAgentProps {
   /**
    * guest: public invitation routes and guest tools.
    * organizer: keyed panel routes and read-only organizer tools.
-   * public: informational voice on home/create/recover; no event, no guest, no tools.
+   * public: informational voice on home/create/recover; no event, no guest, only the show_on_screen guide tool.
    */
   audience?: VoiceAudience;
   /** Public only: landing or demo, sent with the token so the prompt describes the current page. */
@@ -126,6 +126,45 @@ function appendTranscriptFragment(previous: string, fragment: string): string {
   return `${previous} ${fragment}`;
 }
 
+/** One transcript bubble. Turns stay in the order they started; a closed turn is never extended. */
+interface TranscriptTurn {
+  id: number;
+  role: 'user' | 'agent';
+  text: string;
+  closed: boolean;
+}
+
+/** Appends to the last turn when it is open and from the same role; otherwise opens a new turn after it. */
+function appendTranscriptTurn(turns: TranscriptTurn[], role: 'user' | 'agent', fragment: string): TranscriptTurn[] {
+  if (!fragment) return turns;
+  const last = turns[turns.length - 1];
+  if (last && last.role === role && !last.closed) {
+    return [...turns.slice(0, -1), { ...last, text: appendTranscriptFragment(last.text, fragment) }];
+  }
+  return [...turns, { id: turns.length, role, text: fragment, closed: false }];
+}
+
+/** Replaces the last turn when it is open and from the same role (cumulative snapshots); otherwise opens a new turn. */
+function setTranscriptTurn(turns: TranscriptTurn[], role: 'user' | 'agent', text: string): TranscriptTurn[] {
+  if (!text) return turns;
+  const last = turns[turns.length - 1];
+  if (last && last.role === role && !last.closed) {
+    return [...turns.slice(0, -1), { ...last, text }];
+  }
+  return [...turns, { id: turns.length, role, text, closed: false }];
+}
+
+/** Closes every open turn of one role. Appends only ever touch the last turn, so a closed turn is never extended. */
+function closeTranscriptTurns(turns: TranscriptTurn[], role: 'user' | 'agent'): TranscriptTurn[] {
+  let changed = false;
+  const next = turns.map((turn) => {
+    if (turn.role !== role || turn.closed) return turn;
+    changed = true;
+    return { ...turn, closed: true };
+  });
+  return changed ? next : turns;
+}
+
 /** Normalizes a server tool answer into the object Gemini expects back. */
 function toGeminiToolPayload(response: unknown): Record<string, unknown> {
   if (response && typeof response === 'object' && !Array.isArray(response)) {
@@ -165,8 +204,8 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     'idle' | 'requesting_permission' | 'connecting' | 'ready' | 'active' | 'error' | 'ended'
   >('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [userTranscript, setUserTranscript] = useState<string>('');
-  const [agentTranscript, setAgentTranscript] = useState<string>('');
+  /** Ordered transcript: one bubble per turn, in the order each turn started. */
+  const [transcriptTurns, setTranscriptTurns] = useState<TranscriptTurn[]>([]);
   const [agentStatus, setAgentStatus] = useState<'listening' | 'speaking' | 'processing'>('listening');
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
@@ -475,7 +514,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     const script = copyRef.current.infoSpeech;
     const ok = fallback.speak(script, localeRef.current);
     if (ok) {
-      setAgentTranscript(script);
+      setTranscriptTurns([{ id: 0, role: 'agent', text: script, closed: true }]);
       onShowToast('info', copyRef.current.publicReading, copyRef.current.publicToastTitle);
     } else {
       onShowToast(
@@ -537,7 +576,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
         return;
       }
       setErrorMessage(null);
-      setUserTranscript('');
+      setTranscriptTurns([]);
       setSessionState('ended');
       speakPublicFallback();
       return;
@@ -583,8 +622,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
 
       setErrorMessage(null);
       setSessionState('requesting_permission');
-      setUserTranscript('');
-      setAgentTranscript('');
+      setTranscriptTurns([]);
       setSuggestedQuote(null);
       setActionProposals([]);
       setRemainingSeconds(null);
@@ -884,16 +922,19 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                   sendBackendActivity();
                 }
               },
-              onInputTranscript: (text) => {
+              onInputTranscript: (text, finished) => {
                 if (!isCurrentSession()) return;
                 if (!text) return;
                 markUserActivity();
-                setUserTranscript((prev) => appendTranscriptFragment(prev, text));
+                setTranscriptTurns((prev) => {
+                  const next = appendTranscriptTurn(prev, 'user', text);
+                  return finished ? closeTranscriptTurns(next, 'user') : next;
+                });
               },
               onOutputTranscript: (text) => {
                 if (!isCurrentSession()) return;
                 if (!text) return;
-                setAgentTranscript((prev) => appendTranscriptFragment(prev, text));
+                setTranscriptTurns((prev) => appendTranscriptTurn(prev, 'agent', text));
               },
               onInterrupted: () => {
                 if (!isCurrentSession()) return;
@@ -907,12 +948,16 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                   // ignore
                 }
                 playbackSpeakingRef.current = false;
+                // The cut-off agent bubble is final; the interruption opens its own turn after it.
+                setTranscriptTurns((prev) => closeTranscriptTurns(prev, 'agent'));
                 setAgentStatus('listening');
               },
               onTurnComplete: () => {
                 if (!isCurrentSession()) return;
                 sendBackendActivity();
                 lastUserActivityRef.current = Date.now();
+                // Each agent turn is its own bubble; the next reply opens a new one.
+                setTranscriptTurns((prev) => closeTranscriptTurns(prev, 'agent'));
                 if (!replyAudioPending()) {
                   setAgentStatus(toolsInFlightRef.current ? 'processing' : 'listening');
                 }
@@ -1192,26 +1237,26 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
             case 'transcript.user.delta':
               markUserActivity();
               if (typeof parsed.text === 'string') {
-                setUserTranscript(parsed.text);
+                setTranscriptTurns((prev) => setTranscriptTurn(prev, 'user', parsed.text));
               }
               break;
 
             case 'transcript.user':
               markUserActivity();
               if (typeof parsed.text === 'string') {
-                setUserTranscript(parsed.text);
+                setTranscriptTurns((prev) => closeTranscriptTurns(setTranscriptTurn(prev, 'user', parsed.text), 'user'));
               }
               break;
 
             case 'transcript.agent.delta':
               if (typeof parsed.delta === 'string') {
-                setAgentTranscript((prev) => prev + (prev.endsWith(' ') || parsed.delta.startsWith(' ') ? '' : ' ') + parsed.delta);
+                setTranscriptTurns((prev) => appendTranscriptTurn(prev, 'agent', parsed.delta));
               }
               break;
 
             case 'transcript.agent':
               if (typeof parsed.text === 'string') {
-                setAgentTranscript(parsed.text);
+                setTranscriptTurns((prev) => closeTranscriptTurns(setTranscriptTurn(prev, 'agent', parsed.text), 'agent'));
               }
               if (!replyAudioPending()) setAgentStatus('listening');
               break;
@@ -1231,6 +1276,8 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
               if (!replyAudioPending()) setAgentStatus('listening');
               sendBackendActivity();
               lastUserActivityRef.current = Date.now();
+              // The AssemblyAI turn boundary: the agent bubble ends here, like turnComplete on Gemini.
+              setTranscriptTurns((prev) => closeTranscriptTurns(prev, 'agent'));
               const toolsToExecute = publicAudience ? [] : [...accumulatedToolsRef.current];
               accumulatedToolsRef.current = [];
 
@@ -1684,26 +1731,30 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                         minHeight: '100px',
                       }}
                     >
-                      {userTranscript && (
-                        <div>
-                          <span style={{ fontSize: '0.72rem', color: 'var(--color-blue)', fontWeight: 700, display: 'block' }}>
-                            {m.youPrefix} ({publicAudience ? m.visitor : organizer ? m.organizerRole : guest?.name}):
-                          </span>
-                          <span style={{ color: 'var(--color-ink)' }}>{userTranscript}</span>
-                        </div>
-                      )}
-                      {agentTranscript && (
-                        <div>
-                          <span style={{ fontSize: '0.72rem', color: 'var(--color-teal)', fontWeight: 700, display: 'block' }}>
-                            {publicAudience ? m.assistantIsPublic : geminiActive ? m.assistantIsGemini : m.assistantIs}
-                          </span>
-                          <span style={{ color: 'var(--color-ink)' }}>{agentTranscript}</span>
-                        </div>
-                      )}
-                      {!userTranscript && !agentTranscript && (
+                      {transcriptTurns.length === 0 ? (
                         <div style={{ color: 'var(--color-ink-muted)', fontStyle: 'italic', textAlign: 'center', padding: '1rem' }}>
                           {publicAudience ? m.emptyPublic : m.emptyGuest}
                         </div>
+                      ) : (
+                        transcriptTurns.map((turn) => (
+                          <div key={turn.id} data-testid="voice-turn" data-role={turn.role}>
+                            {turn.role === 'user' ? (
+                              <>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--color-blue)', fontWeight: 700, display: 'block' }}>
+                                  {m.youPrefix} ({publicAudience ? m.visitor : organizer ? m.organizerRole : guest?.name}):
+                                </span>
+                                <span style={{ color: 'var(--color-ink)' }}>{turn.text}</span>
+                              </>
+                            ) : (
+                              <>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--color-teal)', fontWeight: 700, display: 'block' }}>
+                                  {publicAudience ? m.assistantIsPublic : geminiActive ? m.assistantIsGemini : m.assistantIs}
+                                </span>
+                                <span style={{ color: 'var(--color-ink)' }}>{turn.text}</span>
+                              </>
+                            )}
+                          </div>
+                        ))
                       )}
                     </div>
 

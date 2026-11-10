@@ -396,6 +396,18 @@ describe('voz pública con contexto de página', () => {
     expect(publicVoiceSessionConfig({}, locale, 'demo', false).tools).toEqual([]);
   });
 
+  it.each(LOCALES)('saluda una sola vez por sesión en la voz pública (%s)', (locale) => {
+    const prompt = publicVoiceInstruction(locale, 'landing');
+    expect(prompt).toMatch(locale === 'en' ? /Greet only once per session/i : /Saluda una sola vez por sesión/i);
+    expect(prompt).toMatch(
+      locale === 'en'
+        ? /without repeating your introduction or the options/i
+        : /sin repetir tu presentación ni las opciones/i,
+    );
+    expect(publicChatInstruction(locale, 'landing')).not.toMatch(/una sola vez por sesión|only once per session/i);
+    expect(guestVoiceInstruction(locale)).not.toMatch(/una sola vez por sesión|only once per session/i);
+  });
+
   it('acepta context demo/landing y rechaza un contexto inválido con 400', async () => {
     expect(parseOr400(publicVoiceTokenSchema, { consent: true })).toEqual({ consent: true });
     expect(parseOr400(publicVoiceTokenSchema, { consent: true, context: 'demo' })).toEqual({

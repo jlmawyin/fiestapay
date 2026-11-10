@@ -183,6 +183,8 @@ export const SERVER_ERROR_EN: Readonly<Record<string, string>> = {
   'El asistente devolvio una respuesta ilegible': 'The assistant returned an unreadable answer.',
   'El asistente no pudo completar la respuesta; usa los formularios de la pagina':
     'The assistant could not complete the answer. Use the forms on the page.',
+  'El agente tardó demasiado en responder. Tu pregunta no se procesó; puedes reintentar.':
+    'The agent took too long to respond. Your question was not processed; you can try again.',
   'Se alcanzó el límite de consultas IA; continúa con el formulario':
     'The AI request limit was reached. Continue with the form.',
   'Alcanzaste el limite de mensajes del asistente en este evento':
@@ -223,6 +225,14 @@ export const SERVER_ERROR_EN: Readonly<Record<string, string>> = {
     'The assistant is not configured: OPENAI_API_KEY is missing.',
   'El asistente no esta configurado: falta GEMINI_API_KEY':
     'The assistant is not configured: GEMINI_API_KEY is missing.',
+  'El asistente no esta configurado: falta GEMINI_API_KEY o VERTEX_API_KEY':
+    'The assistant is not configured: GEMINI_API_KEY or VERTEX_API_KEY is missing.',
+  'GEMINI_TEXT_BACKEND invalido: solo se admite developer o vertex':
+    'GEMINI_TEXT_BACKEND is not valid: only developer or vertex is accepted.',
+  'VERTEX_LOCATION invalida: usa solo minusculas, numeros y guiones':
+    'VERTEX_LOCATION is not valid: use only lowercase letters, numbers and hyphens.',
+  'VERTEX_PROJECT_ID invalido: usa un id de proyecto o un numero de proyecto de Google Cloud':
+    'VERTEX_PROJECT_ID is not valid: use a Google Cloud project id or project number.',
   'OPENAI_BASE_URL debe usar https': 'OPENAI_BASE_URL must use https.',
   'OPENAI_BASE_URL invalida': 'OPENAI_BASE_URL is not valid.',
 
@@ -273,6 +283,7 @@ export function genericServerErrorEn(status: number): string {
   if (status === 410) return 'This invitation is no longer available.';
   if (status === 429) return 'Too many requests. Please wait a moment and try again.';
   if (status === 502 || status === 503) return 'The service is temporarily unavailable. Please try again shortly.';
+  if (status === 504) return 'The server took too long to answer. Please try again.';
   return 'Something went wrong on the server. Please try again.';
 }
 

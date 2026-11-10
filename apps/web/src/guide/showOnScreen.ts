@@ -237,6 +237,11 @@ export async function showOnScreen(
   const timeoutMs = options.timeoutMs ?? 3000;
   const spec = args.target ? UI_TARGETS[args.target] : undefined;
   const opens = args.target ? opensOf(args.target) : undefined;
+  // An explicit page must agree with the target. A target pinned to another page
+  // (and not a navigation entry) is a caller error: refuse without navigating.
+  if (args.page && args.target && spec && !opens && spec.page !== 'any' && spec.page !== args.page) {
+    return { ok: false, reason: 'invalid_args' };
+  }
   // An explicit page wins; otherwise an opens entry or the target's own page.
   const destination: UiPage | undefined =
     args.page ?? opens ?? (spec && spec.page !== 'any' ? spec.page : undefined);
@@ -252,7 +257,9 @@ export async function showOnScreen(
   if (!args.target) {
     return { ok: true, ...(destination || current ? { page: (destination ?? current) as UiPage } : {}) };
   }
-  if (opens && !args.page) {
+  // Navigation entries open their page instead of highlighting: alone, or together
+  // with their own page (the header link there would point at itself).
+  if (opens && (!args.page || args.page === opens)) {
     return { ok: true, page: opens, target: args.target };
   }
   const element = await waitForGuideTarget(args.target, timeoutMs);

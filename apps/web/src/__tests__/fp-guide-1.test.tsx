@@ -275,6 +275,43 @@ describe('FP-GUIDE-1 navigation and highlight', () => {
     }
   });
 
+  it('rejects a page/target mismatch without navigating', async () => {
+    const nav = useFakeNavigator('demo');
+    const actions = listenTo(GUIDE_ACTION_EVENT);
+    const shows = listenTo(GUIDE_SHOW_EVENT);
+    try {
+      await expect(
+        showOnScreen({ page: 'landing', target: 'paymentDemo' }, { timeoutMs: 60 }),
+      ).resolves.toEqual({
+        ok: false,
+        reason: 'invalid_args',
+      });
+      expect(nav.navigations).toEqual([]);
+      expect(actions.events).toHaveLength(0);
+      expect(shows.events).toHaveLength(0);
+    } finally {
+      actions.stop();
+      shows.stop();
+    }
+  });
+
+  it('navigates without highlighting when the page is the target own page', async () => {
+    const nav = useFakeNavigator('landing');
+    const shows = listenTo(GUIDE_SHOW_EVENT);
+    try {
+      addFixture('judgesDemo', 'button', 'Demo para jueces');
+      await expect(showOnScreen({ page: 'demo', target: 'judgesDemo' })).resolves.toEqual({
+        ok: true,
+        page: 'demo',
+        target: 'judgesDemo',
+      });
+      expect(nav.navigations).toEqual(['demo']);
+      expect(shows.events).toHaveLength(0);
+    } finally {
+      shows.stop();
+    }
+  });
+
   it('highlights header targets in place on non-guide pages', async () => {
     const nav = useFakeNavigator(null);
     render(<GuideOverlay />);
