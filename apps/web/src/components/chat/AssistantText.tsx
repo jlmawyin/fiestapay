@@ -1,4 +1,7 @@
 import React from 'react';
+import { targetForLabel, type Locale, type UiTarget } from '@fiestapay/shared';
+import { useI18n } from '../../i18n/I18nContext';
+import { findGuideTarget, showOnScreen } from '../../guide/showOnScreen';
 
 export interface AssistantTextSegment {
   bold: boolean;
@@ -71,16 +74,45 @@ export function splitLabelSpans(text: string): LabelSpan[] {
   return spans.filter((span) => span.text.length > 0);
 }
 
-function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
+/**
+ * Quoted text that exactly matches a guide target label becomes an action button;
+ * anything else stays literal text. `page` scope (guest/organizer chats) only offers
+ * the targets actually present on the current page; `public` scope navigates, so every
+ * match is offered.
+ */
+function guideTargetFor(
+  locale: Locale,
+  scope: 'public' | 'page',
+  labelText: string,
+): UiTarget | null {
+  const target = targetForLabel(locale, labelText);
+  if (!target) return null;
+  if (scope === 'public') return target;
+  return findGuideTarget(target) ? target : null;
+}
+
+function renderInline(text: string, keyPrefix: string, locale: Locale, scope: 'public' | 'page'): React.ReactNode[] {
   return splitAssistantText(text).flatMap((segment, boldIndex) => {
     const nodes = splitLabelSpans(segment.text).map((span, spanIndex) => {
       const key = `${keyPrefix}-b${boldIndex}-s${spanIndex}`;
-      return span.label ? (
+      if (!span.label) return <React.Fragment key={key}>{span.text}</React.Fragment>;
+      const target = guideTargetFor(locale, scope, span.text);
+      return target ? (
+        <button
+          key={key}
+          type="button"
+          className="fp-assistant-label fp-assistant-label--action"
+          onClick={() => {
+            void showOnScreen({ target });
+          }}
+        >
+          {span.text}
+          <span aria-hidden="true"> →</span>
+        </button>
+      ) : (
         <span key={key} className="fp-assistant-label">
           {span.text}
         </span>
-      ) : (
-        <React.Fragment key={key}>{span.text}</React.Fragment>
       );
     });
     return segment.bold ? [<strong key={`${keyPrefix}-strong${boldIndex}`}>{nodes}</strong>] : nodes;
@@ -128,16 +160,22 @@ export function splitAssistantBlocks(text: string): AssistantBlock[] {
  * and links from the model stay literal text. Never uses dangerouslySetInnerHTML
  * and never renders anchors.
  */
-export const AssistantText: React.FC<{ text: string }> = ({ text }) => (
-  <span className="fp-assistant-text">
-    {splitAssistantBlocks(text).map((block, blockIndex) => {
-      if (block.kind === 'para') {
-        return <p key={blockIndex}>{renderInline(block.text, `p${blockIndex}`)}</p>;
-      }
-      const items = block.items.map((item, itemIndex) => (
-        <li key={itemIndex}>{renderInline(item, `b${blockIndex}i${itemIndex}`)}</li>
-      ));
-      return block.kind === 'ol' ? <ol key={blockIndex}>{items}</ol> : <ul key={blockIndex}>{items}</ul>;
-    })}
-  </span>
-);
+export const AssistantText: React.FC<{ text: string; guideScope?: 'public' | 'page' }> = ({
+  text,
+  guideScope = 'public',
+}) => {
+  const { locale } = useI18n();
+  return (
+    <span className="fp-assistant-text">
+      {splitAssistantBlocks(text).map((block, blockIndex) => {
+        if (block.kind === 'para') {
+          return <p key={blockIndex}>{renderInline(block.text, `p${blockIndex}`, locale, guideScope)}</p>;
+        }
+        const items = block.items.map((item, itemIndex) => (
+          <li key={itemIndex}>{renderInline(item, `b${blockIndex}i${itemIndex}`, locale, guideScope)}</li>
+        ));
+        return block.kind === 'ol' ? <ol key={blockIndex}>{items}</ol> : <ul key={blockIndex}>{items}</ul>;
+      })}
+    </span>
+  );
+};

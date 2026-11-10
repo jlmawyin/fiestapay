@@ -11,6 +11,18 @@ import { normalizeMailbox } from './email/address.js';
 export type TextProvider = 'gemini' | 'openai';
 
 /**
+ * Public on-screen guide switch. Only `on` and `off` are accepted; an invalid value keeps the
+ * safe default without echoing it. The warning is deliberately fixed and carries no env data.
+ */
+function readScreenGuide(env: NodeJS.ProcessEnv): boolean {
+  const raw = (env.VOICE_SCREEN_GUIDE ?? '').trim().toLowerCase();
+  if (raw === '' || raw === 'on') return true;
+  if (raw === 'off') return false;
+  console.warn('VOICE_SCREEN_GUIDE invalido: se usa on');
+  return true;
+}
+
+/**
  * Voice timebox. A live session lasts up to 180 seconds by default and the cap admits
  * 300s for deployments that raised it. Gemini Live is capped at 120s by the same rule the
  * route reservation uses, so the ephemeral token and the lease never disagree. The daily
@@ -30,6 +42,8 @@ export function voiceConfig(env: NodeJS.ProcessEnv = process.env) {
     // Gemini ephemeral sessions are short-lived; the lease must match the token timebox.
     maxSeconds: provider === 'gemini' ? Math.min(configuredMax, 120) : configuredMax,
     dailySeconds: Math.floor(bounded(env.VOICE_DAILY_SECONDS, 1800, 3600)),
+    /** Public voice may declare show_on_screen; guest and organizer prompts never read this. */
+    screenGuide: readScreenGuide(env),
   };
 }
 

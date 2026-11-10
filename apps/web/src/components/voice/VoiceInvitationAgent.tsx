@@ -1,6 +1,13 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Check, ClipboardList, Lock, Mic, Receipt, X } from 'lucide-react';
-import { UI_LABELS, type AssistantContext, type VoiceAudience, type VoiceProvider } from '@fiestapay/shared';
+import {
+  SHOW_ON_SCREEN_TOOL,
+  UI_LABELS,
+  type AssistantContext,
+  type ShowOnScreenResult,
+  type VoiceAudience,
+  type VoiceProvider,
+} from '@fiestapay/shared';
 import type { Capabilities, Guest, Quote, RsvpStatus } from '../../types';
 import { ApiError, api } from '../../api/client';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
@@ -13,9 +20,18 @@ import { createSpanishSpeechFallback, type SpanishSpeechFallback } from '../../v
 import {
   asGeminiSessionConfig,
   connectGeminiLive,
+  liveConfigHasTool,
   type GeminiLiveConnector,
   type GeminiLiveSessionHandle,
 } from '../../voice/gemini-live';
+import {
+  VOICE_ACTIVITY_EVENT,
+  VOICE_STOP_EVENT,
+  getGuidePage,
+  showOnScreen,
+  validateShowOnScreenArgs,
+  type VoiceActivityDetail,
+} from '../../guide/showOnScreen';
 import {
   VOICE_ACTIVITY_THROTTLE_MS,
   VOICE_COOLDOWN_MS,
@@ -192,6 +208,8 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   const leaseInactiveRef = useRef(false);
   const cooldownUntilRef = useRef(0);
   const fallbackRef = useRef<SpanishSpeechFallback | null>(null);
+  /** True only when the locked public session declares the show_on_screen tool. */
+  const guideToolRef = useRef(false);
 
   const voiceAvailable = Boolean(capabilities?.voice);
   const voiceStopped = publicAudience ? accessRevoked : organizer ? accessRevoked : accessRevoked || eventClosed;
@@ -220,6 +238,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     lastUserActivityRef.current = 0;
     lastBackendActivityRef.current = 0;
     leaseInactiveRef.current = false;
+    guideToolRef.current = false;
     setActiveProvider(null);
 
     const leaseId = leaseIdRef.current;
@@ -349,10 +368,12 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
 
   // A page-context change (landing <-> demo) stops an active public voice session through
   // the same Stop path, so the next session requests a token for the page now on screen.
+  // FP-GUIDE-1: public voice with the guide tool follows the person across public pages.
   const previousContextRef = useRef(context);
   useEffect(() => {
     if (previousContextRef.current === context) return;
     previousContextRef.current = context;
+    if (publicAudience && guideToolRef.current) return;
     const state = sessionStateRef.current;
     const active = leaseIdRef.current !== null || state === 'requesting_permission' || state === 'connecting' || state === 'ready' || state === 'active';
     if (!active) return;
@@ -377,6 +398,28 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     }
   }, [open, handleStopVoice]);
 
+  // FP-GUIDE-1: the orb shows a floating mini-bar while voice is live and a guide
+  // highlight or navigation is on screen. The bar stops voice through the usual path.
+  useEffect(() => {
+    try {
+      document.dispatchEvent(
+        new CustomEvent<VoiceActivityDetail>(VOICE_ACTIVITY_EVENT, {
+          detail: { active: sessionState === 'active', status: agentStatus, audience },
+        }),
+      );
+    } catch {
+      // Listeners never break voice.
+    }
+  }, [sessionState, agentStatus, audience]);
+
+  useEffect(() => {
+    const onStopRequest = () => {
+      handleStopVoice(copyRef.current.stopToast, 'voice_bar');
+    };
+    document.addEventListener(VOICE_STOP_EVENT, onStopRequest);
+    return () => document.removeEventListener(VOICE_STOP_EVENT, onStopRequest);
+  }, [handleStopVoice]);
+
   useEffect(() => {
     const onHide = () => cleanupSession('pagehide', true);
     window.addEventListener('pagehide', onHide);
@@ -385,12 +428,23 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
       window.removeEventListener('pagehide', onHide);
       window.removeEventListener('beforeunload', onHide);
       cleanupSession('unmount', true);
+      // The session is gone with the panel; report inactive so guide listeners
+      // never believe a voice session is still live.
+      try {
+        document.dispatchEvent(
+          new CustomEvent<VoiceActivityDetail>(VOICE_ACTIVITY_EVENT, {
+            detail: { active: false, status: 'listening', audience },
+          }),
+        );
+      } catch {
+        // Listeners never break unmount.
+      }
       if (cooldownTimerRef.current) {
         clearInterval(cooldownTimerRef.current);
         cooldownTimerRef.current = null;
       }
     };
-  }, [cleanupSession]);
+  }, [cleanupSession, audience]);
 
   const voiceLoadBlocked = organizer ? accessRevoked : accessRevoked || eventClosed;
   useEffect(() => {
@@ -577,6 +631,11 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
         if (useGemini && !geminiConfig) {
           throw new Error('Invalid Gemini session config');
         }
+        guideToolRef.current =
+          publicAudience &&
+          useGemini &&
+          !!geminiConfig &&
+          liveConfigHasTool(geminiConfig.liveConfig, SHOW_ON_SCREEN_TOOL);
 
         // Playback starts only after the gesture-time resume() has reached running.
         await resumeReady;
@@ -860,8 +919,62 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
               },
               onToolCalls: (calls) => {
                 if (!isCurrentSession()) return;
-                if (publicAudience) return;
-                if (!leaseIdRef.current || calls.length === 0) return;
+                if (calls.length === 0) return;
+                if (publicAudience) {
+                  // Public voice executes show_on_screen in the browser and ignores
+                  // anything else, exactly as before when the tool is not declared.
+                  if (!guideToolRef.current) return;
+                  const guided = calls.filter((call) => call.name === SHOW_ON_SCREEN_TOOL);
+                  if (guided.length === 0) return;
+                  sendBackendActivity();
+                  const toolGeneration = toolGenerationRef.current;
+                  const isCurrentTurn = () => isCurrentSession() && toolGenerationRef.current === toolGeneration;
+                  const executeGuideTools = async () => {
+                    if (!isCurrentTurn()) return;
+                    toolsInFlightRef.current = true;
+                    if (!replyAudioPending()) setAgentStatus('processing');
+                    try {
+                      for (const tool of guided) {
+                        if (!isCurrentTurn()) return;
+                        const validated = validateShowOnScreenArgs(tool.args);
+                        let result: ShowOnScreenResult;
+                        if (!validated.ok) {
+                          result = { ok: false, reason: 'invalid_args' };
+                        } else {
+                          try {
+                            result = await showOnScreen(validated.args);
+                          } catch {
+                            if (!isCurrentTurn()) return;
+                            result = { ok: false, reason: 'invalid_args' };
+                          }
+                        }
+                        if (!isCurrentTurn()) return;
+                        const page = result.page ?? getGuidePage() ?? undefined;
+                        const payload: ShowOnScreenResult = page ? { ...result, page } : result;
+                        const live = geminiSessionRef.current;
+                        if (live && !live.closed) {
+                          try {
+                            live.sendToolResponse([{
+                              id: tool.id,
+                              name: tool.name,
+                              response: payload as unknown as Record<string, unknown>,
+                            }]);
+                          } catch {
+                            // A failed tool answer never stops the session.
+                          }
+                        }
+                      }
+                    } finally {
+                      if (toolGenerationRef.current === toolGeneration && isCurrentSession()) {
+                        toolsInFlightRef.current = false;
+                        setAgentStatus(replyAudioPending() ? 'speaking' : 'listening');
+                      }
+                    }
+                  };
+                  toolQueueRef.current = toolQueueRef.current.then(executeGuideTools, executeGuideTools);
+                  return;
+                }
+                if (!leaseIdRef.current) return;
                 sendBackendActivity();
                 const toolGeneration = toolGenerationRef.current;
                 const isCurrentTurn = () => isCurrentSession() && toolGenerationRef.current === toolGeneration;

@@ -13,6 +13,7 @@ import type {
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { UI_LABELS } from '@fiestapay/shared';
+import { startGuidedTour } from '../guide/showOnScreen';
 import type { FiestaEvent } from '../types';
 import { Modal } from '../components/common/Modal';
 import { GridToolbar } from '../components/common/GridToolbar';
@@ -314,9 +315,14 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
       <section aria-label={labels.judgesDemo} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
           <h1 style={{ fontSize: '1.65rem' }}>{labels.judgesDemo}</h1>
-          <button type="button" onClick={onBack} className="btn btn-secondary">
-            {m.back}
-          </button>
+          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => startGuidedTour()} className="btn btn-teal" data-guide="guidedTour">
+              {labels.guidedTour}
+            </button>
+            <button type="button" onClick={onBack} className="btn btn-secondary">
+              {m.back}
+            </button>
+          </div>
         </div>
         <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.9rem', maxWidth: '720px' }}>
           {m.intro}
@@ -339,6 +345,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         <li
           className="panel"
           aria-label={`1. ${m.step1Title}`}
+          data-guide="previewPanel"
           style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', minWidth: 0 }}
         >
           <div style={{ minWidth: 0 }}>
@@ -438,6 +445,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
               type="button"
               onClick={() => void handlePaymentDemo()}
               className="btn btn-primary"
+              data-guide="paymentDemo"
               disabled={isPaying || !onStartPaymentDemo}
             >
               {isPaying ? m.paymentLoading : labels.paymentDemo}
@@ -483,6 +491,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
             type="button"
             onClick={() => void handleCreateDemo()}
             className="btn btn-teal"
+            data-guide="privateDemo"
             disabled={isCreating}
           >
             {isCreating ? m.privateLoading : labels.privateDemo}
@@ -490,7 +499,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         </div>
       </section>
 
-      <section aria-label={labels.myDemos} style={{ minWidth: 0 }}>
+      <section aria-label={labels.myDemos} data-guide="myDemos" style={{ minWidth: 0 }}>
         <h2 style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>
           {labels.myDemos}
           <span style={{ marginLeft: '0.6rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-ink-muted)' }}>
@@ -560,6 +569,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
             type="button"
             onClick={() => setShowResetModal(true)}
             className="btn btn-secondary"
+            data-guide="resetDemos"
             style={{ color: 'var(--color-coral)' }}
             disabled={!onResetDemo}
           >

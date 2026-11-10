@@ -314,7 +314,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
                     overflowWrap: 'anywhere',
                   }}
                 >
-                  <AssistantText text={message.text} />
+                  <AssistantText text={message.text} guideScope="public" />
                 </div>
               );
             })}

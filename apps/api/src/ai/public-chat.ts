@@ -1,4 +1,4 @@
-import type { AssistantContext, Locale } from '@fiestapay/shared';
+import { UI_LABELS, type AssistantContext, type Locale } from '@fiestapay/shared';
 import type { Config } from '../config.js';
 import type { Pool } from '../db/pool.js';
 import { HttpError, unavailable } from '../errors.js';
@@ -57,10 +57,15 @@ const PRODUCT_BASE_EN = [
 /** Public chat has two contexts and shares one informational policy. No event data in either. */
 export function publicChatInstruction(locale: Locale = 'es', context: AssistantContext = 'landing'): string {
   const base = locale === 'en' ? PRODUCT_BASE_EN : PRODUCT_BASE_ES;
+  const L = UI_LABELS[locale];
+  const textUi = locale === 'en'
+    ? `Public text guide: the "${L.guidedTour}" is available in "${L.judgesDemo}". Button names quoted in this chat can be tapped to go to that element on screen; quote only labels that exist and never invent names or links. This chat still has no tools and cannot open pages or press anything itself.`
+    : `Guía de texto pública: el "${L.guidedTour}" existe en "${L.judgesDemo}". Los nombres de botones citados entre comillas dobles en este chat se pueden tocar para ir a ese elemento de la pantalla; cita solo etiquetas que existan y no inventes nombres ni enlaces. Este chat sigue sin herramientas y no abre páginas ni pulsa nada por sí solo.`;
   return [
     ...base,
     publicPageContext(locale, context),
     programGuide('public', 'text', locale),
+    textUi,
   ].join('\n');
 }
 
