@@ -10,9 +10,11 @@ Updated by Jorge's request on 10 Nov 2026 for the final hackathon stretch (Devpo
 
 ## What agents may do in the product
 
-- Agents **prepare and guide**; people act. Allowed: answer, draft (invitation from one sentence, presentation, reminder texts), prepare a payment (server quote in integer cents + on-screen "Approve in PayPal"), open allowed FiestaPay pages and highlight allowed elements (`show_on_screen`, closed lists in packages/shared/src/ui-guide.ts).
-- Never: press buttons for the person, pay, approve, create or delete events, confirm attendance or the event, refund, moderate, or send messages on someone's behalf. Model output is validated against closed lists; no model-supplied URLs or selectors.
-- Microphone use always needs the person's explicit consent and a click (browsers forbid starting audio on their own).
+- Agents **do the work and leave it ready; people make the final decision**. Allowed by text or voice: answer; build drafts on request (a whole invitation from one sentence, presentation, reminder texts) and fill the forms with them; prepare a payment (one server quote in integer cents + on-screen "Approve in PayPal") and take the guest to the payment step with the button highlighted; open allowed FiestaPay pages and highlight allowed elements (`show_on_screen`, closed lists in packages/shared/src/ui-guide.ts).
+- The person always performs the final step: publish the invitation, confirm the quote review, approve in PayPal, confirm attendance or the event. Agents never pay, approve, refund, moderate, delete, send messages on someone's behalf, or press a final button. Model output is validated against closed lists; no model-supplied URLs or selectors.
+- One active quote per guest: if a pending quote or order exists, the agent reuses it instead of creating another.
+- Microphone use always needs the person's explicit consent and a click (browsers forbid starting audio on their own). If voice fails (token, connection or provider), the app falls back to the text chat on its own.
+- Everything the person reads follows the selected language, including server-built summaries.
 - WhatsApp: reminders are drafted by AI and sent by the organizer (copy or open WhatsApp). An agent inside WhatsApp (WhatsApp Business API) is future work, not in scope before the deadline.
 
 ## Money and PayPal (unchanged)
@@ -23,14 +25,17 @@ Updated by Jorge's request on 10 Nov 2026 for the final hackathon stretch (Devpo
 ## Testing, secrets and spending
 
 - Tests for money, permissions and concurrency are required. Maximum three evaluated deliveries per defect across providers; then evidence and a new hypothesis.
-- Real-provider tests only within Jorge's approved budget (Gemini: USD 10 total, logged in .local/coord/GEMINI-GASTO.md). Sandbox only: no live funds or cards. No real WhatsApp or SMTP sends during tests without Jorge's explicit approval. Use isolated fixtures and preserve historical payments and Jorge's tester event.
+- Real-provider tests only within Jorge's approved budget (Gemini: USD 10 total, logged in .local/coord/GEMINI-GASTO.md); measuring product metrics (accuracy, latency, cost per event) is an approved use of that budget. Sandbox only: no live funds or cards. No real WhatsApp or SMTP sends during tests without Jorge's explicit approval. Use isolated fixtures and preserve historical payments and Jorge's tester event.
+- Production data is deleted or archived only with Jorge's explicit approval of the exact items, after a backup; prefer archiving to permanent deletion.
+- Keys, prepaid AI balance and daily AI limits must stay active through the judging period (until 15 Dec 2026).
 - No secrets in Git, logs, browser, reports or reviewer prompts. No real judge data.
 - Do not claim live APIs, human tests, phone tests, video or submission passed without evidence.
 
 ## Delivery and operations
 
 - Standing approval (Jorge, 9 Nov 2026) to merge and deploy without asking when all hold: CI green, independent AGY approval of the code and of the operator kit, backup with test restore, zero migrations, zero secret matches, smoke test, and rollback if anything fails. Deploy only through the operator kit; never change other Contabo apps, the DNS apex or global proxy defaults.
-- Code freeze: 10 Nov 2026 20:00 ECT, except critical fixes. Video and Devpost submission are Jorge's; never publish on his behalf.
+- Code freeze: 11 Nov 2026 12:00 ECT (moved by Jorge's improvement list of 10 Nov), except critical fixes; the video is recorded after the freeze on the deployed version. Documentation can change until submission. Video and Devpost submission are Jorge's; never publish on his behalf.
+- Public docs stay judge-facing in English (README, docs/JUDGES.md, docs/DEVPOST_DRAFT.md, docs/VIDEO_SCRIPT.md, docs/GEMINI.md, docs/API.md, docs/ARCHITECTURE.md); internal reports and Spanish working notes live under docs/internal/.
 - Use graph discovery first and check coverage; docs and new files may need exact source fallback.
 
 ## Agent routing (dirigir-agentes)
