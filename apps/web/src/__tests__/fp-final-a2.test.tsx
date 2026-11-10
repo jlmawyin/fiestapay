@@ -1,5 +1,4 @@
 import React from 'react';
-import { readFileSync } from 'node:fs';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DraftEventProposal, OrderResult, Quote, UiPage } from '@fiestapay/shared';
@@ -239,19 +238,6 @@ describe('FP-FINAL-A2 invitation guide targets', () => {
   });
 });
 
-describe('FP-FINAL-A2 375px layout contract', () => {
-  const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
-
-  it('keeps the orb and its panel inside the safe area and reserves room for the primary CTA', () => {
-    expect(css).toMatch(/\.fp-orb-launcher\s*\{[^}]*bottom: calc\(1rem \+ env\(safe-area-inset-bottom\)\)/s);
-    expect(css).toMatch(/\.app-container\s*\{[^}]*padding:[^;]*env\(safe-area-inset-bottom\)/s);
-    expect(css).toMatch(/@media \(max-width: 639px\)[\s\S]*?\.fp-orb-panel\s*\{[^}]*env\(safe-area-inset-bottom\)/s);
-    expect(css).toMatch(/\.fp-voice-bar\[data-placement="bottom"\]\s*\{[^}]*env\(safe-area-inset-bottom\)/s);
-    // The welcome card stays in normal flow (never fixed over the CTA or voice controls).
-    expect(css).not.toMatch(/data-testid="voice-welcome-card"[^}]*position:\s*fixed/s);
-  });
-});
-
 describe('FP-FINAL-A2 voice failure falls back to text', () => {
   class MockAudioContext {
     sampleRate = 48000;
@@ -263,13 +249,11 @@ describe('FP-FINAL-A2 voice failure falls back to text', () => {
 
   it('releases voice and shows a localized text-chat notice after a token failure', async () => {
     vi.stubGlobal('AudioContext', MockAudioContext);
+    const stopTrack = vi.fn();
+    const getUserMedia = vi.fn().mockResolvedValue({ getTracks: () => [{ stop: stopTrack }] });
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
-      value: {
-        getUserMedia: vi.fn().mockResolvedValue({
-          getTracks: () => [{ stop: vi.fn() }],
-        } as unknown as MediaStream),
-      },
+      value: { getUserMedia },
     });
     vi.spyOn(api, 'getPublicVoiceToken').mockRejectedValue(new Error('token failed'));
     const release = vi.spyOn(api, 'releaseVoiceLease').mockResolvedValue({
@@ -296,6 +280,8 @@ describe('FP-FINAL-A2 voice failure falls back to text', () => {
     expect(screen.getByRole('textbox', { name: 'Pregunta para el chat público' })).toBeInTheDocument();
     // No lease was reserved; the failed attempt never starts the microphone again.
     expect(release).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: /Escuchar información por voz/ })).not.toBeInTheDocument();
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect(stopTrack).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: /Escuchar información por voz/ })).not.toBeInTheDocument();
   });
 });

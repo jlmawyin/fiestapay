@@ -411,8 +411,7 @@ describe('FP-FINAL-A2 guest invitation show_on_screen', () => {
     });
     const root = document.createElement('div');
     root.dataset.inviteSlug = 'fiesta';
-    const control = document.createElement('input');
-    control.type = 'checkbox';
+    const control = document.createElement('button');
     control.dataset.guide = 'quoteReview';
     control.scrollIntoView = vi.fn();
     root.appendChild(control);

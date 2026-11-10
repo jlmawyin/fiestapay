@@ -1053,66 +1053,6 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                   toolQueueRef.current = toolQueueRef.current.then(executeGuideTools, executeGuideTools);
                   return;
                 }
-                // Guest Gemini may highlight a payment control on this invitation.
-                // The browser validates the invitation-only args and answers locally;
-                // show_on_screen never reaches the server tool endpoint.
-                const inviteGuideCalls = !organizer && inviteGuideToolRef.current
-                  ? calls.filter((call) => call.name === SHOW_ON_SCREEN_TOOL)
-                  : [];
-                const serverCalls = inviteGuideCalls.length > 0
-                  ? calls.filter((call) => !inviteGuideCalls.includes(call))
-                  : calls;
-                if (inviteGuideCalls.length > 0) {
-                  sendBackendActivity();
-                  const guideGeneration = toolGenerationRef.current;
-                  const isCurrentGuideTurn = () =>
-                    isCurrentSession() && toolGenerationRef.current === guideGeneration;
-                  const executeInviteGuideTools = async () => {
-                    if (!isCurrentGuideTurn()) return;
-                    toolsInFlightRef.current = true;
-                    if (!replyAudioPending()) setAgentStatus('processing');
-                    try {
-                      for (const tool of inviteGuideCalls) {
-                        if (!isCurrentGuideTurn()) return;
-                        const validated = validateInviteShowOnScreenArgs(tool.args);
-                        let result: ShowOnScreenResult;
-                        if (!validated.ok) {
-                          result = { ok: false, reason: 'invalid_args' };
-                        } else {
-                          try {
-                            result = await showOnScreen(validated.args, { inviteSlug: slug });
-                          } catch {
-                            if (!isCurrentGuideTurn()) return;
-                            result = { ok: false, reason: 'invalid_args' };
-                          }
-                        }
-                        if (!isCurrentGuideTurn()) return;
-                        const live = geminiSessionRef.current;
-                        if (live && !live.closed) {
-                          try {
-                            live.sendToolResponse([{
-                              id: tool.id,
-                              name: tool.name,
-                              response: result as unknown as Record<string, unknown>,
-                            }]);
-                          } catch {
-                            // A failed tool answer never stops the session.
-                          }
-                        }
-                      }
-                    } finally {
-                      if (toolGenerationRef.current === guideGeneration && isCurrentSession()) {
-                        toolsInFlightRef.current = false;
-                        setAgentStatus(replyAudioPending() ? 'speaking' : 'listening');
-                      }
-                    }
-                  };
-                  toolQueueRef.current = toolQueueRef.current.then(
-                    executeInviteGuideTools,
-                    executeInviteGuideTools,
-                  );
-                }
-                if (serverCalls.length === 0) return;
                 if (!leaseIdRef.current) return;
                 sendBackendActivity();
                 const toolGeneration = toolGenerationRef.current;
@@ -1122,20 +1062,27 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                   toolsInFlightRef.current = true;
                   if (!replyAudioPending()) setAgentStatus('processing');
                   try {
-                    for (const tool of serverCalls) {
+                    for (const tool of calls) {
                       if (!isCurrentTurn()) return;
                       try {
-                        const toolRes = organizer
-                          ? await api.executeOrganizerVoiceTool(slug, {
-                              leaseId: tokenData.leaseId,
-                              name: tool.name,
-                              arguments: tool.args,
-                            })
-                          : await api.executeVoiceTool(slug, {
-                              leaseId: tokenData.leaseId,
-                              name: tool.name,
-                              arguments: tool.args,
-                            });
+                        let toolRes: { response: unknown };
+                        if (tool.name === SHOW_ON_SCREEN_TOOL) {
+                          // Keep the browser-only tool in turn order with server tools. A
+                          // prepare_quote followed by a highlight must apply the quote first.
+                          const validated = !organizer && inviteGuideToolRef.current
+                            ? validateInviteShowOnScreenArgs(tool.args)
+                            : { ok: false as const };
+                          toolRes = {
+                            response: validated.ok
+                              ? await showOnScreen(validated.args, { inviteSlug: slug })
+                              : { ok: false, reason: 'invalid_args' },
+                          };
+                        } else {
+                          const request = { leaseId: tokenData.leaseId, name: tool.name, arguments: tool.args };
+                          toolRes = organizer
+                            ? await api.executeOrganizerVoiceTool(slug, request)
+                            : await api.executeVoiceTool(slug, request);
+                        }
                         if (!isCurrentTurn()) return;
                         const live = geminiSessionRef.current;
                         if (live && !live.closed) {
@@ -1214,8 +1161,12 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                 if (!isCurrentSession()) return;
                 fallbackToText(friendlyVoiceError(null, localeRef.current), 'provider_error');
               },
-              onClose: () => {
+              onClose: (event) => {
                 if (!isCurrentSession()) return;
+                if (event && typeof event === 'object' && 'wasClean' in event && event.wasClean === false) {
+                  fallbackToText(friendlyVoiceError(null, localeRef.current), 'ws_closed');
+                  return;
+                }
                 setSessionState('ended');
                 cleanupSession('ws_closed');
               },
@@ -1502,8 +1453,12 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
           fallbackToText(friendlyVoiceError(null, localeRef.current), 'ws_error');
         };
 
-        ws.onclose = () => {
+        ws.onclose = (event) => {
           if (!isCurrentSession()) return;
+          if (event?.wasClean === false) {
+            fallbackToText(friendlyVoiceError(null, localeRef.current), 'ws_closed');
+            return;
+          }
           setSessionState('ended');
           cleanupSession('ws_closed');
         };
