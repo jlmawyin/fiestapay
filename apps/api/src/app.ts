@@ -42,7 +42,11 @@ export interface BuildAppOptions {
   respond?: RespondFn;
   /** Scripted Gemini token seam for tests; omitted in production so the SDK is used. */
   createVoiceToken?: CreateGeminiVoiceTokenFn;
+  /** Deterministic assistant deadline for tests; production uses the 40 s constant. */
+  assistantDeadlineMs?: number;
   logger?: boolean;
+  /** Test-only destination for the structured log, so a failure can be asserted verbatim. */
+  logStream?: { write: (message: string) => void };
 }
 
 const WEBHOOK_PATH = '/api/paypal/webhook';
@@ -61,9 +65,15 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     options.paypal !== undefined ? options.paypal : config.paypal ? new PayPalSandboxClient(config.paypal) : null;
   const email = options.email !== undefined ? options.email : config.email ? createSmtpEmail(config.email) : null;
 
-  const logging = options.logger === false || (options.logger === undefined && config.env === 'test') ? false : requestLogger;
+  const logging = options.logStream
+    ? true
+    : options.logger === false || (options.logger === undefined && config.env === 'test')
+      ? false
+      : requestLogger;
   const app = Fastify({
-    logger: logging,
+    logger: logging
+      ? { ...requestLogger, ...(options.logStream ? { stream: options.logStream } : {}) }
+      : false,
     bodyLimit: config.bodyLimitBytes,
     trustProxy: config.env === 'production',
   });
@@ -122,7 +132,18 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   // handlers present when they are created, and every error must render as {error}.
   app.setErrorHandler(async (err: unknown, req, reply) => {
     const status = statusOf(err);
-    if (status >= 500) req.log.error({ err }, 'fallo de solicitud');
+    if (status >= 500) {
+      if (err instanceof HttpError && err.logCause) {
+        // Structured failure only: cause code and elapsed time. Never the person's message,
+        // provider body, headers or credentials.
+        req.log.error(
+          { status, cause: err.logCause, elapsedMs: err.elapsedMs },
+          'fallo de asistente',
+        );
+      } else {
+        req.log.error({ err }, 'fallo de solicitud');
+      }
+    }
     const message =
       err instanceof HttpError
         ? err.message
@@ -152,6 +173,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     email,
     ...(options.respond ? { respond: options.respond } : {}),
     ...(options.createVoiceToken ? { createVoiceToken: options.createVoiceToken } : {}),
+    ...(options.assistantDeadlineMs ? { assistantDeadlineMs: options.assistantDeadlineMs } : {}),
   };
   await app.register(
     async (api) => {

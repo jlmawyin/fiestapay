@@ -28,7 +28,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
     expect(screen.queryByText(/gemini/i)).toBeNull();
     unmount();
 
-    // Verify ChatAssistant shows generic Asistente FiestaPay text
+    // Verify ChatAssistant shows generic Agente FiestaPay text
     vi.spyOn(api, 'sendChat').mockResolvedValue({
       text: 'Hola, soy tu asistente OpenAI',
     });
@@ -38,7 +38,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
     // Open chat panel
     fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente IA' }));
 
-    expect(screen.getByText('Asistente FiestaPay')).toBeInTheDocument();
+    expect(screen.getByText('Agente FiestaPay')).toBeInTheDocument();
     expect(screen.getByText('Consulta sobre esta invitación')).toBeInTheDocument();
     expect(screen.queryByText(/gemini/i)).toBeNull();
     expect(screen.queryByLabelText(/gemini/i)).toBeNull();
@@ -55,7 +55,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
     });
 
     // The open panel does not name a retired provider.
-    const panel = screen.getByRole('complementary', { name: 'Panel del Asistente FiestaPay' });
+    const panel = screen.getByRole('complementary', { name: 'Panel del Agente FiestaPay' });
     expect(panel.textContent).not.toMatch(/gemini/i);
   });
 
@@ -153,7 +153,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
       ).toBeInTheDocument();
     });
 
-    const panel = screen.getByRole('complementary', { name: 'Panel del Asistente FiestaPay' });
+    const panel = screen.getByRole('complementary', { name: 'Panel del Agente FiestaPay' });
     expect(panel.textContent).not.toMatch(/gemini/i);
   });
 
@@ -276,7 +276,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
     expect(bold.tagName).toBe('STRONG');
     expect(screen.getByText('tu cuota').tagName).toBe('STRONG');
 
-    const panel = screen.getByRole('complementary', { name: 'Panel del Asistente FiestaPay' });
+    const panel = screen.getByRole('complementary', { name: 'Panel del Agente FiestaPay' });
     expect(panel.querySelector('script')).toBeNull();
     expect(panel.textContent).not.toContain('**');
     expect(panel.textContent).toContain('<script>alert(1)</script>');

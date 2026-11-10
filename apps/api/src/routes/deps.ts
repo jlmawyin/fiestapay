@@ -16,4 +16,6 @@ export interface RouteDeps {
   respond?: RespondFn;
   /** Overridden only by tests; production creates the Gemini ephemeral token with the SDK. */
   createVoiceToken?: CreateGeminiVoiceTokenFn;
+  /** Test-only shorter assistant deadline; production always uses the 40 s constant. */
+  assistantDeadlineMs?: number;
 }

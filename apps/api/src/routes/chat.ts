@@ -31,6 +31,7 @@ export async function registerChatRoutes(app: FastifyInstance, deps: RouteDeps):
       const session = await ensureSession(pool, config, req, reply);
       return chatWithAssistant(pool, config, session.id, slug, message, {
         respond: deps.respond,
+        deadlineMs: deps.assistantDeadlineMs,
       }, presentedAdminKey(req), requestLocale(req));
     },
   );
@@ -45,6 +46,7 @@ export async function registerChatRoutes(app: FastifyInstance, deps: RouteDeps):
       const session = await ensureSession(pool, config, req, reply);
       return chatPublic(pool, config, session.id, message, {
         ...(deps.respond ? { respond: deps.respond } : {}),
+        ...(deps.assistantDeadlineMs ? { deadlineMs: deps.assistantDeadlineMs } : {}),
       }, { locale: requestLocale(req), context: context ?? 'landing' });
     },
   );

@@ -1783,3 +1783,515 @@ p, span, li, input, textarea, select, button {
   font-weight: 700;
   overflow-wrap: anywhere;
 }
+
+/* FiestaPay agent orb (FP-UX-2) — pure CSS scenes, transform/opacity only. */
+.fp-orb-launcher {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.3rem 0.85rem 0.3rem 0.3rem;
+  border: 2px solid #FFFFFF;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  color: #FFFFFF;
+  background-color: var(--color-ink);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font-body);
+  max-width: calc(100vw - 2rem);
+}
+
+.fp-orb-launcher--bare {
+  padding: 0.3rem;
+}
+
+.fp-orb-pill {
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 11rem;
+}
+
+.fp-orb-panel {
+  position: fixed;
+  right: 0.75rem;
+  bottom: 5.75rem;
+  z-index: 960;
+  flex-direction: column;
+  width: min(400px, calc(100vw - 1.5rem));
+  height: min(620px, calc(100dvh - 7rem));
+  max-height: calc(100dvh - 7rem);
+  overflow: hidden;
+  background-color: #FFFFFF;
+  color: var(--color-ink);
+  border-radius: var(--radius-xl);
+  border: 1.5px solid var(--color-border);
+  box-shadow: var(--shadow-ticket);
+}
+
+@media (max-width: 639px) {
+  .fp-orb-panel {
+    left: 0.5rem;
+    right: 0.5rem;
+    top: 0.5rem;
+    bottom: 0.5rem;
+    width: auto;
+    height: auto;
+    max-height: none;
+  }
+}
+
+.fp-orb-art {
+  position: relative;
+  display: inline-block;
+  border-radius: 50%;
+  overflow: hidden;
+  flex: 0 0 auto;
+  color: #FFFFFF;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+}
+
+.fp-orb-art svg {
+  display: block;
+}
+
+.fp-orb-core {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+
+.fp-orb-badge {
+  position: absolute;
+  right: 2%;
+  bottom: 2%;
+  width: 38%;
+  height: 38%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.42);
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+.fp-orb-ring {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  top: 50%;
+  height: 30%;
+  margin-top: -15%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  transform: rotate(-18deg);
+  animation: fp-orb-spin 9s linear infinite;
+}
+
+.fp-orb-orbit {
+  position: absolute;
+  inset: -8%;
+  animation: fp-orb-spin 7s linear infinite;
+}
+
+.fp-orb-sat {
+  position: absolute;
+  top: 4%;
+  left: calc(50% - 4px);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #FFFFFF;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
+}
+
+.fp-orb-star {
+  position: absolute;
+  width: 5%;
+  height: 5%;
+  min-width: 3px;
+  min-height: 3px;
+  border-radius: 50%;
+  background-color: #FFFFFF;
+  animation: fp-orb-twinkle 2.4s ease-in-out infinite;
+}
+
+.fp-orb-star--1 { left: 18%; top: 20%; }
+.fp-orb-star--2 { left: 72%; top: 30%; animation-delay: 0.8s; }
+.fp-orb-star--3 { left: 60%; top: 68%; animation-delay: 1.5s; }
+
+.fp-orb-plate {
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: 14%;
+  height: 13%;
+  background-color: rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+}
+
+.fp-orb-steam {
+  position: absolute;
+  bottom: 30%;
+  width: 6%;
+  height: 34%;
+  border-radius: var(--radius-full);
+  background-color: rgba(255, 255, 255, 0.65);
+  animation: fp-orb-steam 2.8s ease-in-out infinite;
+}
+
+.fp-orb-steam--1 { left: 32%; }
+.fp-orb-steam--2 { left: 47%; animation-delay: 0.5s; height: 40%; }
+.fp-orb-steam--3 { left: 62%; animation-delay: 1s; }
+
+.fp-orb-float {
+  position: absolute;
+  color: #FFFFFF;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+  animation: fp-orb-float 3.2s ease-in-out infinite;
+}
+
+.fp-orb-float--1 { left: 12%; top: 16%; }
+.fp-orb-float--2 { left: 42%; top: 8%; animation-delay: 0.7s; }
+.fp-orb-float--3 { right: 10%; top: 22%; animation-delay: 1.3s; }
+
+.fp-orb-garland {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 6%;
+  display: flex;
+  justify-content: space-between;
+  transform-origin: top center;
+  animation: fp-orb-sway 3.6s ease-in-out infinite;
+}
+
+.fp-orb-bulb {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 5px currentColor;
+}
+
+.fp-orb-window {
+  position: absolute;
+  left: calc(50% - 5px);
+  top: 52%;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background-color: var(--color-yellow);
+  box-shadow: 0 0 8px rgba(255, 200, 90, 0.95);
+  animation: fp-orb-glow 3s ease-in-out infinite;
+}
+
+.fp-orb-cloud {
+  position: absolute;
+  color: rgba(255, 255, 255, 0.9);
+  animation: fp-orb-cloud 6s linear infinite;
+}
+
+.fp-orb-cloud--1 { top: 14%; left: 0; }
+.fp-orb-cloud--2 { top: 58%; left: 0; animation-delay: 2.8s; }
+
+.fp-orb-orbit--plane {
+  animation-duration: 6s;
+}
+
+.fp-orb-plane {
+  position: absolute;
+  top: 6%;
+  left: calc(50% - 8px);
+  color: #FFFFFF;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+.fp-orb-meridian {
+  position: absolute;
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+}
+
+.fp-orb-meridian--v {
+  left: 30%;
+  right: 30%;
+  top: 8%;
+  bottom: 8%;
+}
+
+.fp-orb-meridian--h {
+  left: 8%;
+  right: 8%;
+  top: 34%;
+  bottom: 34%;
+}
+
+.fp-orb-beam {
+  position: absolute;
+  bottom: -8%;
+  width: 22%;
+  height: 95%;
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.6), transparent 75%);
+  transform-origin: bottom center;
+}
+
+.fp-orb-beam--left {
+  left: 12%;
+  animation: fp-orb-sweep-left 3.2s ease-in-out infinite alternate;
+}
+
+.fp-orb-beam--right {
+  right: 12%;
+  animation: fp-orb-sweep-right 3.2s ease-in-out infinite alternate;
+}
+
+.fp-orb-confetti {
+  position: absolute;
+  inset: 0;
+}
+
+.fp-orb-chip {
+  position: absolute;
+  top: -6%;
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  animation: fp-orb-confetti 2.6s ease-out infinite;
+}
+
+.fp-orb-chip--1 { left: 20%; animation-delay: 0s; }
+.fp-orb-chip--2 { left: 36%; animation-delay: 0.4s; }
+.fp-orb-chip--3 { left: 52%; animation-delay: 0.9s; }
+.fp-orb-chip--4 { left: 66%; animation-delay: 1.3s; }
+.fp-orb-chip--5 { left: 80%; animation-delay: 1.8s; }
+
+.fp-orb-art.fp-orb-surprise {
+  animation: fp-orb-pop 2.2s ease-in-out 1;
+}
+
+.fp-orb-art.fp-orb-static,
+.fp-orb-art.fp-orb-static * {
+  animation: none !important;
+}
+
+@keyframes fp-orb-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fp-orb-twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
+@keyframes fp-orb-steam {
+  0% { transform: translateY(30%); opacity: 0; }
+  35% { opacity: 0.9; }
+  100% { transform: translateY(-70%); opacity: 0; }
+}
+
+@keyframes fp-orb-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-18%); }
+}
+
+@keyframes fp-orb-sway {
+  0%, 100% { transform: rotate(-5deg); }
+  50% { transform: rotate(5deg); }
+}
+
+@keyframes fp-orb-glow {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+@keyframes fp-orb-cloud {
+  from { transform: translateX(-60%); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  to { transform: translateX(320%); opacity: 0; }
+}
+
+@keyframes fp-orb-sweep-left {
+  from { transform: rotate(-26deg); }
+  to { transform: rotate(20deg); }
+}
+
+@keyframes fp-orb-sweep-right {
+  from { transform: rotate(26deg); }
+  to { transform: rotate(-20deg); }
+}
+
+@keyframes fp-orb-confetti {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translateY(1300%) rotate(340deg); opacity: 0; }
+}
+
+@keyframes fp-orb-pop {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.08); }
+  55% { transform: scale(0.97); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-orb-art,
+  .fp-orb-art * {
+    animation: none !important;
+  }
+}
+
+/* Agent chat (FP-UX-2) — readable answers, about line, enter mode. */
+.fp-about-chat {
+  background-color: var(--color-surface-subtle);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.75rem;
+  color: var(--color-ink-muted);
+}
+
+.fp-about-chat summary {
+  cursor: pointer;
+  padding: 0.45rem 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fp-about-chat summary::marker {
+  color: var(--color-blue);
+}
+
+.fp-about-chat__body {
+  padding: 0 0.75rem 0.6rem;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fp-assistant-text p {
+  margin: 0 0 0.5em;
+  white-space: pre-wrap;
+}
+
+.fp-assistant-text p:last-child {
+  margin-bottom: 0;
+}
+
+.fp-assistant-text ul,
+.fp-assistant-text ol {
+  margin: 0 0 0.5em;
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+}
+
+.fp-assistant-text ul:last-child,
+.fp-assistant-text ol:last-child {
+  margin-bottom: 0;
+}
+
+.fp-assistant-label {
+  display: inline-block;
+  background-color: var(--color-blue-tint);
+  border: 1px solid var(--color-blue);
+  color: var(--color-blue);
+  border-radius: var(--radius-full);
+  padding: 0 0.45em;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fp-enter-mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.9rem;
+  padding: 0.45rem 0.65rem;
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-surface-subtle);
+  font-size: 0.75rem;
+  color: var(--color-ink);
+}
+
+.fp-enter-mode label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fp-enter-mode input[type='radio'] {
+  accent-color: var(--color-blue);
+}
+
+.fp-enter-mode__hint {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--color-ink-muted);
+  line-height: 1.4;
+}
+
+.fp-chat-messages {
+  flex: 1;
+  min-height: 55%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.fp-composer {
+  padding: 0.65rem;
+}
+
+.fp-quick-help {
+  padding: 0.55rem 0.75rem;
+  border-top: 1px solid var(--color-border);
+  background-color: #FFFFFF;
+}
+
+/* Landscape phones (panel height <= 560 px, see data-compact): the panel
+   takes almost the full height so the conversation (>= 120 px) and the
+   composer stay visible without scrolling the page. */
+.fp-orb-panel[data-compact="true"] {
+  top: 0.5rem;
+  bottom: 0.5rem;
+  height: auto;
+  max-height: none;
+}
+
+.fp-orb-panel[data-compact="true"] .fp-chat-messages {
+  min-height: 120px;
+}
+
+.fp-orb-panel[data-compact="true"] .fp-about-chat summary {
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+}
+
+.fp-orb-panel[data-compact="true"] .fp-enter-mode {
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+}
+
+.fp-orb-panel[data-compact="true"] .fp-composer {
+  padding: 0.45rem;
+}
+
+.fp-orb-panel[data-compact="true"] .fp-quick-help {
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}

@@ -288,7 +288,8 @@ function readGemini(env: NodeJS.ProcessEnv): { config: GeminiConfig | null; reas
       apiKey,
       liveModel: readGeminiModel(env.GEMINI_LIVE_MODEL, GEMINI_DEFAULT_LIVE_MODEL),
       textModel: readGeminiModel(env.GEMINI_TEXT_MODEL, GEMINI_DEFAULT_TEXT_MODEL),
-      timeoutMs: capped(env.GEMINI_TIMEOUT_MS, 20000, 60000),
+      // One text round trip is never allowed to exceed the 25 s assistant call cap.
+      timeoutMs: capped(env.GEMINI_TIMEOUT_MS, 20000, 25_000),
       maxToolRounds: capped(env.GEMINI_MAX_TOOL_ROUNDS, 4, 6),
       maxHistoryMessages: capped(env.GEMINI_MAX_HISTORY, 24, 60),
       maxOutputTokens: capped(env.GEMINI_MAX_OUTPUT_TOKENS, 2000, 4000),
@@ -311,7 +312,8 @@ function readOpenAI(env: NodeJS.ProcessEnv): { config: OpenAIConfig | null; reas
       apiKey,
       model: str(env.OPENAI_MODEL) ?? 'gpt-6-luna',
       baseUrl,
-      timeoutMs: capped(env.OPENAI_TIMEOUT_MS, 20000, 60000),
+      // One text round trip is never allowed to exceed the 25 s assistant call cap.
+      timeoutMs: capped(env.OPENAI_TIMEOUT_MS, 20000, 25_000),
       maxToolRounds: capped(env.OPENAI_MAX_TOOL_ROUNDS, 4, 6),
       maxHistoryMessages: capped(env.OPENAI_MAX_HISTORY, 24, 60),
       maxOutputTokens: capped(env.OPENAI_MAX_OUTPUT_TOKENS, 2000, 4000),

@@ -1,12 +1,26 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { Sparkles, X } from 'lucide-react';
-import { UI_LABELS, type AssistantContext } from '@fiestapay/shared';
-import type { Capabilities, Guest, Quote, RsvpStatus } from '../../types';
+import { X } from 'lucide-react';
+import { UI_LABELS, type AssistantContext, type MealKind, type ThemeKey } from '@fiestapay/shared';
+import type { Capabilities, Guest, Quote, RsvpStatus, TemplateKind } from '../../types';
 import { PublicChatAssistant } from '../chat/PublicChatAssistant';
 import { ChatAssistant } from '../chat/ChatAssistant';
 import { VoiceInvitationAgent } from '../voice/VoiceInvitationAgent';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { orbCatalog } from '../../i18n/catalogs/orb';
+import { OrbArt } from './OrbArt';
+import {
+  ASSISTANT_THEME_EVENT,
+  ESPACIAL_ACCENT,
+  ORB_SLOGANS,
+  THEME_KEY_ICONS,
+  localize,
+  orbAccentFor,
+  orbIconFor,
+  orbThemeFor,
+  type AssistantThemeDetail,
+  type OrbIcon,
+  type OrbThemeKey,
+} from './orb-themes';
 
 export type AssistantAudience = 'public' | 'guest' | 'organizer';
 export type AssistantOrbMode = 'text' | 'voice';
@@ -18,6 +32,12 @@ export type AssistantOrbMode = 'text' | 'voice';
  * for its per-step "ask the assistant" link.
  */
 export const ASSISTANT_OPEN_EVENT = 'fiestapay:open-assistant' as const;
+
+export interface AssistantOrbTheme {
+  template: TemplateKind;
+  themeKey?: ThemeKey;
+  meal?: MealKind;
+}
 
 export interface AssistantOrbProps {
   /** public: informational only. guest: the invitation routes. organizer: keyed panel routes. */
@@ -34,6 +54,8 @@ export interface AssistantOrbProps {
   context?: AssistantContext;
   /** External open request: the orb opens in text mode whenever this changes. */
   openSignal?: number;
+  /** Invitation look. Without it the orb is deep-space, or follows /create. */
+  theme?: AssistantOrbTheme;
 }
 
 type OrbCopy = (typeof orbCatalog)['es'];
@@ -48,6 +70,30 @@ function subtitleFor(audience: AssistantAudience, mode: AssistantOrbMode, m: Orb
   if (audience === 'organizer') return m.subtitleOrganizerText;
   return m.subtitleGuestText;
 }
+
+/** Reactive media query. False when matchMedia is missing (tests, SSR). */
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => {
+    try {
+      return typeof window.matchMedia === 'function' && window.matchMedia(query).matches;
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const media = window.matchMedia(query);
+    const onChange = () => setMatches(media.matches);
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', onChange);
+      return () => media.removeEventListener('change', onChange);
+    }
+    return undefined;
+  }, [query]);
+  return matches;
+}
+
+const ESPACIAL_ICON: OrbIcon = THEME_KEY_ICONS.noche;
 
 /**
  * One visible launcher for Text and Voice. The text component stays mounted (hidden when
@@ -67,6 +113,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
   onShowToast,
   context,
   openSignal,
+  theme,
 }) => {
   const { locale } = useI18n();
   const m = useMessages(orbCatalog);
@@ -83,6 +130,91 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
   const activeContext: AssistantContext = context ?? 'landing';
   const textKey = audience === 'public' ? 'public' : `${audience}:${slug ?? ''}`;
   const voiceKey = `voice:${audience}:${slug ?? ''}`;
+
+  // Orb look: an explicit invitation theme wins; otherwise /create drives the
+  // surprise through ASSISTANT_THEME_EVENT and everything else is deep-space.
+  const [createTemplate, setCreateTemplate] = useState<TemplateKind | null>(null);
+  useEffect(() => {
+    if (theme) return;
+    const onTheme = (event: Event) => {
+      const detail = (event as CustomEvent<AssistantThemeDetail>).detail;
+      setCreateTemplate(detail?.template ?? null);
+    };
+    document.addEventListener(ASSISTANT_THEME_EVENT, onTheme);
+    return () => document.removeEventListener(ASSISTANT_THEME_EVENT, onTheme);
+  }, [theme]);
+
+  const activeTemplate = theme?.template ?? createTemplate;
+  const orb: OrbThemeKey = orbThemeFor(activeTemplate ?? null);
+  const accent = activeTemplate ? orbAccentFor(activeTemplate, theme?.themeKey) : ESPACIAL_ACCENT;
+  const orbIcon = activeTemplate ? orbIconFor(activeTemplate, theme?.themeKey) : ESPACIAL_ICON;
+  const slogan = localize(ORB_SLOGANS[orb], locale);
+  const agentName = labels.agentName;
+
+  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+  // Landscape phones (height <= 560 px): one-line header, full-height panel.
+  const compact = useMediaQuery('(max-height: 560px)');
+
+  // The pill alternates between the agent name and the theme motto.
+  const [showSlogan, setShowSlogan] = useState(false);
+  useEffect(() => {
+    if (reducedMotion) {
+      setShowSlogan(false);
+      return;
+    }
+    const id = window.setInterval(() => setShowSlogan((value) => !value), 4000);
+    return () => window.clearInterval(id);
+  }, [reducedMotion]);
+
+  // Attention surprise every ~10 s until the orb is opened once on this page.
+  const [surprise, setSurprise] = useState(false);
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (isOpen) {
+      openedRef.current = true;
+      setSurprise(false);
+    }
+  }, [isOpen]);
+  useEffect(() => {
+    if (reducedMotion) return;
+    let stopTimer: number | undefined;
+    const id = window.setInterval(() => {
+      if (openedRef.current) return;
+      setSurprise(true);
+      window.clearTimeout(stopTimer);
+      stopTimer = window.setTimeout(() => setSurprise(false), 2200);
+    }, 10000);
+    return () => {
+      window.clearInterval(id);
+      window.clearTimeout(stopTimer);
+    };
+  }, [reducedMotion]);
+
+  // Under 640 px the pill folds to the orb alone after ~6 s so it never
+  // covers content; focus or hover brings it back.
+  const [pillCollapsed, setPillCollapsed] = useState(false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia('(max-width: 639px)');
+    let timer: number | undefined;
+    const arm = () => {
+      window.clearTimeout(timer);
+      if (query.matches) {
+        timer = window.setTimeout(() => setPillCollapsed(true), 6000);
+      } else {
+        setPillCollapsed(false);
+      }
+    };
+    arm();
+    if (typeof query.addEventListener === 'function') {
+      query.addEventListener('change', arm);
+      return () => {
+        window.clearTimeout(timer);
+        query.removeEventListener('change', arm);
+      };
+    }
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const closeOrb = () => {
     justClosedRef.current = true;
@@ -136,34 +268,29 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
           if (isOpen) closeOrb();
           else setIsOpen(true);
         }}
+        onFocus={() => setPillCollapsed(false)}
+        onMouseEnter={() => setPillCollapsed(false)}
         aria-label={isOpen ? m.launcherClose : labels.orbLauncher}
         aria-expanded={isOpen}
         aria-controls={panelId}
-        style={{
-          position: 'fixed',
-          right: '1rem',
-          bottom: '1rem',
-          zIndex: 950,
-          width: '64px',
-          height: '64px',
-          padding: 0,
-          border: '2px solid #FFFFFF',
-          borderRadius: '50%',
-          cursor: 'pointer',
-          color: '#FFFFFF',
-          background:
-            'radial-gradient(circle at 30% 24%, rgba(255,255,255,0.92) 0 7%, rgba(255,255,255,0.18) 8% 22%, transparent 23%), conic-gradient(from 210deg, var(--color-blue), var(--color-teal), var(--color-yellow), var(--color-blue))',
-          boxShadow: 'var(--shadow-lg)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '1.45rem',
-          lineHeight: 1,
-        }}
+        data-orb={orb}
+        data-pill-collapsed={pillCollapsed ? 'true' : 'false'}
+        className={`fp-orb-launcher${pillCollapsed ? ' fp-orb-launcher--bare' : ''}`}
       >
-        <span aria-hidden="true" style={{ display: 'inline-flex', filter: 'drop-shadow(0 1px 2px rgba(18,38,58,0.35))' }}>
-          <Sparkles size={26} aria-hidden="true" />
-        </span>
+        <OrbArt
+          orb={orb}
+          accent={accent}
+          icon={orbIcon}
+          meal={theme?.meal}
+          size={56}
+          surprise={surprise}
+          static={reducedMotion}
+        />
+        {!pillCollapsed && (
+          <span className="fp-orb-pill" data-testid="orb-pill">
+            {showSlogan ? slogan : agentName}
+          </span>
+        )}
         <span
           style={{
             position: 'absolute',
@@ -186,121 +313,162 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
         role="dialog"
         aria-label={m.dialogLabel}
         aria-modal="false"
-        style={{
-          position: 'fixed',
-          right: '0.75rem',
-          bottom: '5.75rem',
-          zIndex: 960,
-          display: isOpen ? 'flex' : 'none',
-          flexDirection: 'column',
-          width: 'min(400px, calc(100vw - 1.5rem))',
-          height: 'min(620px, calc(100dvh - 7rem))',
-          maxHeight: 'calc(100dvh - 7rem)',
-          overflow: 'hidden',
-          backgroundColor: '#FFFFFF',
-          color: 'var(--color-ink)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1.5px solid var(--color-border)',
-          boxShadow: 'var(--shadow-ticket)',
-        }}
+        className="fp-orb-panel"
+        data-compact={compact ? 'true' : 'false'}
+        style={{ display: isOpen ? 'flex' : 'none' }}
       >
-        <header
-          style={{
-            padding: '0.8rem 0.9rem',
-            backgroundColor: 'var(--color-ink)',
-            color: '#FFFFFF',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '0.75rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', minWidth: 0 }}>
-            <span
-              aria-hidden="true"
-              style={{
-                width: '30px',
-                height: '30px',
-                flex: '0 0 30px',
-                borderRadius: '50%',
-                background:
-                  'radial-gradient(circle at 32% 26%, #FFFFFF 0 9%, transparent 10%), conic-gradient(from 210deg, var(--color-blue), var(--color-teal), var(--color-yellow), var(--color-blue))',
-              }}
-            />
-            <div style={{ minWidth: 0 }}>
-              <strong style={{ display: 'block', fontSize: '0.92rem' }}>{m.title}</strong>
-              <span
-                style={{
-                  display: 'block',
-                  fontSize: '0.7rem',
-                  color: 'var(--color-yellow)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {subtitleFor(audience, mode, m)}
-              </span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={closeOrb}
-            aria-label={m.closePanel}
+        {compact ? (
+          <header
+            className="fp-orb-header--compact"
             style={{
-              background: 'none',
-              border: 'none',
+              padding: '0.35rem 0.5rem',
+              backgroundColor: 'var(--color-ink)',
               color: '#FFFFFF',
-              cursor: 'pointer',
-              lineHeight: 1,
-              padding: '0.2rem',
-              flex: '0 0 auto',
-              display: 'inline-flex',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
             }}
           >
-            <X size={18} aria-hidden="true" />
-          </button>
-        </header>
+            <OrbArt orb={orb} accent={accent} icon={orbIcon} meal={theme?.meal} size={24} static={reducedMotion} />
+            <strong style={{ fontSize: '0.78rem', whiteSpace: 'nowrap', flex: '0 0 auto' }}>{m.title}</strong>
+            <div role="tablist" aria-label={m.modeLabel} style={{ display: 'flex', gap: '0.3rem', flex: 1, minWidth: 0 }}>
+              <button
+                ref={textTabRef}
+                type="button"
+                role="tab"
+                id={`${panelId}-text-tab`}
+                aria-selected={mode === 'text'}
+                aria-controls={`${panelId}-text-pane`}
+                tabIndex={mode === 'text' ? 0 : -1}
+                onClick={() => setMode('text')}
+                className={mode === 'text' ? 'btn btn-primary' : 'btn btn-secondary'}
+                style={{ flex: 1, padding: '0.25rem 0.4rem', fontSize: '0.72rem' }}
+              >
+                {labels.textTab}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id={`${panelId}-voice-tab`}
+                aria-selected={mode === 'voice'}
+                aria-controls={`${panelId}-voice-pane`}
+                tabIndex={mode === 'voice' ? 0 : -1}
+                onClick={() => setMode('voice')}
+                className={mode === 'voice' ? 'btn btn-teal' : 'btn btn-secondary'}
+                style={{ flex: 1, padding: '0.25rem 0.4rem', fontSize: '0.72rem' }}
+              >
+                {labels.voiceTab}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={closeOrb}
+              aria-label={m.closePanel}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#FFFFFF',
+                cursor: 'pointer',
+                lineHeight: 1,
+                padding: '0.2rem',
+                flex: '0 0 auto',
+                display: 'inline-flex',
+              }}
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
+          </header>
+        ) : (
+          <>
+            <header
+              style={{
+                padding: '0.8rem 0.9rem',
+                backgroundColor: 'var(--color-ink)',
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '0.75rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', minWidth: 0 }}>
+                <OrbArt orb={orb} accent={accent} icon={orbIcon} meal={theme?.meal} size={30} static={reducedMotion} />
+                <div style={{ minWidth: 0 }}>
+                  <strong style={{ display: 'block', fontSize: '0.92rem' }}>{m.title}</strong>
+                  <span
+                    style={{
+                      display: 'block',
+                      fontSize: '0.7rem',
+                      color: 'var(--color-yellow)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {subtitleFor(audience, mode, m)}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeOrb}
+                aria-label={m.closePanel}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#FFFFFF',
+                  cursor: 'pointer',
+                  lineHeight: 1,
+                  padding: '0.2rem',
+                  flex: '0 0 auto',
+                  display: 'inline-flex',
+                }}
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </header>
 
-        <div
-          role="tablist"
-          aria-label={m.modeLabel}
-          style={{
-            display: 'flex',
-            gap: '0.4rem',
-            padding: '0.45rem 0.65rem',
-            backgroundColor: 'var(--color-surface-subtle)',
-            borderBottom: '1px solid var(--color-border)',
-          }}
-        >
-          <button
-            ref={textTabRef}
-            type="button"
-            role="tab"
-            id={`${panelId}-text-tab`}
-            aria-selected={mode === 'text'}
-            aria-controls={`${panelId}-text-pane`}
-            tabIndex={mode === 'text' ? 0 : -1}
-            onClick={() => setMode('text')}
-            className={mode === 'text' ? 'btn btn-primary' : 'btn btn-secondary'}
-            style={{ flex: 1, padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
-          >
-            {labels.textTab}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id={`${panelId}-voice-tab`}
-            aria-selected={mode === 'voice'}
-            aria-controls={`${panelId}-voice-pane`}
-            tabIndex={mode === 'voice' ? 0 : -1}
-            onClick={() => setMode('voice')}
-            className={mode === 'voice' ? 'btn btn-teal' : 'btn btn-secondary'}
-            style={{ flex: 1, padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
-          >
-            {labels.voiceTab}
-          </button>
-        </div>
+            <div
+              role="tablist"
+              aria-label={m.modeLabel}
+              style={{
+                display: 'flex',
+                gap: '0.4rem',
+                padding: '0.45rem 0.65rem',
+                backgroundColor: 'var(--color-surface-subtle)',
+                borderBottom: '1px solid var(--color-border)',
+              }}
+            >
+              <button
+                ref={textTabRef}
+                type="button"
+                role="tab"
+                id={`${panelId}-text-tab`}
+                aria-selected={mode === 'text'}
+                aria-controls={`${panelId}-text-pane`}
+                tabIndex={mode === 'text' ? 0 : -1}
+                onClick={() => setMode('text')}
+                className={mode === 'text' ? 'btn btn-primary' : 'btn btn-secondary'}
+                style={{ flex: 1, padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+              >
+                {labels.textTab}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id={`${panelId}-voice-tab`}
+                aria-selected={mode === 'voice'}
+                aria-controls={`${panelId}-voice-pane`}
+                tabIndex={mode === 'voice' ? 0 : -1}
+                onClick={() => setMode('voice')}
+                className={mode === 'voice' ? 'btn btn-teal' : 'btn btn-secondary'}
+                style={{ flex: 1, padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+              >
+                {labels.voiceTab}
+              </button>
+            </div>
+          </>
+        )}
 
         <div
           id={`${panelId}-text-pane`}
@@ -336,6 +504,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
                     }}
                     context={ctx}
                     idSuffix={ctx}
+                    compact={compact}
                   />
                 </div>
               ))}

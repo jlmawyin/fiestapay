@@ -1,6 +1,7 @@
 import type { GeminiConfig, OpenAIConfig } from '../config.js';
-import { unavailable } from '../errors.js';
+import { annotateHttpError, unavailable } from '../errors.js';
 import { isOpenAITurn, visibleText, type StoredTurn } from './history.js';
+import { isAbortLike, safeReason, textCallSignal } from './deadlines.js';
 import type { FunctionDeclaration } from './tools.js';
 
 export interface OpenAIReasoningItem {
@@ -73,12 +74,28 @@ export interface RespondInput {
   instructions: string;
   input: OpenAIInputItem[];
   tools: OpenAITool[];
+  /** Shared 40 s request deadline. Optional so existing test doubles stay assignable. */
+  signal?: AbortSignal;
+}
+
+/**
+ * Attaches the shared deadline without making it enumerable. Existing test seams clone the
+ * request with structuredClone, which cannot serialize an AbortSignal; a non-enumerable property
+ * still lets production adapters and tests read input.signal.
+ */
+export function withRespondSignal(input: RespondInput, signal?: AbortSignal): RespondInput {
+  if (signal) {
+    Object.defineProperty(input, 'signal', { value: signal, enumerable: false, configurable: true });
+  }
+  return input;
 }
 
 export interface RespondOutput {
   /** Empty when the response was incomplete: nothing from it is stored or executed. */
   items: OpenAIOutputItem[];
   status: 'completed' | 'incomplete';
+  /** Safe provider finish reason, used only for the server log (for example MAX_TOKENS). */
+  incompleteReason?: string;
 }
 
 /**
@@ -284,10 +301,13 @@ export function sanitizeOutput(raw: unknown[]): OpenAIOutputItem[] {
 
 export function parseResponse(raw: unknown): RespondOutput {
   const res = asRecord(raw);
-  if (res.error !== undefined && res.error !== null) throw unavailable(FAILED);
-  if (res.status === 'incomplete') return { items: [], status: 'incomplete' };
-  if (res.status !== 'completed') throw unavailable(FAILED);
-  if (!Array.isArray(res.output)) throw unavailable(UNREADABLE);
+  if (res.error !== undefined && res.error !== null) throw unavailable(FAILED, { logCause: 'unreadable' });
+  if (res.status === 'incomplete') {
+    const details = asRecord(res.incomplete_details);
+    return { items: [], status: 'incomplete', incompleteReason: safeReason(details.reason) };
+  }
+  if (res.status !== 'completed') throw unavailable(FAILED, { logCause: 'unreadable' });
+  if (!Array.isArray(res.output)) throw unavailable(UNREADABLE, { logCause: 'unreadable' });
   return { items: sanitizeOutput(res.output), status: 'completed' };
 }
 
@@ -296,6 +316,7 @@ export function parseResponse(raw: unknown): RespondOutput {
  * in the Authorization header; errors report the status, never the body or the request.
  */
 export async function createResponse(config: OpenAIConfig, input: RespondInput): Promise<RespondOutput> {
+  const startedAt = Date.now();
   const body = JSON.stringify({
     model: config.model,
     instructions: input.instructions,
@@ -307,6 +328,7 @@ export async function createResponse(config: OpenAIConfig, input: RespondInput):
     store: false,
     include: ['reasoning.encrypted_content'],
   });
+  const signal = textCallSignal(config.timeoutMs, input.signal);
 
   let response: Response;
   let text: string;
@@ -318,23 +340,33 @@ export async function createResponse(config: OpenAIConfig, input: RespondInput):
         authorization: `Bearer ${config.apiKey}`,
       },
       body,
-      signal: AbortSignal.timeout(config.timeoutMs),
+      signal,
     });
     text = await response.text();
-  } catch {
-    throw unavailable(NO_ANSWER);
+  } catch (err) {
+    throw unavailable(NO_ANSWER, {
+      logCause: isAbortLike(err, signal) ? 'timeout' : 'unreadable',
+      elapsedMs: Date.now() - startedAt,
+    });
   }
 
   if (!response.ok) {
     // Status only: the body can echo prompt content and provider detail.
-    throw unavailable(`El asistente no esta disponible (proveedor respondio ${response.status})`);
+    throw unavailable(`El asistente no esta disponible (proveedor respondio ${response.status})`, {
+      logCause: `http_${response.status}`,
+      elapsedMs: Date.now() - startedAt,
+    });
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw unavailable(UNREADABLE);
+    throw unavailable(UNREADABLE, { logCause: 'unreadable', elapsedMs: Date.now() - startedAt });
   }
-  return parseResponse(parsed);
+  try {
+    return parseResponse(parsed);
+  } catch (err) {
+    throw annotateHttpError(err, { logCause: 'unreadable', elapsedMs: Date.now() - startedAt });
+  }
 }

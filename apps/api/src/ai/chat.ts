@@ -2,7 +2,8 @@ import type { ChatResult } from '@fiestapay/shared';
 import type { Locale } from '@fiestapay/shared';
 import type { Config, OpenAIConfig } from '../config.js';
 import type { Pool } from '../db/pool.js';
-import { HttpError } from '../errors.js';
+import { HttpError, annotateHttpError, unavailable } from '../errors.js';
+import { assistantDeadline, assistantTimeoutError, isAbortLike, withinDeadline } from './deadlines.js';
 import { audit } from '../domain/audit.js';
 import { ModerationHold, appendChatTurn, assertChatRevision, assertSessionMayAct } from '../domain/moderation.js';
 import { assertPrivateAccess } from '../domain/access.js';
@@ -18,7 +19,7 @@ import {
   policyAnswer,
 } from './assistant-policy.js';
 import type { HistoryRole, StoredPart, StoredTurn } from './history.js';
-import { openaiCallsOf, openaiTextOf, toOpenAIInput, toOpenAITools, type RespondFn } from './openai.js';
+import { openaiCallsOf, openaiTextOf, toOpenAIInput, toOpenAITools, withRespondSignal, type RespondFn } from './openai.js';
 import { geminiAdapter } from './gemini-text.js';
 import { selectTextProvider, type TextProviderSelection } from './text-provider.js';
 import { TOOL_NAMES, TOOL_DECLARATIONS, runTool, type FunctionDeclaration, type ToolOutcome } from './tools.js';
@@ -34,13 +35,24 @@ const FALLBACK_TEXT_ES =
 const FALLBACK_TEXT_EN =
   'I could not draft an answer. You can continue with the page forms: attendance, quote and payment work without the assistant.';
 
+const ASSISTANT_FAILED_ES =
+  'El asistente no pudo completar la respuesta; usa los formularios de la pagina';
+const ASSISTANT_FAILED_EN =
+  'The assistant could not complete the answer. Use the forms on the page.';
+
+function assistantFailed(locale: Locale): string {
+  return locale === 'en' ? ASSISTANT_FAILED_EN : ASSISTANT_FAILED_ES;
+}
+
 function fallbackText(locale: Locale): string {
   return locale === 'en' ? FALLBACK_TEXT_EN : FALLBACK_TEXT_ES;
 }
 
-/** Test seam: a scripted model replaces the OpenAI HTTP round trip. */
+/** Test seam: a scripted model replaces the provider HTTP round trip. */
 export interface ChatProviders {
   respond?: RespondFn | undefined;
+  /** Shorter deadline for deterministic tests; production always uses 40 s. */
+  deadlineMs?: number | undefined;
 }
 
 export interface ToolCall {
@@ -60,7 +72,7 @@ export interface ModelRound {
 /** What the conversation loop needs from a provider; the loop itself is provider neutral. */
 export interface ProviderAdapter {
   maxToolRounds: number;
-  round(history: StoredTurn[]): Promise<ModelRound>;
+  round(history: StoredTurn[], signal?: AbortSignal): Promise<ModelRound>;
   responses(answers: { call: ToolCall; response: Record<string, unknown> }[]): StoredTurn;
 }
 
@@ -73,8 +85,12 @@ export function openaiAdapter(
   const tools = toOpenAITools(declarations);
   return {
     maxToolRounds: config.maxToolRounds,
-    async round(history) {
-      const output = await respond(config, { instructions: instruction, input: toOpenAIInput(history), tools });
+    async round(history, signal) {
+      const output = await respond(config, withRespondSignal({
+        instructions: instruction,
+        input: toOpenAIInput(history),
+        tools,
+      }, signal));
       // An incomplete response may hold a partial set of calls: none of it is stored or run.
       if (output.status !== 'completed') return { turn: null, calls: [], text: '' };
       return {
@@ -109,15 +125,26 @@ export async function converse(
   history: StoredTurn[],
   execute: (name: string, args: unknown) => Promise<ToolOutcome>,
   persist: (turn: StoredTurn) => Promise<void>,
-  options?: { allowedTools?: ReadonlySet<string>; rethrow?: (err: unknown) => boolean },
+  options?: {
+    allowedTools?: ReadonlySet<string>;
+    rethrow?: (err: unknown) => boolean;
+    /** One single deadline shared by every model round of this request. */
+    signal?: AbortSignal;
+    locale?: Locale;
+    startedAt?: number;
+  },
 ): Promise<ConversationResult> {
   const allowedTools = options?.allowedTools ?? TOOL_NAMES;
+  const signal = options?.signal;
+  const locale = options?.locale ?? 'es';
+  const startedAt = options?.startedAt ?? Date.now();
   let quote: ToolOutcome['quote'];
   const actions = new Set<string>();
   let text = '';
 
   for (let round = 0; round <= adapter.maxToolRounds; round += 1) {
-    const output = await adapter.round(history);
+    const pendingRound = adapter.round(history, signal);
+    const output = signal ? await withinDeadline(signal, pendingRound, locale, startedAt) : await pendingRound;
     if (output.turn) {
       history.push(output.turn);
       await persist(output.turn);
@@ -242,6 +269,8 @@ export async function chatWithAssistant(
   presentedKey: string | null = null,
   locale: Locale = 'es',
 ): Promise<ChatResult> {
+  const startedAt = Date.now();
+  const signal = assistantDeadline(providers.deadlineMs);
   const event = await getEventBySlug(pool, slug);
   await concealExpired(pool, event);
   assertActive(event);
@@ -278,18 +307,38 @@ export async function chatWithAssistant(
   const history = await loadHistory(pool, event.id, sessionId, provider.maxHistoryMessages);
   const assistantIds: string[] = [];
 
-  const result = await converse(
-    provider.adapter(systemInstruction(event, guest, locale)),
-    history,
-    async (name, args) => {
-      await assertChatRevision(pool, event.id, sessionId, storedUser.revision);
-      return runTool({ pool, sessionId, event, guest, quoteTtlSeconds: config.quoteTtlSeconds, locale }, name, args);
-    },
-    async (turn) => {
-      const saved = await appendChatTurn(pool, event.id, sessionId, turn.role, turn.parts, storedUser.revision);
-      if (turn.role === 'model') assistantIds.push(saved.id);
-    },
-  );
+  const result = await (async () => {
+    try {
+      return await converse(
+        provider.adapter(systemInstruction(event, guest, locale)),
+        history,
+        async (name, args) => {
+          await assertChatRevision(pool, event.id, sessionId, storedUser.revision);
+          return runTool({ pool, sessionId, event, guest, quoteTtlSeconds: config.quoteTtlSeconds, locale }, name, args);
+        },
+        async (turn) => {
+          const saved = await appendChatTurn(pool, event.id, sessionId, turn.role, turn.parts, storedUser.revision);
+          if (turn.role === 'model') assistantIds.push(saved.id);
+        },
+        { signal, locale, startedAt },
+      );
+    } catch (err) {
+      if (isAbortLike(err, signal) || (err instanceof HttpError && err.logCause === 'timeout')) {
+        throw assistantTimeoutError(locale, Date.now() - startedAt);
+      }
+      if (err instanceof HttpError && err.statusCode >= 500) {
+        throw annotateHttpError(err, {
+          logCause: err.logCause ?? 'unreadable',
+          elapsedMs: err.elapsedMs ?? Date.now() - startedAt,
+        });
+      }
+      if (err instanceof HttpError) throw err;
+      throw unavailable(assistantFailed(locale), {
+        logCause: 'unreadable',
+        elapsedMs: Date.now() - startedAt,
+      });
+    }
+  })();
 
   const freshGuest = guest ? await loadGuest(pool, guest, event) : undefined;
   const assistantMessageId = assistantIds[assistantIds.length - 1];

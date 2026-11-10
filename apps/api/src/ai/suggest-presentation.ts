@@ -11,8 +11,9 @@ import {
 import type { Config } from '../config.js';
 import type { Pool } from '../db/pool.js';
 import { reserveAiRequest } from './budget.js';
+import { assistantDeadline, withinDeadline } from './deadlines.js';
 import { fenceData } from './assistant-policy.js';
-import { openaiTextOf, type RespondFn } from './openai.js';
+import { openaiTextOf, withRespondSignal, type RespondFn } from './openai.js';
 import { selectTextProvider, type TextProviderSelection } from './text-provider.js';
 
 /** A description longer than this is discarded; the contract asks for a brief invitation line. */
@@ -30,6 +31,8 @@ const SECRET_RE = /\b(?:claves?|contrase[nñ]as?|passwords?|passcodes?|tokens?|a
 /** Test seam: a scripted model replaces the OpenAI HTTP round trip. */
 export interface PresentationSuggestionProviders {
   respond?: RespondFn | undefined;
+  /** Shorter deadline for deterministic tests; production always uses 40 s. */
+  deadlineMs?: number | undefined;
 }
 
 /** Deterministic answer used whenever AI is absent or its output cannot be trusted. */
@@ -116,6 +119,8 @@ export async function suggestPresentation(
   locale: Locale,
   providers: PresentationSuggestionProviders = {},
 ): Promise<PresentationSuggestion> {
+  const startedAt = Date.now();
+  const signal = assistantDeadline(providers.deadlineMs);
   let provider: TextProviderSelection;
   try {
     provider = selectTextProvider(config, locale, providers.respond);
@@ -132,11 +137,16 @@ export async function suggestPresentation(
   };
 
   try {
-    const output = await provider.respond(modelConfig, {
-      instructions: instructionFor(input, locale),
-      input: [{ role: 'user', content: 'Genera la sugerencia ahora.' }],
-      tools: [],
-    });
+    const output = await withinDeadline(
+      signal,
+      provider.respond(modelConfig, withRespondSignal({
+        instructions: instructionFor(input, locale),
+        input: [{ role: 'user', content: 'Genera la sugerencia ahora.' }],
+        tools: [],
+      }, signal)),
+      locale,
+      startedAt,
+    );
     if (output.status !== 'completed') return rulesSuggestion(input);
     const parsed = parseSuggestionOutput(openaiTextOf(output.items), input);
     if (!parsed) return rulesSuggestion(input);

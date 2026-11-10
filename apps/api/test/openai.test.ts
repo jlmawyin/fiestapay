@@ -78,7 +78,7 @@ describe('configuracion del proveedor de chat', () => {
       OPENAI_MAX_HISTORY: '9999',
       OPENAI_MAX_OUTPUT_TOKENS: '99999',
     });
-    expect(config).toMatchObject({ timeoutMs: 60000, maxToolRounds: 6, maxHistoryMessages: 60, maxOutputTokens: 4000 });
+    expect(config).toMatchObject({ timeoutMs: 25000, maxToolRounds: 6, maxHistoryMessages: 60, maxOutputTokens: 4000 });
   });
 
   it('rechaza una URL base sin https', () => {
@@ -193,7 +193,11 @@ describe('peticion Responses (HTTP simulado)', () => {
       incomplete_details: { reason: 'max_output_tokens' },
       output: [fnCall('call_1', 'prepare_quote')],
     });
-    expect(await createResponse(openaiConfig(), input)).toEqual({ status: 'incomplete', items: [] });
+    expect(await createResponse(openaiConfig(), input)).toEqual({
+      status: 'incomplete',
+      items: [],
+      incompleteReason: 'max_output_tokens',
+    });
   });
 
   it('una llamada mal formada invalida toda la respuesta', async () => {

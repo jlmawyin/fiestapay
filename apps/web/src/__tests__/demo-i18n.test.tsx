@@ -203,7 +203,7 @@ describe('judges demo in English', () => {
   it('opens the assistant orb in the demo context', async () => {
     renderDemo([]);
     fireEvent.click(await screen.findByRole('button', { name: labels.talkToAssistant }));
-    expect(await screen.findByRole('dialog', { name: 'FiestaPay assistant' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'FiestaPay agent' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: labels.textTab })).toHaveAttribute('aria-selected', 'true');
   });
 

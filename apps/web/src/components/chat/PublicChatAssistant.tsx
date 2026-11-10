@@ -7,6 +7,9 @@ import { sendPublicChat } from '../../api/public-chat';
 import { useMessages } from '../../i18n/I18nContext';
 import { chatCatalog } from '../../i18n/catalogs/chat';
 import { AssistantText } from './AssistantText';
+import { AboutChat } from './AboutChat';
+import { ChatComposer } from './ChatComposer';
+import { scrollContainerToBottom, scrollMessageToTop, useElapsedSeconds } from './chat-hooks';
 
 export interface PublicChatAssistantProps {
   capabilities: Capabilities | null;
@@ -19,6 +22,8 @@ export interface PublicChatAssistantProps {
   context?: AssistantContext;
   /** Suffix for the panel id when several instances share one document. */
   idSuffix?: string;
+  /** Landscape mode (panel height <= 560 px): tighter chrome, same behavior. */
+  compact?: boolean;
 }
 
 interface PublicMessage {
@@ -39,10 +44,21 @@ function messageId(seq: number, role: PublicMessage['role']): string {
 type ChatCopy = (typeof chatCatalog)['es'];
 
 function friendlyError(err: unknown, m: ChatCopy): string {
-  const status = err instanceof ApiError ? err.status : undefined;
+  const status = errorStatusOf(err);
+  if (status === 408 || status === 504) return m.errorTimeout;
   if (status === 429) return m.error429;
   if (status === 503) return m.error503;
   return m.errorGeneric;
+}
+
+/** HTTP status when the failure carries one (ApiError or any status-carrying error). */
+function errorStatusOf(err: unknown): number | undefined {
+  if (err instanceof ApiError) return err.status;
+  if (typeof err === 'object' && err !== null && 'status' in err) {
+    const status = (err as { status?: unknown }).status;
+    return typeof status === 'number' ? status : undefined;
+  }
+  return undefined;
 }
 
 /**
@@ -56,6 +72,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
   onOpenChange,
   context,
   idSuffix,
+  compact = false,
 }) => {
   const m = useMessages(chatCatalog);
   const welcomeRef = useRef<string | null>(null);
@@ -75,15 +92,19 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
   ]);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<PublicChatError | null>(null);
+  const [showQuick, setShowQuick] = useState(false);
   const sendingRef = useRef(false);
   const aliveRef = useRef(true);
   const sequenceRef = useRef(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const lastAssistantIdRef = useRef<string | null>('public-assistant-welcome');
   const panelId = idSuffix ? `public-chat-panel-${idSuffix}` : 'public-chat-panel';
   const quickHelp = [m.quickHelp1, m.quickHelp2, m.quickHelp3];
+  const elapsedSecs = useElapsedSeconds(isSending);
 
   const chatAvailable = capabilities?.chat === true;
   const composerDisabled = !chatAvailable || isSending;
-  const canSend = !composerDisabled && inputMessage.trim().length > 0;
+  const hasAsked = messages.some((message) => message.role === 'user');
 
   useEffect(() => {
     aliveRef.current = true;
@@ -93,6 +114,20 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
       sendingRef.current = false;
     };
   }, []);
+
+  // Sending shows the question plus the thinking indicator; an answer scrolls
+  // so the START of that answer sits at the top of the list.
+  useEffect(() => {
+    if (isSending) scrollContainerToBottom(scrollRef.current);
+  }, [isSending]);
+
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (last?.role === 'assistant' && last.id !== lastAssistantIdRef.current) {
+      lastAssistantIdRef.current = last.id;
+      scrollMessageToTop(scrollRef.current, last.id);
+    }
+  }, [messages]);
 
   const submitQuestion = async (rawText: string, retry = false) => {
     if (sendingRef.current || !chatAvailable) return;
@@ -131,9 +166,8 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
     }
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!canSend) return;
+  const handleSubmit = () => {
+    if (composerDisabled || inputMessage.trim().length === 0) return;
     void submitQuestion(inputMessage);
   };
 
@@ -244,27 +278,17 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
           </header>
           )}
 
-          <div
-            style={{
-              padding: '0.55rem 0.75rem',
-              backgroundColor: 'var(--color-surface-subtle)',
-              borderBottom: '1px solid var(--color-border)',
-              fontSize: '0.73rem',
-              color: 'var(--color-ink-muted)',
-              lineHeight: 1.45,
-            }}
-          >
-            {m.infoStrip}
-          </div>
+          <AboutChat title={m.aboutTitle}>
+            <span>{m.infoStrip}</span>
+            <span>{capabilities?.llmProvider === 'openai' ? m.privacy : m.privacyGemini}</span>
+          </AboutChat>
 
           <div
+            ref={scrollRef}
+            data-testid="chat-messages"
+            className="fp-chat-messages"
             style={{
-              flex: 1,
-              minHeight: 0,
               padding: '0.8rem',
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
               gap: '0.65rem',
               backgroundColor: 'var(--color-cloudwhite)',
             }}
@@ -275,6 +299,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
               return (
                 <div
                   key={message.id}
+                  data-mid={message.id}
                   style={{
                     alignSelf: fromUser ? 'flex-end' : 'flex-start',
                     maxWidth: '88%',
@@ -284,13 +309,12 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
                     borderRadius: 'var(--radius-md)',
                     border: fromUser ? 'none' : '1px solid var(--color-border)',
                     boxShadow: 'var(--shadow-sm)',
-                    fontSize: '0.83rem',
+                    fontSize: fromUser ? '0.85rem' : '0.95rem',
+                    lineHeight: fromUser ? 1.45 : 1.55,
                     overflowWrap: 'anywhere',
                   }}
                 >
-                  <div style={{ whiteSpace: 'pre-wrap' }}>
-                    <AssistantText text={message.text} />
-                  </div>
+                  <AssistantText text={message.text} />
                 </div>
               );
             })}
@@ -309,7 +333,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
                   color: 'var(--color-ink-muted)',
                 }}
               >
-                {m.typing}
+                {m.thinking(elapsedSecs)}
               </div>
             )}
 
@@ -356,64 +380,82 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
             )}
           </div>
 
-          <div style={{ padding: '0.55rem 0.75rem', borderTop: '1px solid var(--color-border)', backgroundColor: '#FFFFFF' }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--color-ink-muted)', marginBottom: '0.4rem' }}>
-              {m.quickLead}
-            </div>
-            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-              {quickHelp.map((question) => (
-                <button
-                  key={question}
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setInputMessage(question)}
-                  disabled={composerDisabled}
-                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', borderRadius: 'var(--radius-full)' }}
-                >
-                  {question}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <form
-            onSubmit={handleSubmit}
-            style={{
-              padding: '0.65rem',
-              borderTop: '1px solid var(--color-border)',
-              backgroundColor: '#FFFFFF',
-              display: 'flex',
-              gap: '0.45rem',
-              alignItems: 'flex-end',
-            }}
-          >
-            <label style={{ flex: 1, fontSize: '0.75rem', color: 'var(--color-ink-muted)' }}>
-              <span style={{ display: 'block', marginBottom: '0.2rem' }}>{m.composerLabel}</span>
-              <textarea
-                className="form-input"
-                value={inputMessage}
-                onChange={(event) => setInputMessage(event.target.value)}
-                placeholder={m.placeholder}
-                disabled={composerDisabled}
-                maxLength={1200}
-                rows={2}
-                aria-label={m.composerAria}
-                style={{ width: '100%', resize: 'vertical', minHeight: '2.6rem', fontSize: '0.85rem', padding: '0.5rem 0.65rem' }}
-              />
-            </label>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={!canSend}
-              style={{ padding: '0.5rem 0.8rem', fontSize: '0.82rem', marginBottom: '0.1rem' }}
+          {(!hasAsked || showQuick) && (
+            <div
+              data-testid="quick-help"
+              className={compact ? 'fp-quick-help fp-quick-help--compact' : 'fp-quick-help'}
             >
-              {m.send}
-            </button>
-          </form>
+              {!compact && (
+                <div style={{ fontSize: '0.7rem', color: 'var(--color-ink-muted)', marginBottom: '0.4rem' }}>
+                  {m.quickLead}
+                </div>
+              )}
+              <div
+                style={
+                  compact
+                    ? { display: 'flex', gap: '0.35rem', flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: '0.1rem' }
+                    : { display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }
+                }
+              >
+                {quickHelp.map((question) => (
+                  <button
+                    key={question}
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setInputMessage(question)}
+                    disabled={composerDisabled}
+                    style={
+                      compact
+                        ? { padding: '0.25rem 0.5rem', fontSize: '0.7rem', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap', flex: '0 0 auto' }
+                        : { padding: '0.25rem 0.5rem', fontSize: '0.7rem', borderRadius: 'var(--radius-full)' }
+                    }
+                  >
+                    {question}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-          <p style={{ padding: '0.5rem 0.75rem', fontSize: '0.67rem', color: 'var(--color-ink-muted)', backgroundColor: 'var(--color-surface-subtle)', borderTop: '1px solid var(--color-border)', lineHeight: 1.45 }}>
-            {capabilities?.llmProvider === 'openai' ? m.privacy : m.privacyGemini}
-          </p>
+          {hasAsked && !showQuick && (
+            <div style={{ padding: '0.35rem 0.75rem', borderTop: '1px solid var(--color-border)', backgroundColor: '#FFFFFF' }}>
+              <button
+                type="button"
+                onClick={() => setShowQuick(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  fontSize: '0.72rem',
+                  color: 'var(--color-blue)',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: '2px',
+                  cursor: 'pointer',
+                }}
+              >
+                {m.showSuggestions}
+              </button>
+            </div>
+          )}
+
+          <ChatComposer
+            value={inputMessage}
+            onValueChange={setInputMessage}
+            onSubmit={handleSubmit}
+            disabled={composerDisabled}
+            placeholder={m.placeholder}
+            composerLabel={m.composerLabel}
+            composerAria={m.composerAria}
+            sendLabel={m.send}
+            maxLength={1200}
+            strings={{
+              enterSend: m.enterSend,
+              enterButtonOnly: m.enterButtonOnly,
+              enterHintSend: m.enterHintSend,
+              enterHintButton: m.enterHintButton,
+              enterGroupLabel: m.enterGroupLabel,
+            }}
+          />
         </section>
       )}
     </>

@@ -427,7 +427,7 @@ describe('organizer assistant chrome in English', () => {
     vi.spyOn(api, 'getOrganizerChatHistory').mockResolvedValue({ messages: [], greeting: 'Server greeting.' });
     renderEn(<OrganizerAssistant slug="sunday-dinner" capabilities={null} />);
     fireEvent.click(screen.getByRole('button', { name: UI_LABELS.en.orbLauncher }));
-    expect(screen.getByText('Organizer assistant · read-only')).toBeInTheDocument();
+    expect(screen.getByText('Organizer agent · read-only')).toBeInTheDocument();
     expect(await screen.findByText('Server greeting.')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: UI_LABELS.en.textTab })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: UI_LABELS.en.voiceTab })).toBeInTheDocument();

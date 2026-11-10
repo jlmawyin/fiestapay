@@ -39,6 +39,7 @@ import {
 } from '../../lib/event-presentation';
 import { TemplateCover } from '../illustrations/TemplateCover';
 import { TemplateIcon } from './template-icons';
+import { ASSISTANT_THEME_EVENT, type AssistantThemeDetail } from '../assistant/orb-themes';
 
 interface CreateWizardProps {
   onSubmit: (input: EventInput) => Promise<void>;
@@ -398,12 +399,26 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
     }
   };
 
+  // The public orb listens: picking a type transforms it (the surprise).
+  // Unmounting (cancel, publish, back home) folds it back to deep-space.
+  useEffect(
+    () => () => {
+      document.dispatchEvent(
+        new CustomEvent<AssistantThemeDetail>(ASSISTANT_THEME_EVENT, { detail: { template: null } }),
+      );
+    },
+    [],
+  );
+
   const handleSelectTemplate = (t: TemplateKind) => {
     setTemplate(t);
     setAiProposal(null);
     setAiApplied(null);
     setAiError(false);
     clearMark('template');
+    document.dispatchEvent(
+      new CustomEvent<AssistantThemeDetail>(ASSISTANT_THEME_EVENT, { detail: { template: t } }),
+    );
     if (!themesForTemplate(t).some((item) => item.key === theme)) {
       setTheme(defaultThemeFor(t).key);
       setThemeTouched(false);

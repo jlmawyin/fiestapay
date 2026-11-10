@@ -4,7 +4,8 @@ import type { Config } from '../config.js';
 import type { Pool } from '../db/pool.js';
 import { fenceData } from './assistant-policy.js';
 import { reserveAiRequest } from './budget.js';
-import { openaiTextOf, type RespondFn } from './openai.js';
+import { assistantDeadline, withinDeadline } from './deadlines.js';
+import { openaiTextOf, withRespondSignal, type RespondFn } from './openai.js';
 import { selectTextProvider, type TextProviderSelection } from './text-provider.js';
 
 /** A short tone line per guest; never a full message with money or links. */
@@ -21,6 +22,8 @@ export interface ReminderGuest {
 export interface ReminderDraftProviders {
   /** Test seam: a scripted model replaces the provider HTTP round trip. */
   respond?: RespondFn | undefined;
+  /** Shorter deadline for deterministic tests; production always uses 40 s. */
+  deadlineMs?: number | undefined;
 }
 
 /** Short rules text per tone. Placeholders are filled by the server, never by the model. */
@@ -130,6 +133,8 @@ export async function draftReminders(
   linkFor: (guest: ReminderGuest) => string,
   providers: ReminderDraftProviders = {},
 ): Promise<ReminderDraftResult> {
+  const startedAt = Date.now();
+  const signal = assistantDeadline(providers.deadlineMs);
   const limited = guests.slice(0, REMINDER_MAX_GUESTS);
   const truncated = guests.length > REMINDER_MAX_GUESTS;
   if (limited.length === 0) return { drafts: [], source: 'rules', truncated: false };
@@ -151,11 +156,16 @@ export async function draftReminders(
 
   let texts: string[] | null = null;
   try {
-    const output = await provider.respond(modelConfig, {
-      instructions: instructionFor(tone, limited.length, title, locale),
-      input: [{ role: 'user', content: 'Genera los recordatorios ahora.' }],
-      tools: [],
-    });
+    const output = await withinDeadline(
+      signal,
+      provider.respond(modelConfig, withRespondSignal({
+        instructions: instructionFor(tone, limited.length, title, locale),
+        input: [{ role: 'user', content: 'Genera los recordatorios ahora.' }],
+        tools: [],
+      }, signal)),
+      locale,
+      startedAt,
+    );
     if (output.status === 'completed') texts = parseReminderOutput(openaiTextOf(output.items), limited.length);
   } catch {
     texts = null;

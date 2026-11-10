@@ -51,6 +51,9 @@ export class ApiError extends Error {
 
 export const REQUEST_TIMEOUT_MS = 30_000;
 
+/** AI routes wait longer: the model answers before 45 s and the client gives it 55 s. */
+export const AI_REQUEST_TIMEOUT_MS = 55_000;
+
 export const REQUEST_TIMEOUT_MESSAGES = {
   read: 'La solicitud tardó más de 30 segundos. Revisa tu conexión e inténtalo de nuevo.',
   mutation:
@@ -63,10 +66,19 @@ export const REQUEST_TIMEOUT_MESSAGES_EN = {
     'The operation took more than 30 seconds. We do not know whether the server processed it; check the status before retrying.',
 } as const;
 
-function timeoutMessageFor(method: string): string {
+function timeoutMessageFor(method: string, budgetMs: number = REQUEST_TIMEOUT_MS): string {
   const verb = method.toUpperCase();
   const table = getActiveLocale() === 'en' ? REQUEST_TIMEOUT_MESSAGES_EN : REQUEST_TIMEOUT_MESSAGES;
-  return verb === 'GET' || verb === 'HEAD' ? table.read : table.mutation;
+  const base = verb === 'GET' || verb === 'HEAD' ? table.read : table.mutation;
+  if (budgetMs === REQUEST_TIMEOUT_MS) return base;
+  // The message names the real budget; it never claims a fixed 30 seconds.
+  const secs = Math.max(1, Math.round(budgetMs / 1000));
+  return base.replace('30 segundos', `${secs} segundos`).replace('30 seconds', `${secs} seconds`);
+}
+
+export interface RequestOptions extends RequestInit {
+  /** Per-request budget in ms. AI routes pass AI_REQUEST_TIMEOUT_MS; the rest keep 30 s. */
+  timeoutMs?: number;
 }
 
 /**
@@ -74,18 +86,20 @@ function timeoutMessageFor(method: string): string {
  * reading its JSON body. A caller-provided signal keeps its own abort semantics; the internal
  * controller is only an implementation detail and never triggers an automatic retry.
  */
-export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { timeoutMs, ...fetchOptions } = options;
+  const budgetMs = timeoutMs ?? REQUEST_TIMEOUT_MS;
   const locale = getActiveLocale();
-  const headers = new Headers(options.headers || {});
-  if (options.body && !headers.has('Content-Type')) {
+  const headers = new Headers(fetchOptions.headers || {});
+  if (fetchOptions.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
-  const adminKey = adminHeaderFor(path, options.method ?? 'GET');
+  const adminKey = adminHeaderFor(path, fetchOptions.method ?? 'GET');
   if (adminKey && !headers.has('X-Fiesta-Admin-Key')) headers.set('X-Fiesta-Admin-Key', adminKey);
   if (!headers.has(LOCALE_HEADER)) headers.set(LOCALE_HEADER, locale);
 
-  const method = options.method ?? 'GET';
-  const externalSignal = options.signal;
+  const method = fetchOptions.method ?? 'GET';
+  const externalSignal = fetchOptions.signal;
   const controller = new AbortController();
   let timedOut = false;
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -100,8 +114,8 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     timeoutId = setTimeout(() => {
       timedOut = true;
       controller.abort();
-      reject(new ApiError(timeoutMessageFor(method), 408));
-    }, REQUEST_TIMEOUT_MS);
+      reject(new ApiError(timeoutMessageFor(method, budgetMs), 408));
+    }, budgetMs);
   });
 
   try {
@@ -109,7 +123,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     try {
       responsePromise = fetch(path, {
         credentials: 'same-origin',
-        ...options,
+        ...fetchOptions,
         headers,
         signal: controller.signal,
       });
@@ -140,7 +154,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     return (await Promise.race([res.json(), timeout])) as T;
   } catch (err) {
     if (timedOut && !(err instanceof ApiError)) {
-      throw new ApiError(timeoutMessageFor(method), 408);
+      throw new ApiError(timeoutMessageFor(method, budgetMs), 408);
     }
     throw err;
   } finally {
@@ -319,6 +333,7 @@ export const api = {
     return request<PresentationSuggestion>('/api/ai/suggest-presentation', {
       method: 'POST',
       body: JSON.stringify(input),
+      timeoutMs: AI_REQUEST_TIMEOUT_MS,
     });
   },
 
@@ -331,6 +346,7 @@ export const api = {
     return request<DraftEventProposal>('/api/ai/draft-event', {
       method: 'POST',
       body: JSON.stringify({ text }),
+      timeoutMs: AI_REQUEST_TIMEOUT_MS,
     });
   },
 
@@ -343,6 +359,7 @@ export const api = {
     return request<ReminderDraftResult>(`/api/events/${encodeURIComponent(slug)}/reminders/draft`, {
       method: 'POST',
       body: JSON.stringify({ tone }),
+      timeoutMs: AI_REQUEST_TIMEOUT_MS,
     });
   },
 
@@ -350,6 +367,7 @@ export const api = {
     return request<ChatResult>(`/api/events/${encodeURIComponent(slug)}/chat`, {
       method: 'POST',
       body: JSON.stringify({ message }),
+      timeoutMs: AI_REQUEST_TIMEOUT_MS,
     });
   },
 
@@ -473,6 +491,7 @@ export const api = {
     return request<ChatResult>(`/api/events/${encodeURIComponent(slug)}/organizer-chat`, {
       method: 'POST',
       body: JSON.stringify({ message }),
+      timeoutMs: AI_REQUEST_TIMEOUT_MS,
     });
   },
 

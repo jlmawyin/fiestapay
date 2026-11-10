@@ -47,7 +47,7 @@ let fetchMock: ReturnType<typeof vi.fn>;
 let chatCalls: ChatCall[];
 
 function openOrb(): void {
-  fireEvent.click(screen.getByRole('button', { name: /asistente FiestaPay|FiestaPay assistant/i }));
+  fireEvent.click(screen.getByRole('button', { name: /agente FiestaPay|FiestaPay agent/i }));
 }
 
 function ask(question: string): void {
@@ -59,7 +59,7 @@ function ask(question: string): void {
 }
 
 function closeOrb(): void {
-  fireEvent.click(screen.getByRole('button', { name: /Cerrar asistente|Close FiestaPay assistant/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Cerrar Agente|Close FiestaPay agent/ }));
 }
 
 beforeEach(() => {

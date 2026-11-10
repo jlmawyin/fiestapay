@@ -77,13 +77,13 @@ describe('asistente del organizador en texto y voz', () => {
     vi.spyOn(api, 'sendOrganizerChat').mockReturnValue(pending.promise);
     const onApplyQuote = vi.fn();
     render(<OrganizerAssistant slug="panel" capabilities={capabilities} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente FiestaPay' }));
-    expect(screen.getByText(/Asistente del organizador/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir Agente FiestaPay' }));
+    expect(screen.getByText(/Agente del organizador/)).toBeInTheDocument();
     await screen.findByText('Saludo del servidor para el panel.');
     const input = screen.getByRole('textbox', { name: /Mensaje para el asistente/i });
     fireEvent.change(input, { target: { value: 'Quien falta por pagar?' } });
     fireEvent.submit(input.closest('form')!);
-    expect(screen.getByText('El asistente está escribiendo…')).toBeInTheDocument();
+    expect(screen.getByText(/Pensando… \d+ s/)).toBeInTheDocument();
     expect(api.sendOrganizerChat).toHaveBeenCalledWith('panel', 'Quien falta por pagar?');
     await act(async () => {
       pending.resolve({ text: 'Revisa el panel.', quote, actions: ['rsvp:yes:1'] });
@@ -108,7 +108,7 @@ describe('asistente del organizador en texto y voz', () => {
     fireEvent.submit(input.closest('form')!);
 
     const status = screen.getByRole('status');
-    expect(status).toHaveTextContent('El asistente está escribiendo…');
+    expect(status).toHaveTextContent(/Pensando… \d+ s/);
     expect(status.textContent).not.toContain('...');
     expect(screen.getAllByRole('status')).toHaveLength(1);
 
@@ -116,7 +116,7 @@ describe('asistente del organizador en texto y voz', () => {
       pending.resolve({ text: 'Faltan $10,00.' });
     });
     await screen.findByText('Faltan $10,00.');
-    expect(screen.queryByText('El asistente está escribiendo…')).toBeNull();
+    expect(screen.queryByText(/Pensando… \d+ s/)).toBeNull();
   });
 
   it('al 403 olvida el texto privado y al 503 deja el panel manual', async () => {
