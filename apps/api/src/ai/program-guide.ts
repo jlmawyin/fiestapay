@@ -217,6 +217,16 @@ function channelStyle(channel: ProgramGuideChannel, locale: Locale): string {
   ].join('\n');
 }
 
+/**
+ * Public voice greets once per session. A later hello gets a one-sentence answer
+ * without repeating the introduction or the options.
+ */
+function publicVoiceGreetingRule(locale: Locale): string {
+  return locale === 'en'
+    ? 'Greet only once per session: if the person only says hello after your greeting, answer in one brief sentence without repeating your introduction or the options.'
+    : 'Saluda una sola vez por sesión: si la persona solo saluda después de tu saludo, responde en una frase breve sin repetir tu presentación ni las opciones.';
+}
+
 export function programGuideHeading(locale: Locale): string {
   return PROGRAM_GUIDE_HEADINGS[locale];
 }
@@ -227,12 +237,14 @@ export function languageDirective(locale: Locale): string {
 
 /** Compose the shared section. Callers keep their existing event-specific and tool rules. */
 export function programGuide(role: ProgramGuideRole, channel: ProgramGuideChannel, locale: Locale = 'es'): string {
-  return [
+  const parts = [
     programGuideHeading(locale),
     locale === 'en' ? `Role: ${role}. Channel: ${channel}.` : `Rol: ${role}. Canal: ${channel}.`,
     languageDirective(locale),
     visibleUiGuide(locale),
     roleScope(role),
     channelStyle(channel, locale),
-  ].join('\n');
+  ];
+  if (role === 'public' && channel === 'voice') parts.push(publicVoiceGreetingRule(locale));
+  return parts.join('\n');
 }

@@ -159,6 +159,8 @@ describe('FP-GEM-D1 PayPal and AI panel on /demo', () => {
     expect(within(panel).getByText('IA: Gemini explica y prepara, la persona aprueba')).toBeInTheDocument();
     expect(within(panel).getByText(/gemini-3\.8-live/)).toBeInTheDocument();
     expect(within(panel).getByText(/gemini-3\.5-flash/)).toBeInTheDocument();
+    expect(within(panel).getByText(/show_on_screen/)).toBeInTheDocument();
+    expect(within(panel).getByText(/público sin herramientas/)).toBeInTheDocument();
     expect(within(panel).getAllByText(/prepare_quote/)).toHaveLength(2);
     expect(within(panel).getByText(/PENDIENTE_DE_APROBACION/)).toBeInTheDocument();
     expect(within(panel).getByText(/Aprobar en PayPal/)).toBeInTheDocument();
@@ -184,6 +186,8 @@ describe('FP-GEM-D1 PayPal and AI panel on /demo', () => {
     expect(within(panel).getByText('PayPal: verified checkout')).toBeInTheDocument();
     expect(within(panel).getByText(/idempotent payment ledger/)).toBeInTheDocument();
     expect(within(panel).getByText(/No Payouts, split, or fund holding/)).toBeInTheDocument();
+    expect(within(panel).getByText(/show_on_screen/)).toBeInTheDocument();
+    expect(within(panel).getByText(/public with no tools/)).toBeInTheDocument();
     expect(within(panel).getByText(/Approve in PayPal/)).toBeInTheDocument();
     const body = document.body.textContent ?? '';
     for (const witness of [

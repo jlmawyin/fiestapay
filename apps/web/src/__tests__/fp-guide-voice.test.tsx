@@ -590,3 +590,97 @@ describe('FP-GUIDE-1 highlight lifetime with voice', () => {
     }
   });
 });
+
+describe('FP-POLISH-1 voice transcript turns', () => {
+  const GREETING = '¡Hola! Puedo explicarte FiestaPay o acompañarte a abrir la demo. ¿Qué quieres hacer?';
+  const REPLY = '¡Hola! Dime si quieres ver el panel de ejemplo o probar el pago.';
+
+  function turnRoles(): Array<string | null> {
+    return screen.getAllByTestId('voice-turn').map((turn) => turn.getAttribute('data-role'));
+  }
+
+  it('keeps one bubble per turn in speaker order (start → greeting → user → reply)', async () => {
+    useFakeNavigator('landing');
+    const fake = createFakeGemini();
+    startPublicVoice(fake);
+    const session = await openGemini(fake);
+
+    await act(async () => {
+      session.callbacks.onOutputTranscript?.(GREETING);
+    });
+    await act(async () => {
+      session.callbacks.onTurnComplete?.();
+    });
+    await act(async () => {
+      session.callbacks.onInputTranscript?.('hola');
+    });
+    await act(async () => {
+      session.callbacks.onOutputTranscript?.(REPLY);
+    });
+    await act(async () => {
+      session.callbacks.onTurnComplete?.();
+    });
+
+    const turns = screen.getAllByTestId('voice-turn');
+    expect(turns).toHaveLength(3);
+    expect(turnRoles()).toEqual(['agent', 'user', 'agent']);
+    expect(turns[0]).toHaveTextContent(GREETING);
+    expect(turns[0]?.textContent).not.toContain('hola');
+    expect(turns[1]).toHaveTextContent('Tú (visitante):');
+    expect(turns[1]).toHaveTextContent('hola');
+    expect(turns[1]?.textContent).not.toContain(GREETING);
+    expect(turns[2]).toHaveTextContent(REPLY);
+    expect(turns[2]?.textContent).not.toContain(GREETING);
+    // The greeting is not repeated inside a single bubble.
+    expect(turns[0]?.textContent?.match(/¿Qué quieres hacer\?/g)).toHaveLength(1);
+  });
+
+  it('opens the user bubble after the in-progress agent bubble', async () => {
+    useFakeNavigator('landing');
+    const fake = createFakeGemini();
+    startPublicVoice(fake);
+    const session = await openGemini(fake);
+
+    await act(async () => {
+      session.callbacks.onOutputTranscript?.('¡Hola! Puedo explicarte FiestaPay.');
+    });
+    await act(async () => {
+      session.callbacks.onInputTranscript?.('hola');
+    });
+    await act(async () => {
+      session.callbacks.onTurnComplete?.();
+    });
+    await act(async () => {
+      session.callbacks.onOutputTranscript?.(REPLY);
+    });
+    await act(async () => {
+      session.callbacks.onTurnComplete?.();
+    });
+
+    const turns = screen.getAllByTestId('voice-turn');
+    expect(turns).toHaveLength(3);
+    expect(turnRoles()).toEqual(['agent', 'user', 'agent']);
+    expect(turns[0]).toHaveTextContent('¡Hola! Puedo explicarte FiestaPay.');
+    expect(turns[1]).toHaveTextContent('hola');
+    expect(turns[2]).toHaveTextContent(REPLY);
+  });
+
+  it('merges fragments of the same turn into one bubble', async () => {
+    useFakeNavigator('landing');
+    const fake = createFakeGemini();
+    startPublicVoice(fake);
+    const session = await openGemini(fake);
+
+    await act(async () => {
+      session.callbacks.onOutputTranscript?.('¡Hola!');
+    });
+    await act(async () => {
+      session.callbacks.onOutputTranscript?.('¿Qué quieres hacer?');
+    });
+
+    const turns = screen.getAllByTestId('voice-turn');
+    expect(turns).toHaveLength(1);
+    expect(turnRoles()).toEqual(['agent']);
+    expect(turns[0]).toHaveTextContent('¡Hola! ¿Qué quieres hacer?');
+  });
+});

@@ -30,7 +30,7 @@ export const voiceCatalog = defineCatalog({
       'Las credenciales de voz no están activas en este entorno. Puedes interactuar mediante el chat escrito o con el formulario.',
     privacyTitle: 'Aviso de Privacidad y Consentimiento:',
     privacyPublicA:
-      'Esta voz es informativa y funciona sin crear ni unirte a un evento. No tiene herramientas, no consulta datos de organizadores, invitados ni pagos. ',
+      'Esta voz es informativa y funciona sin crear ni unirte a un evento. No consulta datos de organizadores, invitados ni pagos y solo puede abrir páginas de FiestaPay y resaltar botones para guiarte; tú decides qué pulsar. ',
     privacyPublicOn: 'El audio del micrófono se procesa en tiempo real mediante AssemblyAI Voice Agent.',
     privacyPublicGemini: 'El audio del micrófono se procesa en tiempo real mediante Gemini Live.',
     privacyPublicOff: 'La información se lee con la voz del navegador; no se envía audio a ningún proveedor.',
@@ -142,7 +142,7 @@ export const voiceCatalog = defineCatalog({
       'Voice credentials are not active in this environment. You can use the written chat or the form.',
     privacyTitle: 'Privacy and Consent Notice:',
     privacyPublicA:
-      'This voice is informational and works without creating or joining an event. It has no tools and reads no organizer, guest, or payment data. ',
+      'This voice is informational and works without creating or joining an event. It reads no organizer, guest, or payment data and can only open FiestaPay pages and highlight buttons to guide you; you decide what to press. ',
     privacyPublicOn: 'Microphone audio is processed in real time by the AssemblyAI Voice Agent.',
     privacyPublicGemini: 'Microphone audio is processed in real time by Gemini Live.',
     privacyPublicOff: 'The information is read with the browser voice; no audio is sent to any provider.',
