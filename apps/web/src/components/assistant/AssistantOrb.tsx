@@ -5,6 +5,15 @@ import type { Capabilities, Guest, Quote, RsvpStatus, TemplateKind } from '../..
 import { PublicChatAssistant } from '../chat/PublicChatAssistant';
 import { ChatAssistant } from '../chat/ChatAssistant';
 import { VoiceInvitationAgent } from '../voice/VoiceInvitationAgent';
+import {
+  GUIDE_ACTION_EVENT,
+  GUIDE_HIDDEN_EVENT,
+  GUIDE_VISIBLE_EVENT,
+  VOICE_ACTIVITY_EVENT,
+  VOICE_STOP_EVENT,
+  type GuideVisibleDetail,
+  type VoiceActivityDetail,
+} from '../../guide/showOnScreen';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { orbCatalog } from '../../i18n/catalogs/orb';
 import { OrbArt } from './OrbArt';
@@ -259,6 +268,83 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
     return () => document.removeEventListener(ASSISTANT_OPEN_EVENT, onOpenRequest);
   }, []);
 
+  // FP-GUIDE-1: running a guide action from the panel minimizes it so the guided
+  // element stays visible. The text components stay mounted, so reopening the orb
+  // recovers the conversation intact. While public voice is live, the panel hides
+  // behind a floating bar instead, so the session keeps running.
+  const [voiceLive, setVoiceLive] = useState<{
+    active: boolean;
+    status: 'listening' | 'speaking' | 'processing';
+  }>({ active: false, status: 'listening' });
+  const [guideBar, setGuideBar] = useState<{ placement: 'top' | 'bottom' } | null>(null);
+  const voiceLiveRef = useRef(false);
+  const orbStateRef = useRef({ isOpen: false, mode: 'text' as AssistantOrbMode });
+  orbStateRef.current = { isOpen, mode };
+  const barTimerRef = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    const onVoiceActivity = (event: Event) => {
+      const detail = (event as CustomEvent<VoiceActivityDetail>).detail;
+      if (!detail) return;
+      voiceLiveRef.current = detail.active;
+      setVoiceLive({ active: detail.active, status: detail.status });
+      if (!detail.active) {
+        window.clearTimeout(barTimerRef.current);
+        barTimerRef.current = undefined;
+        setGuideBar(null);
+      }
+    };
+    const onGuideAction = () => {
+      const state = orbStateRef.current;
+      if (audience === 'public' && state.mode === 'voice' && state.isOpen && voiceLiveRef.current) {
+        setGuideBar((prev) => prev ?? { placement: 'bottom' });
+        // A navigation without a highlight restores the panel after 5 s; a visible
+        // highlight clears this timer and owns the bar until it hides.
+        window.clearTimeout(barTimerRef.current);
+        barTimerRef.current = window.setTimeout(() => setGuideBar(null), 5000);
+        return;
+      }
+      justClosedRef.current = true;
+      setMode('text');
+      setIsOpen(false);
+    };
+    const onGuideVisible = (event: Event) => {
+      if (!voiceLiveRef.current) return;
+      const detail = (event as CustomEvent<GuideVisibleDetail>).detail;
+      window.clearTimeout(barTimerRef.current);
+      barTimerRef.current = undefined;
+      if (detail) setGuideBar({ placement: detail.placement });
+    };
+    const onGuideHidden = () => {
+      window.clearTimeout(barTimerRef.current);
+      barTimerRef.current = undefined;
+      setGuideBar(null);
+    };
+    document.addEventListener(VOICE_ACTIVITY_EVENT, onVoiceActivity);
+    document.addEventListener(GUIDE_ACTION_EVENT, onGuideAction);
+    document.addEventListener(GUIDE_VISIBLE_EVENT, onGuideVisible);
+    document.addEventListener(GUIDE_HIDDEN_EVENT, onGuideHidden);
+    return () => {
+      document.removeEventListener(VOICE_ACTIVITY_EVENT, onVoiceActivity);
+      document.removeEventListener(GUIDE_ACTION_EVENT, onGuideAction);
+      document.removeEventListener(GUIDE_VISIBLE_EVENT, onGuideVisible);
+      document.removeEventListener(GUIDE_HIDDEN_EVENT, onGuideHidden);
+      window.clearTimeout(barTimerRef.current);
+    };
+  }, [audience]);
+
+  // The voice pane unmounts on switch/close, which stops its session; the bar and
+  // the live flag reset with it. While the bar shows, the pane stays mounted hidden.
+  useEffect(() => {
+    if (mode === 'voice' && isOpen) return;
+    voiceLiveRef.current = false;
+    setVoiceLive({ active: false, status: 'listening' });
+    setGuideBar(null);
+  }, [mode, isOpen]);
+
+  const showVoiceBar =
+    guideBar !== null && isOpen && mode === 'voice' && voiceLive.active && audience === 'public';
+
   return (
     <>
       <button
@@ -315,7 +401,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
         aria-modal="false"
         className="fp-orb-panel"
         data-compact={compact ? 'true' : 'false'}
-        style={{ display: isOpen ? 'flex' : 'none' }}
+        style={{ display: isOpen && !showVoiceBar ? 'flex' : 'none' }}
       >
         {compact ? (
           <header
@@ -556,6 +642,44 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
           </div>
         )}
       </section>
+
+      {showVoiceBar && guideBar ? (
+        <div
+          className="fp-voice-bar"
+          data-placement={guideBar.placement}
+          data-testid="voice-guide-bar"
+          role="status"
+        >
+          <OrbArt orb={orb} accent={accent} icon={orbIcon} meal={theme?.meal} size={28} static={reducedMotion} />
+          <span className="fp-voice-bar__status">
+            {voiceLive.status === 'speaking' ? m.guideBarSpeaking : m.guideBarListening}
+          </span>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              try {
+                document.dispatchEvent(new CustomEvent(VOICE_STOP_EVENT));
+              } catch {
+                // The voice panel owns the stop path.
+              }
+            }}
+          >
+            {m.guideBarStop}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              window.clearTimeout(barTimerRef.current);
+              barTimerRef.current = undefined;
+              setGuideBar(null);
+            }}
+          >
+            {m.guideBarOpen}
+          </button>
+        </div>
+      ) : null}
     </>
   );
 };

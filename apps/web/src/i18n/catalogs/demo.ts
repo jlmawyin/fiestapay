@@ -72,6 +72,12 @@ export const demoCatalog = defineCatalog({
     pendingOnly: 'Solo pendientes',
     exportCsv: 'Exportar CSV',
     totals: 'Totales (ficticio)',
+    tourPreview:
+      'Aquí ves la tabla de invitados y pagos de ejemplo. Puedes ordenar, filtrar y buscar sin cambiar nada real.',
+    tourPayment:
+      'Este botón crea una comida ficticia y abre la invitación para que completes el pago de prueba en PayPal Sandbox.',
+    tourPaypal:
+      'Aquí se explica cómo FiestaPay usa PayPal e IA: la IA prepara y explica, y solo tú apruebas.',
   },
   en: {
     banner: 'Fictional data · Sandbox · No real money',
@@ -140,5 +146,11 @@ export const demoCatalog = defineCatalog({
     pendingOnly: 'Only pending',
     exportCsv: 'Export CSV',
     totals: 'Totals (fictional)',
+    tourPreview:
+      'Here is the sample guest and payment table. You can sort, filter, and search without changing anything real.',
+    tourPayment:
+      'This button creates a fictional meal and opens the invitation so you can complete the test payment in PayPal Sandbox.',
+    tourPaypal:
+      'This panel explains how FiestaPay uses PayPal and AI: the AI prepares and explains, and only you approve.',
   },
 });

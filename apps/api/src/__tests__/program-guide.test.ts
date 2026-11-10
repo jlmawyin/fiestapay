@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { LOCALES, UI_LABELS, type Locale } from '@fiestapay/shared';
+import { LOCALES, SHOW_ON_SCREEN_DECLARATION, UI_LABELS, type Locale } from '@fiestapay/shared';
 import {
   claimsSensitiveExecution,
   decideAssistantTurn,
@@ -258,11 +258,17 @@ describe('contrato bilingüe de la guía', () => {
     expect(claimsSensitiveExecution('Ya procesé el reembolso de todos')).toBe(true);
   });
 
-  it('deja las herramientas de voz pública vacías y conserva las de invitado y organizador', () => {
-    expect(publicVoiceSessionConfig({}).tools).toEqual([]);
-    expect(publicVoiceSessionConfig({}).system_prompt).toContain('No tienes herramientas');
+  it('declara solo show_on_screen en la voz pública y conserva las herramientas de invitado y organizador', () => {
+    const declaration = { functionDeclarations: [SHOW_ON_SCREEN_DECLARATION] };
+    expect(publicVoiceSessionConfig({}).tools).toEqual([declaration]);
+    expect(publicVoiceSessionConfig({}, 'es', 'landing', false).tools).toEqual([]);
+    expect(publicVoiceSessionConfig({}).system_prompt).not.toContain('No tienes herramientas');
+    expect(publicVoiceSessionConfig({}).system_prompt).toContain('show_on_screen');
+    expect(publicVoiceSessionConfig({}, 'es', 'landing', false).system_prompt).toContain('No tienes herramientas');
     expect(voiceSessionConfig({}).tools.length).toBeGreaterThan(0);
     expect(organizerVoiceSessionConfig(event.title, event.slug, {}).tools.length).toBeGreaterThan(0);
+    expect(voiceSessionConfig({}).tools).not.toContainEqual(declaration);
+    expect(organizerVoiceSessionConfig(event.title, event.slug, {}).tools).not.toContainEqual(declaration);
     expect(voiceSessionConfig({}).system_prompt).toBe(guestVoiceInstruction());
     expect(publicVoiceSessionConfig({}).system_prompt).toBe(publicVoiceInstruction());
   });
@@ -384,7 +390,10 @@ describe('voz pública con contexto de página', () => {
     expect(publicVoiceInstruction(locale)).toBe(landing);
     expect(publicVoiceSessionConfig({}, locale).system_prompt).toBe(landing);
     expect(publicVoiceSessionConfig({}, locale, 'demo').system_prompt).toBe(publicVoiceInstruction(locale, 'demo'));
-    expect(publicVoiceSessionConfig({}, locale, 'demo').tools).toEqual([]);
+    expect(publicVoiceSessionConfig({}, locale, 'demo').tools).toEqual([
+      { functionDeclarations: [SHOW_ON_SCREEN_DECLARATION] },
+    ]);
+    expect(publicVoiceSessionConfig({}, locale, 'demo', false).tools).toEqual([]);
   });
 
   it('acepta context demo/landing y rechaza un contexto inválido con 400', async () => {

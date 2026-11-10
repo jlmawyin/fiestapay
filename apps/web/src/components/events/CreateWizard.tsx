@@ -904,7 +904,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
     <>
       <p className="create-wizard__explain">{m.explainWhat}</p>
       <div className="create-wizard__draft">
-        <label className="form-label" htmlFor="wizard-draft-text">
+        <label className="form-label" htmlFor="wizard-draft-text" data-guide="describeInvitation">
           {m.draftTitle}
         </label>
         <div className="create-wizard__draft-row">

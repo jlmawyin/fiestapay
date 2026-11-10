@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import {
   GEMINI_DEFAULT_LIVE_MODEL,
   GEMINI_DEFAULT_TEXT_MODEL,
+  SHOW_ON_SCREEN_DECLARATION,
   VOICE_PAYMENT_PENDING,
   type GeminiVoiceSessionConfig,
 } from '@fiestapay/shared';
@@ -241,7 +242,7 @@ describeDb('tokens Gemini Live por rol, autorizacion, presupuesto y arrendamient
     });
   });
 
-  it('el organizador recibe sus herramientas y el publico no recibe ninguna', async () => {
+  it('el organizador recibe sus herramientas y el publico solo show_on_screen', async () => {
     await withApp({}, async (app, requests) => {
       const { organizer, slug } = await demo(app);
       const orgRes = await organizer.post(`/api/events/${slug}/organizer-voice/token`, { consent: true });
@@ -251,15 +252,29 @@ describeDb('tokens Gemini Live por rol, autorizacion, presupuesto y arrendamient
       const names = org.sessionConfig.liveConfig.tools[0]!.functionDeclarations.map((d) => d.name);
       expect(names).toEqual(ORGANIZER_TOOL_DECLARATIONS.map((d) => d.name));
       expect(new Set(names)).toEqual(ORGANIZER_TOOL_NAMES);
+      expect(names).not.toContain('show_on_screen');
       expect(org.sessionConfig.kickoff).toMatch(/Hola\. Puedo consultar/);
 
       const pubRes = await new Client(app).post('/api/voice/public/token', { consent: true });
       expect(pubRes.statusCode).toBe(200);
       const pub = body<{ sessionConfig: GeminiVoiceSessionConfig; audience: string; provider: string }>(pubRes);
       expect(pub).toMatchObject({ audience: 'public', provider: 'gemini' });
-      expect(pub.sessionConfig.liveConfig.tools).toEqual([]);
+      expect(pub.sessionConfig.liveConfig.tools).toEqual([{ functionDeclarations: [SHOW_ON_SCREEN_DECLARATION] }]);
+      expect(pub.sessionConfig.liveConfig.systemInstruction).toContain('show_on_screen');
       expect(pub.sessionConfig.liveConfig.systemInstruction).not.toContain('prepare_quote');
       expect(requests).toHaveLength(2);
+    });
+  });
+
+  it('con VOICE_SCREEN_GUIDE=off el publico no recibe herramientas ni la instruccion de pantalla', async () => {
+    await withApp({ VOICE_SCREEN_GUIDE: 'off' }, async (app, requests) => {
+      const pubRes = await new Client(app).post('/api/voice/public/token', { consent: true });
+      expect(pubRes.statusCode).toBe(200);
+      const pub = body<{ sessionConfig: GeminiVoiceSessionConfig }>(pubRes);
+      expect(pub.sessionConfig.liveConfig.tools).toEqual([]);
+      expect(pub.sessionConfig.liveConfig.systemInstruction).toContain('No tienes herramientas');
+      expect(pub.sessionConfig.liveConfig.systemInstruction).not.toContain('show_on_screen');
+      expect(requests[0]!.liveConfig.tools).toEqual([]);
     });
   });
 

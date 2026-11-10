@@ -56,6 +56,28 @@ export interface GeminiLiveConnectOptions {
 
 export type GeminiLiveConnector = (options: GeminiLiveConnectOptions) => Promise<GeminiLiveSessionHandle>;
 
+/** True when the locked live config declares a function tool (e.g. the guide switch). */
+export function liveConfigHasTool(liveConfig: unknown, toolName: string): boolean {
+  if (!liveConfig || typeof liveConfig !== 'object') return false;
+  const tools = (liveConfig as { tools?: unknown }).tools;
+  if (!Array.isArray(tools)) return false;
+  for (const group of tools) {
+    if (!group || typeof group !== 'object') continue;
+    const declarations = (group as { functionDeclarations?: unknown }).functionDeclarations;
+    if (!Array.isArray(declarations)) continue;
+    for (const declaration of declarations) {
+      if (
+        declaration &&
+        typeof declaration === 'object' &&
+        (declaration as { name?: unknown }).name === toolName
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 /** Validates the server locked session object. Null means the token is unusable. */
 export function asGeminiSessionConfig(raw: unknown): GeminiVoiceSessionConfig | null {
   if (!raw || typeof raw !== 'object') return null;

@@ -1,8 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import {
   ASSISTANT_CONTEXTS,
+  DEMO_TOUR,
+  SHOW_ON_SCREEN_DECLARATION,
   UI_LABELS,
   type AssistantContext,
+  type GeminiFunctionDeclaration,
   type Locale,
 } from '@fiestapay/shared';
 import { z } from 'zod';
@@ -88,18 +91,77 @@ export function voiceSessionConfig(media: object = assemblyVoiceMedia(), locale:
   };
 }
 
+/** Public voice tool config, in the exact declaration form the browser and token receive. */
+export function publicVoiceToolConfig(screenGuide = true): Array<{ functionDeclarations: GeminiFunctionDeclaration[] }> {
+  return screenGuide ? [{ functionDeclarations: [SHOW_ON_SCREEN_DECLARATION] }] : [];
+}
+
 /**
- * Public informational voice. It runs before any event or guest exists, so it has no
- * tools, no private event data and no organizer key. It only explains FiestaPay.
+ * With the screen guide on, the model must know both public pages even though the starting
+ * page comes from the request context: the person can move during the session and the last
+ * successful tool result is the current page.
  */
-export function publicVoiceInstruction(locale: Locale = 'es', context: AssistantContext = 'landing'): string {
+function publicScreenGuideContext(locale: Locale, context: AssistantContext): string {
+  const L = UI_LABELS[locale];
+  if (locale === 'en') {
+    return [
+      `Starting screen: the person begins on ${context === 'demo' ? `"${L.judgesDemo}" (/demo)` : 'the "/" home page'}. The current page can change during the session: trust the "page" field of the latest successful show_on_screen result; before any result, the starting context page applies.`,
+      `Home page "/": it explains the product. "${L.createInvitation}" goes to /create and "${L.judgesDemo}" opens /demo. The sample dashboard and the test payment are not on the home page: both are inside "${L.judgesDemo}", so to try the payment from "/" first open "${L.judgesDemo}".`,
+      `Demo "/demo": it is the "${L.judgesDemo}" with fictional data and PayPal Sandbox. "${L.previewPanel}" is the heading of the step 1 table. "${L.paymentDemo}" is pressed directly on this page and starts the test payment. "${L.paypalAiPanel}" explains PayPal and AI. "${L.guidedTour}" starts the guided tour. The "${L.privateDemo}", "${L.myDemos}" and "${L.resetDemos}" controls also live here.`,
+      `Other public pages: "${L.createInvitation}" opens /create, where "${L.describeInvitation}" starts the creation wizard; "${L.recoverLink}" opens /recover.`,
+    ].join('\n');
+  }
+  return [
+    `Pantalla inicial: la persona empieza en ${context === 'demo' ? `"${L.judgesDemo}" (/demo)` : 'la portada "/"'}. La página actual puede cambiar durante la sesión: la verdad es el campo "page" del último resultado correcto de show_on_screen; si todavía no hay resultado, vale la página del contexto inicial.`,
+    `Portada "/": explica el producto. "${L.createInvitation}" lleva a /create y "${L.judgesDemo}" abre /demo. El panel de ejemplo y el pago de prueba no están en la portada: ambos están dentro de "${L.judgesDemo}", así que para probar el pago desde "/" primero hay que abrir "${L.judgesDemo}".`,
+    `Demo "/demo": es la "${L.judgesDemo}" con datos ficticios y PayPal Sandbox. "${L.previewPanel}" es el título de la tabla del paso 1. "${L.paymentDemo}" se pulsa directamente en esta página e inicia el pago de prueba. "${L.paypalAiPanel}" explica PayPal e IA. "${L.guidedTour}" inicia el recorrido guiado. Los controles "${L.privateDemo}", "${L.myDemos}" y "${L.resetDemos}" también están aquí.`,
+    `Otras páginas públicas: "${L.createInvitation}" abre /create, donde "${L.describeInvitation}" inicia el asistente de creación; "${L.recoverLink}" abre /recover.`,
+  ].join('\n');
+}
+
+/** Rules for the public show_on_screen tool. It only opens pages and highlights elements. */
+function publicScreenGuideRules(locale: Locale): string {
+  const L = UI_LABELS[locale];
+  const tour = DEMO_TOUR.join(', ');
+  if (locale === 'en') {
+    return [
+      `Your only tool is show_on_screen. Call it only when the person asks to go somewhere, see something or find a button or element on screen. Choose the correct "target" (or "page" when they only want to open a page) and a short "caption" of at most 60 characters in their language.`,
+      `After the tool result, say in one or two sentences what they will see and that they must press the button themselves. Example: "I took you to "${L.judgesDemo}"; the "${L.paymentDemo}" button is highlighted, press it when you want." Never say you pressed, paid, created, confirmed or changed anything: show_on_screen only opens pages and highlights elements.`,
+      `The current page can change during the session: trust the "page" field of the latest successful show_on_screen result; before any result, use the starting context page (home page or demo). Never claim they are on a different page than that result.`,
+      `If the result is ok:false, explain briefly that it is unavailable there and do not retry in a loop: at most one retry with another valid destination.`,
+      `Tour: if they ask for a tour or "show me the demo", use DEMO_TOUR step by step: one show_on_screen per step (${tour}), explain each step and wait for the person to say "next" before the following step.`,
+      'Do not use show_on_screen for questions unrelated to the screen (prices, schedules, payments, account status). You still cannot query, create, change or cancel events, guests, payments, refunds, capacity or attendance.',
+    ].join('\n');
+  }
+  return [
+    `Tu única herramienta es show_on_screen. Úsala solo cuando la persona pida ir a algún sitio, ver algo o saber dónde está un botón o elemento de la pantalla. Elige el "target" correcto (o "page" si solo quiere abrir una página) y un "caption" corto, de 60 caracteres como máximo, en su idioma.`,
+    `Después del resultado, di en una o dos frases qué verá y que es ella quien pulsa el botón. Ejemplo: «Te llevé a "${L.judgesDemo}"; el botón "${L.paymentDemo}" está resaltado, púlsalo cuando quieras». Nunca digas que pulsaste, pagaste, creaste, confirmaste ni cambiaste algo: show_on_screen solo abre páginas y resalta elementos.`,
+    `La página actual puede cambiar durante la sesión: la verdad es el campo "page" del último resultado correcto de show_on_screen; si todavía no hay resultado, vale la página del contexto inicial (portada o demo). No afirmes que está en una página distinta de la del último resultado.`,
+    `Si el resultado es ok:false, explica brevemente que no está disponible ahí y no reintentes en bucle: como máximo un reintento con otro destino válido.`,
+    `Recorrido: si piden un recorrido o «muéstrame la demo», usa DEMO_TOUR paso a paso: un show_on_screen por paso (${tour}), explica cada paso y espera a que la persona diga «siguiente» antes del siguiente.`,
+    'No uses show_on_screen para preguntas que no tienen que ver con la pantalla (precios, horarios, pagos, estado de cuenta). Tampoco puedes consultar, crear, cambiar ni cancelar eventos, invitados, pagos, reembolsos, cupos ni asistencia.',
+  ].join('\n');
+}
+
+/**
+ * Public informational voice. It runs before any event or guest exists, so it has no private
+ * event data and no organizer key. When VOICE_SCREEN_GUIDE=on it declares only show_on_screen,
+ * which the browser executes; the server still cannot act.
+ */
+export function publicVoiceInstruction(
+  locale: Locale = 'es',
+  context: AssistantContext = 'landing',
+  screenGuide = true,
+): string {
   if (locale === 'en') {
     return [
       'You are the FiestaPay voice assistant. Speak brief, clear, friendly English. This is a PayPal SANDBOX demonstration, with no real money.',
       'Explain what FiestaPay is: invitations with a fixed fee, attendance confirmation, capacity and a test payment with PayPal.',
       'Explain the general steps: create an invitation, share its link, join with an alias, confirm attendance and pay the fixed fee.',
-      publicPageContext(locale, context),
-      'You have no tools. Do not query, create, change or cancel events, guests, payments, refunds, capacity or attendance.',
+      screenGuide ? publicScreenGuideContext(locale, context) : publicPageContext(locale, context),
+      screenGuide
+        ? publicScreenGuideRules(locale)
+        : 'You have no tools. Do not query, create, change or cancel events, guests, payments, refunds, capacity or attendance.',
       'Do not ask for or repeat organizer keys, private codes, emails, sessions, addresses, phone numbers or card or PayPal data. Do not repeat real or fictional values of the test account either.',
       'Do not claim that a payment, refund or funding happened. For real status, ask the person to review the screen or the panel.',
       'If the person asks for an organizer\'s or a specific event\'s data, explain that this voice is informational and they must open that invitation.',
@@ -111,8 +173,10 @@ export function publicVoiceInstruction(locale: Locale = 'es', context: Assistant
     'Eres el asistente de voz de FiestaPay. Habla de forma breve, clara y amable. Es una demostración con PayPal SANDBOX, sin dinero real.',
     'Explica qué es FiestaPay: invitaciones con cuota fija, confirmación de asistencia, cupo y pago de prueba con PayPal.',
     'Explica los pasos generales: crear una invitación, compartir el enlace, unirse con un alias, confirmar asistencia y pagar la cuota fija.',
-    publicPageContext(locale, context),
-    'No tienes herramientas. No consultes, crees, cambies ni canceles eventos, invitados, pagos, reembolsos, cupos ni asistencia.',
+    screenGuide ? publicScreenGuideContext(locale, context) : publicPageContext(locale, context),
+    screenGuide
+      ? publicScreenGuideRules(locale)
+      : 'No tienes herramientas. No consultes, crees, cambies ni canceles eventos, invitados, pagos, reembolsos, cupos ni asistencia.',
     'No pidas ni repitas claves de organizador, códigos privados, correos, sesiones, direcciones, teléfonos ni datos de tarjeta o PayPal. Tampoco repitas valores reales o ficticios de la cuenta de prueba.',
     'No afirmes que un pago, reembolso o financiamiento ocurrió. Para el estado real, pide revisar la pantalla o el panel.',
     'Si la persona pide datos de un organizador o de un evento concreto, explica que esta voz es informativa y que debe abrir esa invitación.',
@@ -137,12 +201,13 @@ export function publicVoiceSessionConfig(
   media: object = assemblyVoiceMedia(),
   locale: Locale = 'es',
   context: AssistantContext = 'landing',
+  screenGuide = true,
 ) {
   return {
-    system_prompt: publicVoiceInstruction(locale, context),
+    system_prompt: publicVoiceInstruction(locale, context, screenGuide),
     greeting: publicVoiceGreeting(locale, context),
     ...media,
-    tools: [],
+    tools: publicVoiceToolConfig(screenGuide),
   };
 }
 
@@ -165,6 +230,7 @@ export async function registerVoiceRoutes(app: FastifyInstance, deps: RouteDeps)
     const session = await ensureSession(pool, config, req, reply);
     const locale = requestLocale(req);
     const voice = config.voice;
+    const screenGuide = voice.screenGuide;
     if (!voice.enabled) throw unavailable(locale === 'en' ? 'Voice is not enabled' : 'La voz no está habilitada');
     const leaseId = await reserveVoiceLease(pool, {
       sessionId: session.id,
@@ -182,9 +248,9 @@ export async function registerVoiceRoutes(app: FastifyInstance, deps: RouteDeps)
       const issued = await createGeminiVoiceSession(gemini, deps.createVoiceToken ?? createGeminiVoiceToken, {
         locale,
         maxSeconds: voice.maxSeconds,
-        systemInstruction: publicVoiceInstruction(locale, voiceContext),
+        systemInstruction: publicVoiceInstruction(locale, voiceContext, screenGuide),
         kickoff: publicVoiceGreeting(locale, voiceContext),
-        tools: [],
+        tools: screenGuide ? [SHOW_ON_SCREEN_DECLARATION] : [],
       });
       reply.header('Cache-Control','no-store');
       return {
@@ -198,7 +264,8 @@ export async function registerVoiceRoutes(app: FastifyInstance, deps: RouteDeps)
     }
     const token = await fetchAssemblyRealtimeToken(voice, locale);
     reply.header('Cache-Control','no-store');
-    return {token, sessionConfig:publicVoiceSessionConfig(assemblyVoiceMedia(locale), locale, voiceContext), maxSeconds:voice.maxSeconds, leaseId, audience:'public'};
+    // AssemblyAI keeps its existing public tool set (none); the screen guide is Gemini-only.
+    return {token, sessionConfig:publicVoiceSessionConfig(assemblyVoiceMedia(locale), locale, voiceContext, false), maxSeconds:voice.maxSeconds, leaseId, audience:'public'};
   });
 
   /**

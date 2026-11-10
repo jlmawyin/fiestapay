@@ -66,7 +66,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
           {m.story}
         </p>
         <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-          <button type="button" onClick={onNavigateCreate} className="btn btn-primary">
+          <button type="button" onClick={onNavigateCreate} className="btn btn-primary" data-guide="createInvitation">
             {labels.createInvitation}
           </button>
           <button type="button" onClick={onNavigateDemo} className="btn btn-secondary">
@@ -216,7 +216,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
               {m.emptyText}
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-              <button type="button" onClick={onNavigateCreate} className="btn btn-primary">
+              <button type="button" onClick={onNavigateCreate} className="btn btn-primary" data-guide="createInvitation">
                 {labels.createInvitation}
               </button>
               <button type="button" onClick={onNavigateDemo} className="btn btn-secondary">

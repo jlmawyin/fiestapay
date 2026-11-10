@@ -377,3 +377,4 @@ export function fixedQuote(priceCents: number, people: number, paidCents=0) {
   if(!Number.isSafeInteger(totalCents)) throw new Error('Invalid total');
   return {totalCents,amountCents:Math.max(0,totalCents-paidCents)};
 }
+export * from './ui-guide.js';

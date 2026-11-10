@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { TriangleAlert } from 'lucide-react';
-import { DEMO_GUEST_NAME, type AssistantContext } from '@fiestapay/shared';
+import { DEMO_GUEST_NAME, type AssistantContext, type UiPage } from '@fiestapay/shared';
+import { GuideOverlay } from './guide/GuideOverlay';
+import { registerGuideNavigator } from './guide/showOnScreen';
 import type { Capabilities, FiestaEvent, ToastMessage } from './types';
 import { api, ApiError } from './api/client';
 import { adminKeyFor, captureAdminKeyFromLocation, rememberAdminKey } from './api/admin-key';
@@ -45,6 +47,22 @@ type ViewMode =
   | { mode: 'invite'; slug: string }
   | { mode: 'dashboard'; slug: string }
   | { mode: 'recover' };
+
+/** Guide pages are the public routes; invite/dashboard are not guide pages. */
+function viewToGuidePage(view: ViewMode): UiPage | null {
+  if (view.mode === 'home') return 'landing';
+  if (view.mode === 'demo') return 'demo';
+  if (view.mode === 'create') return 'create';
+  if (view.mode === 'recover') return 'recover';
+  return null;
+}
+
+function guidePageToView(page: UiPage): ViewMode {
+  if (page === 'demo') return { mode: 'demo' };
+  if (page === 'create') return { mode: 'create' };
+  if (page === 'recover') return { mode: 'recover' };
+  return { mode: 'home' };
+}
 
 export const App: React.FC = () => {
   captureAdminKeyFromLocation();
@@ -177,6 +195,15 @@ export const App: React.FC = () => {
   useEffect(() => {
     document.title = m.docTitle;
   }, [m]);
+
+  // FP-GUIDE-1: the guide service navigates through the app router (no reload).
+  useEffect(() => {
+    registerGuideNavigator({
+      navigate: (page) => navigate(guidePageToView(page)),
+      getCurrentPage: () => viewToGuidePage(currentView),
+    });
+    return () => registerGuideNavigator(null);
+  }, [currentView, navigate]);
 
   /**
    * Fresh private judge demo. `POST /api/demo` always mints a new `is_demo`
@@ -443,6 +470,9 @@ export const App: React.FC = () => {
 
       {/* Global Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {/* FP-GUIDE-1 tutorial highlight + guided tour */}
+      <GuideOverlay />
     </div>
   );
 };

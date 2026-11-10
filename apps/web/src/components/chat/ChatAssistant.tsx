@@ -522,7 +522,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                       boxShadow: 'var(--shadow-sm)',
                     }}
                   >
-                    <AssistantText text={msg.text} />
+                    <AssistantText text={msg.text} guideScope="page" />
 
                     {isUser && msg.delivery === 'failed' && (
                       <div

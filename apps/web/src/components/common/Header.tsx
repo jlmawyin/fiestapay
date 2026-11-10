@@ -80,6 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onNavigateHome}
             className="btn btn-secondary fp-header-btn"
+            data-guide="myInvitations"
           >
             {labels.myInvitations}
           </button>
@@ -87,6 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onNavigateDemo}
               className="btn btn-secondary fp-header-btn"
+              data-guide="judgesDemo"
             >
               {labels.judgesDemo}
             </button>
@@ -94,6 +96,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onNavigateCreate}
             className="btn btn-primary fp-header-btn"
+            data-guide="newInvitation"
           >
             {labels.newInvitation}
           </button>

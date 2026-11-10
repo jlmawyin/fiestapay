@@ -17,7 +17,7 @@ export const LanguageSelector: React.FC = () => {
   };
 
   return (
-    <label className="fp-lang" htmlFor="fp-language-select">
+    <label className="fp-lang" htmlFor="fp-language-select" data-guide="languageSelector">
       <Globe size={16} aria-hidden="true" />
       <span>{labels.languageSelector}</span>
       <select
