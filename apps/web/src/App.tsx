@@ -397,6 +397,7 @@ export const App: React.FC = () => {
           <LandingView
             events={events}
             isLoading={isLoadingEvents}
+            capabilities={capabilities}
             eventsError={eventsError}
             onRetryEvents={initApp}
             onNavigateCreate={() => navigate({ mode: 'create' })}
@@ -411,6 +412,7 @@ export const App: React.FC = () => {
           <JudgePreviewView
             events={events}
             isLoading={isLoadingEvents}
+            capabilities={capabilities}
             eventsError={eventsError}
             onRetryEvents={initApp}
             onCreateDemo={handleCreateDemo}

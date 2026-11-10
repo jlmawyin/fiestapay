@@ -45,6 +45,7 @@ export const UI_TARGETS = {
   describeInvitation: { page: 'create', label: 'describeInvitation' },
   guidedTour: { page: 'demo', label: 'guidedTour' },
   aiBuildParty: { page: 'demo', label: 'aiBuildParty' },
+  fillWithAi: { page: 'create', label: 'fillWithAi' },
 } as const satisfies Record<string, UiTargetSpec>;
 
 export type UiTarget = keyof typeof UI_TARGETS;
@@ -70,6 +71,12 @@ export interface ShowOnScreenArgs {
   target?: UiTarget;
   /** Short hint next to the highlight, ≤ 60 characters, in the person's language. */
   caption?: string;
+  /**
+   * Only with target 'fillWithAi': the party as the person described it (plain text, 3–400
+   * characters). The browser writes it into the one-sentence field without running the AI;
+   * the person presses "Fill with AI".
+   */
+  sentence?: string;
 }
 
 /** What the browser answers to the model after acting (or refusing). */
@@ -91,6 +98,7 @@ export const SHOW_ON_SCREEN_DECLARATION: GeminiFunctionDeclaration = {
       page: { type: 'STRING', enum: [...UI_PAGES], description: 'Page to open.' },
       target: { type: 'STRING', enum: [...UI_TARGET_IDS], description: 'Element to highlight; its page opens first when needed.' },
       caption: { type: 'STRING', description: 'Short hint shown next to the highlight, max 60 characters, in the language of the conversation.' },
+      sentence: { type: 'STRING', description: "Only with target fillWithAi: the party exactly as the person described it (type, people, amount, date, place), max 400 characters. It is typed into the one-sentence field; the person presses Fill with AI." },
     },
   },
 };

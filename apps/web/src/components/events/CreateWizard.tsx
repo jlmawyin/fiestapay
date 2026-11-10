@@ -40,6 +40,11 @@ import {
 import { TemplateCover } from '../illustrations/TemplateCover';
 import { TemplateIcon } from './template-icons';
 import { ASSISTANT_THEME_EVENT, type AssistantThemeDetail } from '../assistant/orb-themes';
+import {
+  GUIDE_PREFILL_EVENT,
+  consumeGuidePrefill,
+  type GuidePrefillDetail,
+} from '../../guide/showOnScreen';
 
 interface CreateWizardProps {
   onSubmit: (input: EventInput) => Promise<void>;
@@ -830,6 +835,25 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
     void draftFillRef.current(initialDraft.text);
   }, [initialDraft]);
 
+  // FP-WELCOME-1 voice prefill: the person's spoken sentence is written into
+  // the one-sentence field without running the AI. Step 1 opens so the field
+  // and "Rellenar con IA" are visible for the highlight; other fields stay.
+  useEffect(() => {
+    const applyPrefill = (sentence: string) => {
+      setDraftText(sentence);
+      setOpenStep(1);
+    };
+    const pending = consumeGuidePrefill();
+    if (pending) applyPrefill(pending);
+    const onPrefill = (event: Event) => {
+      const sentence = (event as CustomEvent<GuidePrefillDetail>).detail?.sentence;
+      consumeGuidePrefill();
+      if (typeof sentence === 'string' && sentence) applyPrefill(sentence);
+    };
+    document.addEventListener(GUIDE_PREFILL_EVENT, onPrefill);
+    return () => document.removeEventListener(GUIDE_PREFILL_EVENT, onPrefill);
+  }, []);
+
   const handleSuggestAi = async () => {
     if (aiLoading || isLoading || posting.current) return;
     setAiLoading(true);
@@ -938,6 +962,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
           <button
             type="button"
             className="btn btn-primary"
+            data-guide="fillWithAi"
             onClick={() => void handleDraftFill()}
             disabled={draftLoading || isLoading}
           >

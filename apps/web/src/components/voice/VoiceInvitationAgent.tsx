@@ -67,6 +67,13 @@ interface VoiceInvitationAgentProps {
   onOpenChange?: (open: boolean) => void;
   /** Test seam: fake Gemini Live transport. Production omits it and uses the real connector. */
   geminiLiveConnector?: GeminiLiveConnector;
+  /**
+   * FP-WELCOME-1: the welcome card accept click. Each new value marks consent
+   * and starts one public session; 0/undefined (every manual open) never starts.
+   */
+  autoStartSignal?: number;
+  /** Called once per consumed signal so a later manual open stays idle. */
+  onAutoStartConsumed?: () => void;
 }
 
 interface AccumulatedToolCall {
@@ -189,6 +196,8 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   open,
   onOpenChange,
   geminiLiveConnector,
+  autoStartSignal,
+  onAutoStartConsumed,
 }) => {
   const organizer = audience === 'organizer';
   const publicAudience = audience === 'public';
@@ -1454,6 +1463,23 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
       setIsConfirmingAction(false);
     }
   };
+
+  const handleStartVoiceRef = useRef(handleStartVoice);
+  handleStartVoiceRef.current = handleStartVoice;
+  const handledAutoStartRef = useRef(0);
+  // FP-WELCOME-1: the welcome card click is the explicit consent. Each new
+  // signal marks consent and starts one public session through the usual path
+  // (usual notices, no retry). Manual opens mount with signal 0 and stay idle;
+  // an already-running session is left alone.
+  useEffect(() => {
+    if (!publicAudience || !autoStartSignal || handledAutoStartRef.current === autoStartSignal) return;
+    handledAutoStartRef.current = autoStartSignal;
+    onAutoStartConsumed?.();
+    const state = sessionStateRef.current;
+    if (state !== 'idle' && state !== 'ended' && state !== 'error') return;
+    setConsentGranted(true);
+    void handleStartVoiceRef.current();
+  }, [autoStartSignal, publicAudience, onAutoStartConsumed]);
 
   const startDisabledReason = !consentGranted
     ? m.needConsent

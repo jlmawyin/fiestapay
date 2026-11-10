@@ -14,10 +14,11 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { UI_LABELS } from '@fiestapay/shared';
 import { startGuidedTour } from '../guide/showOnScreen';
-import type { FiestaEvent } from '../types';
+import type { Capabilities, FiestaEvent } from '../types';
 import { Modal } from '../components/common/Modal';
 import { GridToolbar } from '../components/common/GridToolbar';
 import { EventCard } from '../components/demo/EventCard';
+import { VoiceWelcomeCard } from '../components/voice/VoiceWelcomeCard';
 import { PayPalAiPanel } from '../components/demo/PayPalAiPanel';
 import { SamplePartyCards } from '../components/demo/SamplePartyCards';
 import { useI18n, useMessages } from '../i18n/I18nContext';
@@ -31,6 +32,8 @@ export interface JudgePreviewViewProps {
   /** Session events; only `isDemo === true` rows are listed here. */
   events?: FiestaEvent[];
   isLoading?: boolean;
+  /** Voice capabilities. The welcome card only shows while voice is known to be on. */
+  capabilities?: Capabilities | null;
   eventsError?: string | null;
   onRetryEvents?: () => void;
   /** Private demo: POST /api/demo { kind: 'private' }. */
@@ -86,6 +89,7 @@ const GRID_LOCALE_TEXT_ES = {
 export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
   events = [],
   isLoading = false,
+  capabilities = null,
   eventsError = null,
   onRetryEvents,
   onCreateDemo,
@@ -332,6 +336,11 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.9rem', maxWidth: '720px' }}>
           {m.intro}
         </p>
+        {capabilities?.voice === true ? (
+          <div style={{ maxWidth: '720px' }}>
+            <VoiceWelcomeCard />
+          </div>
+        ) : null}
       </section>
 
       <section aria-label={m.sampleTitle} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', minWidth: 0 }}>

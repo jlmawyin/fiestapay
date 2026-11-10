@@ -209,7 +209,7 @@ describeDb('asistentes bilingües de punta a punta', () => {
           expect(JSON.stringify(config)).toContain('lola');
         }
       }
-      expect(publicConfig.greeting).toMatch(locale === 'en' ? /FiestaPay voice assistant/ : /asistente de voz de FiestaPay/);
+      expect(publicConfig.greeting).toMatch(locale === 'en' ? /I'm your FiestaPay agent/ : /Soy el agente de FiestaPay/);
       expect(publicConfig.tools).toEqual([]);
       expect(guestConfig.tools?.length).toBeGreaterThan(0);
       expect(publicConfig.system_prompt).toContain(locale === 'en' ? 'You have no tools' : 'No tienes herramientas');

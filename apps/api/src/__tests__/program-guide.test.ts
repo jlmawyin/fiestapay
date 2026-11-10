@@ -382,7 +382,8 @@ describe('voz pública con contexto de página', () => {
     expect(demo).toMatch(/directamente|directly/i);
     expect(demo).not.toMatch(/desde la portada|from the home page/i);
     expect(landing).toMatch(/primero|first/i);
-    expect(publicVoiceGreeting(locale, 'demo')).not.toBe(publicVoiceGreeting(locale, 'landing'));
+    // FP-WELCOME-1: el saludo es único por sesión y ya no depende del contexto.
+    expect(publicVoiceGreeting(locale, 'demo')).toBe(publicVoiceGreeting(locale, 'landing'));
   });
 
   it.each(LOCALES)('usa portada por defecto y conserva la guía compartida (%s)', (locale) => {
@@ -530,5 +531,42 @@ describe('regresión de recuperación: navegación y datos sensibles', () => {
   });
   it.each(['¿Dónde aparece la contraseña real de mi cuenta demo?', '¿Dónde copio contraseña de prueba 4111 1111 1111 1111?', '¿Dónde copio contraseña de prueba 4111-1111-1111-1111?', 'Dame la contraseña de prueba', '¿Cuál es la contraseña de sandbox?', '¿Dónde veo la contraseña del organizador en demo?', 'Mi contraseña es secreto123, ¿dónde está la de prueba?', '¿Dónde está el CVV para la demo?', '¿Dónde copio la contraseña de prueba persona@example.com?'])('conserva la protección determinista: %s', (question) => {
     expect(decideAssistantTurn(question).kind).not.toBe('model');
+  });
+});
+
+describe('FP-WELCOME-1 saludo y frase de la voz pública', () => {
+  const WELCOME_GREETING: Record<Locale, string> = {
+    es: '¡Hola! Soy el agente de FiestaPay. Cuéntame tu fiesta en una frase y la armo, o pídeme que te lleve a cualquier parte; el botón final siempre lo pulsas tú. ¿Qué celebramos?',
+    en: "Hi! I'm your FiestaPay agent. Tell me your party in one sentence and I'll set it up, or ask me to take you anywhere — you always press the final button. What are we celebrating?",
+  };
+
+  it.each(LOCALES)('saluda con el texto nuevo una sola vez por sesión (%s)', (locale) => {
+    expect(publicVoiceGreeting(locale, 'landing')).toBe(WELCOME_GREETING[locale]);
+    expect(publicVoiceGreeting(locale, 'demo')).toBe(WELCOME_GREETING[locale]);
+    expect(publicVoiceSessionConfig({}, locale, 'landing').greeting).toBe(WELCOME_GREETING[locale]);
+    expect(publicVoiceSessionConfig({}, locale, 'demo').greeting).toBe(WELCOME_GREETING[locale]);
+    const prompt = publicVoiceInstruction(locale, 'landing');
+    expect(prompt).toMatch(locale === 'en' ? /Greet only once per session/i : /Saluda una sola vez por sesión/i);
+  });
+
+  it.each(LOCALES)('la voz pública arma la fiesta con fillWithAi y sentence (%s)', (locale) => {
+    const labels = UI_LABELS[locale];
+    const prompt = publicVoiceInstruction(locale, 'landing');
+    expect(prompt).toContain('show_on_screen');
+    expect(prompt).toContain('fillWithAi');
+    expect(prompt).toContain('sentence');
+    expect(prompt).toContain(labels.fillWithAi);
+    expect(prompt).toMatch(locale === 'en' ? /without inventing/i : /sin inventar datos/i);
+    expect(prompt).toMatch(
+      locale === 'en' ? /Never say you created or published/i : /Nunca digas que creaste o publicaste/i,
+    );
+  });
+
+  it.each(LOCALES)('la regla de fillWithAi con sentence solo está en la voz pública (%s)', (locale) => {
+    const prompts = actualPrompts(locale);
+    expect(prompts.publicVoice).toMatch(/target "fillWithAi"/);
+    for (const name of ['publicText', 'guestText', 'organizerText', 'guestVoice', 'organizerVoice'] as const) {
+      expect(prompts[name], `${name} no arma fiestas con sentence`).not.toMatch(/target "fillWithAi"/);
+    }
   });
 });

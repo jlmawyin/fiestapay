@@ -1,8 +1,9 @@
 import React from 'react';
 import { PartyPopper } from 'lucide-react';
 import { UI_LABELS } from '@fiestapay/shared';
-import type { FiestaEvent } from '../types';
+import type { Capabilities, FiestaEvent } from '../types';
 import { EventCard } from '../components/demo/EventCard';
+import { VoiceWelcomeCard } from '../components/voice/VoiceWelcomeCard';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { landingCatalog } from '../i18n/catalogs/landing';
 import { cardsCatalog } from '../i18n/catalogs/cards';
@@ -11,6 +12,8 @@ import { isDemoEvent } from '../lib/event-presentation';
 export interface LandingViewProps {
   events: FiestaEvent[];
   isLoading: boolean;
+  /** Voice capabilities. The welcome card only shows while voice is known to be on. */
+  capabilities?: Capabilities | null;
   /** A bounded read failure. Existing events stay visible. */
   eventsError?: string | null;
   onRetryEvents?: () => void;
@@ -29,6 +32,7 @@ export interface LandingViewProps {
 export const LandingView: React.FC<LandingViewProps> = ({
   events,
   isLoading,
+  capabilities = null,
   eventsError,
   onRetryEvents,
   onNavigateCreate,
@@ -65,6 +69,11 @@ export const LandingView: React.FC<LandingViewProps> = ({
         <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.92rem', margin: '0 0 1rem', maxWidth: '720px' }}>
           {m.story}
         </p>
+        {capabilities?.voice === true ? (
+          <div style={{ margin: '0 0 1rem', maxWidth: '720px' }}>
+            <VoiceWelcomeCard />
+          </div>
+        ) : null}
         <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
           <button type="button" onClick={onNavigateCreate} className="btn btn-primary" data-guide="createInvitation">
             {labels.createInvitation}

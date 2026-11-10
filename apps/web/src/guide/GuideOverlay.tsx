@@ -289,10 +289,14 @@ export const GuideOverlay: React.FC = () => {
   const tourIndex = spot.tour?.index;
   const tourSteps = spot.tour?.steps;
   const isTour = tourIndex !== undefined && tourSteps !== undefined;
+  // fillWithAi always uses the fixed caption: a model caption like "Filling the
+  // party details with AI" wrongly suggests the AI is already working before
+  // the person presses anything.
   const body =
     (isTour && tourSteps[tourIndex] ? tourTextFor(tourSteps[tourIndex], demo) : null) ??
-    spot.caption ??
-    defaultCaptionFor(locale, spot.target, orb.guideTapHere);
+    (spot.target === 'fillWithAi'
+      ? orb.guideFillWithAi
+      : (spot.caption ?? defaultCaptionFor(locale, spot.target, orb.guideTapHere)));
 
   const viewportWidth = window.innerWidth || 375;
   const bubbleLeft = Math.min(
