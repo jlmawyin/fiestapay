@@ -23,6 +23,7 @@ import {
   shareableInviteUrl,
   templateInviteCopy,
 } from '../lib/event-presentation';
+import { orderStatusLabel } from '../lib/order-status';
 
 interface PublicInviteViewProps {
   slug: string;
@@ -56,6 +57,8 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const m = useMessages(inviteCatalog);
   const copyRef = useRef(m);
   copyRef.current = m;
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
   const scopeVersion = useRef(0);
   useLayoutEffect(() => {
     scopeVersion.current += 1;
@@ -279,7 +282,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         }
         onShowToast(
           'warning',
-          copyRef.current.captureStatus(res.status),
+          copyRef.current.captureStatus(orderStatusLabel(res.status, localeRef.current)),
           copyRef.current.captureStatusTitle
         );
         return false;
@@ -315,7 +318,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         onShowToast('success', copyRef.current.reconcilePaid, copyRef.current.paidTitle);
       } else {
         if (res.guest) setGuest(res.guest);
-        onShowToast('info', copyRef.current.reconcileStatus(res.status), copyRef.current.reconcileTitle);
+        onShowToast('info', copyRef.current.reconcileStatus(orderStatusLabel(res.status, localeRef.current)), copyRef.current.reconcileTitle);
       }
     } catch (err: any) {
       if (scope !== scopeVersion.current) return;

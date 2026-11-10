@@ -161,7 +161,7 @@ describe('landing journey and organizer safety', () => {
     vi.spyOn(api, 'getOrganizerEvents').mockResolvedValue({ events: [] });
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /Crea tu invitación y aclara los pagos/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Tu anfitrión con IA que cobra la parte de cada uno/i })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Crear mi invitación' }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: 'Demo para jueces' }).length).toBeGreaterThan(0);
     expect(screen.getByText('Sandbox · Sin dinero real')).toBeInTheDocument();

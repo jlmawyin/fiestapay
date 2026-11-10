@@ -9,8 +9,8 @@ flowchart LR
   Nginx --> API[Fastify API]
   API --> DB[(PostgreSQL)]
   API --> PayPal[PayPal sandbox]
-  API --> LLM[OpenAI Responses]
-  Browser --> Voice[AssemblyAI voice WebSocket]
+  API --> LLM[Gemini text API]
+  Browser --> Voice[Gemini Live API]
   Voice --> Browser
   Browser -->|authorized tool request| API
 ```
@@ -23,6 +23,6 @@ New events with a funding minimum have a server-owned deadline. The server makes
 
 Chat and voice use the same tool dispatcher. Model output is untrusted. Tools cannot choose a merchant, alter a price, approve a PayPal transaction or confirm an event. Proposed RSVP changes and quotes require human confirmation. The voice API issues only short-lived provider tokens after consent and an atomic database reservation against the shared daily voice budget.
 
-Browser audio is sent directly to AssemblyAI with a temporary token; server keys never reach the browser. FiestaPay does not persist microphone audio. Chat history is stored per event/session. Do not enter personal information; use fictional demo aliases.
+Browser audio is sent directly to Gemini Live with a single-use ephemeral token minted by the server; server keys never reach the browser. FiestaPay does not persist microphone audio. Chat history is stored per event/session. Do not enter personal information; use fictional demo aliases.
 
-The runtime text model is OpenAI Responses `gpt-6-luna` with low reasoning. `LLM_PROVIDER=openai` is accepted for compatibility and any other value is rejected. A missing key or provider error keeps the manual flow available. Reasoning items are encrypted and retained server-side for stateless tool continuations, never sent to the browser. Legacy history replays visible text only: signatures, thoughts, and old tool payloads are not forwarded.
+The runtime text model is Gemini `gemini-3.5-flash`; voice uses Gemini Live `gemini-3.8-live`. `LLM_PROVIDER=openai` is accepted for compatibility, while OpenAI and AssemblyAI remain rollback-only configuration. A missing key or provider error keeps the manual flow available. The model receives only the role-scoped context and tools; tool calls are re-checked by the server, and visible legacy history is replayed as text only.

@@ -31,6 +31,8 @@ export const GUIDE_VISIBLE_EVENT = 'fiestapay:guide-visible' as const;
 export const GUIDE_HIDDEN_EVENT = 'fiestapay:guide-hidden' as const;
 /** Asks the overlay to run a step-by-step tour. */
 export const GUIDE_TOUR_EVENT = 'fiestapay:guide-tour' as const;
+/** Asks /create to write the person's party sentence into the one-sentence field (no AI run). */
+export const GUIDE_PREFILL_EVENT = 'fiestapay:guide-prefill' as const;
 /** Voice session activity for the orb (public mini-bar). */
 export const VOICE_ACTIVITY_EVENT = 'fiestapay:voice-activity' as const;
 /** The mini-bar asks the voice panel to stop through its usual Stop path. */
@@ -54,6 +56,10 @@ export interface GuideVisibleDetail {
 
 export interface GuideTourDetail {
   steps: UiTarget[];
+}
+
+export interface GuidePrefillDetail {
+  sentence: string;
 }
 
 export interface VoiceActivityDetail {
@@ -81,6 +87,24 @@ export function dispatchGuideShow(detail: GuideShowDetail): void {
 /** Hides any highlight or tour the overlay currently shows. */
 export function dismissGuide(): void {
   dispatchGuideEvent(GUIDE_HIDE_EVENT, null);
+}
+
+/**
+ * Pending one-sentence prefill for /create. The event reaches a mounted wizard;
+ * the pending slot covers a wizard that mounts after the navigation. Reading
+ * consumes: a stale sentence never leaks into a later manual visit.
+ */
+let pendingGuidePrefill: string | null = null;
+
+export function setGuidePrefill(sentence: string): void {
+  pendingGuidePrefill = sentence;
+  dispatchGuideEvent(GUIDE_PREFILL_EVENT, { sentence } satisfies GuidePrefillDetail);
+}
+
+export function consumeGuidePrefill(): string | null {
+  const sentence = pendingGuidePrefill;
+  pendingGuidePrefill = null;
+  return sentence;
 }
 
 /** Starts the judges-demo tour (`DEMO_TOUR` order) from the /demo button. */
@@ -118,8 +142,10 @@ export function guidePrefersReducedMotion(): boolean {
   }
 }
 
-const ALLOWED_ARG_KEYS = new Set(['page', 'target', 'caption']);
+const ALLOWED_ARG_KEYS = new Set(['page', 'target', 'caption', 'sentence']);
 const MAX_CAPTION = 60;
+const MIN_SENTENCE = 3;
+const MAX_SENTENCE = 400;
 
 function isUiPage(value: unknown): value is UiPage {
   return typeof value === 'string' && (UI_PAGES as readonly string[]).includes(value);
@@ -130,9 +156,11 @@ function isUiTarget(value: unknown): value is UiTarget {
 }
 
 /**
- * Strict contract validation. Only `page`/`target`/`caption` are accepted and both ids
- * must belong to the closed lists. URLs, selectors and any other key are rejected.
- * An over-long caption is trimmed to 60 characters; anything else fails closed.
+ * Strict contract validation. Only `page`/`target`/`caption`/`sentence` are accepted and
+ * both ids must belong to the closed lists. URLs, selectors and any other key are
+ * rejected. An over-long caption is trimmed to 60 characters; anything else fails
+ * closed. `sentence` is only valid with target `fillWithAi`: plain text, 3–400
+ * characters after trimming.
  */
 export function validateShowOnScreenArgs(raw: unknown): { ok: true; args: ShowOnScreenArgs } | { ok: false } {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false };
@@ -140,7 +168,7 @@ export function validateShowOnScreenArgs(raw: unknown): { ok: true; args: ShowOn
   for (const key of Object.keys(record)) {
     if (!ALLOWED_ARG_KEYS.has(key)) return { ok: false };
   }
-  const { page, target, caption } = record;
+  const { page, target, caption, sentence } = record;
   if (page !== undefined && !isUiPage(page)) return { ok: false };
   if (target !== undefined && !isUiTarget(target)) return { ok: false };
   if (page === undefined && target === undefined) return { ok: false };
@@ -150,12 +178,21 @@ export function validateShowOnScreenArgs(raw: unknown): { ok: true; args: ShowOn
     const trimmed = caption.trim();
     if (trimmed.length > 0) cleanCaption = trimmed.slice(0, MAX_CAPTION);
   }
+  let cleanSentence: string | undefined;
+  if (sentence !== undefined) {
+    if (target !== 'fillWithAi') return { ok: false };
+    if (typeof sentence !== 'string') return { ok: false };
+    const trimmed = sentence.trim();
+    if (trimmed.length < MIN_SENTENCE || trimmed.length > MAX_SENTENCE) return { ok: false };
+    cleanSentence = trimmed;
+  }
   return {
     ok: true,
     args: {
       ...(page !== undefined ? { page: page as UiPage } : {}),
       ...(target !== undefined ? { target: target as UiTarget } : {}),
       ...(cleanCaption !== undefined ? { caption: cleanCaption } : {}),
+      ...(cleanSentence !== undefined ? { sentence: cleanSentence } : {}),
     },
   };
 }
@@ -225,7 +262,9 @@ export function opensOf(target: UiTarget): UiPage | undefined {
 /**
  * Opens one page and/or highlights one element. Navigation entries (`opens`) open their
  * page instead of highlighting. A target on another page opens that page first when
- * needed; header (`any`) targets highlight in place on any route.
+ * needed; header (`any`) targets highlight in place on any route. With target
+ * `fillWithAi` and a valid `sentence`, /create also receives the person's phrase
+ * written into the one-sentence field, without running the AI.
  */
 export async function showOnScreen(
   rawArgs: unknown,
@@ -245,6 +284,9 @@ export async function showOnScreen(
   // An explicit page wins; otherwise an opens entry or the target's own page.
   const destination: UiPage | undefined =
     args.page ?? opens ?? (spec && spec.page !== 'any' ? spec.page : undefined);
+  // The sentence reaches /create before the highlight is waited for: a mounted
+  // wizard opens step 1 on the event, a mounting wizard reads the pending slot.
+  if (args.target === 'fillWithAi' && args.sentence) setGuidePrefill(args.sentence);
   const current = getGuidePage();
   dispatchGuideAction({ ...(destination || current ? { page: (destination ?? current) as UiPage } : {}), ...(args.target ? { target: args.target } : {}) });
   if (destination && destination !== current) {
@@ -264,6 +306,9 @@ export async function showOnScreen(
   }
   const element = await waitForGuideTarget(args.target, timeoutMs);
   if (!element) {
+    // Nobody will highlight: drop a pending sentence so it never leaks into
+    // a later manual visit to /create.
+    consumeGuidePrefill();
     const missingPage = getGuidePage() ?? destination;
     return {
       ok: false,

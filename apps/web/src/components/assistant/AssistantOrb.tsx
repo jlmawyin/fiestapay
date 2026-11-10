@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { UI_LABELS, type AssistantContext, type MealKind, type ThemeKey } from '@fiestapay/shared';
 import type { Capabilities, Guest, Quote, RsvpStatus, TemplateKind } from '../../types';
@@ -41,6 +41,15 @@ export type AssistantOrbMode = 'text' | 'voice';
  * for its per-step "ask the assistant" link.
  */
 export const ASSISTANT_OPEN_EVENT = 'fiestapay:open-assistant' as const;
+
+/**
+ * Document event that opens the public orb in voice mode and starts one voice
+ * session. Dispatch: `document.dispatchEvent(new CustomEvent(
+ * ASSISTANT_VOICE_OPEN_EVENT))`. Only the welcome card dispatches it, from its
+ * own accept click with the consent line visible: that click is the explicit
+ * consent. Guest and organizer orbs ignore it.
+ */
+export const ASSISTANT_VOICE_OPEN_EVENT = 'fiestapay:open-voice' as const;
 
 export interface AssistantOrbTheme {
   template: TemplateKind;
@@ -267,6 +276,22 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
     document.addEventListener(ASSISTANT_OPEN_EVENT, onOpenRequest);
     return () => document.removeEventListener(ASSISTANT_OPEN_EVENT, onOpenRequest);
   }, []);
+
+  // FP-WELCOME-1: the welcome card accept click opens voice and asks for one
+  // session start. The signal is consumed by the voice pane, so a later manual
+  // open never starts the microphone by itself.
+  const [voiceAutoStart, setVoiceAutoStart] = useState(0);
+  const consumeVoiceAutoStart = useCallback(() => setVoiceAutoStart(0), []);
+  useEffect(() => {
+    const onVoiceRequest = () => {
+      if (audience !== 'public') return;
+      setMode('voice');
+      setIsOpen(true);
+      setVoiceAutoStart((value) => value + 1);
+    };
+    document.addEventListener(ASSISTANT_VOICE_OPEN_EVENT, onVoiceRequest);
+    return () => document.removeEventListener(ASSISTANT_VOICE_OPEN_EVENT, onVoiceRequest);
+  }, [audience]);
 
   // FP-GUIDE-1: running a guide action from the panel minimizes it so the guided
   // element stays visible. The text components stay mounted, so reopening the orb
@@ -638,6 +663,8 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
               onOpenChange={(next) => {
                 if (!next) closeOrb();
               }}
+              autoStartSignal={voiceAutoStart}
+              onAutoStartConsumed={consumeVoiceAutoStart}
             />
           </div>
         )}

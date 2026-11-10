@@ -9,6 +9,11 @@ export const demoCatalog = defineCatalog({
     banner: 'Datos ficticios · Sandbox · Sin dinero real',
     intro:
       'Recorrido guiado para jueces: todo lo que ves aquí es ficticio y PayPal está en modo Sandbox, sin dinero real.',
+    aiStepTitle: 'Describe tu fiesta y la IA la arma',
+    aiStepText:
+      'Escribe una frase y pulsa el botón: la IA propone la invitación en «Crear» y tú revisas antes de publicar.',
+    aiStepLabel: 'Tu fiesta en una frase',
+    aiStepExample: 'Parrillada para 10 amigos, $15 cada uno, el sábado a las 4 pm en el parque',
     step1Title: 'Mira el panel de ejemplo',
     step1Text:
       'Así se ve la lista de invitados y pagos. Puedes ordenar, filtrar y buscar sin modificar ningún evento real.',
@@ -72,6 +77,8 @@ export const demoCatalog = defineCatalog({
     pendingOnly: 'Solo pendientes',
     exportCsv: 'Exportar CSV',
     totals: 'Totales (ficticio)',
+    tourAi:
+      'Describe tu fiesta en una frase y pulsa «Crear la fiesta con IA»: la IA propone la invitación y tú la revisas.',
     tourPreview:
       'Aquí ves la tabla de invitados y pagos de ejemplo. Puedes ordenar, filtrar y buscar sin cambiar nada real.',
     tourPayment:
@@ -83,6 +90,11 @@ export const demoCatalog = defineCatalog({
     banner: 'Fictional data · Sandbox · No real money',
     intro:
       'Guided tour for judges: everything you see here is fictional and PayPal runs in Sandbox mode, with no real money.',
+    aiStepTitle: 'Describe your party — the AI builds it',
+    aiStepText:
+      'Write one sentence and press the button: the AI drafts the invitation in “Create” and you review before publishing.',
+    aiStepLabel: 'Your party in one sentence',
+    aiStepExample: 'BBQ for 10 friends, $15 each, Saturday 4 pm at Central Park',
     step1Title: 'Look at the sample dashboard',
     step1Text:
       'This is what the guest and payment list looks like. You can sort, filter, and search without changing any real event.',
@@ -146,6 +158,8 @@ export const demoCatalog = defineCatalog({
     pendingOnly: 'Only pending',
     exportCsv: 'Export CSV',
     totals: 'Totals (fictional)',
+    tourAi:
+      'Describe your party in one sentence and press “Build the party with AI”: the AI drafts the invitation and you review it.',
     tourPreview:
       'Here is the sample guest and payment table. You can sort, filter, and search without changing anything real.',
     tourPayment:

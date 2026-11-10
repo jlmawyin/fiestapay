@@ -91,7 +91,7 @@ describe('FP-J1 sample parties on /demo', () => {
     }
   });
 
-  it('translates the sample chrome to English while party titles stay fixed', () => {
+  it('translates the sample chrome and party titles to English', () => {
     localStorage.setItem('fp_locale', 'en');
     render(
       <I18nProvider>
@@ -100,15 +100,22 @@ describe('FP-J1 sample parties on /demo', () => {
     );
 
     expect(screen.getByText('Sample parties')).toBeInTheDocument();
-    const asado = screen.getByRole('radio', { name: /Asado del Domingo/ });
+    // FP-JUDGE-1: party titles are fixed demo copy, translated per locale.
+    expect(screen.getByText('Sunday BBQ')).toBeInTheDocument();
+    expect(screen.getByText("Sofia's Birthday")).toBeInTheDocument();
+    expect(screen.getByText('Beach Getaway')).toBeInTheDocument();
+    const asado = screen.getByRole('radio', { name: /Sunday BBQ/ });
     expect(within(asado).getByText('5 confirmed · 3 paid · 2 pending')).toBeInTheDocument();
     expect(within(asado).getByText('Raised $100.00 (fictional)')).toBeInTheDocument();
     expect(within(asado).getByText('Minimum $80.00 · 100%')).toBeInTheDocument();
     expect(within(asado).getByText('Goal $160.00 · 62%')).toBeInTheDocument();
-    expect(screen.getByText('Guests · Asado del Domingo')).toBeInTheDocument();
+    expect(screen.getByText('Guests · Sunday BBQ')).toBeInTheDocument();
     const body = document.body.textContent ?? '';
     expect(body).not.toContain('Fiestas de muestra');
     expect(body).not.toContain('Datos ficticios');
+    expect(body).not.toContain('Asado del Domingo');
+    expect(body).not.toContain('Cumpleaños de Sofía');
+    expect(body).not.toContain('Escapada a la Playa');
   });
 });
 

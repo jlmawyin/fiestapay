@@ -1,15 +1,39 @@
 # FiestaPay implementation rules
 
-- The consolidated October28 request in docs/ENCARGO_2026-10-28.md supersedes incompatible older scope: prioritize payment return/admin navigation, typed fields/times/WhatsApp/copy, role-specific read-only assistants and guest clarity; themes have an authorized four-default fallback if variants jeopardize October31. Runtime AI changed by Jorge on 8 Nov 2026: Gemini (paid API) — `gemini-3.8-live` voice through single-use ephemeral tokens and `gemini-3.5-flash` text (see docs/GEMINI.md); OpenAI and AssemblyAI remain only as configuration rollbacks. Assistants may *prepare* a payment (server quote in integer cents + on-screen "Approve in PayPal"); only the person approves inside PayPal and only a server-verified capture counts as paid. The Gemini key never reaches the browser.
-- Never claim the current captured PayPal funds are held until organizer confirmation. Buyer Protection is subject to PayPal eligibility/terms. Do not change CAPTURE to AUTHORIZE or add platform escrow/Payouts to support that copy.
-- New end-to-end sandbox tests are explicitly authorized for this request. Use new isolated fixtures and preserve historical accepted payments and Jorge's tester event. No live funds/cards, WhatsApp sends or new SMTP tests. Reviewers never receive environment secrets.
+Updated by Jorge's request on 10 Nov 2026 for the final hackathon stretch (Devpost deadline 12 Nov 2026 15:00 ECT; judges test 1–15 Dec 2026). These rules supersede the October plans (docs/ENCARGO_2026-10-28.md, docs/PLAN_DIARIO.md), which stay as history.
 
-- Read docs/PLAN_DIARIO.md and docs/API.md. The October25 P0-P6 priorities and October31 delivery deadline supersede the historic plan. Fixed covers, fixed-price payments and one sandbox receiver remain; open funds/deposits/physical contributions remain out of scope. All financial calculations stay server-side in integer cents.
-- Follow the current dirigir-agentes routing requested by Jorge: prefer OpenCode MCP with opencode/deepseek-v4.1-flash-free after native availability, authorized-root and construction preflight checks; DSH is the authorized fallback after confirmed exhaustion of free usage. AGY verifies independently, Claude handles recovery, Codex coordinates/integrates, GROK remains paused. Maximum two construction fronts and three evaluated deliveries per defect across providers; changing providers does not reset counters. OpenCode paid balance is reserved for a future emergency; do not spend it or migrate DSH account to paid API automatically. Read the skill cost/schedule reference if paid API is proposed. Codex quota stop also stops OpenCode and any product fallback. Do not revert others or edit outside assigned ownership. No independent git commits/pushes by workers.
-- Use graph discovery first; check coverage. Docs and new files may require exact source fallback. Never claim graph completeness when missing/stale.
-- Amounts come from server integer cents. No payment success without verified capture. Attendance and payment separate. No secrets in Git/logs/browser; no real judge data.
-- Tests for money/permissions/concurrency are required. Maximum three evaluated deliveries per issue; then evidence and a new hypothesis.
-- Never change other Contabo apps, DNS apex or global proxy defaults. Isolated FiestaPay services and database only.
-- External review is independent of constructor. Do not claim live APIs, human tests, video or submission passed without evidence.
+## Product direction
 
-- The DSH replacement was tested before integration (real MCP no-op, same-session file tools, 13 independent boundary checks). Default requested effort is low through the tested MCP overlay. Preserve every historical attempt counter: this does not authorize a fourth B/C or harness attempt. See dirigir-agentes/references/deepseek.md.
+- FiestaPay is an **AI party host that collects everyone's share with PayPal**. AI belongs in the main path: one sentence builds the invitation, the agent explains and guides by voice or text, prepares the payment and drafts reminders.
+- Runtime AI is **Gemini (Gemini Developer API, prepaid key)**: `gemini-3.5-flash` for text and `gemini-3.8-live` for real-time voice through single-use ephemeral tokens minted by the server (see docs/GEMINI.md). The key never reaches the browser. OpenAI and AssemblyAI remain only as configuration rollbacks. The Google Cloud USD 300 trial credit does not cover the Gemini Developer API; Vertex AI is not used (Live ephemeral tokens do not exist there).
+- The interface is bilingual (Spanish/English) and follows `?lang`, then the saved preference, then the browser language.
+
+## What agents may do in the product
+
+- Agents **prepare and guide**; people act. Allowed: answer, draft (invitation from one sentence, presentation, reminder texts), prepare a payment (server quote in integer cents + on-screen "Approve in PayPal"), open allowed FiestaPay pages and highlight allowed elements (`show_on_screen`, closed lists in packages/shared/src/ui-guide.ts).
+- Never: press buttons for the person, pay, approve, create or delete events, confirm attendance or the event, refund, moderate, or send messages on someone's behalf. Model output is validated against closed lists; no model-supplied URLs or selectors.
+- Microphone use always needs the person's explicit consent and a click (browsers forbid starting audio on their own).
+- WhatsApp: reminders are drafted by AI and sent by the organizer (copy or open WhatsApp). An agent inside WhatsApp (WhatsApp Business API) is future work, not in scope before the deadline.
+
+## Money and PayPal (unchanged)
+
+- Amounts come from the server in integer cents. No payment success without a server-verified capture. Attendance and payment are separate states. Fixed covers, fixed-price payments and one sandbox receiver; open funds, deposits and physical contributions stay out of scope.
+- Never claim captured PayPal funds are held until organizer confirmation. Buyer Protection is subject to PayPal eligibility and terms. Do not change CAPTURE to AUTHORIZE or add escrow/Payouts/split payments.
+
+## Testing, secrets and spending
+
+- Tests for money, permissions and concurrency are required. Maximum three evaluated deliveries per defect across providers; then evidence and a new hypothesis.
+- Real-provider tests only within Jorge's approved budget (Gemini: USD 10 total, logged in .local/coord/GEMINI-GASTO.md). Sandbox only: no live funds or cards. No real WhatsApp or SMTP sends during tests without Jorge's explicit approval. Use isolated fixtures and preserve historical payments and Jorge's tester event.
+- No secrets in Git, logs, browser, reports or reviewer prompts. No real judge data.
+- Do not claim live APIs, human tests, phone tests, video or submission passed without evidence.
+
+## Delivery and operations
+
+- Standing approval (Jorge, 9 Nov 2026) to merge and deploy without asking when all hold: CI green, independent AGY approval of the code and of the operator kit, backup with test restore, zero migrations, zero secret matches, smoke test, and rollback if anything fails. Deploy only through the operator kit; never change other Contabo apps, the DNS apex or global proxy defaults.
+- Code freeze: 10 Nov 2026 20:00 ECT, except critical fixes. Video and Devpost submission are Jorge's; never publish on his behalf.
+- Use graph discovery first and check coverage; docs and new files may need exact source fallback.
+
+## Agent routing (dirigir-agentes)
+
+- One active director (Claude or Codex). Builders: Muse and DSH, at most two construction fronts with disjoint ownership; AGY Gemini Flash verifies independently; AGY Gemini 4 Argon handles recovery. Grok is retired. OpenCode free usage is exhausted and its paid balance is reserved for emergencies; do not migrate DSH to a paid API automatically.
+- Workers never commit or push, never revert others and never edit outside their assigned paths. Changing providers does not reset attempt counters (see dirigir-agentes/references/deepseek.md for DSH).

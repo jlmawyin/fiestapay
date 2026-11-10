@@ -75,6 +75,9 @@ export const App: React.FC = () => {
   const [isResettingDemo, setIsResettingDemo] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [currentView, setCurrentView] = useState<ViewMode>({ mode: 'home' });
+  /** One-shot AI prefill for /create, set only by the judges-demo AI step. */
+  const [aiDraftRequest, setAiDraftRequest] = useState<{ text: string; id: number } | null>(null);
+  const aiDraftIdRef = useRef(0);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [demoPaymentSlug, setDemoPaymentSlug] = useState<string | null>(() => readDemoPaymentSlug());
   const [orbOpenSignal, setOrbOpenSignal] = useState<number | undefined>(undefined);
@@ -326,6 +329,22 @@ export const App: React.FC = () => {
     setOrbOpenSignal((prev) => (prev ?? 0) + 1);
   }, []);
 
+  /**
+   * Judges-demo AI step. The person's click is the consent to run one AI
+   * fill: /create mounts with the phrase prefilled and fires "Rellenar con
+   * IA" exactly once. The request is consumed on mount, so any later manual
+   * visit to /create starts with an empty phrase and no AI call.
+   */
+  const handleBuildPartyWithAi = useCallback((phrase: string) => {
+    aiDraftIdRef.current += 1;
+    setAiDraftRequest({ text: phrase, id: aiDraftIdRef.current });
+    navigate({ mode: 'create' });
+  }, [navigate]);
+
+  const consumeAiDraftRequest = useCallback(() => {
+    setAiDraftRequest(null);
+  }, []);
+
   const publicContext: AssistantContext = currentView.mode === 'demo' ? 'demo' : 'landing';
 
   return (
@@ -378,6 +397,7 @@ export const App: React.FC = () => {
           <LandingView
             events={events}
             isLoading={isLoadingEvents}
+            capabilities={capabilities}
             eventsError={eventsError}
             onRetryEvents={initApp}
             onNavigateCreate={() => navigate({ mode: 'create' })}
@@ -392,9 +412,11 @@ export const App: React.FC = () => {
           <JudgePreviewView
             events={events}
             isLoading={isLoadingEvents}
+            capabilities={capabilities}
             eventsError={eventsError}
             onRetryEvents={initApp}
             onCreateDemo={handleCreateDemo}
+            onBuildPartyWithAi={handleBuildPartyWithAi}
             onStartPaymentDemo={handleStartPaymentDemo}
             onTalkToAssistant={handleTalkToAssistant}
             onResetDemo={handleResetDemo}
@@ -408,6 +430,8 @@ export const App: React.FC = () => {
 
         {currentView.mode === 'create' && (
           <CreateEventView
+            draftRequest={aiDraftRequest}
+            onConsumeDraftRequest={consumeAiDraftRequest}
             recoveryAvailable={capabilities?.email === true}
             onEventCreated={(slug) => {
               initApp();

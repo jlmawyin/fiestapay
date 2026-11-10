@@ -482,6 +482,11 @@ describe('FP-GUIDE-1 guided tour', () => {
   it('walks the demo steps in order and finishes on the last Siguiente', async () => {
     await openDemo();
     fireEvent.click(screen.getByRole('button', { name: 'Recorrido guiado' }));
+    // FP-JUDGE-1: DEMO_TOUR starts at the AI build step.
+    expect(await screen.findByTestId('guide-bubble')).toHaveTextContent(
+      'Describe tu fiesta en una frase y pulsa «Crear la fiesta con IA»',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     expect(await screen.findByTestId('guide-bubble')).toHaveTextContent(
       'Aquí ves la tabla de invitados y pagos de ejemplo.',
     );

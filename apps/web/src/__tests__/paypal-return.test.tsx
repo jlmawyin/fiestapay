@@ -186,7 +186,7 @@ describe('PayPal Return Flow, URL Order Recovery and Capture Safety', () => {
     await waitFor(() => {
       expect(onShowToast).toHaveBeenCalledWith(
         'warning',
-        expect.stringContaining('El servidor reporta el estado de la orden como "approved"'),
+        expect.stringContaining('El servidor reporta el estado de la orden como "Aprobada en PayPal"'),
         expect.stringContaining('Verificación de Pago')
       );
     });

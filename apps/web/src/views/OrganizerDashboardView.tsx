@@ -28,6 +28,7 @@ import {
   resolveTheme,
   shareableInviteUrl,
 } from '../lib/event-presentation';
+import { orderStatusLabel } from '../lib/order-status';
 
 interface GatheringCopy {
   noun: string;
@@ -437,7 +438,7 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
           <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.875rem' }}>
             {(payments ?? []).map((payment) => (
               <li key={payment.orderId}>
-                {payment.guestName || m.paymentGuestFallback} · {formatMoney(payment.amountCents)} · {payment.status}
+                {payment.guestName || m.paymentGuestFallback} · {formatMoney(payment.amountCents)} · {orderStatusLabel(payment.status, locale)}
               </li>
             ))}
           </ul>
