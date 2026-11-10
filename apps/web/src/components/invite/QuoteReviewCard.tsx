@@ -194,6 +194,7 @@ export const QuoteReviewCard: React.FC<QuoteReviewCardProps> = ({
                 }}
                 style={{ marginTop: '0.2rem', width: '18px', height: '18px', flex: '0 0 auto' }}
                 aria-label={labels.quoteReview}
+                data-guide="quoteReview"
                 disabled={preparing || isLoadingQuote}
               />
               <span>
@@ -224,6 +225,7 @@ export const QuoteReviewCard: React.FC<QuoteReviewCardProps> = ({
               type="button"
               onClick={handleProceed}
               className="btn btn-primary"
+              data-guide="generatePayment"
               style={{ flex: '1 1 12rem', minWidth: 0, padding: '0.75rem' }}
               disabled={!confirmedByUser || preparing || isLoadingQuote}
             >

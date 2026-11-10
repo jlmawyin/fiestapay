@@ -5,7 +5,7 @@ Jorge approved merging PR 15 (relayed from his side session) and then, in this s
 ## Deployment
 
 - **Release:** `main` = `64465cb4ffb7e7e6947b104668d2f5d3ffd359b2` (merge of PR 15). [Main CI 42443967019](https://github.com/jlmawyin/fiestapay/actions/runs/42443967019) succeeded. Previous production: `8259b4c` / image `sha256:58daebd8…`. New image: `sha256:4d312e0d5e9f531e2c45e70406a297ea7c38863a201723c16a3bfec4f528e5ed`.
-- **Operator:** the zero-SQL transition kit reviewed and used on 5 November (`docs/reviews/program-guide-live-20261105.md`), with only its accepted base moved from F89 to `8259b4c` (and F89 now rejected). Its 44 offline unit tests passed before freezing (one test intentionally requires an unfrozen spec, so it fails after freezing). AGY Gemini 3.8 Flash reviewed the operator change and the frozen package read-only: approved with observations. The archive is `git archive` of the exact commit (SHA-256 `dc339137…77e9`).
+- **Operator:** the zero-SQL transition kit reviewed and used on 5 November (`docs/internal/reviews/program-guide-live-20261105.md`), with only its accepted base moved from F89 to `8259b4c` (and F89 now rejected). Its 44 offline unit tests passed before freezing (one test intentionally requires an unfrozen spec, so it fails after freezing). AGY Gemini 3.8 Flash reviewed the operator change and the frozen package read-only: approved with observations. The archive is `git archive` of the exact commit (SHA-256 `dc339137…77e9`).
 - **Stages** (each a separate, sanitized result):
   - `upload` and `validate`: the base matched production and there were no new migrations.
   - `build`: candidate image recorded and not activated; Compose files and old SQL unchanged.

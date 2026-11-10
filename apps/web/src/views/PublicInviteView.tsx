@@ -24,6 +24,7 @@ import {
   templateInviteCopy,
 } from '../lib/event-presentation';
 import { orderStatusLabel } from '../lib/order-status';
+import { showOnScreen } from '../guide/showOnScreen';
 
 interface PublicInviteViewProps {
   slug: string;
@@ -342,6 +343,15 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
     onShowToast('warning', msg, copyRef.current.payIncompleteTitle);
   };
 
+  /** Guest chat/voice prepared the quote: show where the server summary is reviewed. */
+  const handleApplyQuote = (nextQuote: Quote) => {
+    setQuote(nextQuote);
+    onShowToast('info', copyRef.current.assistantQuote, copyRef.current.quoteTitle);
+    if (nextQuote.amountCents > 0) {
+      void showOnScreen({ target: activeOrder ? 'openPayPal' : 'quoteReview' }, { inviteSlug: slug });
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -450,7 +460,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
 
   return (
     <ThemeScope theme={theme}>
-    <div className="invite-shell">
+    <div className="invite-shell" data-invite-slug={slug}>
       {/* Main Signature Invitation Ticket */}
       <article className="ticket-card" aria-label={m.inviteAria(event.title)}>
         {/* Cover illustration */}
@@ -674,10 +684,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         theme={{ template: event.template, themeKey: event.theme, meal: event.meal }}
         accessRevoked={sessionRevoked}
         eventClosed={activityBlocked}
-        onApplyQuote={(q) => {
-          setQuote(q);
-          onShowToast('info', copyRef.current.assistantQuote, copyRef.current.quoteTitle);
-        }}
+        onApplyQuote={handleApplyQuote}
         onConfirmRsvp={handleSaveRsvp}
         onShowToast={onShowToast}
       />

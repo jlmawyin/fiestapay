@@ -204,7 +204,14 @@ export async function runTool(ctx: ToolContext, name: string, rawArgs: unknown):
       }
       // Amounts come only from the event price, the confirmed RSVP and verified payments.
       // Any client-supplied amount in the arguments is ignored: it is never read above.
-      const quote = await createQuoteForSession(ctx.pool, ctx.sessionId, ctx.event.slug, ctx.quoteTtlSeconds);
+      const quote = await createQuoteForSession(
+        ctx.pool,
+        ctx.sessionId,
+        ctx.event.slug,
+        ctx.quoteTtlSeconds,
+        null,
+        ctx.locale ?? 'es',
+      );
       const nextStep = ctx.locale === 'en'
         ? 'Press "Approve in PayPal" on screen and approve the payment inside PayPal. The assistant cannot charge or confirm it: only a capture verified by the server counts as paid.'
         : 'Pulsa «Aprobar en PayPal» en pantalla y aprueba el pago dentro de PayPal. El asistente no cobra ni confirma el pago: solo una captura verificada por el servidor cuenta como pagado.';

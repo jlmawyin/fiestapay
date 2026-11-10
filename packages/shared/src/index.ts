@@ -311,6 +311,10 @@ export interface ReminderDraftResult {
   /** True when more guests owe money than the per-call cap returned. */
   truncated: boolean;
 }
+export interface PublicChatResult {
+  text: string;
+  draft?: DraftEventProposal;
+}
 export interface ChatResult {
   text: string;
   quote?: Quote;

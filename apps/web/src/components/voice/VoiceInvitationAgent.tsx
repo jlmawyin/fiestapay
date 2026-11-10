@@ -13,6 +13,7 @@ import { ApiError, api } from '../../api/client';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { voiceCatalog } from '../../i18n/messages/voice';
 import { peopleWord, quoteClientSummary } from '../../lib/event-presentation';
+import { AssistantText } from '../chat/AssistantText';
 import { ContinuousResampler } from '../../voice/resampler';
 import { floatToPCM16, pcm16ToBase64 } from '../../voice/pcm';
 import { PlaybackQueue, type PlaybackFault } from '../../voice/playback';
@@ -26,11 +27,14 @@ import {
 } from '../../voice/gemini-live';
 import {
   VOICE_ACTIVITY_EVENT,
+  VOICE_FALLBACK_EVENT,
   VOICE_STOP_EVENT,
   getGuidePage,
   showOnScreen,
+  validateInviteShowOnScreenArgs,
   validateShowOnScreenArgs,
   type VoiceActivityDetail,
+  type VoiceFallbackDetail,
 } from '../../guide/showOnScreen';
 import {
   VOICE_ACTIVITY_THROTTLE_MS,
@@ -258,6 +262,10 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   const fallbackRef = useRef<SpanishSpeechFallback | null>(null);
   /** True only when the locked public session declares the show_on_screen tool. */
   const guideToolRef = useRef(false);
+  /** Guest sessions with the invitation-only show_on_screen declaration. */
+  const inviteGuideToolRef = useRef(false);
+  /** One text fallback per session, never re-entered by later provider callbacks. */
+  const fallbackDispatchedRef = useRef(false);
 
   const voiceAvailable = Boolean(capabilities?.voice);
   const voiceStopped = publicAudience ? accessRevoked : organizer ? accessRevoked : accessRevoked || eventClosed;
@@ -287,6 +295,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     lastBackendActivityRef.current = 0;
     leaseInactiveRef.current = false;
     guideToolRef.current = false;
+    inviteGuideToolRef.current = false;
     setActiveProvider(null);
 
     const leaseId = leaseIdRef.current;
@@ -392,12 +401,39 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   }, []);
 
   const handleStopVoice = useCallback((msg?: string, reason = 'stop', keepalive = false) => {
+    // A voluntary stop (or any normal end) never becomes a text fallback later.
+    fallbackDispatchedRef.current = true;
     cleanupSession(reason, keepalive);
     setSessionState('ended');
     if (msg) {
       onShowToast('info', msg, copyRef.current.voiceSessionTitle);
     }
   }, [cleanupSession, onShowToast]);
+
+  /**
+   * A real token/connection/provider failure releases the voice resources once
+   * and hands the same audience to its text chat, with a localized visible
+   * notice. It never retries the microphone, never runs for a voluntary stop,
+   * and keeps the transcript state already produced by this session.
+   */
+  const fallbackToText = useCallback((panelMessage: string, reason: string) => {
+    if (fallbackDispatchedRef.current) return;
+    fallbackDispatchedRef.current = true;
+    const notice = copyRef.current.fallbackUnavailable;
+    cleanupSession(reason);
+    setSessionState('error');
+    setErrorMessage(panelMessage);
+    onShowToast('warning', notice, copyRef.current.fallbackTitle);
+    try {
+      document.dispatchEvent(
+        new CustomEvent<VoiceFallbackDetail>(VOICE_FALLBACK_EVENT, {
+          detail: { message: notice, audience },
+        }),
+      );
+    } catch {
+      // The visible toast still explains the fallback when no listener mounts.
+    }
+  }, [audience, cleanupSession, onShowToast]);
 
   // A language change stops an active voice session through the same Stop path
   // (lease and microphone released) and asks for a restart in the new language.
@@ -501,14 +537,6 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     setSessionState((current) => (current === 'idle' ? current : 'ended'));
   }, [voiceLoadBlocked, cleanupSession]);
 
-  /** Reads the public informational script only when no neural audio exists. */
-  const speakTextFallback = useCallback((text: string): boolean => {
-    if (playbackRef.current?.isBusy) return false;
-    const fallback = fallbackSpeech();
-    if (!fallback.supported) return false;
-    return fallback.speak(text, localeRef.current);
-  }, [fallbackSpeech]);
-
   const speakPublicFallback = useCallback(() => {
     if (playbackRef.current?.isBusy) return false;
     const fallback = fallbackSpeech();
@@ -534,11 +562,6 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     }
     return ok;
   }, [fallbackSpeech, onShowToast]);
-
-  /** Neutral notice for guest/organizer when neural audio is not available. */
-  const speakUnavailableFallback = useCallback(() => {
-    speakTextFallback(copyRef.current.unavailableSpeech);
-  }, [speakTextFallback]);
 
   /**
    * Applies the server quote to the page and scrolls to the existing
@@ -605,6 +628,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
 
     startingRef.current = true;
     try {
+      fallbackDispatchedRef.current = false;
       cleanupSession('restart');
       const generation = sessionGenerationRef.current;
       const isCurrentSession = () => sessionGenerationRef.current === generation;
@@ -678,11 +702,12 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
         if (useGemini && !geminiConfig) {
           throw new Error('Invalid Gemini session config');
         }
-        guideToolRef.current =
-          publicAudience &&
+        const declaresGuideTool =
           useGemini &&
           !!geminiConfig &&
           liveConfigHasTool(geminiConfig.liveConfig, SHOW_ON_SCREEN_TOOL);
+        guideToolRef.current = publicAudience && declaresGuideTool;
+        inviteGuideToolRef.current = !publicAudience && !organizer && declaresGuideTool;
 
         // Playback starts only after the gesture-time resume() has reached running.
         await resumeReady;
@@ -1040,17 +1065,24 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                     for (const tool of calls) {
                       if (!isCurrentTurn()) return;
                       try {
-                        const toolRes = organizer
-                          ? await api.executeOrganizerVoiceTool(slug, {
-                              leaseId: tokenData.leaseId,
-                              name: tool.name,
-                              arguments: tool.args,
-                            })
-                          : await api.executeVoiceTool(slug, {
-                              leaseId: tokenData.leaseId,
-                              name: tool.name,
-                              arguments: tool.args,
-                            });
+                        let toolRes: { response: unknown };
+                        if (tool.name === SHOW_ON_SCREEN_TOOL) {
+                          // Keep the browser-only tool in turn order with server tools. A
+                          // prepare_quote followed by a highlight must apply the quote first.
+                          const validated = !organizer && inviteGuideToolRef.current
+                            ? validateInviteShowOnScreenArgs(tool.args)
+                            : { ok: false as const };
+                          toolRes = {
+                            response: validated.ok
+                              ? await showOnScreen(validated.args, { inviteSlug: slug })
+                              : { ok: false, reason: 'invalid_args' },
+                          };
+                        } else {
+                          const request = { leaseId: tokenData.leaseId, name: tool.name, arguments: tool.args };
+                          toolRes = organizer
+                            ? await api.executeOrganizerVoiceTool(slug, request)
+                            : await api.executeVoiceTool(slug, request);
+                        }
                         if (!isCurrentTurn()) return;
                         const live = geminiSessionRef.current;
                         if (live && !live.closed) {
@@ -1127,14 +1159,14 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
               },
               onError: () => {
                 if (!isCurrentSession()) return;
-                setErrorMessage(friendlyVoiceError(null, localeRef.current));
-                setSessionState('error');
-                cleanupSession('provider_error');
-                if (publicAudience) speakPublicFallback();
-                else speakUnavailableFallback();
+                fallbackToText(friendlyVoiceError(null, localeRef.current), 'provider_error');
               },
-              onClose: () => {
+              onClose: (event) => {
                 if (!isCurrentSession()) return;
+                if (event && typeof event === 'object' && 'wasClean' in event && event.wasClean === false) {
+                  fallbackToText(friendlyVoiceError(null, localeRef.current), 'ws_closed');
+                  return;
+                }
                 setSessionState('ended');
                 cleanupSession('ws_closed');
               },
@@ -1401,12 +1433,11 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                       : '';
               const rateLimited =
                 parsed.code === 'rate_limit_exceeded' || /rate\s*limit/i.test(providerText);
-              setErrorMessage(friendlyVoiceError(rateLimited ? { status: 429 } : null, localeRef.current));
               if (rateLimited) startCooldown();
-              setSessionState('error');
-              cleanupSession('provider_error');
-              if (publicAudience) speakPublicFallback();
-              else speakUnavailableFallback();
+              fallbackToText(
+                friendlyVoiceError(rateLimited ? { status: 429 } : null, localeRef.current),
+                'provider_error',
+              );
               break;
             }
 
@@ -1419,29 +1450,23 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
 
         ws.onerror = () => {
           if (!isCurrentSession()) return;
-          setErrorMessage(friendlyVoiceError(null, localeRef.current));
-          setSessionState('error');
-          cleanupSession('ws_error');
-          if (publicAudience) speakPublicFallback();
-          else speakUnavailableFallback();
+          fallbackToText(friendlyVoiceError(null, localeRef.current), 'ws_error');
         };
 
-        ws.onclose = () => {
+        ws.onclose = (event) => {
           if (!isCurrentSession()) return;
+          if (event?.wasClean === false) {
+            fallbackToText(friendlyVoiceError(null, localeRef.current), 'ws_closed');
+            return;
+          }
           setSessionState('ended');
           cleanupSession('ws_closed');
         };
         }
       } catch (err: any) {
         if (!isCurrentSession()) return;
-        cleanupSession('start_failed');
-        const message = friendlyVoiceError(err, localeRef.current);
-        setErrorMessage(message);
         if (isVoiceCooldownError(err)) startCooldown();
-        setSessionState('error');
-        // No neural output: public reads the informational script, others a neutral notice.
-        if (publicAudience) speakPublicFallback();
-        else speakUnavailableFallback();
+        fallbackToText(friendlyVoiceError(err, localeRef.current), 'start_failed');
       }
     } finally {
       startingRef.current = false;
@@ -1776,7 +1801,9 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                                 <span style={{ fontSize: '0.72rem', color: 'var(--color-teal)', fontWeight: 700, display: 'block' }}>
                                   {publicAudience ? m.assistantIsPublic : geminiActive ? m.assistantIsGemini : m.assistantIs}
                                 </span>
-                                <span style={{ color: 'var(--color-ink)' }}>{turn.text}</span>
+                                <span style={{ color: 'var(--color-ink)' }}>
+                                  <AssistantText text={turn.text} guideScope="page" />
+                                </span>
                               </>
                             )}
                           </div>

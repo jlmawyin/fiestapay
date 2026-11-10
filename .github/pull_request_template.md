@@ -8,4 +8,4 @@ Describe the trigger and resulting behavior.
 - [ ] Financial/security changes independently reviewed.
 - [ ] No credentials, real judge data or unrelated Contabo changes.
 - [ ] Provider evidence distinguished from fakes and untested paths.
-- [ ] docs/ESTADO.md updated with evidence and limitations.
+- [ ] docs/internal/ESTADO.md updated with evidence and limitations.

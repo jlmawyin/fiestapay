@@ -386,6 +386,83 @@ describe('FP-GUIDE-1 voice session follows public pages', () => {
   });
 });
 
+describe('FP-FINAL-A2 guest invitation show_on_screen', () => {
+  it('answers in the browser for the active invitation and never sends the tool to the server', async () => {
+    const fake = createFakeGemini();
+    vi.spyOn(api, 'getVoiceToken').mockResolvedValue({
+      token: 'auth_tokens/fake-guest-guide',
+      sessionConfig: {
+        provider: 'gemini',
+        model: 'gemini-3.8-live',
+        apiVersion: 'v1beta',
+        liveConfig: guideLiveConfig,
+        kickoff: 'Saluda.',
+        locale: 'es',
+      },
+      maxSeconds: 60,
+      leaseId: 'guest-guide-lease',
+      audience: 'guest',
+      provider: 'gemini',
+    } as never);
+    registerGuideNavigator({
+      navigate: vi.fn(),
+      getCurrentPage: () => null,
+      getCurrentInviteSlug: () => 'fiesta',
+    });
+    const root = document.createElement('div');
+    root.dataset.inviteSlug = 'fiesta';
+    const control = document.createElement('button');
+    control.dataset.guide = 'quoteReview';
+    control.scrollIntoView = vi.fn();
+    root.appendChild(control);
+    document.body.appendChild(root);
+
+    try {
+      render(
+        <VoiceInvitationAgent
+          audience="guest"
+          slug="fiesta"
+          capabilities={capabilities}
+          guest={{ id: 'g1', name: 'Ana', status: 'yes', companions: 0, paidCents: 0, dueCents: 2500 }}
+          onShowToast={vi.fn()}
+          geminiLiveConnector={fake.connector}
+        />,
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente de voz' }));
+      fireEvent.click(screen.getByRole('checkbox'));
+      fireEvent.click(screen.getByRole('button', { name: /Iniciar Conversación por Voz/ }));
+      const session = await openGemini(fake);
+
+      await act(async () => {
+        session.callbacks.onToolCalls?.([
+          { id: 'guest-guide-1', name: SHOW_ON_SCREEN_TOOL, args: { target: 'quoteReview', caption: 'Revisa aquí' } },
+          { id: 'guest-guide-2', name: SHOW_ON_SCREEN_TOOL, args: { target: 'quoteReview', page: 'landing' } },
+        ]);
+      });
+
+      await waitFor(() => expect(session.toolResponses).toHaveLength(2));
+      expect(session.toolResponses[0]).toEqual([
+        {
+          id: 'guest-guide-1',
+          name: SHOW_ON_SCREEN_TOOL,
+          response: { ok: true, target: 'quoteReview' },
+        },
+      ]);
+      expect(session.toolResponses[1]).toEqual([
+        {
+          id: 'guest-guide-2',
+          name: SHOW_ON_SCREEN_TOOL,
+          response: { ok: false, reason: 'invalid_args' },
+        },
+      ]);
+      expect(api.executeVoiceTool).not.toHaveBeenCalled();
+      expect(api.executeOrganizerVoiceTool).not.toHaveBeenCalled();
+    } finally {
+      root.remove();
+    }
+  });
+});
+
 describe('FP-GUIDE-1 voice mini-bar', () => {
   function dispatchActivity(detail: VoiceActivityDetail): void {
     act(() => {

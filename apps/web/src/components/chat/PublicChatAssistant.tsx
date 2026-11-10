@@ -1,15 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MessageCircle, X } from 'lucide-react';
-import type { AssistantContext } from '@fiestapay/shared';
+import type { AssistantContext, DraftEventProposal } from '@fiestapay/shared';
 import type { Capabilities } from '../../types';
 import { ApiError } from '../../api/client';
 import { sendPublicChat } from '../../api/public-chat';
-import { useMessages } from '../../i18n/I18nContext';
+import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { chatCatalog } from '../../i18n/catalogs/chat';
 import { AssistantText } from './AssistantText';
 import { AboutChat } from './AboutChat';
 import { ChatComposer } from './ChatComposer';
 import { scrollContainerToBottom, scrollMessageToTop, useElapsedSeconds } from './chat-hooks';
+import { openCreateWithDraft } from '../../guide/showOnScreen';
 
 export interface PublicChatAssistantProps {
   capabilities: Capabilities | null;
@@ -30,6 +31,8 @@ interface PublicMessage {
   id: string;
   role: 'user' | 'assistant';
   text: string;
+  /** Complete server proposal; clicking its card hands it to /create once. */
+  draft?: DraftEventProposal;
 }
 
 interface PublicChatError {
@@ -75,6 +78,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
   compact = false,
 }) => {
   const m = useMessages(chatCatalog);
+  const { formatMoney, formatDateTime } = useI18n();
   const welcomeRef = useRef<string | null>(null);
   if (welcomeRef.current === null) welcomeRef.current = m.welcome;
   const [internalOpen, setInternalOpen] = useState(false);
@@ -105,6 +109,38 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
   const chatAvailable = capabilities?.chat === true;
   const composerDisabled = !chatAvailable || isSending;
   const hasAsked = messages.some((message) => message.role === 'user');
+
+  const templateLabel = (draft: DraftEventProposal): string => {
+    switch (draft.template) {
+      case 'comida':
+        return m.draftTemplateComida;
+      case 'casa':
+        return m.draftTemplateCasa;
+      case 'viaje':
+        return m.draftTemplateViaje;
+      case 'evento':
+        return m.draftTemplateEvento;
+    }
+  };
+
+  const draftDetails = (draft: DraftEventProposal): string[] => {
+    const details = [templateLabel(draft)];
+    if (draft.date) {
+      const startsAt = `${draft.date}T${draft.startTime ?? '12:00'}:00`;
+      const formatted = formatDateTime(startsAt, {
+        dateStyle: 'medium',
+        ...(draft.startTime ? { timeStyle: 'short' as const } : {}),
+      });
+      if (formatted) details.push(formatted);
+    }
+    if (typeof draft.headcount === 'number' && draft.headcount > 0) {
+      details.push(m.draftPeople(draft.headcount));
+    }
+    if (typeof draft.perPersonCents === 'number' && draft.perPersonCents > 0) {
+      details.push(m.draftPerPerson(formatMoney(draft.perPersonCents)));
+    }
+    return details;
+  };
 
   useEffect(() => {
     aliveRef.current = true;
@@ -154,7 +190,12 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
       sequenceRef.current += 1;
       setMessages((previous) => [
         ...previous,
-        { id: messageId(sequenceRef.current, 'assistant'), role: 'assistant', text: reply },
+        {
+          id: messageId(sequenceRef.current, 'assistant'),
+          role: 'assistant',
+          text: reply.text,
+          ...(reply.draft ? { draft: reply.draft } : {}),
+        },
       ]);
       setError(null);
     } catch (err) {
@@ -315,6 +356,38 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
                   }}
                 >
                   <AssistantText text={message.text} guideScope="public" />
+                  {message.draft ? (
+                    <div
+                      data-testid="public-draft-card"
+                      role="group"
+                      aria-label={m.draftCardAria}
+                      style={{
+                        marginTop: '0.65rem',
+                        padding: '0.7rem',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--color-teal)',
+                        backgroundColor: 'var(--color-teal-tint)',
+                        color: 'var(--color-ink)',
+                        fontSize: '0.82rem',
+                      }}
+                    >
+                      <div style={{ fontWeight: 800, color: 'var(--color-teal)', marginBottom: '0.25rem' }}>
+                        {m.draftCardTitle}
+                      </div>
+                      <div style={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{message.draft.title}</div>
+                      <div style={{ marginTop: '0.15rem', color: 'var(--color-ink-muted)' }}>
+                        {draftDetails(message.draft).join(' · ')}
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => openCreateWithDraft(message.draft!)}
+                        style={{ marginTop: '0.55rem', padding: '0.35rem 0.65rem', fontSize: '0.78rem' }}
+                      >
+                        {m.draftReview}
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               );
             })}

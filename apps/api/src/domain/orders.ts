@@ -12,7 +12,7 @@ import { assertAcceptingGuests } from './events.js';
 import { decideFundingIfDue, fundingBlocksNewCharge } from './funding.js';
 import { concealExpired, isPastRetention, tombstoneEvent } from './retention.js';
 import { convergeCapture, isApplied, type CaptureOutcome } from './payments.js';
-import { requireUsableQuote, type QuoteRow } from './quotes.js';
+import { requireUsableQuote, computeQuote, findQuote, type QuoteRow } from './quotes.js';
 import {
   ORDER_COLUMNS,
   OPEN_ORDER_SQL,
@@ -21,6 +21,7 @@ import {
   findGuestById,
   findGuestBySession,
   findOrderByAnyId,
+  guestPaidCents,
   loadGuestByEvent,
   lockEvent,
   lockGuest,
@@ -116,15 +117,32 @@ async function reserveOrderIntent(
     await assertSessionMayAct(client, event.id, sessionId);
     assertCanOwe(guest);
 
-    const quote = await requireUsableQuote(client, quoteId, event, guest);
-
+    // A retried payment reuses the open attempt and its original quote even after the quote
+    // TTL passed: the order was opened while the quote was valid, and invalidating it would
+    // detach the exact obligation the payer is already approving in PayPal.
     const open = await openOrderForGuest(client, guest.id);
     if (open) {
-      if (open.status === 'capturing') {
-        // A capture is already in flight for this guest. Superseding it and opening a second
-        // order is precisely the double-charge sequence; refuse until the money is known.
-        throw conflict(CAPTURE_IN_FLIGHT);
+      if (open.status === 'capturing') throw conflict(CAPTURE_IN_FLIGHT);
+      if (open.quote_id === quoteId && open.obligation_version === guest.obligation_version) {
+        const stored = await findQuote(client, quoteId);
+        if (stored && stored.guest_id === guest.id && stored.event_id === event.id) {
+          const paidNow = await guestPaidCents(client, guest.id);
+          const current = computeQuote(event, guest, paidNow);
+          if (
+            stored.obligation_version === guest.obligation_version &&
+            stored.total_cents === current.totalCents &&
+            stored.amount_cents === current.amountCents &&
+            open.amount_cents === current.amountCents
+          ) {
+            return { order: open, event, quote: stored };
+          }
+        }
       }
+    }
+
+    const quote = await requireUsableQuote(client, quoteId, event, guest);
+
+    if (open) {
       const sameObligation =
         open.obligation_version === guest.obligation_version && open.amount_cents === quote.amount_cents;
       if (sameObligation) {
@@ -134,7 +152,6 @@ async function reserveOrderIntent(
       await client.query(`UPDATE orders SET status = 'superseded', updated_at = now() WHERE id = $1`, [open.id]);
       await audit(client, event.id, 'order_superseded');
     }
-
     const id = newId();
     const { rows } = await client.query<OrderRow>(
       `INSERT INTO orders (id, event_id, guest_id, quote_id, obligation_version, generation, request_id,

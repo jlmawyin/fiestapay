@@ -346,13 +346,14 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
   const busy = isCapturing || isChecking;
   const verifyLabel = isCapturing ? m.verifyBusy : labels.verifyCapture;
   const verifyPayment = () => { void requestCaptureRef.current(order.orderId, 'manual'); };
-  const externalLink = (label: string, className: string, compact: boolean, withIcon = false) =>
+  const externalLink = (label: string, className: string, compact: boolean, withIcon = false, guide = false) =>
     order.approveUrl ? (
       <a
         href={order.approveUrl}
         target="_blank"
         rel="noreferrer"
         className={className}
+        {...(guide ? { 'data-guide': 'openPayPal' } : {})}
         style={compact ? { fontSize: '0.75rem', padding: '0.35rem 0.6rem' } : { fontSize: '0.85rem' }}
         onClick={armExternalReturn}
       >
@@ -429,7 +430,7 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
           </p>
           {order.approveUrl && (
             <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {externalLink(m.externalApprovalLink, 'btn btn-secondary', false, true)}
+              {externalLink(m.externalApprovalLink, 'btn btn-secondary', false, true, true)}
               <button
                 type="button"
                 onClick={verifyPayment}
@@ -481,7 +482,11 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
             </div>
           )}
 
-          <div ref={paypalContainerRef} style={{ minHeight: '45px', marginTop: '0.5rem' }} />
+          <div
+            ref={paypalContainerRef}
+            {...(!order.approveUrl ? { 'data-guide': 'openPayPal' } : {})}
+            style={{ minHeight: '45px', marginTop: '0.5rem' }}
+          />
 
           <div
             style={{
@@ -500,7 +505,7 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
               {m.reconcileHint}
             </span>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {externalLink(labels.openPayPal, 'btn btn-secondary', true)}
+              {externalLink(labels.openPayPal, 'btn btn-secondary', true, false, true)}
               <button
                 type="button"
                 onClick={verifyPayment}

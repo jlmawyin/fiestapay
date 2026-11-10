@@ -66,8 +66,21 @@ export const LandingView: React.FC<LandingViewProps> = ({
         <h1 style={{ fontSize: 'clamp(1.45rem, 4vw, 1.9rem)', marginBottom: '0.5rem', maxWidth: '720px' }}>
           {m.title}
         </h1>
-        <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.92rem', margin: '0 0 1rem', maxWidth: '720px' }}>
+        <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.92rem', margin: '0 0 0.65rem', maxWidth: '720px' }}>
           {m.story}
+        </p>
+        <p
+          style={{
+            color: 'var(--color-ink)',
+            fontSize: '0.8rem',
+            lineHeight: 1.5,
+            margin: '0 0 1rem',
+            maxWidth: '720px',
+            borderLeft: '3px solid var(--color-teal)',
+            paddingLeft: '0.6rem',
+          }}
+        >
+          {m.differentiation}
         </p>
         {capabilities?.voice === true ? (
           <div style={{ margin: '0 0 1rem', maxWidth: '720px' }}>

@@ -119,6 +119,9 @@ export const voiceCatalog = defineCatalog({
       'FiestaPay crea invitaciones con una cuota fija por persona. Para empezar, crea una invitación y comparte su enlace. Cada persona se une con un alias, confirma su asistencia y paga la cuota fija con PayPal en modo de prueba. El organizador ve el avance del financiamiento y las personas asistentes. Esta voz solo da información general: no crea eventos, no consulta datos privados y no confirma pagos. Cuando quieras usar una invitación concreta, abre su enlace y usa el asistente de esa invitación.',
     unavailableSpeech:
       'La voz del asistente no está disponible en este momento. Puedes continuar por texto en la misma página.',
+    fallbackUnavailable:
+      'La voz no está disponible por un fallo de token, conexión o proveedor. Seguimos por el chat de texto en esta misma página; el micrófono quedó apagado.',
+    fallbackTitle: 'Continuamos por texto',
     welcomeTitle: 'Conoce a tu anfitrión con IA',
     welcomeLead: 'Pulsa una vez y habla:',
     welcomeEx1: 'Arma una parrillada para 10 a $15 cada uno',
@@ -239,6 +242,9 @@ export const voiceCatalog = defineCatalog({
       'FiestaPay creates invitations with a flat share per person. To start, create an invitation and share its link. Each person joins with an alias, confirms attendance, and pays the flat share with PayPal in test mode. The organizer sees funding progress and attending people. This voice only gives general information: it creates no events, reads no private data, and confirms no payments. When you want to use a specific invitation, open its link and use that invitation assistant.',
     unavailableSpeech:
       'The assistant voice is not available right now. You can continue by text on the same page.',
+    fallbackUnavailable:
+      'Voice is unavailable because of a token, connection, or provider failure. We continue in the text chat on this same page; the microphone was turned off.',
+    fallbackTitle: 'Continuing in text',
     welcomeTitle: 'Meet your AI party host',
     welcomeLead: 'Tap once and just talk:',
     welcomeEx1: 'Build a BBQ for 10 at $15 each',

@@ -21,8 +21,8 @@ export const UI_PAGE_PATHS: Record<UiPage, string> = {
 type UiLabelKey = keyof (typeof UI_LABELS)['es'];
 
 export interface UiTargetSpec {
-  /** Page where the element is rendered with `data-guide="<id>"`; 'any' = shared header. */
-  page: UiPage | 'any';
+  /** Page where the element is rendered; 'invite' means the current invitation only. */
+  page: UiPage | 'any' | 'invite';
   /** Visible text of the element, from UI_LABELS (same words the guide quotes). */
   label: UiLabelKey;
   /** Navigation entries: choosing this target opens that page instead of highlighting. */
@@ -46,10 +46,16 @@ export const UI_TARGETS = {
   guidedTour: { page: 'demo', label: 'guidedTour' },
   aiBuildParty: { page: 'demo', label: 'aiBuildParty' },
   fillWithAi: { page: 'create', label: 'fillWithAi' },
+  quoteReview: { page: 'invite', label: 'quoteReview' },
+  generatePayment: { page: 'invite', label: 'generatePayment' },
+  openPayPal: { page: 'invite', label: 'openPayPal' },
 } as const satisfies Record<string, UiTargetSpec>;
 
 export type UiTarget = keyof typeof UI_TARGETS;
 export const UI_TARGET_IDS = Object.keys(UI_TARGETS) as UiTarget[];
+
+export const INVITE_UI_TARGETS = ['quoteReview', 'generatePayment', 'openPayPal'] as const satisfies readonly UiTarget[];
+const PUBLIC_UI_TARGETS = UI_TARGET_IDS.filter((id) => UI_TARGETS[id].page !== 'invite');
 
 /** Guided tour of the judges demo, in order. */
 export const DEMO_TOUR: readonly UiTarget[] = ['aiBuildParty', 'previewPanel', 'paymentDemo', 'paypalAiPanel'];
@@ -96,9 +102,23 @@ export const SHOW_ON_SCREEN_DECLARATION: GeminiFunctionDeclaration = {
     type: 'OBJECT',
     properties: {
       page: { type: 'STRING', enum: [...UI_PAGES], description: 'Page to open.' },
-      target: { type: 'STRING', enum: [...UI_TARGET_IDS], description: 'Element to highlight; its page opens first when needed.' },
+      target: { type: 'STRING', enum: PUBLIC_UI_TARGETS, description: 'Element to highlight; its page opens first when needed.' },
       caption: { type: 'STRING', description: 'Short hint shown next to the highlight, max 60 characters, in the language of the conversation.' },
       sentence: { type: 'STRING', description: "Only with target fillWithAi: the party exactly as the person described it (type, people, amount, date, place), max 400 characters. It is typed into the one-sentence field; the person presses Fill with AI." },
     },
+  },
+};
+
+/** Guest voice may highlight controls on its current invitation without navigating. */
+export const INVITE_SHOW_ON_SCREEN_DECLARATION: GeminiFunctionDeclaration = {
+  name: SHOW_ON_SCREEN_TOOL,
+  description: 'Highlights a payment control on the current invitation. Never presses it, creates a PayPal order, or approves payment.',
+  parameters: {
+    type: 'OBJECT',
+    properties: {
+      target: { type: 'STRING', enum: [...INVITE_UI_TARGETS] },
+      caption: { type: 'STRING', description: 'Optional hint in the guest language, max 60 characters.' },
+    },
+    required: ['target'],
   },
 };

@@ -219,7 +219,16 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
     async (req): Promise<{ quote: Quote }> => {
       const { slug } = parseOr400(slugParamSchema, req.params);
       const session = await requireSession(pool, config, req);
-      return { quote: await createQuoteForSession(pool, session.id, slug, config.quoteTtlSeconds, presentedAdminKey(req)) };
+      return {
+        quote: await createQuoteForSession(
+          pool,
+          session.id,
+          slug,
+          config.quoteTtlSeconds,
+          presentedAdminKey(req),
+          requestLocale(req),
+        ),
+      };
     },
   );
 

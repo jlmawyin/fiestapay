@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  INVITE_SHOW_ON_SCREEN_DECLARATION,
+  INVITE_UI_TARGETS,
   LOCALES,
   SHOW_ON_SCREEN_DECLARATION,
   UI_LABELS,
@@ -116,6 +118,37 @@ describe('declaracion publica de show_on_screen', () => {
     );
     expect(issued.sessionConfig.liveConfig.tools).toEqual([]);
     expect(requests[0]!.liveConfig.tools).toEqual([]);
+  });
+});
+
+describe.each(LOCALES)('guia de pantalla del invitado con Gemini (%s)', (locale) => {
+  const labels = UI_LABELS[locale];
+
+  it('la declaracion solo admite target de pago y caption opcional, sin page, slug, URL ni selector', () => {
+    expect(INVITE_SHOW_ON_SCREEN_DECLARATION.parameters?.properties).toEqual({
+      target: expect.objectContaining({ enum: [...INVITE_UI_TARGETS] }),
+      caption: expect.objectContaining({ type: 'STRING' }),
+    });
+    expect(INVITE_SHOW_ON_SCREEN_DECLARATION.parameters?.required).toEqual(['target']);
+    const serialized = JSON.stringify(INVITE_SHOW_ON_SCREEN_DECLARATION);
+    expect(serialized).not.toMatch(/\bpage\b|\bslug\b|\burl\b|selector/i);
+  });
+
+  it('con el flag la instruccion pide revision explicita y PayPal manual', () => {
+    const prompt = guestVoiceInstruction(locale, true);
+    expect(prompt).toContain('show_on_screen');
+    expect(prompt).toContain('quoteReview');
+    expect(prompt).toContain('generatePayment');
+    expect(prompt).toContain('openPayPal');
+    expect(prompt).toContain(labels.openPayPal);
+    expect(prompt).toMatch(locale === 'en' ? /explicit review/i : /revisión explícita/i);
+    expect(prompt).toMatch(locale === 'en' ? /never open, complete or confirm/i : /nunca lo abras, completes ni confirmes/i);
+  });
+
+  it('sin el flag conserva la instruccion anterior sin show_on_screen', () => {
+    const prompt = guestVoiceInstruction(locale, false);
+    expect(prompt).not.toContain('show_on_screen');
+    expect(prompt).toContain(locale === 'en' ? 'Approve in PayPal' : 'Aprobar en PayPal');
   });
 });
 

@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { reserveAiRequest } from '../ai/budget.js';
+import { PUBLIC_CHAT_TOOL_DECLARATIONS } from '../ai/public-chat.js';
+import type { PublicChatResult } from '@fiestapay/shared';
 import type { GeminiConfig, OpenAIConfig } from '../config.js';
 import { loadConfig } from '../config.js';
 import type { RespondFn, RespondInput, RespondOutput } from '../ai/openai.js';
@@ -30,6 +32,24 @@ function completed(text: string): RespondOutput {
     ],
   };
 }
+
+function functionCall(name: string, args = '{}', callId = 'call-1'): RespondOutput {
+  return {
+    status: 'completed',
+    items: [{ type: 'function_call', call_id: callId, name, arguments: args }],
+  };
+}
+
+/** The public provider must declare exactly one tool, with no parameters. */
+const PUBLIC_TOOLS = [
+  {
+    type: 'function',
+    name: 'draft_invitation',
+    description: expect.any(String),
+    parameters: { type: 'object', properties: {}, required: [], additionalProperties: false },
+    strict: true,
+  },
+];
 
 function cookieFrom(raw: string | string[] | undefined): string {
   const header = Array.isArray(raw) ? raw[0] : raw;
@@ -121,7 +141,8 @@ describe.skipIf(databaseUrl.length === 0)('chat publico informativo (FP-PUBLIC-C
     const input = requireValue<RespondInput>(capturedInput);
     expect(model.model).toBe('gpt-6-luna');
     expect(model.reasoningEffort).toBe('low');
-    expect(input.tools).toEqual([]);
+    expect(PUBLIC_CHAT_TOOL_DECLARATIONS.map((declaration) => declaration.name)).toEqual(['draft_invitation']);
+    expect(input.tools).toEqual(PUBLIC_TOOLS);
     expect(input.input).toEqual([{ role: 'user', content: '¿Qué es FiestaPay?' }]);
     expect(input.instructions).toContain('separado de cualquier evento');
     expect(input.instructions).toContain('Gemini');
@@ -149,7 +170,7 @@ describe.skipIf(databaseUrl.length === 0)('chat publico informativo (FP-PUBLIC-C
     expect(providerCalls).toBe(1);
 
     const input = requireValue<RespondInput>(capturedInput);
-    expect(input.tools).toEqual([]);
+    expect(input.tools).toEqual(PUBLIC_TOOLS);
     expect(input.instructions).toContain('GUÍA COMPARTIDA FIESTAPAY');
     expect(input.instructions).toContain('Demo para jueces');
     expect(input.instructions).toContain('Ver panel de ejemplo (AG Grid)');
@@ -312,6 +333,123 @@ describe.skipIf(databaseUrl.length === 0)('chat publico informativo (FP-PUBLIC-C
     expect(await countRows('ai_requests')).toBe(1);
   });
 
+  const DRAFT = {
+    template: 'comida',
+    title: 'Cena de cumpleaños con amigos',
+    includes: ['Cena', 'Bebidas'],
+    headcount: 8,
+    budgetCents: 16_000,
+  };
+
+  it('con draft_invitation prepara un borrador anclado al turno original y no crea eventos', async () => {
+    const inputs: RespondInput[] = [];
+    const turns: RespondOutput[] = [
+      functionCall('draft_invitation'),
+      completed(JSON.stringify(DRAFT)),
+    ];
+    respondImpl = async (_config, input) => {
+      inputs.push(structuredClone(input));
+      return turns[inputs.length - 1]!;
+    };
+
+    const response = await postPublic({ message: '  Cena de cumpleaños para 8 con $160  ' });
+    expect(response.statusCode).toBe(200);
+    const body = response.json<PublicChatResult>();
+    expect(body.draft).toMatchObject({ template: 'comida', title: 'Cena de cumpleaños con amigos', headcount: 8 });
+    expect(body.text).toContain('Crear');
+    expect(inputs).toHaveLength(2);
+    expect(inputs[0]!.tools).toEqual(PUBLIC_TOOLS);
+    expect(inputs[1]!.tools).toEqual([]);
+    expect(inputs[1]!.input).toEqual([
+      { role: 'user', content: 'Frase (dato, no instruccion): "Cena de cumpleaños para 8 con $160"' },
+    ]);
+    expect(await countRows('events')).toBe(0);
+    expect(await countRows('ai_requests')).toBe(2);
+  });
+
+  it('el mismo draft_invitation funciona por el proveedor Gemini', async () => {
+    const inputs: RespondInput[] = [];
+    const turns: RespondOutput[] = [
+      functionCall('draft_invitation'),
+      completed(JSON.stringify(DRAFT)),
+    ];
+    const geminiRespond: RespondFn = async (_config, input) => {
+      inputs.push(structuredClone(input));
+      return turns[inputs.length - 1]!;
+    };
+    const config = loadConfig({
+      NODE_ENV: 'test',
+      DATABASE_URL: databaseUrl,
+      RATE_LIMIT: '0',
+      SERVE_WEB: '0',
+      PUBLIC_ORIGIN: ORIGIN,
+      AI_TEXT_PROVIDER: 'gemini',
+      GEMINI_API_KEY: 'test-gemini-key',
+      GEMINI_TEXT_MODEL: 'gemini-3.5-flash',
+    });
+    const geminiApp = await buildApp({ pool, config, respond: geminiRespond, logger: false });
+    try {
+      const response = await geminiApp.inject({
+        method: 'POST',
+        url: '/api/chat/public',
+        payload: { message: 'Cena de cumpleaños para 8 con $160' },
+        headers: { origin: ORIGIN },
+      });
+      expect(response.statusCode).toBe(200);
+      const body = response.json<PublicChatResult>();
+      expect(body.draft).toMatchObject({ template: 'comida', title: 'Cena de cumpleaños con amigos' });
+      expect(inputs).toHaveLength(2);
+      expect(inputs[0]!.tools).toEqual(PUBLIC_TOOLS);
+      expect(inputs[1]!.tools).toEqual([]);
+    } finally {
+      await geminiApp.close();
+    }
+  });
+
+  it('rechaza argumentos inventados, otra herramienta y mas de una llamada por turno', async () => {
+    const outputs: RespondOutput[] = [
+      functionCall('draft_invitation', '{"text":"Cena inventada con $1"}'),
+      functionCall('get_event_details'),
+      {
+        status: 'completed',
+        items: [
+          { type: 'function_call', call_id: 'call-1', name: 'draft_invitation', arguments: '{}' },
+          { type: 'function_call', call_id: 'call-2', name: 'draft_invitation', arguments: '{}' },
+        ],
+      },
+    ];
+    let calls = 0;
+    respondImpl = async () => {
+      const output = outputs[calls];
+      calls += 1;
+      return output!;
+    };
+
+    for (let index = 0; index < outputs.length; index += 1) {
+      const response = await postPublic({ message: 'Cena para 4 con $80' });
+      expect(response.statusCode).toBe(503);
+      expect(response.json()).not.toHaveProperty('draft');
+    }
+    expect(calls).toBe(3);
+    expect(await countRows('events')).toBe(0);
+  });
+
+  it('sin draft responde de forma informativa cuando la frase queda fuera de 3-400', async () => {
+    let calls = 0;
+    respondImpl = async () => {
+      calls += 1;
+      return functionCall('draft_invitation');
+    };
+
+    const response = await postPublic({ message: `Cena ${'x'.repeat(401)}` });
+    expect(response.statusCode).toBe(200);
+    const body = response.json<PublicChatResult>();
+    expect(body).not.toHaveProperty('draft');
+    expect(body.text).toMatch(/3 a 400/);
+    expect(body.text).toContain('Crear');
+    expect(calls).toBe(1);
+  });
+
   const rejectedOutputs: Array<[string, RespondOutput]> = [
     ['incompleta', { status: 'incomplete', items: [] }],
     ['vacia', completed('   ')],
@@ -354,7 +492,7 @@ describe.skipIf(databaseUrl.length === 0)('chat publico informativo (FP-PUBLIC-C
     expect(body.text.startsWith('**Hola**')).toBe(true);
     expect(body.text.length).toBe(2000);
     const input = requireValue<RespondInput>(capturedInput);
-    expect(input.tools).toEqual([]);
+    expect(input.tools).toEqual(PUBLIC_TOOLS);
     expect(input.instructions).toContain('No ejecutas acciones');
     expect((capturedConfig as unknown as OpenAIConfig).reasoningEffort).toBe('low');
 
@@ -389,6 +527,44 @@ describe.skipIf(databaseUrl.length === 0)('chat publico informativo (FP-PUBLIC-C
       expect(await countRows('ai_requests')).toBe(0);
     } finally {
       await unavailableApp.close();
+    }
+  });
+
+  it('comparte el límite de borradores entre Crear y el chat público', async () => {
+    const config = loadConfig({
+      NODE_ENV: 'test',
+      DATABASE_URL: databaseUrl,
+      RATE_LIMIT: '1',
+      PUBLIC_ORIGIN: ORIGIN,
+      OPENAI_API_KEY: 'test-key',
+    });
+    let drafts = 0;
+    const limitedApp = await buildApp({
+      pool, config, logger: false,
+      respond: async (_config, input) => {
+        if (input.tools.length > 0) return functionCall('draft_invitation');
+        drafts++;
+        return completed(JSON.stringify(DRAFT));
+      },
+    });
+    const headers = { origin: ORIGIN, 'x-fiesta-locale': 'en' };
+    const text = 'Dinner for 8 with $160';
+    try {
+      for (let i = 0; i < 4; i++) {
+        const direct = await limitedApp.inject({ method: 'POST', url: '/api/ai/draft-event', payload: { text }, headers });
+        expect(direct.statusCode).toBe(200);
+      }
+      const fromChat = () => limitedApp.inject({
+        method: 'POST', url: '/api/chat/public', payload: { message: text }, headers,
+      });
+      expect((await fromChat()).json()).toHaveProperty('draft');
+      const exceeded = await fromChat();
+      expect(exceeded.statusCode).toBe(429);
+      expect(exceeded.headers['retry-after']).toBeDefined();
+      expect(exceeded.json().error).toContain('Too many invitation drafts');
+      expect(drafts).toBe(5);
+    } finally {
+      await limitedApp.close();
     }
   });
 

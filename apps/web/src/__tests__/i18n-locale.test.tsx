@@ -43,7 +43,7 @@ describe('locale resolution', () => {
   it('defaults to Spanish without a provider', () => {
     render(<Probe />);
     expect(screen.getByTestId('locale')).toHaveTextContent('es');
-    expect(screen.getByTestId('tagline')).toHaveTextContent('Invitaciones con pagos claros');
+    expect(screen.getByTestId('tagline')).toHaveTextContent('Anfitrión de fiestas con IA · PayPal');
     expect(screen.getByTestId('money')).toHaveTextContent('$50,00');
   });
 
@@ -56,7 +56,7 @@ describe('locale resolution', () => {
     );
 
     expect(screen.getByTestId('locale')).toHaveTextContent('en');
-    expect(screen.getByTestId('tagline')).toHaveTextContent('Invitations with clear payments');
+    expect(screen.getByTestId('tagline')).toHaveTextContent('AI party host · PayPal');
     expect(screen.getByTestId('money')).toHaveTextContent('$50.00');
     expect(localStorage.getItem('fp_locale')).toBe('en');
     expect(document.documentElement.lang).toBe('en');
@@ -131,7 +131,7 @@ describe('locale resolution', () => {
         </I18nProvider>
       );
       expect(screen.getByTestId('locale')).toHaveTextContent('es');
-      expect(screen.getByTestId('tagline')).toHaveTextContent('Invitaciones con pagos claros');
+      expect(screen.getByTestId('tagline')).toHaveTextContent('Anfitrión de fiestas con IA · PayPal');
 
       // Switching still works in memory even when it cannot persist.
       fireEvent.click(screen.getByRole('button', { name: 'to-en' }));

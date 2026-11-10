@@ -9,9 +9,11 @@
  */
 import {
   DEMO_TOUR,
+  INVITE_UI_TARGETS,
   UI_PAGES,
   UI_TARGETS,
   UI_TARGET_IDS,
+  type DraftEventProposal,
   type ShowOnScreenArgs,
   type ShowOnScreenResult,
   type UiPage,
@@ -33,6 +35,10 @@ export const GUIDE_HIDDEN_EVENT = 'fiestapay:guide-hidden' as const;
 export const GUIDE_TOUR_EVENT = 'fiestapay:guide-tour' as const;
 /** Asks /create to write the person's party sentence into the one-sentence field (no AI run). */
 export const GUIDE_PREFILL_EVENT = 'fiestapay:guide-prefill' as const;
+/** Delivers a complete public-chat draft to a mounted /create wizard, one visit only. */
+export const GUIDE_DRAFT_EVENT = 'fiestapay:guide-draft' as const;
+/** Voice failed for a real token/connection/provider reason; continue in text. */
+export const VOICE_FALLBACK_EVENT = 'fiestapay:voice-fallback' as const;
 /** Voice session activity for the orb (public mini-bar). */
 export const VOICE_ACTIVITY_EVENT = 'fiestapay:voice-activity' as const;
 /** The mini-bar asks the voice panel to stop through its usual Stop path. */
@@ -60,6 +66,15 @@ export interface GuideTourDetail {
 
 export interface GuidePrefillDetail {
   sentence: string;
+}
+
+export interface GuideDraftDetail {
+  proposal: DraftEventProposal;
+}
+
+export interface VoiceFallbackDetail {
+  message: string;
+  audience: VoiceAudience;
 }
 
 export interface VoiceActivityDetail {
@@ -107,6 +122,42 @@ export function consumeGuidePrefill(): string | null {
   return sentence;
 }
 
+/**
+ * Pending complete DraftEventProposal for /create. It is not persisted anywhere:
+ * reading consumes it, so a later manual visit never receives an old proposal.
+ */
+let pendingGuideDraft: DraftEventProposal | null = null;
+
+export function setGuideDraftProposal(proposal: DraftEventProposal): void {
+  pendingGuideDraft = proposal;
+  dispatchGuideEvent(GUIDE_DRAFT_EVENT, { proposal } satisfies GuideDraftDetail);
+}
+
+export function consumeGuideDraftProposal(): DraftEventProposal | null {
+  const proposal = pendingGuideDraft;
+  pendingGuideDraft = null;
+  return proposal;
+}
+
+/**
+ * Public chat card click: hand the whole proposal to the controlled /create
+ * route exactly once. A mounted wizard receives the event synchronously; a
+ * wizard that mounts after the navigation reads the pending slot. No AI call,
+ * no URL/storage payload and no automatic publish happen here.
+ */
+export function openCreateWithDraft(proposal: DraftEventProposal): void {
+  const navigator = guideNavigator;
+  if (!navigator) return;
+  setGuideDraftProposal(proposal);
+  dispatchGuideAction({ page: 'create' });
+  if (getGuidePage() === 'create') return;
+  try {
+    navigator.navigate('create');
+  } catch {
+    consumeGuideDraftProposal();
+  }
+}
+
 /** Starts the judges-demo tour (`DEMO_TOUR` order) from the /demo button. */
 export function startGuidedTour(steps: readonly UiTarget[] = DEMO_TOUR): void {
   dispatchGuideAction({ page: 'demo', tour: true });
@@ -117,6 +168,8 @@ export function startGuidedTour(steps: readonly UiTarget[] = DEMO_TOUR): void {
 export interface GuideNavigator {
   navigate: (page: UiPage) => void;
   getCurrentPage: () => UiPage | null;
+  /** Active invitation slug, or null on every other route. */
+  getCurrentInviteSlug?: () => string | null;
 }
 
 let guideNavigator: GuideNavigator | null = null;
@@ -132,6 +185,30 @@ export function getGuidePage(): UiPage | null {
   } catch {
     return null;
   }
+}
+
+/** Active invitation slug reported by the app router, or null off invitation routes. */
+export function getGuideInviteSlug(): string | null {
+  try {
+    return guideNavigator?.getCurrentInviteSlug?.() ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** The invitation actually mounted in the DOM (never inferred from a URL). */
+export function getMountedInviteSlug(): string | null {
+  try {
+    const root = document.querySelector('[data-invite-slug]');
+    const slug = root instanceof HTMLElement ? root.dataset.inviteSlug : undefined;
+    return slug && slug.length > 0 ? slug : null;
+  } catch {
+    return null;
+  }
+}
+
+export function isInviteTarget(target: unknown): target is UiTarget {
+  return typeof target === 'string' && (INVITE_UI_TARGETS as readonly string[]).includes(target);
 }
 
 export function guidePrefersReducedMotion(): boolean {
@@ -197,6 +274,37 @@ export function validateShowOnScreenArgs(raw: unknown): { ok: true; args: ShowOn
   };
 }
 
+const INVITE_ALLOWED_ARG_KEYS = new Set(['target', 'caption']);
+
+/**
+ * Guest voice contract for the current invitation: only one of the closed
+ * INVITE_UI_TARGETS ids plus an optional caption. It accepts no page, slug,
+ * URL, selector or sentence and never navigates.
+ */
+export function validateInviteShowOnScreenArgs(
+  raw: unknown,
+): { ok: true; args: ShowOnScreenArgs } | { ok: false } {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false };
+  const record = raw as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    if (!INVITE_ALLOWED_ARG_KEYS.has(key)) return { ok: false };
+  }
+  if (!isInviteTarget(record.target)) return { ok: false };
+  let cleanCaption: string | undefined;
+  if (record.caption !== undefined) {
+    if (typeof record.caption !== 'string') return { ok: false };
+    const trimmed = record.caption.trim();
+    if (trimmed.length > 0) cleanCaption = trimmed.slice(0, MAX_CAPTION);
+  }
+  return {
+    ok: true,
+    args: {
+      target: record.target,
+      ...(cleanCaption !== undefined ? { caption: cleanCaption } : {}),
+    },
+  };
+}
+
 export function guideSelector(id: UiTarget): string {
   return `[data-guide="${id}"]`;
 }
@@ -251,6 +359,8 @@ export function waitForGuideTarget(id: UiTarget, timeoutMs = 3000): Promise<HTML
 export interface ShowOnScreenOptions {
   /** How long to wait for the target to mount. Tests shorten it; production waits 3 s. */
   timeoutMs?: number;
+  /** Guest voice: this session belongs to `slug`; refuse if another invitation is active. */
+  inviteSlug?: string;
 }
 
 /** Navigation entries open their page instead of highlighting. */
@@ -274,6 +384,48 @@ export async function showOnScreen(
   if (!validated.ok) return { ok: false, reason: 'invalid_args' };
   const args = validated.args;
   const timeoutMs = options.timeoutMs ?? 3000;
+  const inviteTarget = args.target !== undefined && isInviteTarget(args.target);
+  if (inviteTarget) {
+    // Invitation targets belong to the invitation currently mounted. They never
+    // navigate, carry a page/sentence or accept another event's slug.
+    if (args.page !== undefined || args.sentence !== undefined) return { ok: false, reason: 'invalid_args' };
+    const routeSlug = getGuideInviteSlug();
+    const mountedSlug = getMountedInviteSlug();
+    if (!routeSlug || !mountedSlug || routeSlug !== mountedSlug) {
+      return { ok: false, reason: 'unavailable_here', ...(args.target ? { target: args.target } : {}) };
+    }
+    if (options.inviteSlug !== undefined && options.inviteSlug !== mountedSlug) {
+      return { ok: false, reason: 'unavailable_here', ...(args.target ? { target: args.target } : {}) };
+    }
+    dispatchGuideAction({ target: args.target! });
+    const element = await waitForGuideTarget(args.target!, timeoutMs);
+    const activeSlug = getMountedInviteSlug();
+    const activeRoute = getGuideInviteSlug();
+    const elementSlug = element?.closest('[data-invite-slug]');
+    const elementBelongs =
+      elementSlug instanceof HTMLElement && elementSlug.dataset.inviteSlug === activeSlug;
+    if (
+      !element ||
+      !elementBelongs ||
+      !activeSlug ||
+      !activeRoute ||
+      activeRoute !== activeSlug ||
+      (options.inviteSlug !== undefined && options.inviteSlug !== activeSlug)
+    ) {
+      return { ok: false, reason: 'unavailable_here', target: args.target! };
+    }
+    try {
+      element.scrollIntoView({
+        block: 'center',
+        inline: 'center',
+        behavior: guidePrefersReducedMotion() ? 'auto' : 'smooth',
+      });
+    } catch {
+      // The highlight still shows without the scroll.
+    }
+    dispatchGuideShow({ target: args.target!, ...(args.caption ? { caption: args.caption } : {}) });
+    return { ok: true, target: args.target! };
+  }
   const spec = args.target ? UI_TARGETS[args.target] : undefined;
   const opens = args.target ? opensOf(args.target) : undefined;
   // An explicit page must agree with the target. A target pinned to another page
@@ -283,7 +435,7 @@ export async function showOnScreen(
   }
   // An explicit page wins; otherwise an opens entry or the target's own page.
   const destination: UiPage | undefined =
-    args.page ?? opens ?? (spec && spec.page !== 'any' ? spec.page : undefined);
+    args.page ?? opens ?? (spec && spec.page !== 'any' && spec.page !== 'invite' ? spec.page : undefined);
   // The sentence reaches /create before the highlight is waited for: a mounted
   // wizard opens step 1 on the event, a mounting wizard reads the pending slot.
   if (args.target === 'fillWithAi' && args.sentence) setGuidePrefill(args.sentence);
