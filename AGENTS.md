@@ -34,7 +34,7 @@ Updated by Jorge's request on 10 Nov 2026 for the final hackathon stretch (Devpo
 ## Delivery and operations
 
 - Standing approval (Jorge, 9 Nov 2026) to merge and deploy without asking when all hold: CI green, independent AGY approval of the code and of the operator kit, backup with test restore, zero migrations, zero secret matches, smoke test, and rollback if anything fails. Deploy only through the operator kit; never change other Contabo apps, the DNS apex or global proxy defaults.
-- Code freeze: 11 Nov 2026 12:00 ECT (moved by Jorge's improvement list of 10 Nov), except critical fixes; the video is recorded after the freeze on the deployed version. Documentation can change until submission. Video and Devpost submission are Jorge's; never publish on his behalf.
+- No code freeze (Jorge, 10 Nov 2026): keep improving and deploying with the standing approval above until the Devpost submission; record the video on the deployed version. Video and Devpost submission are Jorge's; never publish on his behalf.
 - Public docs stay judge-facing in English (README, docs/JUDGES.md, docs/DEVPOST_DRAFT.md, docs/VIDEO_SCRIPT.md, docs/GEMINI.md, docs/API.md, docs/ARCHITECTURE.md); internal reports and Spanish working notes live under docs/internal/.
 - Use graph discovery first and check coverage; docs and new files may need exact source fallback.
 
