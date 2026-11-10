@@ -25,7 +25,7 @@ import { cardsCatalog } from '../i18n/catalogs/cards';
 import { demoCatalog } from '../i18n/catalogs/demo';
 import { isDemoEvent } from '../lib/event-presentation';
 import { centsToDecimalText, reconciliationCsvFileName } from '../lib/grid-export';
-import { SAMPLE_PARTIES, samplePartyById, sampleTotals, type SampleGuest } from '../lib/sample-parties';
+import { SAMPLE_PARTIES, samplePartyById, samplePartyTitle, sampleTotals, type SampleGuest } from '../lib/sample-parties';
 
 export interface JudgePreviewViewProps {
   /** Session events; only `isDemo === true` rows are listed here. */
@@ -35,6 +35,8 @@ export interface JudgePreviewViewProps {
   onRetryEvents?: () => void;
   /** Private demo: POST /api/demo { kind: 'private' }. */
   onCreateDemo: () => Promise<void>;
+  /** AI build step: opens /create with the phrase prefilled for one AI fill. */
+  onBuildPartyWithAi?: (phrase: string) => void;
   /** Payment tour: POST /api/demo { kind: 'payment' }, join, RSVP, open invite. */
   onStartPaymentDemo?: () => Promise<void>;
   /** Opens the assistant orb in the demo context. */
@@ -87,6 +89,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
   eventsError = null,
   onRetryEvents,
   onCreateDemo,
+  onBuildPartyWithAi,
   onStartPaymentDemo,
   onTalkToAssistant,
   onResetDemo,
@@ -102,6 +105,8 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
   const labels = UI_LABELS[locale];
   const [quickFilter, setQuickFilter] = useState('');
   const [pendingOnly, setPendingOnly] = useState(false);
+  const [aiEdited, setAiEdited] = useState<string | null>(null);
+  const aiPhrase = aiEdited ?? m.aiStepExample;
   const [selectedPartyId, setSelectedPartyId] = useState(SAMPLE_PARTIES[0].id);
   const selectedParty = samplePartyById(selectedPartyId);
   const gridApiRef = useRef<GridApi<SampleGuest> | null>(null);
@@ -344,7 +349,44 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
       <ol style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: 0, margin: 0 }}>
         <li
           className="panel"
-          aria-label={`1. ${m.step1Title}`}
+          aria-label={`1. ${m.aiStepTitle}`}
+          style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', minWidth: 0 }}
+        >
+          <h2 style={{ fontSize: '1.3rem' }}>
+            <span aria-hidden="true">1. </span>{m.aiStepTitle}
+          </h2>
+          <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.9rem', maxWidth: '720px' }}>
+            {m.aiStepText}
+          </p>
+          <div>
+            <label className="form-label" htmlFor="judge-ai-phrase">
+              {m.aiStepLabel}
+            </label>
+            <input
+              id="judge-ai-phrase"
+              className="form-input"
+              value={aiPhrase}
+              onChange={(e) => setAiEdited(e.target.value)}
+              maxLength={400}
+              autoComplete="off"
+            />
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => onBuildPartyWithAi?.(aiPhrase)}
+              className="btn btn-primary"
+              data-guide="aiBuildParty"
+              disabled={!onBuildPartyWithAi}
+            >
+              {labels.aiBuildParty}
+            </button>
+          </div>
+        </li>
+
+        <li
+          className="panel"
+          aria-label={`2. ${m.step1Title}`}
           data-guide="previewPanel"
           style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', minWidth: 0 }}
         >
@@ -353,7 +395,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
               {m.readonlyBadge}
             </span>
             <h2 style={{ fontSize: '1.3rem', marginBottom: '0.25rem' }}>
-              <span aria-hidden="true">1. </span>{m.step1Title} · {labels.previewPanel}
+              <span aria-hidden="true">2. </span>{m.step1Title} · {labels.previewPanel}
             </h2>
             <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.9rem', maxWidth: '720px' }}>
               {m.step1Text}
@@ -377,7 +419,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
           </div>
 
           <div>
-            <h3 style={{ fontSize: '1.1rem' }}>{m.gridOf(selectedParty.title)}</h3>
+            <h3 style={{ fontSize: '1.1rem' }}>{m.gridOf(samplePartyTitle(selectedParty, locale))}</h3>
             <p style={{ fontSize: '0.8rem', color: 'var(--color-ink-muted)' }}>
               {m.guestsSub}
             </p>
@@ -431,11 +473,11 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
 
         <li
           className="panel"
-          aria-label={`2. ${m.step2Title}`}
+          aria-label={`3. ${m.step2Title}`}
           style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', minWidth: 0 }}
         >
           <h2 style={{ fontSize: '1.3rem' }}>
-            <span aria-hidden="true">2. </span>{m.step2Title}
+            <span aria-hidden="true">3. </span>{m.step2Title}
           </h2>
           <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.9rem', maxWidth: '720px' }}>
             {m.step2Text}
@@ -455,11 +497,11 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
 
         <li
           className="panel"
-          aria-label={`3. ${m.step3Title}`}
+          aria-label={`4. ${m.step3Title}`}
           style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', minWidth: 0 }}
         >
           <h2 style={{ fontSize: '1.3rem' }}>
-            <span aria-hidden="true">3. </span>{m.step3Title}
+            <span aria-hidden="true">4. </span>{m.step3Title}
           </h2>
           <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.9rem', maxWidth: '720px' }}>
             {m.step3Text}

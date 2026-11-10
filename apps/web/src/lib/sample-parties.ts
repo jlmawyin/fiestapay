@@ -1,4 +1,4 @@
-import type { ThemeKey } from '@fiestapay/shared';
+import type { Locale, ThemeKey } from '@fiestapay/shared';
 import type { TemplateKind } from '../types';
 
 /**
@@ -6,6 +6,10 @@ import type { TemplateKind } from '../types';
  * judges see guests, attendance, and cent amounts from the first second.
  * Names, attendance, and amounts are invented and always labeled fictional
  * at the call site. Paid numbers are NOT real PayPal captures.
+ *
+ * Party titles are fixed demo copy (not person-written content), so each
+ * party carries both languages and the call site picks with
+ * `samplePartyTitle`. Guest names are fictional people and stay as written.
  */
 export interface SampleGuest {
   id: string;
@@ -18,7 +22,9 @@ export interface SampleGuest {
 
 export interface SampleParty {
   id: string;
+  /** Spanish title. English lives in `titleEn`; use `samplePartyTitle`. */
   title: string;
+  titleEn: string;
   template: TemplateKind;
   themeKey: ThemeKey;
   priceCents: number;
@@ -27,10 +33,16 @@ export interface SampleParty {
   guests: SampleGuest[];
 }
 
+/** Demo-copy title in the active locale. */
+export function samplePartyTitle(party: SampleParty, locale: Locale = 'es'): string {
+  return locale === 'en' ? party.titleEn : party.title;
+}
+
 export const SAMPLE_PARTIES: SampleParty[] = [
   {
     id: 'asado-domingo',
     title: 'Asado del Domingo',
+    titleEn: 'Sunday BBQ',
     template: 'comida',
     themeKey: 'fogata',
     priceCents: 2000,
@@ -48,6 +60,7 @@ export const SAMPLE_PARTIES: SampleParty[] = [
   {
     id: 'cumple-sofia',
     title: 'Cumpleaños de Sofía',
+    titleEn: "Sofia's Birthday",
     template: 'casa',
     themeKey: 'patio',
     priceCents: 1500,
@@ -64,6 +77,7 @@ export const SAMPLE_PARTIES: SampleParty[] = [
   {
     id: 'playa-escapada',
     title: 'Escapada a la Playa',
+    titleEn: 'Beach Getaway',
     template: 'viaje',
     themeKey: 'costa',
     priceCents: 5000,

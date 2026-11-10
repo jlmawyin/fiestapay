@@ -44,13 +44,14 @@ export const UI_TARGETS = {
   resetDemos: { page: 'demo', label: 'resetDemos' },
   describeInvitation: { page: 'create', label: 'describeInvitation' },
   guidedTour: { page: 'demo', label: 'guidedTour' },
+  aiBuildParty: { page: 'demo', label: 'aiBuildParty' },
 } as const satisfies Record<string, UiTargetSpec>;
 
 export type UiTarget = keyof typeof UI_TARGETS;
 export const UI_TARGET_IDS = Object.keys(UI_TARGETS) as UiTarget[];
 
 /** Guided tour of the judges demo, in order. */
-export const DEMO_TOUR: readonly UiTarget[] = ['previewPanel', 'paymentDemo', 'paypalAiPanel'];
+export const DEMO_TOUR: readonly UiTarget[] = ['aiBuildParty', 'previewPanel', 'paymentDemo', 'paypalAiPanel'];
 
 /** Label text → target, for clickable labels inside text answers. Exact match after trimming. */
 export function targetForLabel(locale: Locale, text: string): UiTarget | null {

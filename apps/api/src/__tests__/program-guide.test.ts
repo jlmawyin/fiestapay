@@ -495,6 +495,35 @@ describe('guía de funciones nuevas y regla de intención', () => {
   });
 });
 
+describe('FP-JUDGE-1 primer paso con IA', () => {
+  it.each(LOCALES)('cita la etiqueta exacta del paso y la frase en los seis prompts (%s)', (locale) => {
+    const labels = UI_LABELS[locale];
+    const prompts = actualPrompts(locale);
+    for (const [name, prompt] of Object.entries(prompts)) {
+      expect(prompt, `${name} debe citar aiBuildParty: ${labels.aiBuildParty}`).toContain(labels.aiBuildParty);
+      expect(prompt, `${name} debe decir que la IA arma desde una frase`).toMatch(
+        locale === 'en' ? /from one sentence/i : /desde una frase/i,
+      );
+    }
+  });
+
+  it.each(LOCALES)('desde la portada sigue mandando a abrir primero la demo (%s)', (locale) => {
+    const labels = UI_LABELS[locale];
+    const landing = publicChatInstruction(locale, 'landing');
+    expect(landing).toContain(labels.judgesDemo);
+    expect(landing).toMatch(locale === 'en' ? /first open/i : /primero hay que abrir/i);
+    expect(landing).toContain(labels.paymentDemo);
+  });
+
+  it.each(LOCALES)('traduce el estado pendiente en vez de mostrar el código crudo (%s)', (locale) => {
+    const prompts = actualPrompts(locale);
+    for (const prompt of Object.values(prompts)) {
+      expect(prompt).toMatch(locale === 'en' ? /pending approval/i : /pendiente de aprobación/i);
+      expect(prompt).toMatch(locale === 'en' ? /never show the raw code/i : /nunca muestres el código crudo/i);
+    }
+  });
+});
+
 describe('regresión de recuperación: navegación y datos sensibles', () => {
   it.each(['¿Dónde copio la contraseña de prueba?', '¿Cómo uso el botón Copiar contraseña?', '¿Dónde está Copiar correo?', 'Ya veo datos de sandbox, ¿dónde pego la contraseña?', 'Dime qué botón uso para Copiar contraseña en la demo', '¿Dónde veo la cuenta Personal de prueba?'])('permite orientación de controles: %s', (question) => {
     expect(decideAssistantTurn(question)).toEqual({ kind: 'model' });

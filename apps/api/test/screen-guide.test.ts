@@ -136,6 +136,7 @@ describe.each(LOCALES)('instruccion publica con guia de pantalla (%s)', (locale)
   it('incluye el recorrido DEMO_TOUR paso a paso y el maximo de un reintento', () => {
     const prompt = publicVoiceInstruction(locale, 'demo');
     expect(prompt).toContain('DEMO_TOUR');
+    expect(prompt).toContain('aiBuildParty');
     expect(prompt).toContain('previewPanel');
     expect(prompt).toContain('paymentDemo');
     expect(prompt).toContain('paypalAiPanel');

@@ -55,6 +55,7 @@ function useReducedMotion(): boolean {
 }
 
 function tourTextFor(step: UiTarget, demo: (typeof demoCatalog)['es']): string | null {
+  if (step === 'aiBuildParty') return demo.tourAi;
   if (step === 'previewPanel') return demo.tourPreview;
   if (step === 'paymentDemo') return demo.tourPayment;
   if (step === 'paypalAiPanel') return demo.tourPaypal;
@@ -150,7 +151,12 @@ export const GuideOverlay: React.FC = () => {
           const following = spot.tour.steps[next];
           if (following) {
             elementRef.current = null;
-            setSpot({ target: following, tour: { steps: spot.tour.steps, index: next } });
+            const advanced = { target: following, tour: { steps: spot.tour.steps, index: next } };
+            // Advance the ref synchronously: the rect effect below runs on
+            // this same commit for the stale spot, and without this it would
+            // see a missing element and close the tour instead of skipping.
+            spotRef.current = advanced;
+            setSpot(advanced);
             return;
           }
         }

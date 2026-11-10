@@ -9,7 +9,7 @@ import {
   minimumProgressPercent,
   resolveTheme,
 } from '../../lib/event-presentation';
-import { sampleCollectedCents, type SampleParty } from '../../lib/sample-parties';
+import { sampleCollectedCents, samplePartyTitle, type SampleParty } from '../../lib/sample-parties';
 
 interface SamplePartyCardsProps {
   parties: SampleParty[];
@@ -53,7 +53,7 @@ function progressBar(pct: number, label: string): React.ReactElement {
  * guests the sample grid below shows. No fetch, no payment, no moderation.
  */
 export const SamplePartyCards: React.FC<SamplePartyCardsProps> = ({ parties, selectedId, onSelect }) => {
-  const { formatMoney } = useI18n();
+  const { formatMoney, locale } = useI18n();
   const m = useMessages(demoCatalog);
   return (
     <div className="event-home-grid" role="radiogroup" aria-label={m.sampleGroupAria}>
@@ -101,7 +101,7 @@ export const SamplePartyCards: React.FC<SamplePartyCardsProps> = ({ parties, sel
                   {selected ? <span className="badge badge-teal">{m.sampleSelected}</span> : null}
                 </span>
                 <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-ink)' }}>
-                  {party.title}
+                  {samplePartyTitle(party, locale)}
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: 'var(--color-ink-muted)' }}>
                   <Users size={14} aria-hidden="true" />

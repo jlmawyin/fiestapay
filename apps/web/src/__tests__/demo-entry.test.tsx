@@ -116,7 +116,7 @@ describe('product landing', () => {
   it('shows the story, both CTAs, the sandbox note, recovery and the unified orb', async () => {
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'Crea tu invitación y aclara los pagos desde el inicio' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Tu anfitrión con IA que cobra la parte de cada uno con PayPal' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Crear mi invitación' }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: 'Demo para jueces' }).length).toBeGreaterThan(0);
     expect(screen.getByText('Sandbox · Sin dinero real')).toBeInTheDocument();

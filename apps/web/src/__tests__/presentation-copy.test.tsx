@@ -167,14 +167,16 @@ describe('neutral presentation copy', () => {
         isResetting={false}
       />,
     );
-    expect(screen.getByRole('heading', { name: 'Crea tu invitación y aclara los pagos desde el inicio' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Tu anfitrión con IA que cobra la parte de cada uno con PayPal' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Crear mi invitación' }).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Reunión de excompañeros de colegio' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Mis invitaciones' })).toBeInTheDocument();
     expect(screen.getByText('Sandbox · Sin dinero real')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reiniciar mis demos' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Reiniciar Demo' })).toBeNull();
-    expect(screen.queryByText(/\bfiesta\b/i)).toBeNull();
+    // FP-JUDGE-1: the landing headline story now centers on AI and names the
+    // party the AI builds ("Describe la fiesta en una frase y la IA la arma").
+    expect(screen.getByText(/Describe la fiesta en una frase y la IA la arma/)).toBeInTheDocument();
   });
 
   it('prints the fresh demo title without a client amount', async () => {

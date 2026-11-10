@@ -162,7 +162,9 @@ describe('FP-GEM-D1 PayPal and AI panel on /demo', () => {
     expect(within(panel).getByText(/show_on_screen/)).toBeInTheDocument();
     expect(within(panel).getByText(/público sin herramientas/)).toBeInTheDocument();
     expect(within(panel).getAllByText(/prepare_quote/)).toHaveLength(2);
-    expect(within(panel).getByText(/PENDIENTE_DE_APROBACION/)).toBeInTheDocument();
+    // FP-JUDGE-1: raw enums render as translated labels, never as codes.
+    expect(within(panel).getByText(/pendiente de aprobación/)).toBeInTheDocument();
+    expect(within(panel).queryByText(/PENDIENTE_DE_APROBACION/)).toBeNull();
     expect(within(panel).getByText(/Aprobar en PayPal/)).toBeInTheDocument();
     const repo = within(panel).getByRole('link', { name: /Código público/ });
     expect(repo).toHaveAttribute('href', 'https://github.com/jlmawyin/fiestapay');

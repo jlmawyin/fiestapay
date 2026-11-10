@@ -8,11 +8,19 @@ import { OrganizerLinkCard } from '../components/dashboard/OrganizerLinkCard';
 import { RecoveryEmailCard } from '../components/dashboard/RecoveryEmailCard';
 import { CreateWizard } from '../components/events/CreateWizard';
 
+export interface CreateDraftRequest {
+  text: string;
+  id: number;
+}
+
 interface CreateEventViewProps {
   onEventCreated: (slug: string) => void;
   onCancel: () => void;
   onShowToast: (type: 'success' | 'error' | 'info' | 'warning', message: string, title?: string) => void;
   recoveryAvailable?: boolean;
+  /** One-shot prefill from the judges-demo AI step. Consumed on mount. */
+  draftRequest?: CreateDraftRequest | null;
+  onConsumeDraftRequest?: () => void;
 }
 
 export const CreateEventView: React.FC<CreateEventViewProps> = ({
@@ -20,18 +28,31 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
   onCancel,
   onShowToast,
   recoveryAvailable = false,
+  draftRequest = null,
+  onConsumeDraftRequest,
 }) => {
   const m = useMessages(createEventCatalog);
   const [isLoading, setIsLoading] = useState(false);
   const [created, setCreated] = useState<{ slug: string; adminKey: string } | null>(null);
   const mountedRef = useRef(true);
   const inFlightRef = useRef<Promise<void> | null>(null);
+  const consumeRef = useRef(onConsumeDraftRequest);
+  consumeRef.current = onConsumeDraftRequest;
 
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };
+  }, []);
+
+  // Consume once on mount (parent effects run after the wizard's own mount
+  // effect, so the single auto-fill still sees the request). Later manual
+  // visits to /create mount with no request and make no AI call. The mount
+  // value is read intentionally; later updates never re-consume.
+  useEffect(() => {
+    if (draftRequest) consumeRef.current?.();
+    // Mount-only by design: later updates never re-consume.
   }, []);
 
   const handleSubmit = async (input: EventInput) => {
@@ -97,7 +118,12 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
                 <div className="create-event-progress-bar" aria-hidden="true" />
               </div>
             ) : null}
-            <CreateWizard onSubmit={handleSubmit} onCancel={onCancel} isLoading={isLoading} />
+            <CreateWizard
+              onSubmit={handleSubmit}
+              onCancel={onCancel}
+              isLoading={isLoading}
+              initialDraft={draftRequest}
+            />
           </>
         )}
       </div>

@@ -1,24 +1,44 @@
 # FiestaPay
 
-An AI host for shared gatherings: understand the invitation, confirm attendance, review a server-calculated contribution, and pay with **PayPal sandbox**.
+**FiestaPay is an AI party host that collects everyone's share with PayPal.** Create an invitation, let guests ask by text or voice, and collect a fixed contribution through PayPal Sandbox. The server calculates every amount; only a server-verified capture counts as paid.
 
-**Hackathon preview.** The cards/orb source passed 546 tests in 60 files with zero skips, lint, types and build, with independent AGY source review. See the [cards/orb release report](docs/reviews/demo-orb-20261105.md) for publication and runtime evidence. The [earlier 4 November acceptance](docs/reviews/jury-ready-20261104.md), on source `60593db`, verified one USD 50 sandbox capture (2 × USD 25), two paid people and the organizer's actual **✓ Confirmar Realización** action. That is historical mobile-emulation evidence, not a new payment or physical-phone test for this update. Physical-phone Spanish voice, video publication and Devpost submission still require actual evidence. No escrow, payout, measured 180-second conversation, neural entitlement or submission success is claimed.
+- **Live demo:** https://fiestapay.somospanas.com
+- **Judges demo (English):** https://fiestapay.somospanas.com/demo?lang=en
+- **Video:** [[VIDEO_URL]]
+- **Devpost:** [[DEVPOST_URL]]
+- **Source:** https://github.com/jlmawyin/fiestapay · MIT
 
-- Running demo: https://fiestapay.somospanas.com
-- [Three-minute judge walkthrough](docs/JUDGES.md) · [AI tools and contributions](docs/AI_TOOLS.md)
-- No Google sign-in or real personal information. Use a fictional alias and a sandbox buyer.
+## The judge path in 60 seconds
 
-**Bilingual release (live since 8 November 2026, `64465cb`):** the interface is available in **Spanish (default) and English** with a header selector remembered per browser, or `?lang=en` — for example the [Judges demo in English](https://fiestapay.somospanas.com/demo?lang=en). The home page now explains the product and leads to **Create my invitation**; a separate **Judges demo** (`/demo`) holds the read-only AG Grid sample, the guided **Try a PayPal payment** walkthrough and the assistant. Demo events are marked as demos on the server, listed under **My demos**, and **Reset my demos** never touches your own invitations. The assistants answer in the selected language (same OpenAI model); English voice uses AssemblyAI's English recognition and the *jane* voice, Spanish keeps *lola*. Amounts stay USD integer cents from the server and event times stay in America/Guayaquil. See the [bilingual release report](docs/reviews/bilingual-judge-demo-20261107.md) and the [deployment and live-check evidence](docs/reviews/bilingual-live-20261108.md).
+1. Open the [Judges demo in English](https://fiestapay.somospanas.com/demo?lang=en). The tour starts with **Describe your party — the AI builds it**: type one sentence, press **Build the party with AI**, and the creation assistant is filled in.
+2. Open the assistant and choose **Talk**. Say **“Take me to the judges demo”**: the voice agent navigates to the demo and highlights **Try a PayPal payment**. It can open pages and highlight buttons, but it never clicks, pays or creates anything.
+3. Press **Try a PayPal payment** to create a fictional demo meal, join as **Demo Guest** with one companion and ask the guest agent to prepare the payment. It calls the server tools; the screen shows **Approve in PayPal $X** for the server quote.
+4. Copy the shared sandbox buyer from **Show test account**, approve personally inside PayPal Sandbox, then return and use **Check / Continue Capture**. The status changes to **Paid** only after the server verifies the capture.
+5. Open the organizer dashboard: search, **Pending only**, CSV export, highlighted rows and a server-calculated totals row in **AG Grid Community**. Ask for a reminder in a friendly, funny or formal tone, then copy it or open WhatsApp and send it yourself.
 
-Before that release, the home page separated **Explora la demo** (AG Grid example, private demo, **Probar pago con PayPal**) from **Prueba en vivo** (your own gathering, still sandbox). The payment demo supplies a dedicated shared Personal sandbox account through **Ver cuenta de prueba** / **Show test account** and copy buttons. One FiestaPay orb offers **Escribir**/**Type** or **Hablar**/**Talk**; opening it does not start a microphone or voice reservation.
+Everything on this path is PayPal Sandbox. No real money moves, and no message is sent automatically.
 
-For that deliberately public test account only, configure `PAYPAL_DEMO_BUYER_PUBLIC=true`, `PAYPAL_DEMO_BUYER_EMAIL` and `PAYPAL_DEMO_BUYER_PASSWORD` in the service's private environment. The endpoint fails closed without the opt-in or exact HTTPS PayPal sandbox configuration. Actual values never belong in Git or the frontend bundle. Business/API credentials remain private. This feature has no SQL migration and does not change the payment engine or organizer-link recovery.
+## What the AI does
 
-- Four fixed-cover templates: Meal, House party, Shared trip, Event.
-- Attendance and payment are separate states. A confirmed guest can still be unpaid.
-- Example: two attendees at USD 25 each → USD 50. The human reviews the quote and approves PayPal checkout.
-- Organizer dashboard uses AG Grid Community, collected amount before fees, a funding minimum, and a manually sent WhatsApp reminder.
-- **Gemini** powers every assistant (since 9 Nov 2026): real-time voice with the **Gemini Live API** (`gemini-3.8-live`, native audio, barge-in, live transcription, Spanish *Kore* / English *Puck*) through single-use **ephemeral tokens** minted by the server, and text chat with `gemini-3.5-flash`. Voice and text share the same server tools. A public informational voice agent (no tools) is available before joining; guest and organizer voice remain role-scoped. The guest agent can **prepare the payment**: it calls `prepare_quote`, the server computes the amount in integer cents, and the screen shows **Approve in PayPal $X**. Only the person approves inside PayPal, and only a server-verified capture counts as paid. See [docs/GEMINI.md](docs/GEMINI.md).
+**Only Gemini runs in production.** Text uses `gemini-3.5-flash`; real-time voice uses `gemini-3.8-live` through the Gemini Live API. The server mints a single-use ephemeral token for each voice session, so the API key never reaches the browser. OpenAI and AssemblyAI remain available only as configuration rollbacks; they are not active.
+
+- **AI builds the party.** **Describe your invitation in one sentence** → **Fill with AI** (`POST /api/ai/draft-event`) fills the creation assistant. **Suggest with AI** proposes a cover and theme. AI-drafted reminders come in friendly, funny or formal tones; the organizer copies them or opens WhatsApp and sends them personally.
+- **Public agent.** Text chat with no tools. Voice has one tool, `show_on_screen`, which opens FiestaPay pages and highlights buttons. Button names in replies are tappable, and **Guided tour** is available in the demo.
+- **Guest agent.** Tools: `get_event_details`, `get_my_status`, `get_collection_progress`, `prepare_quote`, `propose_rsvp`. It can prepare a payment: the server computes the amount in integer cents and the screen shows **Approve in PayPal $X**. Only the person approves inside PayPal.
+- **Organizer agent.** Read-only: collection progress, who still owes, and reminder drafts.
+- **Limits.** 200 AI queries per day in total and 60 per session; voice sessions last at most 120 seconds; 25 seconds per call and 40 seconds per query.
+
+## What PayPal guarantees
+
+PayPal Orders v2 runs with intent `CAPTURE`. The person approves inside PayPal, and the server verifies the capture, currency, amount, order reference and receiver before updating an idempotent ledger. Webhooks pass PayPal's `verify-webhook-signature` check. Amounts are calculated only on the server, in integer cents.
+
+This is PayPal **Sandbox**: no real money is charged or transferred. There is no fund holding, escrow or Payouts, and Buyer Protection depends on PayPal eligibility and terms. Attendance and payment are separate states; a confirmed guest can still be unpaid.
+
+## Stack and quality
+
+React + Vite, Fastify and PostgreSQL, deployed in isolated containers behind Nginx and Cloudflare. PayPal Orders v2 and signed webhooks; Google Gemini Live and text APIs; AG Grid Community for the organizer and judges dashboards. The interface is bilingual ES/EN with a selector, `?lang=en`, and browser-language detection. Event times use America/Guayaquil and amounts are USD.
+
+**1,015 automated tests are green: 451 API tests with PostgreSQL and 564 web tests**, plus lint, type checks and build, independent verification by AGY and CI green on 10 November 2026.
 
 ## Run locally
 
@@ -60,19 +80,24 @@ Database integration tests require a dedicated `DATABASE_URL` (for example, data
 
 `scripts/smoke-providers.mjs --chat --order --voice` is an **explicit integration probe** against a running local API. It creates demo data, may consume AI credits and creates an unapproved sandbox order. It never substitutes for buyer approval or a real human microphone test. Evidence is saved privately under `.local/`.
 
-## Deployment and project documents
+## Documents
 
-- [Contabo deployment and recovery](docs/OPERATIONS.md)
-- [Judge walkthrough](docs/JUDGES.md)
-- [4 November jury-ready acceptance](docs/reviews/jury-ready-20261104.md)
-- [90-second storyboard — not yet recorded](docs/DEMO_90_SECONDS.md)
-- [Devpost text draft and submission gates](docs/DEVPOST_DRAFT.md)
+- [Three-minute judge walkthrough](docs/JUDGES.md)
+- [Video script (2:45 maximum)](docs/VIDEO_SCRIPT.md)
+- [Devpost submission draft](docs/DEVPOST_DRAFT.md)
+- [Project history and release evidence](docs/HISTORY.md)
+- [Gemini runtime](docs/GEMINI.md)
+- [AI contribution disclosure](docs/AI_TOOLS.md)
 - [Architecture and trust boundaries](docs/ARCHITECTURE.md)
 - [API contract](docs/API.md)
+- [Contabo deployment and recovery](docs/OPERATIONS.md)
 - [Approved daily plan](docs/PLAN_DIARIO.md)
-- [AI contribution disclosure](docs/AI_TOOLS.md)
 
-Deposits, open funds, collaborative expense splitting, physical contributions, discounts and beneficiary payouts are outside committed P1. No live payment processing is enabled.
+Deposits, open funds, collaborative expense splitting, physical contributions, discounts and beneficiary payouts are outside committed scope. No live payment processing is enabled.
+
+## Not claimed
+
+Real-money payments, automatic WhatsApp sending, a new physical-phone payment test, a published video and a completed Devpost submission are not claimed. AI product metrics are pending measurement and appear as metric placeholders in the submission and video documents.
 
 ## License
 

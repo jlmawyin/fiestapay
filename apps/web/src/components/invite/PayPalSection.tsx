@@ -6,6 +6,7 @@ import type { Capabilities, OrderResult } from '../../types';
 import { api } from '../../api/client';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { paypalCatalog } from '../../i18n/messages/paypal';
+import { orderStatusLabel } from '../../lib/order-status';
 import { nextReturnDelay, returnServerAction } from './paymentReturn';
 
 interface PayPalSectionProps {
@@ -198,7 +199,7 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
             return;
           }
           if (action === 'stop') {
-            finish(copyRef.current.orderStatusShown(result.status));
+            finish(copyRef.current.orderStatusShown(orderStatusLabel(result.status, locale)));
             return;
           }
           const delay = nextReturnDelay(finishedGets + 1, startedAt, Date.now());

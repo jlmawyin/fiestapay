@@ -45,6 +45,8 @@ interface CreateWizardProps {
   onSubmit: (input: EventInput) => Promise<void>;
   onCancel: () => void;
   isLoading: boolean;
+  /** One-shot prefill from the judges-demo AI step; the click consented to one AI fill. */
+  initialDraft?: { text: string; id: number } | null;
 }
 
 export type CreateWizardStep = 1 | 2 | 3 | 4 | 5 | 6;
@@ -178,7 +180,7 @@ const addMinutesToTime = (time: string, minutes: number): string | null => {
  * event-form model, so the same input sends the same EventInput as the
  * long form, in both languages.
  */
-export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, isLoading }) => {
+export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, isLoading, initialDraft = null }) => {
   const { locale, formatMoney: formatMoneyInLocale } = useI18n();
   const m = useMessages(createEventCatalog);
   const labels = UI_LABELS[locale];
@@ -216,7 +218,8 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
   const [aiError, setAiError] = useState(false);
   const [aiApplied, setAiApplied] = useState<string | null>(null);
   const [aiProposal, setAiProposal] = useState<{ theme: ThemeKey; description: string } | null>(null);
-  const [draftText, setDraftText] = useState('');
+  const [draftText, setDraftText] = useState(initialDraft?.text ?? '');
+  const autoDraftIdRef = useRef<number | null>(null);
   const [draftLoading, setDraftLoading] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
@@ -787,9 +790,9 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
     );
   };
 
-  const handleDraftFill = async () => {
+  const handleDraftFill = async (override?: string) => {
     if (draftLoading || isLoading || posting.current) return;
-    const text = draftText.trim();
+    const text = (override ?? draftText).trim();
     if (text.length < 3) {
       setDraftError(m.draftEmpty);
       setDraftNotice(null);
@@ -812,6 +815,20 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
       setDraftLoading(false);
     }
   };
+  const draftFillRef = useRef(handleDraftFill);
+  draftFillRef.current = handleDraftFill;
+
+  // One-shot auto-fill for the judges-demo AI step: the demo click was the
+  // consent, so the prefilled phrase fires "Rellenar con IA" exactly once.
+  // No loops, no retries: each request id runs at most once, and a missing
+  // request (manual visit) never calls. An AI failure keeps the phrase
+  // written and shows the usual message through the normal error path.
+  useEffect(() => {
+    if (!initialDraft || autoDraftIdRef.current === initialDraft.id) return;
+    autoDraftIdRef.current = initialDraft.id;
+    setDraftText(initialDraft.text);
+    void draftFillRef.current(initialDraft.text);
+  }, [initialDraft]);
 
   const handleSuggestAi = async () => {
     if (aiLoading || isLoading || posting.current) return;

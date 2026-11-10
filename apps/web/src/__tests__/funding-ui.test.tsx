@@ -420,7 +420,8 @@ describe('Organizer dashboard funding labels', () => {
     expect(screen.getByText(/aún NO es un reembolso completado/)).toBeInTheDocument();
     expect(screen.queryByText(/Comisión estimada pasarela/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '✓ Confirmar Realización' })).not.toBeInTheDocument();
-    expect(screen.getByText(/Ana · \$50,00 · paid/)).toBeInTheDocument();
+    // FP-JUDGE-1: payment rows show translated status labels, not raw enums.
+    expect(screen.getByText(/Ana · \$50,00 · Pagada/)).toBeInTheDocument();
   });
 
   it('does not invent a paid count when the dashboard omits paidPeople', async () => {

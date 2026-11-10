@@ -47,8 +47,29 @@ function applyLocaleSideEffects(locale: Locale): void {
 }
 
 /**
- * Initial locale. `?lang=en|es` wins over storage, persists, and is removed
- * from the address bar while every other parameter and the hash stay intact.
+ * Browser language: the first `navigator.languages` entry, or
+ * `navigator.language` when the list is empty. A base of `en`
+ * (case-insensitive, `en-US` counts) selects English; anything else is Spanish.
+ */
+function resolveBrowserLocale(): Locale {
+  try {
+    const nav = window.navigator;
+    const first =
+      Array.isArray(nav.languages) && nav.languages.length > 0 ? nav.languages[0] : nav.language;
+    if (typeof first === 'string' && first.trim().toLowerCase().split(/[-_]/)[0] === 'en') {
+      return 'en';
+    }
+  } catch {
+    // A missing navigator falls through to the default.
+  }
+  return DEFAULT_LOCALE;
+}
+
+/**
+ * Initial locale. `?lang=en|es` wins over storage, storage wins over the
+ * browser language, and Spanish is the final default. A `?lang` win persists
+ * and is removed from the address bar while every other parameter and the
+ * hash stay intact.
  */
 function resolveInitialLocale(): Locale {
   try {
@@ -71,9 +92,9 @@ function resolveInitialLocale(): Locale {
     const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY);
     if (stored !== null) return normalizeLocale(stored);
   } catch {
-    // A throwing storage falls through to the default.
+    // A throwing storage falls through to the browser language.
   }
-  return DEFAULT_LOCALE;
+  return resolveBrowserLocale();
 }
 
 export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

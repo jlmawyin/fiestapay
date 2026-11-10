@@ -331,7 +331,8 @@ describe('PayPal external return progress', () => {
     vi.spyOn(api, 'getOrder').mockResolvedValue({ status: 'failed', guest });
     const { onCaptureSuccess } = renderSection();
     await openExternalAndReturn(externalName);
-    await waitFor(() => expect(screen.getByText(/figura como "failed"/)).toBeInTheDocument());
+    // FP-JUDGE-1: order statuses render as translated labels, not raw enums.
+    await waitFor(() => expect(screen.getByText(/figura como "Fallida"/)).toBeInTheDocument());
     expect(onCaptureSuccess).not.toHaveBeenCalled();
     expect(screen.queryByText(/confirmado con éxito/i)).toBeNull();
   });
