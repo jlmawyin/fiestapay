@@ -41,10 +41,14 @@ import { TemplateCover } from '../illustrations/TemplateCover';
 import { TemplateIcon } from './template-icons';
 import { ASSISTANT_THEME_EVENT, type AssistantThemeDetail } from '../assistant/orb-themes';
 import {
+  GUIDE_DRAFT_EVENT,
   GUIDE_PREFILL_EVENT,
+  consumeGuideDraftProposal,
   consumeGuidePrefill,
+  type GuideDraftDetail,
   type GuidePrefillDetail,
 } from '../../guide/showOnScreen';
+import { isDraftEventProposal } from '../../lib/draft-proposal';
 
 interface CreateWizardProps {
   onSubmit: (input: EventInput) => Promise<void>;
@@ -794,6 +798,30 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
       proposal.source === 'rules' ? `${m.draftApplied} ${m.draftRules}.` : m.draftApplied,
     );
   };
+
+  /**
+   * FP-FINAL-A2: the public chat's "Review in Create" card hands over the whole
+   * server proposal. A mounted wizard receives it by event; a wizard that mounts
+   * after the controlled navigation consumes the one-shot pending slot. Reading
+   * consumes, so a later manual visit never keeps the proposal or puts it in the URL.
+   */
+  const applyDraftRef = useRef(applyDraftProposal);
+  applyDraftRef.current = applyDraftProposal;
+  useEffect(() => {
+    const apply = (proposal: DraftEventProposal) => {
+      applyDraftRef.current(proposal);
+      setOpenStep(1);
+    };
+    const pending = consumeGuideDraftProposal();
+    if (isDraftEventProposal(pending)) apply(pending);
+    const onDraft = (event: Event) => {
+      const proposal = (event as CustomEvent<GuideDraftDetail>).detail?.proposal;
+      consumeGuideDraftProposal();
+      if (isDraftEventProposal(proposal)) apply(proposal);
+    };
+    document.addEventListener(GUIDE_DRAFT_EVENT, onDraft);
+    return () => document.removeEventListener(GUIDE_DRAFT_EVENT, onDraft);
+  }, []);
 
   const handleDraftFill = async (override?: string) => {
     if (draftLoading || isLoading || posting.current) return;

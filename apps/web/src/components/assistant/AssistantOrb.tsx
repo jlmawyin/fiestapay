@@ -10,9 +10,13 @@ import {
   GUIDE_HIDDEN_EVENT,
   GUIDE_VISIBLE_EVENT,
   VOICE_ACTIVITY_EVENT,
+  VOICE_FALLBACK_EVENT,
   VOICE_STOP_EVENT,
+  isInviteTarget,
+  type GuideActionDetail,
   type GuideVisibleDetail,
   type VoiceActivityDetail,
+  type VoiceFallbackDetail,
 } from '../../guide/showOnScreen';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { orbCatalog } from '../../i18n/catalogs/orb';
@@ -285,6 +289,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
   useEffect(() => {
     const onVoiceRequest = () => {
       if (audience !== 'public') return;
+      setFallbackNotice(null);
       setMode('voice');
       setIsOpen(true);
       setVoiceAutoStart((value) => value + 1);
@@ -301,6 +306,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
     active: boolean;
     status: 'listening' | 'speaking' | 'processing';
   }>({ active: false, status: 'listening' });
+  const [fallbackNotice, setFallbackNotice] = useState<string | null>(null);
   const [guideBar, setGuideBar] = useState<{ placement: 'top' | 'bottom' } | null>(null);
   const voiceLiveRef = useRef(false);
   const orbStateRef = useRef({ isOpen: false, mode: 'text' as AssistantOrbMode });
@@ -310,7 +316,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
   useEffect(() => {
     const onVoiceActivity = (event: Event) => {
       const detail = (event as CustomEvent<VoiceActivityDetail>).detail;
-      if (!detail) return;
+      if (!detail || detail.audience !== audience) return;
       voiceLiveRef.current = detail.active;
       setVoiceLive({ active: detail.active, status: detail.status });
       if (!detail.active) {
@@ -319,9 +325,12 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
         setGuideBar(null);
       }
     };
-    const onGuideAction = () => {
+    const onGuideAction = (event: Event) => {
       const state = orbStateRef.current;
-      if (audience === 'public' && state.mode === 'voice' && state.isOpen && voiceLiveRef.current) {
+      const detail = (event as CustomEvent<GuideActionDetail>).detail;
+      const guidesThisAudience = audience === 'public'
+        || (audience === 'guest' && isInviteTarget(detail?.target));
+      if (guidesThisAudience && state.mode === 'voice' && state.isOpen && voiceLiveRef.current) {
         setGuideBar((prev) => prev ?? { placement: 'bottom' });
         // A navigation without a highlight restores the panel after 5 s; a visible
         // highlight clears this timer and owns the bar until it hides.
@@ -345,12 +354,26 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
       barTimerRef.current = undefined;
       setGuideBar(null);
     };
+    // A real voice failure (token, connection or provider) switches the same
+    // audience to its text chat; the voice component already released mic/lease.
+    const onVoiceFallback = (event: Event) => {
+      const detail = (event as CustomEvent<VoiceFallbackDetail>).detail;
+      if (!detail?.message || detail.audience !== audience) return;
+      window.clearTimeout(barTimerRef.current);
+      barTimerRef.current = undefined;
+      setGuideBar(null);
+      setFallbackNotice(detail.message);
+      setMode('text');
+      setIsOpen(true);
+    };
     document.addEventListener(VOICE_ACTIVITY_EVENT, onVoiceActivity);
+    document.addEventListener(VOICE_FALLBACK_EVENT, onVoiceFallback);
     document.addEventListener(GUIDE_ACTION_EVENT, onGuideAction);
     document.addEventListener(GUIDE_VISIBLE_EVENT, onGuideVisible);
     document.addEventListener(GUIDE_HIDDEN_EVENT, onGuideHidden);
     return () => {
       document.removeEventListener(VOICE_ACTIVITY_EVENT, onVoiceActivity);
+      document.removeEventListener(VOICE_FALLBACK_EVENT, onVoiceFallback);
       document.removeEventListener(GUIDE_ACTION_EVENT, onGuideAction);
       document.removeEventListener(GUIDE_VISIBLE_EVENT, onGuideVisible);
       document.removeEventListener(GUIDE_HIDDEN_EVENT, onGuideHidden);
@@ -368,7 +391,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
   }, [mode, isOpen]);
 
   const showVoiceBar =
-    guideBar !== null && isOpen && mode === 'voice' && voiceLive.active && audience === 'public';
+    guideBar !== null && isOpen && mode === 'voice' && voiceLive.active;
 
   return (
     <>
@@ -464,7 +487,10 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
                 aria-selected={mode === 'voice'}
                 aria-controls={`${panelId}-voice-pane`}
                 tabIndex={mode === 'voice' ? 0 : -1}
-                onClick={() => setMode('voice')}
+                onClick={() => {
+                  setFallbackNotice(null);
+                  setMode('voice');
+                }}
                 className={mode === 'voice' ? 'btn btn-teal' : 'btn btn-secondary'}
                 style={{ flex: 1, padding: '0.25rem 0.4rem', fontSize: '0.72rem' }}
               >
@@ -571,7 +597,10 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
                 aria-selected={mode === 'voice'}
                 aria-controls={`${panelId}-voice-pane`}
                 tabIndex={mode === 'voice' ? 0 : -1}
-                onClick={() => setMode('voice')}
+                onClick={() => {
+                  setFallbackNotice(null);
+                  setMode('voice');
+                }}
                 className={mode === 'voice' ? 'btn btn-teal' : 'btn btn-secondary'}
                 style={{ flex: 1, padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
               >
@@ -580,6 +609,23 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
             </div>
           </>
         )}
+
+        {fallbackNotice ? (
+          <div
+            role="alert"
+            data-testid="voice-fallback-notice"
+            style={{
+              backgroundColor: 'var(--color-yellow-tint)',
+              borderBottom: '1px solid var(--color-yellow)',
+              color: 'var(--color-ink)',
+              padding: '0.6rem 0.75rem',
+              fontSize: '0.78rem',
+              lineHeight: 1.45,
+            }}
+          >
+            {fallbackNotice}
+          </div>
+        ) : null}
 
         <div
           id={`${panelId}-text-pane`}

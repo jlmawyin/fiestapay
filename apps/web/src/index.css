@@ -96,7 +96,9 @@ p, span, li, input, textarea, select, button {
 .app-container {
   max-width: 1120px;
   margin: 0 auto;
-  padding: 0 1rem 3rem 1rem;
+  /* The fixed orb sits over the bottom-right corner: reserve its height plus the
+     device safe area so the last CTA/control can still be scrolled above it. */
+  padding: 0 1rem calc(5.5rem + env(safe-area-inset-bottom)) 1rem;
   /* FP-BIL-A1-M: this main is a column-flex item. min-width:auto would let a
      wide AG Grid force the page past the viewport at 360-390px; the grids
      scroll inside their own overflow-x:auto wrappers instead. */
@@ -106,7 +108,7 @@ p, span, li, input, textarea, select, button {
 
 @media (min-width: 640px) {
   .app-container {
-    padding: 0 1.5rem 4rem 1.5rem;
+    padding: 0 1.5rem calc(5.5rem + env(safe-area-inset-bottom)) 1.5rem;
   }
 }
 
@@ -1787,8 +1789,8 @@ p, span, li, input, textarea, select, button {
 /* FiestaPay agent orb (FP-UX-2) — pure CSS scenes, transform/opacity only. */
 .fp-orb-launcher {
   position: fixed;
-  right: 1rem;
-  bottom: 1rem;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: calc(1rem + env(safe-area-inset-bottom));
   z-index: 950;
   display: flex;
   align-items: center;
@@ -1835,11 +1837,16 @@ p, span, li, input, textarea, select, button {
 }
 
 @media (max-width: 639px) {
+  .fp-orb-launcher {
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  }
+
   .fp-orb-panel {
     left: 0.5rem;
     right: 0.5rem;
-    top: 0.5rem;
-    bottom: 0.5rem;
+    top: calc(0.5rem + env(safe-area-inset-top));
+    bottom: calc(0.5rem + env(safe-area-inset-bottom));
     width: auto;
     height: auto;
     max-height: none;
@@ -2386,7 +2393,7 @@ button.fp-assistant-label {
 }
 
 .fp-voice-bar[data-placement="bottom"] {
-  bottom: 0.6rem;
+  bottom: calc(0.6rem + env(safe-area-inset-bottom));
 }
 
 .fp-voice-bar__status {

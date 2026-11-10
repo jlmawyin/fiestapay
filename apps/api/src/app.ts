@@ -10,6 +10,7 @@ import { createSmtpEmail } from './email/smtp.js';
 import type { EmailAdapter } from './email/types.js';
 import type { Pool } from './db/pool.js';
 import { HttpError } from './errors.js';
+import { requestLocale } from './lib/locale.js';
 import { isAllowedOrigin } from './lib/origin.js';
 import { requestLogger } from './lib/redact.js';
 import { PayPalSandboxClient } from './paypal/client.js';
@@ -166,7 +167,19 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     return reply.code(404).send({ error: 'Ruta no encontrada' });
   });
 
+  // Both entry points share one five-drafts-per-minute bucket per client IP.
+  const draftLimit = config.rateLimitEnabled ? app.createRateLimit({ max: 5, timeWindow: '1 minute' }) : null;
   const deps: RouteDeps = {
+    ...(draftLimit ? {
+      checkDraftLimit: async (req, reply) => {
+        const result = await draftLimit(req);
+        if (result.isAllowed || !result.isExceeded) return;
+        reply.header('Retry-After', String(result.ttlInSeconds));
+        throw new HttpError(429, requestLocale(req) === 'en'
+          ? 'Too many invitation drafts. Try again in a minute.'
+          : 'Demasiados borradores de invitación. Intenta de nuevo en un minuto.');
+      },
+    } : {}),
     pool,
     config,
     paypal,

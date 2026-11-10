@@ -1,4 +1,4 @@
-import { ASSISTANT_CONTEXTS, type ChatResult, type ChatTranscript } from '@fiestapay/shared';
+import { ASSISTANT_CONTEXTS, type ChatResult, type ChatTranscript, type PublicChatResult } from '@fiestapay/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { chatWithAssistant } from '../ai/chat.js';
@@ -41,13 +41,17 @@ export async function registerChatRoutes(app: FastifyInstance, deps: RouteDeps):
   app.post(
     '/chat/public',
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
-    async (req, reply): Promise<{ text: string }> => {
+    async (req, reply): Promise<PublicChatResult> => {
       const { message, context } = parseOr400(publicChatSchema, req.body);
       const session = await ensureSession(pool, config, req, reply);
       return chatPublic(pool, config, session.id, message, {
         ...(deps.respond ? { respond: deps.respond } : {}),
         ...(deps.assistantDeadlineMs ? { deadlineMs: deps.assistantDeadlineMs } : {}),
-      }, { locale: requestLocale(req), context: context ?? 'landing' });
+      }, {
+        locale: requestLocale(req),
+        context: context ?? 'landing',
+        beforeDraft: async () => deps.checkDraftLimit?.(req, reply),
+      });
     },
   );
 

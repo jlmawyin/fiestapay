@@ -11,6 +11,8 @@ export const landingCatalog = defineCatalog({
     title: 'Tu anfitrión con IA que cobra la parte de cada uno con PayPal',
     story:
       'Describe la fiesta en una frase y la IA la arma, el agente te guía por voz o texto y cada persona paga su parte en PayPal Sandbox.',
+    differentiation:
+      'SarafuPay reúne los cobros grupales por WhatsApp. Partiful ofrece Chip In y venta de entradas. FiestaPay prepara la fiesta, guía a los invitados por voz y verifica cada aporte en PayPal.',
     stepsTitle: 'Cómo funciona',
     step1Title: 'Describe tu fiesta, la IA la arma',
     step1Text: 'Escribe una frase y la IA propone fecha, lugar y cuota; tú revisas antes de publicar.',
@@ -33,6 +35,8 @@ export const landingCatalog = defineCatalog({
     title: "Your AI party host that collects everyone's share with PayPal",
     story:
       'Describe the party in one sentence and the AI builds it, the agent guides you by voice or text, and everyone pays their share in PayPal Sandbox.',
+    differentiation:
+      'SarafuPay runs group collections through WhatsApp. Partiful offers Chip In and ticketing. FiestaPay drafts the party, guides guests by voice, and verifies each PayPal contribution.',
     stepsTitle: 'How it works',
     step1Title: 'Describe your party, the AI builds it',
     step1Text: 'Write one sentence and the AI proposes date, place, and share; you review before publishing.',

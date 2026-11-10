@@ -14,8 +14,8 @@ export async function registerSuggestRoutes(app: FastifyInstance, deps: RouteDep
   // guest or payment row is written. The shared AI budget is the single reservation.
   app.post(
     '/ai/draft-event',
-    { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } },
     async (req, reply): Promise<DraftEventProposal> => {
+      await deps.checkDraftLimit?.(req, reply);
       const { text } = parseOr400(draftEventSchema, req.body);
       const session = await ensureSession(pool, config, req, reply);
       reply.header('Cache-Control', 'no-store');

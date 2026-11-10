@@ -1,6 +1,6 @@
 # Devpost submission draft
 
-**Draft only — not submitted.** Updated 10 November 2026 against the current verified facts. The video is [[VIDEO_URL]] and the Devpost project URL is [[DEVPOST_URL]]; both are placeholders until Jorge records and submits. Current features below are not marked pending: they are in the deployed product.
+**Draft only — not submitted.** Updated 10 November 2026 against the current source and verified evidence. The video is [[VIDEO_URL]] and the Devpost project URL is [[DEVPOST_URL]]; both are placeholders until Jorge records and submits. Measured results say when they were measured; source behavior is not presented as a production measurement.
 
 ## Project name
 
@@ -17,15 +17,21 @@ A December meal with former schoolmates and another with former coworkers: getti
 ## What it does
 
 - An organizer creates a **Meal**, **House party**, **Trip** or **Event** invitation with a fixed share per person, keeps a private organizer link and shares a separate public link.
-- **The AI builds the party.** The judges demo opens with **Describe your party — the AI builds it** and the button **Build the party with AI**. In the creation wizard, **Describe your invitation in one sentence** → **Fill with AI** calls `POST /api/ai/draft-event` and fills the assistant; **Suggest with AI** proposes a cover and theme. The organizer reviews and edits everything before publishing.
+- **The AI builds the party.** In the public chat, a sentence such as **“Build a BBQ for 10 at $15 each”** returns a complete proposal card: type, people, server-computed share per person, date and place. **Review in Create** hands the whole proposal to the creation wizard; the organizer reviews and edits it and presses **Publish** once, manually. The creation wizard also offers **Describe your invitation in one sentence** → **Fill with AI** (`POST /api/ai/draft-event`) and **Suggest with AI** for a cover and theme. The organizer decides everything before publication.
 - **AI-drafted reminders.** The organizer can draft a reminder in a friendly, funny or formal tone, then copy it or open it in WhatsApp and send it personally. FiestaPay never sends automatically.
 - Guests join with an alias, confirm attendance and companions, review a **server-calculated** amount and pay through **PayPal Orders v2 (sandbox)**. Attendance, payment and the organizer's confirmation are separate states; nothing is “paid” until the server verifies the capture.
 - **Gemini agents in text and real-time voice, in Spanish or English**:
-  - **Public agent** (home page and judges demo): text chat with no tools. Voice has one tool, `show_on_screen`, which opens FiestaPay pages and highlights buttons; it never clicks, pays or creates. Saying “Take me to the judges demo” navigates there and highlights **Try a PayPal payment**. Button names in replies are tappable, and **Guided tour** is available in the demo.
-  - **Guest agent**: reads the invitation (`get_event_details`), the guest's status (`get_my_status`) and the collection progress (`get_collection_progress`), proposes attendance for on-screen confirmation (`propose_rsvp`), and **prepares the payment** (`prepare_quote`). The server returns the amount in integer cents with status *pending approval*, and the screen shows **Approve in PayPal $X**. The agent can never charge, approve or claim a payment.
+  - **Public agent** (home page and judges demo): the text chat has one tool, `draft_invitation`, which prepares the proposal card without creating or publishing; **Review in Create** is the person's decision. Its replies can link to existing on-screen labels and the **Guided tour**. Voice has `show_on_screen`, which opens FiestaPay pages, highlights controls and can leave a spoken party sentence in Create for the person to press **Fill with AI**. It never clicks, publishes, pays or creates.
+  - **Guest agent**: reads the invitation (`get_event_details`), the guest's status (`get_my_status`) and the collection progress (`get_collection_progress`), proposes attendance for on-screen confirmation (`propose_rsvp`), and **prepares the payment** (`prepare_quote`). The server returns the amount in integer cents with status *pending approval*, and the screen shows **Approve in PayPal $X**. Its voice guide can highlight the quote and payment controls but never presses them. The agent can never charge, approve or claim a payment. RSVP remains separate from payment.
   - **Organizer agent**: read-only progress, who still owes, and reminder drafts.
 - The organizer dashboard uses **AG Grid Community**: quick search, **Pending only**, CSV export, highlighted rows and a totals row calculated by the server. A separate public **Judges demo** (`/demo`, also `?lang=en`) has sample data, the guided **Try a PayPal payment** walkthrough and the assistant.
 - **Bilingual ES/EN** with a header selector, `?lang=en`, and browser-language detection. Event times stay in America/Guayaquil and amounts stay in USD.
+
+## What makes FiestaPay different
+
+- **SarafuPay** centers the conversation on WhatsApp and also offers a web page and checkout ([SarafuPay on Devpost](https://devpost.com/software/sarafupay)). FiestaPay does not claim to be the only product with a web checkout or with WhatsApp in the flow; its focus is an AI host that builds the invitation, prepares a server quote and guides the person to a verified PayPal Sandbox capture while the person keeps every final action.
+- **Partiful** separates Ticketing from Chip In. Its help page states that Ticket Sales independently verify payment, while **Chip In** asks the organizer to confirm receipt outside the product ([Partiful help](https://help.partiful.com/en-us/articles/15525466-do-you-independently-verify-that-guests-have-paid)). FiestaPay's contrast is scoped to that distinction: it verifies the PayPal capture server-side for the fixed share, keeps attendance and payment as separate states, and does not claim that Partiful never verifies anything.
+- The common thread is factual, not a slogan: FiestaPay puts the AI in the invitation and payment-preparation path, but money moves only through a person-approved, server-verified PayPal Sandbox capture — no escrow, automatic promise-based refunds, Buyer Guarantee claim or live money.
 
 ## How we built it
 
@@ -53,11 +59,12 @@ React + Vite front end, Fastify API and PostgreSQL, deployed in isolated contain
 
 ## Accomplishments
 
-- **1,015 automated tests green: 451 API tests with PostgreSQL and 564 web tests**, plus lint, type checks and build, independent verification by AGY and CI green on 10 November 2026.
+- Automated PostgreSQL integration tests and web tests run in CI alongside lint, type checks and builds.
 - A complete sandbox path from a server quote to buyer approval in PayPal to a server-verified **Paid** state, with an idempotent ledger and signed webhooks.
 - A production AI party builder: one sentence becomes a filled invitation, with cover and theme suggestions and AI-drafted reminders.
 - A judge-facing demo that opens with the AI working, keeps all data fictional, and leads to a real PayPal Sandbox checkout.
-- **AI product metrics (to be measured):** median ≈ 2.0 s, p90 ≈ 3.0 s, max 3.1 s over 10 production runs (10 Nov 2026); 10/10 drafts answered by the AI; 43 of 44 expected fields correct (97.7 %): type, people, server-computed share per person, start time, place; 3.0–5.1 s for 5 production questions; 4 of 5 real Gemini Live sessions navigated and highlighted the target (the miss was a synthetic test-audio artifact); ≈ USD 0.18 for all real tests to date (56 text calls + 12 voice sessions; estimate from public pricing).
+- **Measured AI draft quality (10 Nov 2026):** `POST /api/ai/draft-event` answered 10/10 AI drafts (5 English, 5 Spanish), with 43 of 44 expected fields correct (97.7 %: type, people, server-computed share per person, start time and place); median latency ≈ 2.0 s and p90 ≈ 3.0 s. The voice guide navigated and highlighted its target in 4 of 5 real Gemini Live sessions (the miss was a synthetic-test-audio artifact).
+- **Measured guest quotes (10 Nov 2026).** In 10 guest-chat turns on one isolated demo event (5 EN, 5 ES), 8 returned a quote and all 8 matched the expected cents. One reply omitted a quote and one returned HTTP 503. Median latency was 3.83 s across all turns (p90 4.60 s). Gemini usage was estimated at $0.18 for the event's 10 turns (about $0.018 per turn, 18 of 19 provider requests metered).
 
 ## What we learned
 

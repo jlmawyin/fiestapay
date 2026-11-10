@@ -81,6 +81,8 @@ export const App: React.FC = () => {
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [demoPaymentSlug, setDemoPaymentSlug] = useState<string | null>(() => readDemoPaymentSlug());
   const [orbOpenSignal, setOrbOpenSignal] = useState<number | undefined>(undefined);
+  const currentViewRef = useRef<ViewMode>(currentView);
+  currentViewRef.current = currentView;
   const demoCreationRef = useRef<Promise<void> | null>(null);
   const paymentDemoRef = useRef<Promise<void> | null>(null);
   const paymentDemoSlugRef = useRef<string | null>(null);
@@ -203,10 +205,14 @@ export const App: React.FC = () => {
   useEffect(() => {
     registerGuideNavigator({
       navigate: (page) => navigate(guidePageToView(page)),
-      getCurrentPage: () => viewToGuidePage(currentView),
+      // Read through a ref so a late guide/voice response sees the route that
+      // is actually rendered now, before the next effect flush.
+      getCurrentPage: () => viewToGuidePage(currentViewRef.current),
+      getCurrentInviteSlug: () =>
+        currentViewRef.current.mode === 'invite' ? currentViewRef.current.slug : null,
     });
     return () => registerGuideNavigator(null);
-  }, [currentView, navigate]);
+  }, [navigate]);
 
   /**
    * Fresh private judge demo. `POST /api/demo` always mints a new `is_demo`

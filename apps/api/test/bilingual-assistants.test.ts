@@ -426,7 +426,7 @@ describeDb('asistentes bilingües de punta a punta', () => {
       for (const input of inputs) {
         expect(input.instructions).not.toContain(created.title);
         expect(input.instructions).not.toContain(created.slug);
-        expect(input.tools).toEqual([]);
+        expect(input.tools.map((tool) => tool.name)).toEqual(['draft_invitation']);
       }
       assertEnglishPrompt(inputs[1]!.instructions, 'público demo');
       expect(inputs[1]!.instructions).toContain(UI_LABELS.en.previewPanel);

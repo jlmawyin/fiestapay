@@ -13,18 +13,16 @@
 
 ## 0:00–0:25 — The AI builds the party
 
-1. On `/demo?lang=en`, find **Describe your party — the AI builds it** and the button **Build the party with AI**.
-2. Type one sentence, for example: **“BBQ for 10 on Saturday.”**
-3. Press **Build the party with AI**. The creation assistant is filled in; review the details. Use **Suggest with AI** to propose a cover and theme.
-4. Point out the boundary: the AI drafts the invitation, but the **server** computes the per-person amount in integer cents. The organizer can edit everything before publishing.
-
-The same capability lives in the normal creation wizard as **Describe your invitation in one sentence** → **Fill with AI** (`POST /api/ai/draft-event`). AI reminders are drafted later in friendly, funny or formal tones; the organizer sends them personally.
+1. On `/demo?lang=en`, open the public chat and type: **“Build a BBQ for 10 at $15 each.”**
+2. The agent answers with a complete proposal card: event type, 10 people, the server-computed USD 15 share per person, date and place. Press **Review in Create**; the whole proposal opens in the creation wizard.
+3. Review the pre-filled fields and point out the boundary: AI prepared the draft, but the **server** computes the per-person amount in integer cents. Press **Publish** once, manually, only when the invitation looks right. The agent never publishes it.
+4. The normal creation wizard also offers **Describe your invitation in one sentence** → **Fill with AI** (`POST /api/ai/draft-event`). AI reminders are drafted later in friendly, funny or formal tones; the organizer sends them personally.
 
 ## 0:25–0:55 — The voice agent guides you
 
 1. Open the **FiestaPay orb**, choose **Talk**, accept the microphone consent and start.
-2. Say: **“Take me to the judges demo.”** The public voice agent's only tool, `show_on_screen`, navigates to the judges demo and highlights **Try a PayPal payment**.
-3. Show that the agent does **not** press the button. It can open pages and highlight controls; it never clicks, pays or creates anything. Button names in its replies are tappable, and **Guided tour** is available in the demo.
+2. Say: **“Take me to the judges demo.”** The public voice agent uses `show_on_screen`, navigates to the judges demo and highlights **Try a PayPal payment**.
+3. Show that the agent does **not** press the button. It can open pages, highlight controls and leave a spoken party sentence in Create for you to press **Fill with AI**; it never clicks, publishes, pays or creates anything. Button names in its replies are tappable, and **Guided tour** is available in the demo.
 4. Say **“Stop”**, switch to text or close the orb to end voice. Voice sessions are capped at 120 seconds.
 
 The runtime is **Gemini only**: voice is `gemini-3.8-live` through the Gemini Live API, and the browser connects with a single-use ephemeral token minted by the server. The API key never reaches the browser.
@@ -35,7 +33,7 @@ The runtime is **Gemini only**: voice is `gemini-3.8-live` through the Gemini Li
 2. Point out that **2 people are attending** and that attendance is separate from payment.
 3. Open the guest assistant and ask: **“How much do I have to pay? Please prepare my payment.”**
 4. The agent calls the role-scoped tools: `get_event_details`, `get_my_status`, `get_collection_progress` and `prepare_quote`. The server returns the demo quote in integer cents, with status *pending approval*.
-5. The screen shows **Approve in PayPal** with the server amount. The agent can prepare the quote, but it cannot approve, charge or mark anything paid. That decision belongs to the person.
+5. The screen shows **Approve in PayPal** with the server amount. The agent can prepare the quote and its voice guide can highlight the quote and payment controls, but it cannot approve, charge or mark anything paid. That decision belongs to the person.
 
 ## 1:35–2:10 — Approve in PayPal, then check the paid state
 
@@ -58,10 +56,11 @@ The runtime is **Gemini only**: voice is `gemini-3.8-live` through the Gemini Li
 - WhatsApp messages are drafts the organizer sends manually. No automatic sending is claimed.
 - Attendance and payment are separate states; the organizer's confirmation changes the event status only.
 - A new physical-phone payment test, a published video and Devpost submission are not claimed by this walkthrough.
-- AI product metrics are still being measured and appear as metric placeholders in the submission and video documents.
+- **Measured AI draft quality (10 Nov 2026):** `POST /api/ai/draft-event` answered 10/10 drafts (5 EN, 5 ES), with 43 of 44 expected fields correct (97.7 %), median ≈ 2.0 s and p90 ≈ 3.0 s. The voice guide navigated and highlighted the target in 4 of 5 real Gemini Live sessions; the miss was a synthetic-test-audio artifact.
+- **Measured guest quotes.** In 10 guest-chat turns on one isolated demo event (5 EN, 5 ES), 8 returned a quote and all 8 matched the expected cents. One reply omitted a quote and one returned HTTP 503. Median latency was 3.83 s across all turns (p90 4.60 s). Gemini usage was estimated at $0.18 for the event's 10 turns (about $0.018 per turn, 18 of 19 provider requests metered).
 
 ## Current evidence and history
 
-The current quality baseline is **1,015 automated tests green** (451 API with PostgreSQL + 564 web), with lint, type checks, build, independent AGY verification and CI green on 10 November 2026.
+CI runs the PostgreSQL integration and web suites, lint, type checks and builds.
 
-Older test counts, provider names and browser results are kept for traceability in [HISTORY.md](HISTORY.md), with their original reports under `docs/reviews/` and `docs/evidence/`. Those reports are historical evidence, not a description of the current runtime.
+Older test counts, provider names and browser results are kept for traceability in [HISTORY.md](HISTORY.md), with their original reports under `docs/internal/reviews/` and `docs/internal/evidence/`. Those reports are historical evidence, not a description of the current runtime.

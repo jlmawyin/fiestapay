@@ -14,13 +14,13 @@ Recorded in English, on the deployed app, with English UI (`/demo?lang=en`). The
 
 ## 0:12–0:38 — One sentence builds the party
 
-**On screen:** the judges demo hero, then the creation wizard.
+**On screen:** the judges demo hero, the public chat proposal card, then the creation wizard.
 
-**You press:** **Describe your party — the AI builds it** → type **“BBQ for 10 on Saturday.”** → **Build the party with AI**. Let the filled fields appear. Press **Suggest with AI** once and show the cover/theme. Do not publish yet.
+**You press:** open the public chat → type **“Build a BBQ for 10 at $15 each”** → wait for the complete proposal card → **Review in Create**. Let the pre-filled fields appear. Review them; press **Publish** once, manually. Do not skip the human review.
 
 **Narration:**
 
-> FiestaPay is an AI party host that collects everyone's share with PayPal. I describe the party in one sentence: BBQ for ten on Saturday. The AI fills the invitation, suggests a cover and a theme, and I can edit every field. Then the server — not the model — calculates each person's share in integer cents.
+> FiestaPay is an AI party host that collects everyone's share with PayPal. In the public chat I say: build a BBQ for ten at fifteen each. The agent returns a complete proposal — ten people, the share per person, date and place. Review in Create opens the whole proposal, and I publish it myself after checking every field. The server — not the model — calculates each person's share in integer cents.
 
 ## 0:38–1:00 — A guest joins; attendance is not payment
 
@@ -80,7 +80,7 @@ Recorded in English, on the deployed app, with English UI (`/demo?lang=en`). The
 
 **Narration:**
 
-> SarafuPay puts an agent only in WhatsApp. Partiful sends invitations without verified collection. FiestaPay connects both to PayPal: the agent guides and prepares; people approve in PayPal; only a server-verified capture counts as paid. Try it at fiestapay dot somospanas dot com slash demo.
+> SarafuPay centers the conversation on WhatsApp and also has a web checkout. Partiful verifies Ticket Sales, while its Chip In asks the organizer to confirm receipt. FiestaPay connects the AI conversation to a server-verified PayPal Sandbox capture: the agent guides and prepares; people approve in PayPal; only a server-verified capture counts as paid. Try it at fiestapay dot somospanas dot com slash demo.
 
 ## Preparation checklist
 
@@ -95,4 +95,4 @@ Recorded in English, on the deployed app, with English UI (`/demo?lang=en`). The
 
 ## What the script deliberately does not claim
 
-No real-money payment, automatic WhatsApp sending, new physical-phone payment test, published video or completed Devpost submission. All payments are PayPal Sandbox. AI product metrics are pending measurement and appear as metric placeholders in the submission documents.
+No real-money payment, automatic WhatsApp sending, new physical-phone payment test, published video or completed Devpost submission. All payments are PayPal Sandbox. Measured AI draft quality: 10/10 drafts (5 EN, 5 ES), 43 of 44 expected fields correct (97.7 %), median ≈ 2.0 s, p90 ≈ 3.0 s. Guest-chat evaluation returned 8 exact quotes in 10 turns on an isolated demo, with a median of 3.83 s across all turns.

@@ -335,6 +335,83 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
       expect(new Date(quote.expiresAt).getTime()).toBeGreaterThan(Date.now());
     });
 
+    it('reutiliza la cotizacion viva compatible sin cambiar su id', async () => {
+      const { event } = await organizer();
+      const guest = await guestOn(event.slug, 'Carla', 2);
+      const first = body<{ quote: Quote }>(await guest.post(`/api/events/${event.slug}/quote`)).quote;
+      const second = body<{ quote: Quote }>(await guest.post(`/api/events/${event.slug}/quote`)).quote;
+      expect(second.id).toBe(first.id);
+      expect(second.totalCents).toBe(first.totalCents);
+      expect(second.amountCents).toBe(first.amountCents);
+      const rows = await pool.query<{ n: number }>(
+        `SELECT COUNT(*)::int AS n FROM quotes q
+          JOIN guests g ON g.id = q.guest_id
+          JOIN events e ON e.id = g.event_id
+          WHERE e.slug = $1 AND q.invalidated_at IS NULL`,
+        [event.slug],
+      );
+      expect(rows.rows[0]!.n).toBe(1);
+    });
+
+    it('renderiza el resumen en el locale de la peticion sobre la misma cotizacion', async () => {
+      const { event } = await organizer();
+      const guest = await guestOn(event.slug, 'Carla', 2);
+      const first = body<{ quote: Quote }>(await guest.post(`/api/events/${event.slug}/quote`)).quote;
+      expect(first.summary).toContain('3 personas');
+
+      guest.locale = 'en';
+      const english = body<{ quote: Quote }>(await guest.post(`/api/events/${event.slug}/quote`)).quote;
+      expect(english.id).toBe(first.id);
+      expect(english.summary).toContain('3 people');
+      expect(english.summary).toMatch(/total \$/);
+
+      guest.locale = 'es';
+      const spanish = body<{ quote: Quote }>(await guest.post(`/api/events/${event.slug}/quote`)).quote;
+      expect(spanish.id).toBe(first.id);
+      expect(spanish.summary).toContain('3 personas');
+    });
+
+    it('renueva una cotizacion caducada solo cuando no hay una orden abierta', async () => {
+      const { event } = await organizer();
+      const guest = await guestOn(event.slug, 'Carla', 0);
+      const first = body<{ quote: Quote }>(await guest.post(`/api/events/${event.slug}/quote`)).quote;
+      await pool.query("UPDATE quotes SET expires_at = now() - interval '1 minute' WHERE id = $1", [first.id]);
+
+      const renewed = body<{ quote: Quote }>(await guest.post(`/api/events/${event.slug}/quote`)).quote;
+      expect(renewed.id).not.toBe(first.id);
+      const old = await pool.query<{ invalidated_at: Date | null }>('SELECT invalidated_at FROM quotes WHERE id = $1', [
+        first.id,
+      ]);
+      expect(old.rows[0]!.invalidated_at).not.toBeNull();
+    });
+
+    it('con una orden abierta conserva su cotizacion aunque venza el TTL y reutiliza la orden', async () => {
+      const { event } = await organizer();
+      const guest = await guestOn(event.slug, 'Carla', 1);
+      const quote = body<{ quote: Quote }>(await guest.post(`/api/events/${event.slug}/quote`)).quote;
+      const order = body<OrderResult>(await guest.post(`/api/events/${event.slug}/orders`, {
+        quoteId: quote.id,
+        confirmed: true,
+      }));
+      await pool.query("UPDATE quotes SET expires_at = now() - interval '1 minute' WHERE id = $1", [quote.id]);
+
+      const again = body<{ quote: Quote }>(await guest.post(`/api/events/${event.slug}/quote`)).quote;
+      expect(again.id).toBe(quote.id);
+      expect(again.amountCents).toBe(quote.amountCents);
+
+      const retried = await guest.post(`/api/events/${event.slug}/orders`, { quoteId: quote.id, confirmed: true });
+      expect(retried.statusCode).toBe(200);
+      expect(body<OrderResult>(retried).orderId).toBe(order.orderId);
+      const count = await pool.query<{ n: number }>(
+        `SELECT COUNT(*)::int AS n FROM orders o
+          JOIN guests g ON g.id = o.guest_id
+          JOIN events e ON e.id = g.event_id
+          WHERE e.slug = $1 AND o.status IN ('intent','created','approved','capturing')`,
+        [event.slug],
+      );
+      expect(count.rows[0]!.n).toBe(1);
+    });
+
     it('no cotiza sin asistencia confirmada', async () => {
       const { event } = await organizer();
       const client = new Client(app);

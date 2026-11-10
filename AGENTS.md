@@ -1,6 +1,6 @@
 # FiestaPay implementation rules
 
-Updated by Jorge's request on 10 Nov 2026 for the final hackathon stretch (Devpost deadline 12 Nov 2026 15:00 ECT; judges test 1–15 Dec 2026). These rules supersede the October plans (docs/ENCARGO_2026-10-28.md, docs/PLAN_DIARIO.md), which stay as history.
+Updated by Jorge's request on 10 Nov 2026 for the final hackathon stretch (Devpost deadline 12 Nov 2026 15:00 ECT; judges test 1–15 Dec 2026). These rules supersede the October plans (docs/internal/ENCARGO_2026-10-28.md, docs/internal/PLAN_DIARIO.md), which stay as history.
 
 ## Product direction
 

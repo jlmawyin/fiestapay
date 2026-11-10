@@ -42,7 +42,7 @@ export function voiceConfig(env: NodeJS.ProcessEnv = process.env) {
     // Gemini ephemeral sessions are short-lived; the lease must match the token timebox.
     maxSeconds: provider === 'gemini' ? Math.min(configuredMax, 120) : configuredMax,
     dailySeconds: Math.floor(bounded(env.VOICE_DAILY_SECONDS, 1800, 3600)),
-    /** Public voice may declare show_on_screen; guest and organizer prompts never read this. */
+    /** Public and guest Gemini voice may declare show_on_screen when this flag is on. */
     screenGuide: readScreenGuide(env),
   };
 }

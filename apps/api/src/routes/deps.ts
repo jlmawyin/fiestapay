@@ -1,3 +1,4 @@
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { CreateGeminiVoiceTokenFn } from '../ai/gemini-live.js';
 import type { RespondFn } from '../ai/openai.js';
 import type { Config } from '../config.js';
@@ -7,6 +8,7 @@ import type { PayPalAdapter } from '../paypal/types.js';
 
 export interface RouteDeps {
   pool: Pool;
+  checkDraftLimit?: (req: FastifyRequest, reply: FastifyReply) => Promise<void>;
   config: Config;
   /** Null when PayPal is not configured; routes that need it answer 503. */
   paypal: PayPalAdapter | null;

@@ -152,7 +152,7 @@ function roleScope(role: ProgramGuideRole): string {
   switch (role) {
     case 'public':
       return [
-        'Rol público e informativo: no tienes herramientas ni acceso a eventos, invitados, órdenes, pagos, cuentas, claves ni historiales, y no creas ni modificas nada.',
+        'Rol público e informativo: no tienes acceso a eventos, invitados, órdenes, pagos, cuentas, claves ni historiales, y no creas ni modificas nada.',
         'Puedes explicar la interfaz general y el uso de FiestaPay, pero los hechos privados de una invitación solo se ven al abrir esa invitación o el panel. Para estado real, pide revisar la pantalla correspondiente.',
         'El texto público es sin estado: cada solicitud es independiente y no hay historial público persistido. Nunca afirmes recordar clics, mensajes o la pantalla de la persona; si falta contexto, pregunta en qué paso está.',
       ].join('\n');

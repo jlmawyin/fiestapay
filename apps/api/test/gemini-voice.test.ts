@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import {
   GEMINI_DEFAULT_LIVE_MODEL,
   GEMINI_DEFAULT_TEXT_MODEL,
+  INVITE_SHOW_ON_SCREEN_DECLARATION,
   SHOW_ON_SCREEN_DECLARATION,
   VOICE_PAYMENT_PENDING,
   type GeminiVoiceSessionConfig,
@@ -209,7 +210,9 @@ describeDb('tokens Gemini Live por rol, autorizacion, presupuesto y arrendamient
       expect(payload.sessionConfig.liveConfig.responseModalities).toEqual(['AUDIO']);
       expect(payload.sessionConfig.liveConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName).toBe('Kore');
       expect(payload.sessionConfig.liveConfig.tools[0]!.functionDeclarations.map((d) => d.name))
-        .toEqual(TOOL_DECLARATIONS.map((d) => d.name));
+        .toEqual([...TOOL_DECLARATIONS.map((d) => d.name), 'show_on_screen']);
+      expect(payload.sessionConfig.liveConfig.tools[0]!.functionDeclarations.at(-1))
+        .toEqual(INVITE_SHOW_ON_SCREEN_DECLARATION);
       const rsvp = payload.sessionConfig.liveConfig.tools[0]!.functionDeclarations.find((d) => d.name === 'propose_rsvp');
       const status = (rsvp?.parameters?.properties as Record<string, { type?: string }>).status;
       expect(status.type).toBe('STRING');
@@ -242,6 +245,20 @@ describeDb('tokens Gemini Live por rol, autorizacion, presupuesto y arrendamient
     });
   });
 
+  it('el endpoint de herramientas del servidor no acepta show_on_screen', async () => {
+    await withApp({}, async (app) => {
+      const { slug } = await demo(app);
+      const guest = await join(app, slug);
+      const issued = body<{ leaseId: string }>(await guest.post(`/api/events/${slug}/voice/token`, { consent: true }));
+      const res = await guest.post(`/api/events/${slug}/voice/tool`, {
+        leaseId: issued.leaseId,
+        name: 'show_on_screen',
+        arguments: { target: 'openPayPal' },
+      });
+      expect(res.statusCode).toBe(403);
+    });
+  });
+
   it('el organizador recibe sus herramientas y el publico solo show_on_screen', async () => {
     await withApp({}, async (app, requests) => {
       const { organizer, slug } = await demo(app);
@@ -266,7 +283,7 @@ describeDb('tokens Gemini Live por rol, autorizacion, presupuesto y arrendamient
     });
   });
 
-  it('con VOICE_SCREEN_GUIDE=off el publico no recibe herramientas ni la instruccion de pantalla', async () => {
+  it('con VOICE_SCREEN_GUIDE=off el publico y el invitado no reciben herramientas de pantalla', async () => {
     await withApp({ VOICE_SCREEN_GUIDE: 'off' }, async (app, requests) => {
       const pubRes = await new Client(app).post('/api/voice/public/token', { consent: true });
       expect(pubRes.statusCode).toBe(200);
@@ -275,6 +292,14 @@ describeDb('tokens Gemini Live por rol, autorizacion, presupuesto y arrendamient
       expect(pub.sessionConfig.liveConfig.systemInstruction).toContain('No tienes herramientas');
       expect(pub.sessionConfig.liveConfig.systemInstruction).not.toContain('show_on_screen');
       expect(requests[0]!.liveConfig.tools).toEqual([]);
+
+      const { slug } = await demo(app);
+      const guest = await join(app, slug);
+      const guestRes = await guest.post(`/api/events/${slug}/voice/token`, { consent: true });
+      const guestPayload = body<{ sessionConfig: GeminiVoiceSessionConfig }>(guestRes);
+      expect(guestPayload.sessionConfig.liveConfig.tools[0]!.functionDeclarations.map((d) => d.name))
+        .toEqual(TOOL_DECLARATIONS.map((d) => d.name));
+      expect(guestPayload.sessionConfig.liveConfig.systemInstruction).not.toContain('show_on_screen');
     });
   });
 
@@ -380,6 +405,7 @@ describeDb('tokens Gemini Live por rol, autorizacion, presupuesto y arrendamient
       });
       expect(String(outcome.response.siguiente_paso)).toMatch(/Aprobar en PayPal/);
       expect(String(outcome.response.siguiente_paso)).toMatch(/captura verificada/);
+      expect(String(outcome.response.resumen)).toContain('2 personas');
 
       const english = await runTool(
         { pool, sessionId, event, guest: guestRow, quoteTtlSeconds: 900, locale: 'en' },
@@ -388,6 +414,8 @@ describeDb('tokens Gemini Live por rol, autorizacion, presupuesto y arrendamient
       );
       expect(english.response).toMatchObject({ a_pagar_centavos: event.price_cents * 2 });
       expect(String(english.response.siguiente_paso)).toMatch(/Approve in PayPal/);
+      expect(String(english.response.resumen)).toContain('2 people');
+      expect(english.quote?.id).toBe(outcome.quote?.id);
     });
   });
 });

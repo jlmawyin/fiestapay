@@ -1,6 +1,6 @@
 # Recuperación del organizador por correo
 
-Método vigente: SMTP de Banahosting/cPanel, cuenta `fiestapay@somospanas.com`. Aplicación `2d7c542` con revisión independiente previa. El 25 de octubre se completó el recorrido real: mensajes de verificación y recuperación recibidos en bandeja de entrada, contacto verificado, clave anterior 403 y panel nuevo 200. [Evidencia y límites](reviews/smtp-live-20261025.md).
+Método vigente: SMTP de Banahosting/cPanel, cuenta `fiestapay@somospanas.com`. Aplicación `2d7c542` con revisión independiente previa. El 25 de octubre se completó el recorrido real: mensajes de verificación y recuperación recibidos en bandeja de entrada, contacto verificado, clave anterior 403 y panel nuevo 200. [Evidencia y límites](internal/reviews/smtp-live-20261025.md).
 
 FiestaPay utiliza el servidor de correo existente. No instala otro, no modifica MX/DNS del dominio ni cuentas existentes. NameSilo es el registrador; Banahosting aloja el correo; Cloudflare mantiene DNS/proxy del sitio.
 
@@ -57,8 +57,8 @@ Guardar con Ctrl+O, Enter y salir con Ctrl+X. Luego validar configuración sin i
 
 ## Aceptación y mantenimiento
 
-El 25 de octubre se enviaron exactamente dos correos al destino autorizado desde FiestaPay:  verificación y recuperación. Ambos aceptadosSMTP y recibidos en entrada, confirmados por Jorge. Clave vieja403 y nueva200 acreditadas por llamadas/logs y captura humana. Comparación en memoria de valores privados contra cuatro archivos de bundle y logs API: sin coincidencias; `.env` privados no rastreados porGit. [Registro](reviews/smtp-live-20261025.md).
+El 25 de octubre se enviaron exactamente dos correos al destino autorizado desde FiestaPay:  verificación y recuperación. Ambos aceptadosSMTP y recibidos en entrada, confirmados por Jorge. Clave vieja403 y nueva200 acreditadas por llamadas/logs y captura humana. Comparación en memoria de valores privados contra cuatro archivos de bundle y logs API: sin coincidencias; `.env` privados no rastreados porGit. [Registro](internal/reviews/smtp-live-20261025.md).
 
 Reapertura manual adicional completada: Jorge volvió a usar el segundo enlace y recibió rechazo; la API registró HTTP400. Reutilización, caducidad y concurrencia ya aprobadas en las pruebas PostgreSQL de la fuente desplegada; no alegar una nueva espera real de 15 minutos. Para futuras pruebas, registrar versión/hora/aceptaciónSMTP/entrada o spam y no enviar a destinatarios distintos sin autorización.
 
-Si un correo cae en spam, Jorge revisa SPF/DKIM y guías de entregabilidad en Banahosting/cPanel. Codex documenta; no modifica esos registros, MX ni el correo del dominio, ni compra planes. WhatsApp conserva el compartir manual; la [decisión de viabilidad](WHATSAPP_VIABILIDAD.md) cubre costos, requisitos y plazo de recuperación automática.
+Si un correo cae en spam, Jorge revisa SPF/DKIM y guías de entregabilidad en Banahosting/cPanel. Codex documenta; no modifica esos registros, MX ni el correo del dominio, ni compra planes. WhatsApp conserva el compartir manual; la [decisión de viabilidad](internal/WHATSAPP_VIABILIDAD.md) cubre costos, requisitos y plazo de recuperación automática.
