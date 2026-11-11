@@ -2249,7 +2249,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
                 data-step-state={state}
                 className={`create-wizard__step create-wizard__step--${state}`}
               >
-                {step !== 6 ? (
+                {step !== 6 || state !== 'open' ? (
                   <div className="create-wizard__step-head">
                     <span aria-hidden="true" className="create-wizard__badge">
                       {state === 'done' ? (
