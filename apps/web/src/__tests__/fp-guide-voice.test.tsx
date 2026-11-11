@@ -19,6 +19,7 @@ import {
   GUIDE_SHOW_EVENT,
   GUIDE_VISIBLE_EVENT,
   VOICE_ACTIVITY_EVENT,
+  VOICE_RESUME_EVENT,
   VOICE_STOP_EVENT,
   registerGuideNavigator,
   startGuidedTour,
@@ -592,6 +593,22 @@ describe('FP-GUIDE-1 voice mini-bar', () => {
     expect(screen.queryByTestId('voice-guide-bar')).toBeNull();
     expect(dialog).not.toBeVisible();
     expect(screen.getByRole('button', { name: 'Abrir Agente FiestaPay' })).toBeVisible();
+  });
+
+  it('resumes the microphone from the mobile corner without opening the transcript', () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('pointer: coarse') }));
+    openVoicePane();
+    dispatchActivity({ active: true, paused: true, status: 'listening', audience: 'public' });
+    expect(screen.getByTestId('voice-guide-bar')).toHaveTextContent('En pausa');
+    const resume = vi.fn();
+    document.addEventListener(VOICE_RESUME_EVENT, resume, { once: true });
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Retomar' }));
+      expect(resume).toHaveBeenCalledWith(expect.objectContaining({ detail: 'public' }));
+      expect(screen.queryByRole('dialog')).toBeNull();
+    } finally {
+      document.removeEventListener(VOICE_RESUME_EVENT, resume);
+    }
   });
 
   it('minimizes without a bar when voice is idle', () => {

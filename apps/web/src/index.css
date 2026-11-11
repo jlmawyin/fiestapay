@@ -2332,6 +2332,11 @@ p, span, li, input, textarea, select, button {
   font-size: 0.85rem;
   line-height: 1.45;
   cursor: pointer;
+  /* Never let a long hint or its actions fall outside a short phone viewport. */
+  max-height: calc(100vh - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .fp-guide-bubble__actions {

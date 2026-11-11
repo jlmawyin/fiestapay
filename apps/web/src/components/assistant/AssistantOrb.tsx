@@ -11,6 +11,7 @@ import {
   GUIDE_VISIBLE_EVENT,
   VOICE_ACTIVITY_EVENT,
   VOICE_FALLBACK_EVENT,
+  VOICE_RESUME_EVENT,
   VOICE_STOP_EVENT,
   isInviteTarget,
   type GuideActionDetail,
@@ -322,8 +323,9 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
   // The temporary guide bar still handles placement and desktop behavior.
   const [voiceLive, setVoiceLive] = useState<{
     active: boolean;
+    paused: boolean;
     status: 'listening' | 'speaking' | 'processing';
-  }>({ active: false, status: 'listening' });
+  }>({ active: false, paused: false, status: 'listening' });
   const [fallbackNotice, setFallbackNotice] = useState<string | null>(null);
   const [guideBar, setGuideBar] = useState<{ placement: 'top' | 'bottom' } | null>(null);
   const voiceLiveRef = useRef(false);
@@ -339,7 +341,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
       const state = orbStateRef.current;
       voiceLiveRef.current = detail.active;
       if (wasLive && !detail.active && state.mobile && state.docked && state.mode === 'voice') closeOrb();
-      setVoiceLive({ active: detail.active, status: detail.status });
+      setVoiceLive({ active: detail.active, paused: detail.paused === true, status: detail.status });
       if (!detail.active) {
         setGuidedVoiceContext(null);
         window.clearTimeout(barTimerRef.current);
@@ -416,7 +418,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
   useEffect(() => {
     if (mode === 'voice' && isOpen) return;
     voiceLiveRef.current = false;
-    setVoiceLive({ active: false, status: 'listening' });
+    setVoiceLive({ active: false, paused: false, status: 'listening' });
     setGuideBar(null);
   }, [mode, isOpen]);
 
@@ -776,7 +778,8 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
           <OrbArt orb={orb} accent={accent} icon={orbIcon} meal={theme?.meal} size={28} static={reducedMotion} />
           <span className="fp-voice-bar__status" role="status">
             {voiceLive.status === 'speaking' ? m.guideBarSpeaking
-              : voiceLive.status === 'processing' ? m.guideBarProcessing : m.guideBarListening}
+              : voiceLive.status === 'processing' ? m.guideBarProcessing
+              : voiceLive.paused ? m.guideBarPaused : m.guideBarListening}
           </span>
           <button
             type="button"
@@ -791,9 +794,18 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
           >
             {m.guideBarStop}
           </button>
+          {voiceLive.paused ? (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => document.dispatchEvent(new CustomEvent(VOICE_RESUME_EVENT, { detail: audience }))}
+            >
+              {m.guideBarResume}
+            </button>
+          ) : null}
           <button
             type="button"
-            className="btn btn-primary"
+            className={voiceLive.paused ? 'btn btn-secondary' : 'btn btn-primary'}
             ref={dockButtonRef}
             aria-controls={panelId}
             aria-expanded={false}

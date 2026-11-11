@@ -2247,6 +2247,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
                 aria-current={state === 'open' ? 'step' : undefined}
                 aria-disabled={state === 'locked' ? true : undefined}
                 data-step-state={state}
+                data-guide-step={`create-${step}`}
                 className={`create-wizard__step create-wizard__step--${state}`}
               >
                 {step !== 6 || state !== 'open' ? (

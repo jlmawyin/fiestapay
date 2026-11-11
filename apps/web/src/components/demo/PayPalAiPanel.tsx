@@ -41,7 +41,13 @@ export const PayPalAiPanel: React.FC = () => {
     { icon: CreditCard, text: m.aiStep6 },
   ];
   return (
-    <section className="panel" aria-label={m.title} data-testid="paypal-ai-panel" data-guide="paypalAiPanel">
+    <section
+      className="panel"
+      aria-label={m.title}
+      data-testid="paypal-ai-panel"
+      data-guide="paypalAiPanel"
+      data-guide-step="paypal-ai"
+    >
       <h2 style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>{m.title}</h2>
       <p style={{ fontSize: '0.85rem', color: 'var(--color-ink-muted)', maxWidth: '720px', marginBottom: '1rem' }}>
         {m.lead}

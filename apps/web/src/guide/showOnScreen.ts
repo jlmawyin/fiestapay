@@ -20,6 +20,7 @@ import {
   type UiTarget,
   type VoiceAudience,
 } from '@fiestapay/shared';
+import { guideStepFor } from './step-preview';
 
 /** Fired synchronously once validated, so the orb minimizes before navigation paints. */
 export const GUIDE_ACTION_EVENT = 'fiestapay:guide-action' as const;
@@ -43,6 +44,7 @@ export const VOICE_FALLBACK_EVENT = 'fiestapay:voice-fallback' as const;
 export const VOICE_ACTIVITY_EVENT = 'fiestapay:voice-activity' as const;
 /** The mini-bar asks the voice panel to stop through its usual Stop path. */
 export const VOICE_STOP_EVENT = 'fiestapay:voice-stop' as const;
+export const VOICE_RESUME_EVENT = 'fiestapay:voice-resume' as const;
 
 export interface GuideActionDetail {
   page?: UiPage;
@@ -53,6 +55,12 @@ export interface GuideActionDetail {
 export interface GuideShowDetail {
   target: UiTarget;
   caption?: string;
+  /**
+   * The target lives in a fixed `[data-guide-step]` wrapper. The overlay owns
+   * the scroll (mobile heading alignment plus preview, desktop center) so two
+   * midpoint scrolls never compete.
+   */
+  step?: boolean;
 }
 
 export interface GuideVisibleDetail {
@@ -81,6 +89,7 @@ export interface VoiceActivityDetail {
   active: boolean;
   status: 'listening' | 'speaking' | 'processing';
   audience: VoiceAudience;
+  paused?: boolean;
 }
 
 function dispatchGuideEvent(name: string, detail: unknown): void {
@@ -414,16 +423,25 @@ export async function showOnScreen(
     ) {
       return { ok: false, reason: 'unavailable_here', target: args.target! };
     }
-    try {
-      element.scrollIntoView({
-        block: 'center',
-        inline: 'center',
-        behavior: guidePrefersReducedMotion() ? 'auto' : 'smooth',
-      });
-    } catch {
-      // The highlight still shows without the scroll.
+    // Marked step wrappers scroll in the overlay: on mobile that means heading
+    // alignment plus preview instead of a competing centered scroll.
+    const step = guideStepFor(element) !== null;
+    if (!step) {
+      try {
+        element.scrollIntoView({
+          block: 'center',
+          inline: 'center',
+          behavior: guidePrefersReducedMotion() ? 'auto' : 'smooth',
+        });
+      } catch {
+        // The highlight still shows without the scroll.
+      }
     }
-    dispatchGuideShow({ target: args.target!, ...(args.caption ? { caption: args.caption } : {}) });
+    dispatchGuideShow({
+      target: args.target!,
+      ...(args.caption ? { caption: args.caption } : {}),
+      ...(step ? { step: true } : {}),
+    });
     return { ok: true, target: args.target! };
   }
   const spec = args.target ? UI_TARGETS[args.target] : undefined;
@@ -469,16 +487,23 @@ export async function showOnScreen(
       target: args.target,
     };
   }
-  try {
-    element.scrollIntoView({
-      block: 'center',
-      inline: 'center',
-      behavior: guidePrefersReducedMotion() ? 'auto' : 'smooth',
-    });
-  } catch {
-    // The highlight still shows without the scroll.
+  const step = guideStepFor(element) !== null;
+  if (!step) {
+    try {
+      element.scrollIntoView({
+        block: 'center',
+        inline: 'center',
+        behavior: guidePrefersReducedMotion() ? 'auto' : 'smooth',
+      });
+    } catch {
+      // The highlight still shows without the scroll.
+    }
   }
-  dispatchGuideShow({ target: args.target, ...(args.caption ? { caption: args.caption } : {}) });
+  dispatchGuideShow({
+    target: args.target,
+    ...(args.caption ? { caption: args.caption } : {}),
+    ...(step ? { step: true } : {}),
+  });
   const after = getGuidePage() ?? destination;
   return { ok: true, ...(after ? { page: after } : {}), target: args.target };
 }

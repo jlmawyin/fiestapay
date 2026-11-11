@@ -396,6 +396,7 @@ export const PaymentWizard: React.FC<PaymentWizardProps> = ({
               aria-current={state === 'open' ? 'step' : undefined}
               aria-disabled={state === 'locked' ? true : undefined}
               data-step-state={state}
+              data-guide-step={`payment-${step}`}
               className={`payment-wizard__step payment-wizard__step--${state}`}
             >
               <div className="payment-wizard__step-head">

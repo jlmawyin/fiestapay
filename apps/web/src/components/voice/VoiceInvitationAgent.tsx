@@ -29,6 +29,7 @@ import {
 import {
   VOICE_ACTIVITY_EVENT,
   VOICE_FALLBACK_EVENT,
+  VOICE_RESUME_EVENT,
   VOICE_STOP_EVENT,
   getGuidePage,
   showOnScreen,
@@ -79,6 +80,15 @@ interface VoiceInvitationAgentProps {
   autoStartSignal?: number;
   /** Called once per consumed signal so a later manual open stays idle. */
   onAutoStartConsumed?: () => void;
+}
+
+const MIC_PAUSE_AFTER_MS = 5000;
+const MIN_MIC_SIGNAL_POWER = 0.0001;
+
+function hasMicSignal(samples: Float32Array): boolean {
+  let power = 0;
+  for (const sample of samples) power += sample * sample;
+  return power > samples.length * MIN_MIC_SIGNAL_POWER;
 }
 
 interface AccumulatedToolCall {
@@ -221,6 +231,9 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   /** Ordered transcript: one bubble per turn, in the order each turn started. */
   const [transcriptTurns, setTranscriptTurns] = useState<TranscriptTurn[]>([]);
   const [agentStatus, setAgentStatus] = useState<'listening' | 'speaking' | 'processing'>('listening');
+  const [micPaused, setMicPaused] = useState(false);
+  const micPausedRef = useRef(false);
+  const resumeMicRef = useRef<(() => void) | null>(null);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [suggestedQuote, setSuggestedQuote] = useState<Quote | null>(null);
   const [actionProposals, setActionProposals] = useState<ActionProposal[]>([]);
@@ -290,6 +303,9 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     toolQueueRef.current = Promise.resolve();
     isReadyRef.current = false;
     playbackSpeakingRef.current = false;
+    micPausedRef.current = false;
+    resumeMicRef.current = null;
+    setMicPaused(false);
     toolsInFlightRef.current = false;
     lastUserActivityRef.current = 0;
     lastBackendActivityRef.current = 0;
@@ -488,13 +504,13 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     try {
       document.dispatchEvent(
         new CustomEvent<VoiceActivityDetail>(VOICE_ACTIVITY_EVENT, {
-          detail: { active: sessionState === 'active', status: agentStatus, audience },
+          detail: { active: sessionState === 'active', status: agentStatus, audience, paused: micPaused },
         }),
       );
     } catch {
       // Listeners never break voice.
     }
-  }, [sessionState, agentStatus, audience]);
+  }, [sessionState, agentStatus, audience, micPaused]);
 
   useEffect(() => {
     const onStopRequest = () => {
@@ -503,6 +519,14 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
     document.addEventListener(VOICE_STOP_EVENT, onStopRequest);
     return () => document.removeEventListener(VOICE_STOP_EVENT, onStopRequest);
   }, [handleStopVoice]);
+
+  useEffect(() => {
+    const onResumeRequest = (event: Event) => {
+      if ((event as CustomEvent<VoiceAudience>).detail === audience) resumeMicRef.current?.();
+    };
+    document.addEventListener(VOICE_RESUME_EVENT, onResumeRequest);
+    return () => document.removeEventListener(VOICE_RESUME_EVENT, onResumeRequest);
+  }, [audience]);
 
   useEffect(() => {
     const onHide = () => cleanupSession('pagehide', true);
@@ -726,6 +750,8 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
           throw new Error('No se pudo preparar el audio del navegador.');
         }
 
+        let lastMicSignalAt = Date.now();
+        let modelTurnPending = true;
         const replyAudioPending = () =>
           playbackSpeakingRef.current || Boolean(playbackRef.current?.isBusy);
 
@@ -752,6 +778,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
               setAgentStatus('speaking');
               return;
             }
+            lastMicSignalAt = Date.now();
             setAgentStatus(toolsInFlightRef.current ? 'processing' : 'listening');
             // The lease already answered inactive while this reply was still being heard.
             // Finish the audio first; the Stop is applied here, never mid-phrase.
@@ -841,45 +868,30 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
           socketRef.current.send(JSON.stringify({ type: 'input.audio', audio: b64 }));
         };
 
+        const captureMicSamples = (samples: Float32Array) => {
+          const resampler = resamplerRef.current;
+          if (!isCurrentSession() || !isReadyRef.current || micPausedRef.current || !resampler) return;
+          if (useGemini && !replyAudioPending() && hasMicSignal(samples)) lastMicSignalAt = Date.now();
+          const resampled = resampler.process(samples);
+          if (resampled.length > 0) sendMicPcm16(pcm16ToBase64(floatToPCM16(resampled)));
+        };
+
+        const silentSink = ctx.createGain();
+        silentSink.gain.value = 0;
+        silentSink.connect(ctx.destination);
         if (workletSupported) {
           const workletNode = new AudioWorkletNode(ctx, 'pcm-capture');
           workletNode.port.onmessage = (ev: MessageEvent) => {
-            if (!isCurrentSession() || !isReadyRef.current) return;
             const data = ev.data as { type: string; samples: Float32Array };
-            if (data?.type === 'pcm-chunk' && resamplerRef.current) {
-              const resampled = resamplerRef.current.process(data.samples);
-              if (resampled.length > 0) {
-                const pcm16 = floatToPCM16(resampled);
-                const b64 = pcm16ToBase64(pcm16);
-                sendMicPcm16(b64);
-              }
-            }
+            if (data?.type === 'pcm-chunk') captureMicSamples(data.samples);
           };
           micSource.connect(workletNode);
-          const silentSink = ctx.createGain();
-          silentSink.gain.value = 0;
           workletNode.connect(silentSink);
-          silentSink.connect(ctx.destination);
         } else {
-          // Safe fallback for older or restricted environments
           const scriptNode = ctx.createScriptProcessor(2048, 1, 1);
-          scriptNode.onaudioprocess = (e) => {
-            if (!isCurrentSession() || !isReadyRef.current) return;
-            const inputData = e.inputBuffer.getChannelData(0);
-            if (resamplerRef.current) {
-              const resampled = resamplerRef.current.process(inputData);
-              if (resampled.length > 0) {
-                const pcm16 = floatToPCM16(resampled);
-                const b64 = pcm16ToBase64(pcm16);
-                sendMicPcm16(b64);
-              }
-            }
-          };
+          scriptNode.onaudioprocess = (e) => captureMicSamples(e.inputBuffer.getChannelData(0));
           micSource.connect(scriptNode);
-          const silentSink = ctx.createGain();
-          silentSink.gain.value = 0;
           scriptNode.connect(silentSink);
-          silentSink.connect(ctx.destination);
         }
 
         // Activity is client-attested but never extends expires_at, and the server throttles
@@ -913,6 +925,26 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
         // 5. Gemini Live (default) or the AssemblyAI rollback.
         if (useGemini && geminiConfig) {
           let providerEnding = false;
+          const setMicCapture = (enabled: boolean) => {
+            micPausedRef.current = !enabled;
+            for (const track of stream.getTracks()) track.enabled = enabled;
+            setMicPaused(!enabled);
+          };
+          resumeMicRef.current = () => {
+            if (!isCurrentSession() || !micPausedRef.current) return;
+            lastMicSignalAt = Date.now();
+            resamplerRef.current = new ContinuousResampler(ctx.sampleRate, 16000);
+            setMicCapture(true);
+            markUserActivity();
+          };
+          const pauseMic = () => {
+            setMicCapture(false);
+            try {
+              geminiSessionRef.current?.endAudioStream?.();
+            } catch {
+              // Local capture stays paused even if the provider has disconnected.
+            }
+          };
           const beginGeminiActive = () => {
             if (isReadyRef.current) return;
             isReadyRef.current = true;
@@ -933,13 +965,14 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                 // Real 60s inactivity. A reply still playing is never cut. While audio
                 // is actually being heard, the backend activity signal is refreshed from
                 // that playback (throttled); it is not a ping and silent mic PCM is ignored.
+                const now = Date.now();
                 if (replyAudioPending()) {
+                  lastMicSignalAt = now;
                   sendBackendActivity();
-                } else if (
-                  !toolsInFlightRef.current &&
-                  Date.now() - lastUserActivityRef.current >= VOICE_IDLE_MS
-                ) {
+                } else if (!toolsInFlightRef.current && now - lastUserActivityRef.current >= VOICE_IDLE_MS) {
                   handleStopVoice(copyRef.current.idle60, 'idle');
+                } else if (!toolsInFlightRef.current && !modelTurnPending && !micPausedRef.current && now - lastMicSignalAt >= MIC_PAUSE_AFTER_MS) {
+                  pauseMic();
                 }
               }, 1000);
             }
@@ -969,6 +1002,8 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                 if (!isCurrentSession()) return;
                 if (!text) return;
                 markUserActivity();
+                lastMicSignalAt = Date.now();
+                if (finished) modelTurnPending = true;
                 setTranscriptTurns((prev) => {
                   const next = appendTranscriptTurn(prev, 'user', text);
                   return finished ? closeTranscriptTurns(next, 'user') : next;
@@ -981,6 +1016,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
               },
               onInterrupted: () => {
                 if (!isCurrentSession()) return;
+                modelTurnPending = true;
                 // Barge-in: cut the audio in course and empty the queue.
                 toolGenerationRef.current += 1;
                 accumulatedToolsRef.current = [];
@@ -998,6 +1034,8 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
               onTurnComplete: () => {
                 if (!isCurrentSession()) return;
                 sendBackendActivity();
+                modelTurnPending = false;
+                lastMicSignalAt = Date.now();
                 lastUserActivityRef.current = Date.now();
                 // Each agent turn is its own bubble; the next reply opens a new one.
                 setTranscriptTurns((prev) => closeTranscriptTurns(prev, 'agent'));
@@ -1765,9 +1803,14 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                             ? m.statusSpeaking
                             : agentStatus === 'processing'
                             ? m.statusProcessing
-                            : m.statusListening}
+                            : micPaused ? m.statusPaused : m.statusListening}
                         </strong>
                       </div>
+                      {micPaused ? (
+                        <button type="button" className="btn btn-primary" onClick={() => resumeMicRef.current?.()}>
+                          {m.resumeMic}
+                        </button>
+                      ) : null}
                     </div>
 
                     {/* Transcripts container */}
