@@ -14,6 +14,7 @@ import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { voiceCatalog } from '../../i18n/messages/voice';
 import { peopleWord, quoteClientSummary } from '../../lib/event-presentation';
 import { AssistantText } from '../chat/AssistantText';
+import { openAndroidSpeakerphone } from '../../voice/android-speakerphone';
 import { ContinuousResampler } from '../../voice/resampler';
 import { floatToPCM16, pcm16ToBase64 } from '../../voice/pcm';
 import { PlaybackQueue, type PlaybackFault } from '../../voice/playback';
@@ -661,20 +662,31 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
       isReadyRef.current = false;
 
       try {
-        // 1. Request microphone permission
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            channelCount: 1,
-            sampleRate: { ideal: 24000 },
-            echoCancellation: true,
-            noiseSuppression: true,
-          },
-        });
+        // 1. Request microphone permission before looking for the communication device.
+        const audio: MediaTrackConstraints = {
+          channelCount: 1,
+          sampleRate: { ideal: 24000 },
+          echoCancellation: true,
+          noiseSuppression: true,
+        };
+        const devices = navigator.mediaDevices;
+        let stream = await devices.getUserMedia({ audio });
         if (!isCurrentSession()) {
           stream.getTracks().forEach((track) => track.stop());
           return;
         }
         mediaStreamRef.current = stream;
+        const speakerStream = await openAndroidSpeakerphone(devices, navigator.userAgent, stream, audio, isCurrentSession);
+        if (!isCurrentSession()) {
+          speakerStream?.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        if (speakerStream && speakerStream !== stream) {
+          const originalStream = stream;
+          stream = speakerStream;
+          mediaStreamRef.current = speakerStream;
+          originalStream.getTracks().forEach((track) => track.stop());
+        }
 
         // 2. Request voice token from server
         setSessionState('connecting');
