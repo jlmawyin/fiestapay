@@ -14,6 +14,80 @@ export const PLAYBACK_SAMPLE_RATE = 24000;
 export const PLAYBACK_PREBUFFER_SEC = 0.1;
 
 /**
+ * Default makeup gain for streamed voice chunks (+6.85 dB). Native-audio streams
+ * from Gemini Live (Kore/Puck) have generous headroom (-18 to -12 dBFS) and are
+ * further attenuated by OS/WebRTC communications ducking when the mic is open.
+ */
+export const DEFAULT_PLAYBACK_GAIN = 2.2;
+export const MIN_PLAYBACK_GAIN = 0.5;
+export const MAX_PLAYBACK_GAIN = 4.0;
+
+/** Automatic loudness target peak (-1.1 dBFS) and noise gate floor (-42 dBFS). */
+export const AGC_TARGET_PEAK = 0.88;
+export const AGC_NOISE_FLOOR = 0.008;
+export const SOFT_CLIP_KNEE = 0.8;
+export const SOFT_CLIP_CEILING = 0.98;
+
+export function clampPlaybackGain(gain: number): number {
+  if (!Number.isFinite(gain)) return DEFAULT_PLAYBACK_GAIN;
+  if (gain < MIN_PLAYBACK_GAIN) return MIN_PLAYBACK_GAIN;
+  if (gain > MAX_PLAYBACK_GAIN) return MAX_PLAYBACK_GAIN;
+  return gain;
+}
+
+/**
+ * Transparent soft-knee limiter. Linear inside [-0.80, 0.80] and smooth tanh
+ * saturation above the knee, approaching ±0.98 so boosted speech never hard-clips.
+ */
+export function softClipSample(sample: number): number {
+  if (!Number.isFinite(sample)) return 0;
+  const abs = Math.abs(sample);
+  if (abs <= SOFT_CLIP_KNEE) return sample;
+  const span = SOFT_CLIP_CEILING - SOFT_CLIP_KNEE;
+  const compressed = Math.min(
+    SOFT_CLIP_CEILING,
+    SOFT_CLIP_KNEE + span * Math.tanh((abs - SOFT_CLIP_KNEE) / span),
+  );
+  return sample < 0 ? -compressed : compressed;
+}
+
+/**
+ * Applies makeup gain, adaptive peak normalization (for spoken chunks above the
+ * noise floor), and soft-knee limiting so quiet Gemini Live turns sound full and
+ * clear without distorting louder syllables.
+ */
+export function boostVoiceSamples(
+  samples: Float32Array,
+  gain = DEFAULT_PLAYBACK_GAIN,
+  agcEnabled = true,
+): Float32Array {
+  if (samples.length === 0) return samples;
+  const safeGain = clampPlaybackGain(gain);
+  let peak = 0;
+  for (let i = 0; i < samples.length; i += 1) {
+    const abs = Math.abs(samples[i]);
+    if (abs > peak) peak = abs;
+  }
+
+  let effectiveGain = safeGain;
+  if (agcEnabled && peak >= AGC_NOISE_FLOOR) {
+    const neededForTarget = AGC_TARGET_PEAK / peak;
+    const maxAdaptive = Math.min(MAX_PLAYBACK_GAIN, safeGain * 1.65);
+    effectiveGain = Math.max(safeGain, Math.min(maxAdaptive, neededForTarget));
+  }
+
+  if (effectiveGain === 1 && peak <= SOFT_CLIP_KNEE) {
+    return samples;
+  }
+
+  const out = new Float32Array(samples.length);
+  for (let i = 0; i < samples.length; i += 1) {
+    out[i] = softClipSample(samples[i] * effectiveGain);
+  }
+  return out;
+}
+
+/**
  * Max user audio waiting to be heard, counting samples not yet scheduled and
  * sources already scheduled. 90s covers a long spoken answer that arrives
  * while the context is suspended or while chunks run ahead of the clock.
@@ -39,12 +113,20 @@ export interface PlaybackActivity {
 export interface PlaybackQueueOptions {
   onFault?: (fault: PlaybackFault) => void;
   onActivity?: (activity: PlaybackActivity) => void;
+  /** Makeup gain for voice playback (default 2.2x on base64 voice chunks). */
+  gain?: number;
+  /** Automatic peak normalization for quiet voice chunks (default true). */
+  agc?: boolean;
 }
 
 export class PlaybackQueue {
   private readonly ctx: AudioContext;
   private readonly onFault?: PlaybackQueueOptions['onFault'];
   private readonly onActivity?: PlaybackQueueOptions['onActivity'];
+  private currentGain: number;
+  private readonly agcEnabled: boolean;
+  private outputNode: AudioNode | null = null;
+  private gainNode: GainNode | null = null;
   private nextStartTime = 0;
   private readonly active = new Set<AudioBufferSourceNode>();
   private pending: Float32Array[] = [];
@@ -65,14 +147,68 @@ export class PlaybackQueue {
     this.ctx = ctx;
     this.onFault = options?.onFault;
     this.onActivity = options?.onActivity;
+    this.currentGain = clampPlaybackGain(options?.gain ?? DEFAULT_PLAYBACK_GAIN);
+    this.agcEnabled = options?.agc ?? true;
+    this.initOutputChain();
   }
 
-  /** Decode and schedule one base64 PCM16 chunk right after the current tail. */
+  get gain(): number {
+    return this.currentGain;
+  }
+
+  /** Updates playback makeup gain immediately for upcoming and active chunks. */
+  setGain(nextGain: number): void {
+    this.currentGain = clampPlaybackGain(nextGain);
+    if (this.gainNode && this.gainNode.gain) {
+      // Buffer samples are already boosted by DEFAULT_PLAYBACK_GAIN; scale relative to it
+      // so live volume changes also affect chunks already scheduled in Web Audio.
+      const relative = this.currentGain / DEFAULT_PLAYBACK_GAIN;
+      this.gainNode.gain.value = Math.max(0.25, Math.min(2.0, relative));
+    }
+  }
+
+  private initOutputChain(): void {
+    try {
+      const maybeCtx = this.ctx as AudioContext & {
+        createGain?: () => GainNode;
+        createDynamicsCompressor?: () => DynamicsCompressorNode;
+      };
+      if (typeof maybeCtx.createGain !== 'function') return;
+      const gainNode = maybeCtx.createGain();
+      if (!gainNode || typeof gainNode.connect !== 'function') return;
+      if (gainNode.gain) {
+        const relative = this.currentGain / DEFAULT_PLAYBACK_GAIN;
+        gainNode.gain.value = Math.max(0.25, Math.min(2.0, relative));
+      }
+      gainNode.connect(this.ctx.destination);
+      this.gainNode = gainNode;
+      this.outputNode = gainNode;
+
+      if (typeof maybeCtx.createDynamicsCompressor === 'function') {
+        const compressor = maybeCtx.createDynamicsCompressor();
+        if (compressor && typeof compressor.connect === 'function') {
+          if (compressor.threshold) compressor.threshold.value = -22;
+          if (compressor.knee) compressor.knee.value = 12;
+          if (compressor.ratio) compressor.ratio.value = 3.5;
+          if (compressor.attack) compressor.attack.value = 0.003;
+          if (compressor.release) compressor.release.value = 0.15;
+          compressor.connect(gainNode);
+          this.outputNode = compressor;
+        }
+      }
+    } catch {
+      this.outputNode = null;
+      this.gainNode = null;
+    }
+  }
+
+  /** Decode, normalize/boost and schedule one base64 PCM16 chunk right after the current tail. */
   enqueueBase64(data: string): void {
     if (!data || this.destroyed || this.resumeFailed || this.playbackFailed) return;
     const int16 = base64ToPCM16(data);
     const float32 = pcm16ToFloat(int16);
-    this.enqueue(float32);
+    const boosted = boostVoiceSamples(float32, this.currentGain, this.agcEnabled);
+    this.enqueue(boosted);
   }
 
   enqueue(samples: Float32Array): void {
@@ -285,7 +421,7 @@ export class PlaybackQueue {
       buffer.getChannelData(0).set(samples);
       source = this.ctx.createBufferSource();
       source.buffer = buffer;
-      source.connect(this.ctx.destination);
+      source.connect(this.outputNode ?? this.ctx.destination);
     } catch {
       this.failPlayback(samples.length);
       return true;

@@ -73,72 +73,38 @@ async function readySocket() {
   return socket;
 }
 
-describe('Android speakerphone routing', () => {
-  const androidChrome = 'Mozilla/5.0 (Linux; Android 15) Chrome/146.0 Mobile Safari/537.36';
-  const speaker = { kind: 'audioinput', deviceId: 'speaker-route', label: 'Speakerphone' };
-
-  function androidDevices(inputs = [speaker]) {
-    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(androidChrome);
+describe('Microphone routing', () => {
+  it('requests one unprocessed stream after consent on Android Chrome', async () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+      'Mozilla/5.0 (Linux; Android 15) Chrome/146.0 Mobile Safari/537.36',
+    );
+    const enumerateDevices = vi.fn();
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
-      value: { getUserMedia, enumerateDevices: vi.fn().mockResolvedValue(inputs) },
+      value: { getUserMedia, enumerateDevices },
     });
-    stream = {
-      getTracks: () => [{ stop: stopTrack }],
-      getAudioTracks: () => [{ getSettings: () => ({ deviceId: 'default' }) }],
-    } as unknown as MediaStream;
-    getUserMedia.mockResolvedValue(stream);
-  }
-
-  it('prefers the built-in speakerphone after consent and releases both microphone streams', async () => {
-    androidDevices();
-    const stopSpeaker = vi.fn();
-    getUserMedia.mockResolvedValueOnce(stream).mockResolvedValueOnce({ getTracks: () => [{ stop: stopSpeaker }] });
 
     const view = startVoice();
     await readySocket();
-    expect(getUserMedia).toHaveBeenCalledTimes(2);
-    expect(getUserMedia).toHaveBeenLastCalledWith({
-      audio: expect.objectContaining({ echoCancellation: true, deviceId: { exact: speaker.deviceId } }),
+    expect(getUserMedia).toHaveBeenCalledExactlyOnceWith({
+      audio: expect.objectContaining({
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      }),
     });
-    expect(stopTrack).toHaveBeenCalledTimes(1);
-    expect(stopSpeaker).not.toHaveBeenCalled();
-    expect(api.getVoiceToken).toHaveBeenCalledTimes(1);
+    expect(enumerateDevices).not.toHaveBeenCalled();
+    expect(stopTrack).not.toHaveBeenCalled();
     view.unmount();
-    expect(stopSpeaker).toHaveBeenCalledTimes(1);
+    expect(stopTrack).toHaveBeenCalledOnce();
   });
 
-  it('keeps the default route when Chrome lists an external headset', async () => {
-    androidDevices([speaker, { kind: 'audioinput', deviceId: 'bluetooth', label: 'Bluetooth headset' }]);
+  it('keeps browser microphone processing outside Android Chrome', async () => {
     startVoice();
     await readySocket();
-    expect(getUserMedia).toHaveBeenCalledTimes(1);
-    expect(stopTrack).not.toHaveBeenCalled();
-  });
-
-  it('keeps the original stream when the speakerphone cannot be opened', async () => {
-    androidDevices();
-    getUserMedia.mockResolvedValueOnce(stream).mockRejectedValueOnce(new DOMException('Unavailable', 'NotReadableError'));
-    startVoice();
-    await readySocket();
-    expect(getUserMedia).toHaveBeenCalledTimes(2);
-    expect(stopTrack).not.toHaveBeenCalled();
-    expect(api.getVoiceToken).toHaveBeenCalledTimes(1);
-  });
-
-  it('releases a late speakerphone stream without opening a voice session', async () => {
-    androidDevices();
-    const pendingSpeaker = deferred<MediaStream>();
-    const stopSpeaker = vi.fn();
-    getUserMedia.mockResolvedValueOnce(stream).mockReturnValueOnce(pendingSpeaker.promise);
-
-    const view = startVoice();
-    await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(2));
-    view.unmount();
-    expect(stopTrack).toHaveBeenCalledTimes(1);
-    await act(async () => pendingSpeaker.resolve({ getTracks: () => [{ stop: stopSpeaker }] } as unknown as MediaStream));
-    expect(stopSpeaker).toHaveBeenCalledTimes(1);
-    expect(api.getVoiceToken).not.toHaveBeenCalled();
+    expect(getUserMedia).toHaveBeenCalledExactlyOnceWith({
+      audio: expect.objectContaining({ echoCancellation: true, noiseSuppression: true }),
+    });
   });
 });
 
