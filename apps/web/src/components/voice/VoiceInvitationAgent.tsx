@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Check, ClipboardList, Lock, Mic, Receipt, X } from 'lucide-react';
+import { Check, ClipboardList, Lock, Mic, Receipt, Volume2, X } from 'lucide-react';
 import {
   SHOW_ON_SCREEN_TOOL,
   UI_LABELS,
@@ -14,10 +14,14 @@ import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { voiceCatalog } from '../../i18n/messages/voice';
 import { peopleWord, quoteClientSummary } from '../../lib/event-presentation';
 import { AssistantText } from '../chat/AssistantText';
-import { openAndroidSpeakerphone } from '../../voice/android-speakerphone';
 import { ContinuousResampler } from '../../voice/resampler';
 import { floatToPCM16, pcm16ToBase64 } from '../../voice/pcm';
-import { PlaybackQueue, type PlaybackFault } from '../../voice/playback';
+import {
+  DEFAULT_PLAYBACK_GAIN,
+  PlaybackQueue,
+  clampPlaybackGain,
+  type PlaybackFault,
+} from '../../voice/playback';
 import { createSpanishSpeechFallback, type SpanishSpeechFallback } from '../../voice/fallback-speech';
 import {
   asGeminiSessionConfig,
@@ -83,7 +87,24 @@ interface VoiceInvitationAgentProps {
 }
 
 const MIC_PAUSE_AFTER_MS = 5000;
+const ANDROID_SPEAKER_ECHO_TAIL_MS = 180;
 const MIN_MIC_SIGNAL_POWER = 0.0001;
+const VOICE_GAIN_STORAGE_KEY = 'fp_voice_gain';
+const VOICE_GAIN_LEVELS = [
+  { id: 'normal', gain: 1.3 },
+  { id: 'high', gain: DEFAULT_PLAYBACK_GAIN },
+  { id: 'max', gain: 3.2 },
+] as const;
+
+function readInitialVoiceGain(): number {
+  try {
+    const raw = window.localStorage?.getItem(VOICE_GAIN_STORAGE_KEY);
+    if (!raw) return DEFAULT_PLAYBACK_GAIN;
+    return clampPlaybackGain(Number(raw));
+  } catch {
+    return DEFAULT_PLAYBACK_GAIN;
+  }
+}
 
 function hasMicSignal(samples: Float32Array): boolean {
   let power = 0;
@@ -240,6 +261,21 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   const [isConfirmingAction, setIsConfirmingAction] = useState(false);
   /** Engine of the live session. Null before start and after stop; rollback stays assemblyai. */
   const [activeProvider, setActiveProvider] = useState<VoiceProvider | null>(null);
+  const [voiceGain, setVoiceGain] = useState<number>(readInitialVoiceGain);
+  const voiceGainRef = useRef<number>(voiceGain);
+  voiceGainRef.current = voiceGain;
+
+  const handleSelectGain = useCallback((nextGain: number) => {
+    const clamped = clampPlaybackGain(nextGain);
+    setVoiceGain(clamped);
+    voiceGainRef.current = clamped;
+    try {
+      window.localStorage?.setItem(VOICE_GAIN_STORAGE_KEY, String(clamped));
+    } catch {
+      // Ignore storage failures in private browsing.
+    }
+    playbackRef.current?.setGain(clamped);
+  }, []);
   const { locale, formatMoney } = useI18n();
   const m = useMessages(voiceCatalog);
   const labels = UI_LABELS[locale];
@@ -686,31 +722,22 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
       isReadyRef.current = false;
 
       try {
-        // 1. Request microphone permission before looking for the communication device.
+        // Android Chromium can enter call audio mode for processed microphone capture.
+        // Request an unprocessed stream so playback can use the system media route.
+        const useAndroidMediaAudio = /\bAndroid\b/i.test(navigator.userAgent) && /\bChrome\//i.test(navigator.userAgent);
         const audio: MediaTrackConstraints = {
           channelCount: 1,
           sampleRate: { ideal: 24000 },
-          echoCancellation: true,
-          noiseSuppression: true,
+          echoCancellation: !useAndroidMediaAudio,
+          noiseSuppression: !useAndroidMediaAudio,
+          ...(useAndroidMediaAudio ? { autoGainControl: false } : {}),
         };
-        const devices = navigator.mediaDevices;
-        let stream = await devices.getUserMedia({ audio });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio });
         if (!isCurrentSession()) {
           stream.getTracks().forEach((track) => track.stop());
           return;
         }
         mediaStreamRef.current = stream;
-        const speakerStream = await openAndroidSpeakerphone(devices, navigator.userAgent, stream, audio, isCurrentSession);
-        if (!isCurrentSession()) {
-          speakerStream?.getTracks().forEach((track) => track.stop());
-          return;
-        }
-        if (speakerStream && speakerStream !== stream) {
-          const originalStream = stream;
-          stream = speakerStream;
-          mediaStreamRef.current = speakerStream;
-          originalStream.getTracks().forEach((track) => track.stop());
-        }
 
         // 2. Request voice token from server
         setSessionState('connecting');
@@ -751,11 +778,13 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
         }
 
         let lastMicSignalAt = Date.now();
+        let speakerQuietAt = 0;
         let modelTurnPending = true;
         const replyAudioPending = () =>
           playbackSpeakingRef.current || Boolean(playbackRef.current?.isBusy);
 
         playbackRef.current = new PlaybackQueue(ctx, {
+          gain: voiceGainRef.current,
           onFault: (fault) => {
             if (!isCurrentSession()) return;
             const message = playbackFaultMessage(fault.reason, copyRef.current);
@@ -779,6 +808,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
               return;
             }
             lastMicSignalAt = Date.now();
+            speakerQuietAt = lastMicSignalAt + ANDROID_SPEAKER_ECHO_TAIL_MS;
             setAgentStatus(toolsInFlightRef.current ? 'processing' : 'listening');
             // The lease already answered inactive while this reply was still being heard.
             // Finish the audio first; the Stop is applied here, never mid-phrase.
@@ -871,6 +901,11 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
         const captureMicSamples = (samples: Float32Array) => {
           const resampler = resamplerRef.current;
           if (!isCurrentSession() || !isReadyRef.current || micPausedRef.current || !resampler) return;
+          // With platform echo cancellation off, keep the agent's own speaker audio out of its input.
+          if (useAndroidMediaAudio && (replyAudioPending() || Date.now() < speakerQuietAt)) {
+            resampler.reset();
+            return;
+          }
           if (useGemini && !replyAudioPending() && hasMicSignal(samples)) lastMicSignalAt = Date.now();
           const resampled = resampler.process(samples);
           if (resampled.length > 0) sendMicPcm16(pcm16ToBase64(floatToPCM16(resampled)));
@@ -1739,6 +1774,58 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                     />
                     <span>{voiceAvailable ? (geminiActive ? m.consentGemini : m.consentOn) : m.consentOff}</span>
                   </label>
+                </div>
+
+                {/* Voice playback volume boost selector */}
+                <div
+                  data-testid="voice-volume-control"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '0.5rem',
+                    backgroundColor: '#FFFFFF',
+                    padding: '0.45rem 0.65rem',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--color-border)',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600, color: 'var(--color-ink)' }}>
+                    <Volume2 size={14} aria-hidden="true" />
+                    {m.volumeLabel}
+                  </span>
+                  <div role="group" aria-label={m.volumeLabel} style={{ display: 'inline-flex', gap: '0.25rem' }}>
+                    {VOICE_GAIN_LEVELS.map((level) => {
+                      const active = Math.abs(voiceGain - level.gain) < 0.15;
+                      const label =
+                        level.id === 'normal'
+                          ? m.volumeNormal
+                          : level.id === 'high'
+                            ? m.volumeHigh
+                            : m.volumeMax;
+                      return (
+                        <button
+                          key={level.id}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => handleSelectGain(level.gain)}
+                          style={{
+                            border: active ? '1px solid var(--color-teal)' : '1px solid var(--color-border)',
+                            backgroundColor: active ? 'var(--color-teal)' : 'var(--color-surface-subtle)',
+                            color: active ? '#FFFFFF' : 'var(--color-ink)',
+                            borderRadius: 'var(--radius-sm)',
+                            padding: '0.2rem 0.45rem',
+                            fontSize: '0.7rem',
+                            fontWeight: active ? 700 : 500,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Session controls */}

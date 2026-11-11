@@ -496,6 +496,50 @@ describe('Gemini Live voice transport', () => {
     ).toBeInTheDocument();
   });
 
+  it('lets the user switch voice playback volume between Normal, High, and Max', async () => {
+    const fake = createFakeGemini();
+    startGuestVoice(fake);
+    await openGemini(fake);
+
+    const highButton = screen.getByRole('button', { name: 'Alto (2x)' });
+    const maxButton = screen.getByRole('button', { name: 'Máx (3x)' });
+    expect(highButton).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(maxButton);
+    expect(maxButton).toHaveAttribute('aria-pressed', 'true');
+    expect(localStorage.getItem('fp_voice_gain')).toBe('3.2');
+  });
+
+  it('keeps Android speaker output out of Gemini input and listens again when it ends', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+      'Mozilla/5.0 (Linux; Android 15) Chrome/146.0 Mobile Safari/537.36',
+    );
+    const fake = createFakeGemini();
+    startGuestVoice(fake);
+    await flushMicrotasks(50);
+    const session = fake.sessions[0]!;
+    const samples = new Float32Array(2048).fill(0.08);
+
+    await act(async () => {
+      session.callbacks.onOpen?.();
+      MockAudioContext.capture?.(samples);
+      session.callbacks.onAudio?.('AAAAAA==');
+      session.callbacks.onTurnComplete?.();
+    });
+    expect(session.audios).toHaveLength(1);
+    act(() => MockAudioContext.capture?.(samples));
+    expect(session.audios).toHaveLength(1);
+
+    act(() => MockAudioContext.sources.at(-1)?.onended?.());
+    act(() => MockAudioContext.capture?.(samples));
+    expect(session.audios).toHaveLength(1);
+
+    await act(async () => vi.advanceTimersByTimeAsync(200));
+    act(() => MockAudioContext.capture?.(samples));
+    expect(session.audios).toHaveLength(2);
+  });
+
   it('pauses Gemini capture after five quiet seconds and resumes the same session on click', async () => {
     vi.useFakeTimers();
     const fake = createFakeGemini();

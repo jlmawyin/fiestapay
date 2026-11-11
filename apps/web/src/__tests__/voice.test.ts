@@ -1,7 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { floatToPCM16, pcm16ToFloat, pcm16ToBase64, base64ToPCM16 } from '../voice/pcm';
 import { ContinuousResampler } from '../voice/resampler';
-import { PlaybackQueue } from '../voice/playback';
+import {
+  DEFAULT_PLAYBACK_GAIN,
+  SOFT_CLIP_CEILING,
+  PlaybackQueue,
+  boostVoiceSamples,
+  softClipSample,
+} from '../voice/playback';
 
 describe('Voice Audio Processing (PCM16, Resampler, Playback)', () => {
   it('encodes and decodes Float32 to PCM16 base64 accurately', () => {
@@ -80,5 +86,70 @@ describe('Voice Audio Processing (PCM16, Resampler, Playback)', () => {
     queue.flush();
     expect(mockSource.stop).toHaveBeenCalled();
     expect(queue.isPlaying).toBe(false);
+  });
+
+  it('boosts quiet Gemini Live voice chunks and soft-limits peaks without clipping', () => {
+    // Quiet speech chunk (~0.18 peak, -15 dBFS)
+    const quiet = new Float32Array([0.05, -0.12, 0.18, -0.15]);
+    const boosted = boostVoiceSamples(quiet, DEFAULT_PLAYBACK_GAIN, true);
+    const boostedPeak = Math.max(...Array.from(boosted, Math.abs));
+    expect(boostedPeak).toBeGreaterThan(0.5);
+    expect(boostedPeak).toBeLessThanOrEqual(SOFT_CLIP_CEILING);
+
+    // Near-silent noise floor (< 0.008) is not over-amplified by AGC
+    const silence = new Float32Array([0.001, -0.002, 0.0005]);
+    const boostedSilence = boostVoiceSamples(silence, DEFAULT_PLAYBACK_GAIN, true);
+    expect(Math.abs(boostedSilence[1])).toBeCloseTo(0.002 * DEFAULT_PLAYBACK_GAIN, 4);
+
+    // High-amplitude peaks are smoothly limited below 1.0
+    const loud = new Float32Array([0.9, -0.95]);
+    const limited = boostVoiceSamples(loud, 3.2, true);
+    expect(limited[0]).toBeGreaterThan(0.8);
+    expect(limited[0]).toBeLessThanOrEqual(Math.fround(SOFT_CLIP_CEILING));
+    expect(limited[1]).toBeLessThan(-0.8);
+    expect(limited[1]).toBeGreaterThanOrEqual(-Math.fround(SOFT_CLIP_CEILING));
+    expect(softClipSample(5)).toBeLessThanOrEqual(SOFT_CLIP_CEILING);
+  });
+
+  it('updates live GainNode and compressor chain when setGain is called', () => {
+    const gainNode = {
+      gain: { value: 1 },
+      connect: vi.fn(),
+    };
+    const compressorNode = {
+      threshold: { value: 0 },
+      knee: { value: 0 },
+      ratio: { value: 0 },
+      attack: { value: 0 },
+      release: { value: 0 },
+      connect: vi.fn(),
+    };
+    const mockCtx = {
+      currentTime: 0,
+      state: 'running',
+      destination: {},
+      createGain: vi.fn(() => gainNode),
+      createDynamicsCompressor: vi.fn(() => compressorNode),
+      createBuffer: vi.fn(() => ({
+        getChannelData: vi.fn(() => new Float32Array(10)),
+      })),
+      createBufferSource: vi.fn(() => ({
+        buffer: null,
+        onended: null,
+        connect: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+      })),
+      resume: vi.fn(async () => {}),
+    } as unknown as AudioContext;
+
+    const queue = new PlaybackQueue(mockCtx, { gain: DEFAULT_PLAYBACK_GAIN });
+    expect(compressorNode.connect).toHaveBeenCalledWith(gainNode);
+    expect(gainNode.connect).toHaveBeenCalledWith(mockCtx.destination);
+    expect(gainNode.gain.value).toBeCloseTo(1, 3);
+
+    queue.setGain(3.2);
+    expect(queue.gain).toBeCloseTo(3.2, 3);
+    expect(gainNode.gain.value).toBeCloseTo(3.2 / DEFAULT_PLAYBACK_GAIN, 3);
   });
 });
