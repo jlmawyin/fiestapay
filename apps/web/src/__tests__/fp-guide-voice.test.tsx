@@ -561,6 +561,39 @@ describe('FP-GUIDE-1 voice mini-bar', () => {
     expect(screen.getByRole('dialog', { name: 'Agente FiestaPay' })).toBeVisible();
   });
 
+  it('stays docked on mobile through navigation timers, hidden highlights and activity updates', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('pointer: coarse') }));
+    openVoicePane();
+    const dialog = screen.getByRole('dialog', { name: 'Agente FiestaPay' });
+    const consent = dialog.querySelector('input[type="checkbox"]');
+    dispatchActivity({ active: true, status: 'listening', audience: 'public' });
+    expect(dialog).not.toBeVisible();
+    expect(screen.getByTestId('voice-guide-bar')).toHaveTextContent('Escuchando…');
+
+    act(() => {
+      document.dispatchEvent(new CustomEvent(GUIDE_ACTION_EVENT, { detail: { page: 'create' } }));
+    });
+    await act(async () => vi.advanceTimersByTimeAsync(6000));
+    act(() => {
+      document.dispatchEvent(new CustomEvent(GUIDE_HIDDEN_EVENT));
+    });
+    dispatchActivity({ active: true, status: 'processing', audience: 'public' });
+    expect(dialog).not.toBeVisible();
+    expect(screen.getByTestId('voice-guide-bar')).toHaveTextContent('Procesando…');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir' }));
+    dispatchActivity({ active: true, status: 'speaking', audience: 'public' });
+    expect(dialog).toBeVisible();
+    expect(dialog.querySelector('input[type="checkbox"]')).toBe(consent);
+    fireEvent.click(screen.getByRole('button', { name: 'Minimizar panel del agente' }));
+    expect(dialog).not.toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Detener' }));
+    expect(screen.queryByTestId('voice-guide-bar')).toBeNull();
+    expect(dialog).not.toBeVisible();
+    expect(screen.getByRole('button', { name: 'Abrir Agente FiestaPay' })).toBeVisible();
+  });
+
   it('minimizes without a bar when voice is idle', () => {
     render(<AssistantOrb audience="public" capabilities={capabilities} onShowToast={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Abrir Agente FiestaPay' }));

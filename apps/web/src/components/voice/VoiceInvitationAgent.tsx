@@ -220,7 +220,6 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
   /** Ordered transcript: one bubble per turn, in the order each turn started. */
   const [transcriptTurns, setTranscriptTurns] = useState<TranscriptTurn[]>([]);
   const [agentStatus, setAgentStatus] = useState<'listening' | 'speaking' | 'processing'>('listening');
-  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [suggestedQuote, setSuggestedQuote] = useState<Quote | null>(null);
   const [actionProposals, setActionProposals] = useState<ActionProposal[]>([]);
@@ -658,7 +657,6 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
       setTranscriptTurns([]);
       setSuggestedQuote(null);
       setActionProposals([]);
-      setRemainingSeconds(null);
       accumulatedToolsRef.current = [];
       isReadyRef.current = false;
 
@@ -902,6 +900,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
 
         // 5. Gemini Live (default) or the AssemblyAI rollback.
         if (useGemini && geminiConfig) {
+          let providerEnding = false;
           const beginGeminiActive = () => {
             if (isReadyRef.current) return;
             isReadyRef.current = true;
@@ -911,12 +910,10 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
             // One timebox. No relay session is opened when it reaches zero.
             if (tokenData.maxSeconds && tokenData.maxSeconds > 0) {
               const startedAt = Date.now();
-              setRemainingSeconds(tokenData.maxSeconds);
               timerRef.current = setInterval(() => {
                 if (!isCurrentSession()) return;
                 const elapsed = Math.floor((Date.now() - startedAt) / 1000);
                 const left = Math.max(0, tokenData.maxSeconds - elapsed);
-                setRemainingSeconds(left);
                 if (left <= 0) {
                   handleStopVoice(copyRef.current.timeLimit, 'limit');
                   return;
@@ -1155,7 +1152,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                 if (ids.length > 0) toolGenerationRef.current += 1;
               },
               onGoAway: () => {
-                // The server will disconnect soon; onclose applies the same Stop path.
+                providerEnding = true;
               },
               onError: () => {
                 if (!isCurrentSession()) return;
@@ -1163,7 +1160,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
               },
               onClose: (event) => {
                 if (!isCurrentSession()) return;
-                if (event && typeof event === 'object' && 'wasClean' in event && event.wasClean === false) {
+                if (providerEnding || (event && typeof event === 'object' && 'wasClean' in event && event.wasClean === false)) {
                   fallbackToText(friendlyVoiceError(null, localeRef.current), 'ws_closed');
                   return;
                 }
@@ -1219,12 +1216,10 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
               // One timebox. No relay session is opened when it reaches zero.
               if (tokenData.maxSeconds && tokenData.maxSeconds > 0) {
                 const startedAt = Date.now();
-                setRemainingSeconds(tokenData.maxSeconds);
                 timerRef.current = setInterval(() => {
                   if (!isCurrentSession()) return;
                   const elapsed = Math.floor((Date.now() - startedAt) / 1000);
                   const left = Math.max(0, tokenData.maxSeconds - elapsed);
-                  setRemainingSeconds(left);
                   if (left <= 0) {
                     handleStopVoice(copyRef.current.timeLimit, 'limit');
                     return;
@@ -1761,11 +1756,6 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
                             : m.statusListening}
                         </strong>
                       </div>
-                      {remainingSeconds !== null && (
-                        <span style={{ fontWeight: 700, color: remainingSeconds < 30 ? 'var(--color-coral)' : 'var(--color-ink)' }}>
-                          ⏳ {remainingSeconds}s
-                        </span>
-                      )}
                     </div>
 
                     {/* Transcripts container */}

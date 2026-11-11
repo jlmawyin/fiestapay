@@ -22,26 +22,23 @@ function readScreenGuide(env: NodeJS.ProcessEnv): boolean {
   return true;
 }
 
-/**
- * Voice timebox. A live session lasts up to 180 seconds by default and the cap admits
- * 300s for deployments that raised it. Gemini Live is capped at 120s by the same rule the
- * route reservation uses, so the ephemeral token and the lease never disagree. The daily
- * total is a UTC calendar-day cap and is charged in full before the provider token is
- * requested, so a failed token or an early release never returns budget.
- */
+/** Gemini's uncompressed audio-only session envelope. The provider may disconnect earlier. */
+export const GEMINI_VOICE_AUDIO_SECONDS = 15 * 60;
+
 export function voiceConfig(env: NodeJS.ProcessEnv = process.env) {
   const bounded = (v: string | undefined, fallback: number, cap: number) => Math.min(cap, Math.max(1, Number(v) || fallback));
   const requested = (env.VOICE_PROVIDER ?? '').trim().toLowerCase();
   const provider: VoiceProvider = requested === 'assemblyai' ? 'assemblyai' : 'gemini';
   const providerKey = provider === 'gemini' ? env.GEMINI_API_KEY : env.ASSEMBLYAI_API_KEY;
+  const productionGemini = env.NODE_ENV === 'production' && provider === 'gemini';
   const configuredMax = Math.floor(bounded(env.VOICE_MAX_SECONDS, 180, 300));
   return {
     enabled: env.VOICE_ENABLED === 'true' && Boolean(providerKey),
     key: env.ASSEMBLYAI_API_KEY ?? '',
     provider,
-    // Gemini ephemeral sessions are short-lived; the lease must match the token timebox.
-    maxSeconds: provider === 'gemini' ? Math.min(configuredMax, 120) : configuredMax,
-    dailySeconds: Math.floor(bounded(env.VOICE_DAILY_SECONDS, 1800, 3600)),
+    // Test caps constrain scripted Gemini runs. Production uses the provider's audio envelope.
+    maxSeconds: productionGemini ? GEMINI_VOICE_AUDIO_SECONDS : provider === 'gemini' ? Math.min(configuredMax, 120) : configuredMax,
+    dailySeconds: productionGemini ? null : Math.floor(bounded(env.VOICE_DAILY_SECONDS, 1800, 3600)),
     /** Public and guest Gemini voice may declare show_on_screen when this flag is on. */
     screenGuide: readScreenGuide(env),
   };

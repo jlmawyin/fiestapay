@@ -506,6 +506,22 @@ describe('Gemini Live voice transport', () => {
     expect(session.closeCalls).toBeGreaterThan(0);
   });
 
+  it('continues by text when Gemini announces a connection reset and closes cleanly', async () => {
+    const fake = createFakeGemini();
+    startGuestVoice(fake);
+    await waitFor(() => expect(fake.sessions).toHaveLength(1));
+    const session = fake.sessions[0]!;
+    await act(async () => {
+      session.callbacks.onOpen?.();
+      session.callbacks.onGoAway?.();
+      session.callbacks.onClose?.({ wasClean: true });
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('continúa por texto');
+    expect(api.releaseVoiceLease).toHaveBeenCalledWith('gemini-lease-guest', 'ws_closed', false);
+    expect(stopTrack).toHaveBeenCalled();
+  });
+
   it('offers the text path when Live fails to connect', async () => {
     const fake = createFakeGemini();
     fake.failNextConnect(new Error('Live unreachable'));

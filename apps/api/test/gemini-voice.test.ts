@@ -10,7 +10,7 @@ import {
   type GeminiVoiceSessionConfig,
 } from '@fiestapay/shared';
 import { buildApp } from '../src/app.js';
-import { loadConfig } from '../src/config.js';
+import { loadConfig, voiceConfig } from '../src/config.js';
 import { migrate } from '../src/db/migrate.js';
 import { createPool, type Pool } from '../src/db/pool.js';
 import { runTool } from '../src/ai/tools.js';
@@ -45,6 +45,16 @@ describe('configuracion Gemini de voz y modelos', () => {
       VOICE_MAX_SECONDS: '300',
     } as NodeJS.ProcessEnv);
     expect(config.voice).toMatchObject({ provider: 'gemini', enabled: true, maxSeconds: 120 });
+  });
+
+  it('keeps test time and daily caps out of production Gemini voice', () => {
+    expect(voiceConfig({
+      NODE_ENV: 'production',
+      VOICE_ENABLED: 'true',
+      GEMINI_API_KEY: GEMINI_KEY,
+      VOICE_MAX_SECONDS: '30',
+      VOICE_DAILY_SECONDS: '120',
+    })).toMatchObject({ enabled: true, maxSeconds: 900, dailySeconds: null });
   });
 
   it('AssemblyAI solo se habilita con VOICE_PROVIDER=assemblyai y su clave', () => {
