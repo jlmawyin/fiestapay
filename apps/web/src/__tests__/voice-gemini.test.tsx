@@ -52,6 +52,7 @@ function createFakeGemini() {
       sendAudio: (base64: string) => {
         session.audios.push(base64);
       },
+      endAudioStream: vi.fn(),
       sendKickoff: (text: string) => {
         session.kickoffs.push(text);
       },
@@ -105,6 +106,7 @@ class MockSource {
 
 class MockAudioContext {
   static sources: MockSource[] = [];
+  static capture: ((samples: Float32Array) => void) | undefined;
   sampleRate = 48000;
   state = 'running';
   currentTime = 0;
@@ -114,7 +116,13 @@ class MockAudioContext {
   });
   resume = vi.fn(async () => undefined);
   createMediaStreamSource = vi.fn(() => ({ connect: vi.fn() }));
-  createScriptProcessor = vi.fn(() => ({ connect: vi.fn(), onaudioprocess: null }));
+  createScriptProcessor = vi.fn(() => {
+    const node = { connect: vi.fn(), onaudioprocess: null as ((event: AudioProcessingEvent) => void) | null };
+    MockAudioContext.capture = (samples) => node.onaudioprocess?.({
+      inputBuffer: { getChannelData: () => samples },
+    } as unknown as AudioProcessingEvent);
+    return node;
+  });
   createGain = vi.fn(() => ({ connect: vi.fn(), gain: { value: 1 } }));
   createBuffer = vi.fn((_channels: number, length: number) => ({
     getChannelData: () => new Float32Array(length),
@@ -197,6 +205,7 @@ const serverQuote: Quote = {
 };
 
 let stopTrack: ReturnType<typeof vi.fn>;
+let micTrack: { enabled: boolean; stop: ReturnType<typeof vi.fn> };
 let getUserMedia: ReturnType<typeof vi.fn>;
 
 async function flushMicrotasks(times = 30) {
@@ -213,7 +222,9 @@ beforeEach(() => {
   localStorage.clear();
   setActiveLocale('es');
   stopTrack = vi.fn();
-  const stream = { getTracks: () => [{ stop: stopTrack }] } as unknown as MediaStream;
+  micTrack = { enabled: true, stop: stopTrack };
+  MockAudioContext.capture = undefined;
+  const stream = { getTracks: () => [micTrack] } as unknown as MediaStream;
   getUserMedia = vi.fn().mockResolvedValue(stream);
   vi.stubGlobal('WebSocket', MockSocket);
   vi.stubGlobal('AudioContext', MockAudioContext);
@@ -483,6 +494,43 @@ describe('Gemini Live voice transport', () => {
     expect(
       screen.getByText('Payment stays pending until you approve it in PayPal and the server verifies the capture.'),
     ).toBeInTheDocument();
+  });
+
+  it('pauses Gemini capture after five quiet seconds and resumes the same session on click', async () => {
+    vi.useFakeTimers();
+    const fake = createFakeGemini();
+    startGuestVoice(fake);
+    await flushMicrotasks(50);
+    const session = fake.sessions[0]!;
+    await act(async () => {
+      session.callbacks.onOpen?.();
+      session.callbacks.onAudio?.('AAAAAA==');
+      session.callbacks.onTurnComplete?.();
+      await vi.advanceTimersByTimeAsync(6000);
+    });
+    expect(micTrack.enabled).toBe(true);
+    expect(session.endAudioStream).not.toHaveBeenCalled();
+    act(() => MockAudioContext.sources.at(-1)?.onended?.());
+
+    const micSpeech = new Float32Array(2048).fill(0.08);
+    await act(async () => vi.advanceTimersByTimeAsync(4000));
+    act(() => MockAudioContext.capture?.(micSpeech));
+    await act(async () => vi.advanceTimersByTimeAsync(4000));
+    expect(micTrack.enabled).toBe(true);
+    await act(async () => vi.advanceTimersByTimeAsync(1000));
+    expect(micTrack.enabled).toBe(false);
+    expect(session.endAudioStream).toHaveBeenCalledTimes(1);
+
+    const sentBeforePause = session.audios.length;
+    expect(sentBeforePause).toBeGreaterThan(0);
+    act(() => MockAudioContext.capture?.(micSpeech));
+    expect(session.audios).toHaveLength(sentBeforePause);
+    fireEvent.click(screen.getByRole('button', { name: 'Retomar' }));
+    expect(micTrack.enabled).toBe(true);
+    act(() => MockAudioContext.capture?.(micSpeech));
+    expect(session.audios.length).toBeGreaterThan(sentBeforePause);
+    expect(api.getVoiceToken).toHaveBeenCalledTimes(1);
+    expect(api.releaseVoiceLease).not.toHaveBeenCalled();
   });
 
   it('closes on maxSeconds and releases the lease', async () => {

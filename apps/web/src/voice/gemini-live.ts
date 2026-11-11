@@ -40,6 +40,7 @@ export interface GeminiLiveCallbacks {
 
 export interface GeminiLiveSessionHandle {
   sendAudio: (base64Pcm16: string) => void;
+  endAudioStream?: () => void;
   sendKickoff: (text: string) => void;
   sendToolResponse: (responses: GeminiLiveToolResponse[]) => void;
   close: () => void;
@@ -203,6 +204,9 @@ export const connectGeminiLive: GeminiLiveConnector = async ({
     sendAudio: (base64Pcm16: string) => {
       if (closed) return;
       session.sendRealtimeInput({ audio: { data: base64Pcm16, mimeType: GEMINI_INPUT_MIME } });
+    },
+    endAudioStream: () => {
+      if (!closed) session.sendRealtimeInput({ audioStreamEnd: true });
     },
     sendKickoff: (text: string) => {
       if (closed) return;

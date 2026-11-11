@@ -394,6 +394,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         <li
           className="panel"
           aria-label={`1. ${m.aiStepTitle}`}
+          data-guide-step="judge-ai"
           style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', minWidth: 0 }}
         >
           <h2 style={{ fontSize: '1.3rem' }}>
@@ -432,6 +433,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
           className="panel"
           aria-label={`2. ${m.step1Title}`}
           data-guide="previewPanel"
+          data-guide-step="judge-preview"
           style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', minWidth: 0 }}
         >
           <div style={{ minWidth: 0 }}>
@@ -518,6 +520,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         <li
           className="panel"
           aria-label={`3. ${m.step2Title}`}
+          data-guide-step="judge-payment"
           style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', minWidth: 0 }}
         >
           <h2 style={{ fontSize: '1.3rem' }}>
@@ -542,6 +545,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         <li
           className="panel"
           aria-label={`4. ${m.step3Title}`}
+          data-guide-step="judge-assistant"
           style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', minWidth: 0 }}
         >
           <h2 style={{ fontSize: '1.3rem' }}>

@@ -16,6 +16,7 @@ import {
   startGuidedTour,
   validateShowOnScreenArgs,
 } from '../guide/showOnScreen';
+import { startGuideScroll } from '../guide/step-preview';
 import { api } from '../api/client';
 import type { Capabilities } from '../types';
 
@@ -79,6 +80,95 @@ function addFixture(id: string, tag = 'button', text?: string): HTMLElement {
   return element;
 }
 
+function setViewport(width: number, height: number): void {
+  Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: width });
+  Object.defineProperty(window, 'innerHeight', { configurable: true, writable: true, value: height });
+}
+
+function domRect(top: number, height: number, left = 0, width = 300): DOMRect {
+  return {
+    top,
+    bottom: top + height,
+    height,
+    left,
+    right: left + width,
+    width,
+    x: left,
+    y: top,
+    toJSON: () => ({}),
+  } as DOMRect;
+}
+
+function addStepFixture(
+  id: string,
+  options: { stepTop?: number; stepHeight?: number; targetTop?: number; targetHeight?: number } = {},
+): { step: HTMLElement; target: HTMLElement } {
+  const step = document.createElement('div');
+  step.setAttribute('data-guide-step', `test-${id}`);
+  const target = document.createElement('button');
+  target.setAttribute('data-guide', id);
+  target.textContent = id;
+  target.scrollIntoView = vi.fn();
+  step.appendChild(target);
+  document.body.appendChild(step);
+  fixtures.push(step);
+  const stepTop = options.stepTop ?? 300;
+  const stepHeight = options.stepHeight ?? 300;
+  step.getBoundingClientRect = () => domRect(stepTop, stepHeight);
+  target.getBoundingClientRect = () =>
+    domRect(options.targetTop ?? stepTop + 20, options.targetHeight ?? 40);
+  return { step, target };
+}
+
+function stubScroll(): ReturnType<typeof vi.fn> {
+  const scrollTo = vi.fn();
+  Object.defineProperty(window, 'scrollTo', { configurable: true, writable: true, value: scrollTo });
+  return scrollTo;
+}
+
+function stubFrames(): { step: (timestamp: number) => void; pending: () => number } {
+  let nextId = 0;
+  const queue = new Map<number, FrameRequestCallback>();
+  Object.defineProperty(window, 'requestAnimationFrame', {
+    configurable: true,
+    writable: true,
+    value: (callback: FrameRequestCallback) => {
+      nextId += 1;
+      queue.set(nextId, callback);
+      return nextId;
+    },
+  });
+  Object.defineProperty(window, 'cancelAnimationFrame', {
+    configurable: true,
+    writable: true,
+    value: (handle: number) => {
+      queue.delete(handle);
+    },
+  });
+  return {
+    step: (timestamp: number) => {
+      const callbacks = Array.from(queue.values());
+      queue.clear();
+      for (const callback of callbacks) callback(timestamp);
+    },
+    pending: () => queue.size,
+  };
+}
+
+function stubDocumentHeight(height: number): void {
+  Object.defineProperty(document.documentElement, 'scrollHeight', {
+    configurable: true,
+    value: height,
+  });
+}
+
+function scrollTops(scrollTo: ReturnType<typeof vi.fn>): number[] {
+  return scrollTo.mock.calls.map((call) => {
+    const arg = call[0];
+    return typeof arg === 'number' ? arg : (arg as ScrollToOptions).top ?? 0;
+  });
+}
+
 function useFakeNavigator(initial: UiPage | null = 'landing') {
   const state = { current: initial, navigations: [] as UiPage[] };
   registerGuideNavigator({
@@ -101,6 +191,7 @@ function listenTo(eventName: string): { events: Event[]; stop: () => void } {
 }
 
 beforeEach(() => {
+  setViewport(1024, 768);
   localStorage.clear();
   sessionStorage.clear();
   window.history.replaceState({}, '', '/');
@@ -477,6 +568,10 @@ describe('FP-GUIDE-1 guided tour', () => {
     await openDemo();
     const tourButton = screen.getByRole('button', { name: 'Recorrido guiado' });
     expect(tourButton).toHaveAttribute('data-guide', 'guidedTour');
+    expect(document.querySelector('[data-guide="aiBuildParty"]')?.closest('[data-guide-step]')).not.toBeNull();
+    expect(document.querySelector('[data-guide="previewPanel"]')?.closest('[data-guide-step]')).not.toBeNull();
+    expect(document.querySelector('[data-guide="paymentDemo"]')?.closest('[data-guide-step]')).not.toBeNull();
+    expect(document.querySelector('[data-guide="paypalAiPanel"]')?.closest('[data-guide-step]')).not.toBeNull();
   });
 
   it('walks the demo steps in order and finishes on the last Siguiente', async () => {
@@ -633,5 +728,165 @@ describe('FP-GUIDE-1 never presses anything', () => {
     expect(paymentClicks).not.toHaveBeenCalled();
     expect(createClicks).not.toHaveBeenCalled();
     expect(nav.navigations).toEqual([]);
+  });
+});
+
+describe('FP-GUIDE-1 mobile step preview', () => {
+  it('leaves a marked step scroll to the overlay instead of a competing midpoint scroll', async () => {
+    useFakeNavigator('demo');
+    setViewport(390, 800);
+    stubScroll();
+    stubFrames();
+    render(<GuideOverlay />);
+    const { target } = addStepFixture('myDemos', { stepTop: 400, stepHeight: 300 });
+    const shows = listenTo(GUIDE_SHOW_EVENT);
+    try {
+      await expect(showOnScreen({ target: 'myDemos' })).resolves.toMatchObject({ ok: true });
+      expect(target.scrollIntoView).not.toHaveBeenCalled();
+      expect(shows.events).toHaveLength(1);
+      expect((shows.events[0] as CustomEvent).detail).toMatchObject({
+        target: 'myDemos',
+        step: true,
+      });
+    } finally {
+      shows.stop();
+    }
+  });
+
+  it('aligns a long step at the heading, previews down and back, then settles at the start', () => {
+    setViewport(390, 800);
+    stubDocumentHeight(3000);
+    const scrollTo = stubScroll();
+    const frames = stubFrames();
+    const { step, target } = addStepFixture('myDemos', { stepTop: 320, stepHeight: 1200 });
+
+    startGuideScroll({ target, step, reducedMotion: false, mobile: true });
+    expect(frames.pending()).toBeGreaterThan(0);
+
+    frames.step(0);
+    frames.step(160); // heading just below the header (no header in this fixture: 12px gap)
+    const atHeading = scrollTops(scrollTo).at(-1);
+    expect(atHeading).toBe(308);
+
+    frames.step(400);
+    const previewed = Math.max(...scrollTops(scrollTo));
+    expect(previewed).toBeGreaterThan(atHeading ?? 0);
+
+    frames.step(1600);
+    expect(scrollTops(scrollTo).at(-1)).toBe(308);
+    expect(frames.pending()).toBe(0);
+  });
+
+  it('holds the heading while voice is getting ready and previews once it speaks', () => {
+    setViewport(390, 800);
+    stubDocumentHeight(3000);
+    const scrollTo = stubScroll();
+    const frames = stubFrames();
+    const { step, target } = addStepFixture('myDemos', { stepTop: 320, stepHeight: 1200 });
+    let speaking = false;
+
+    startGuideScroll({ target, step, reducedMotion: false, mobile: true, previewReady: () => speaking });
+    frames.step(0);
+    frames.step(160);
+    frames.step(600);
+    expect(scrollTops(scrollTo).at(-1)).toBe(308);
+
+    speaking = true;
+    frames.step(620);
+    frames.step(950);
+    expect(Math.max(...scrollTops(scrollTo))).toBeGreaterThan(308);
+    frames.step(2100);
+    expect(scrollTops(scrollTo).at(-1)).toBe(308);
+  });
+
+  it('keeps mobile tour controls available when the person starts scrolling', () => {
+    setViewport(390, 800);
+    stubScroll();
+    stubFrames();
+    render(<GuideOverlay />);
+    addStepFixture('aiBuildParty', { stepTop: 320, stepHeight: 1200 });
+    act(() => startGuidedTour());
+
+    fireEvent.pointerDown(document.body);
+    fireEvent.touchStart(document.body);
+    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Salir' }));
+    expect(screen.queryByTestId('guide-bubble')).toBeNull();
+  });
+
+  it('aligns a short step at its heading without a down-and-back preview', () => {
+    setViewport(390, 800);
+    stubDocumentHeight(3000);
+    const scrollTo = stubScroll();
+    const frames = stubFrames();
+    const { step, target } = addStepFixture('myDemos', { stepTop: 320, stepHeight: 300 });
+
+    startGuideScroll({ target, step, reducedMotion: false, mobile: true });
+    frames.step(0);
+    frames.step(1000);
+    const tops = scrollTops(scrollTo);
+    expect(Math.max(...tops)).toBe(308);
+    expect(tops.at(-1)).toBe(308);
+  });
+
+  it('recalculates the heading if new content moves the step during the preview', () => {
+    setViewport(390, 800);
+    stubDocumentHeight(3000);
+    const scrollTo = stubScroll();
+    const frames = stubFrames();
+    const { step, target } = addStepFixture('myDemos', { stepTop: 320, stepHeight: 1200 });
+
+    startGuideScroll({ target, step, reducedMotion: false, mobile: true });
+    frames.step(0);
+    frames.step(400);
+    step.getBoundingClientRect = () => domRect(383, 1200);
+    frames.step(1600);
+    expect(scrollTops(scrollTo).at(-1)).toBe(371);
+  });
+
+  it('cancels the preview on a manual wheel without snapping back', () => {
+    setViewport(390, 800);
+    stubDocumentHeight(3000);
+    const scrollTo = stubScroll();
+    const frames = stubFrames();
+    const { step, target } = addStepFixture('myDemos', { stepTop: 320, stepHeight: 1200 });
+
+    startGuideScroll({ target, step, reducedMotion: false, mobile: true });
+    frames.step(0);
+    frames.step(400);
+    const beforeWheel = scrollTo.mock.calls.length;
+    fireEvent.wheel(window);
+    frames.step(800);
+    expect(scrollTo.mock.calls.length).toBe(beforeWheel);
+    expect(frames.pending()).toBe(0);
+  });
+
+  it('uses top alignment only under prefers-reduced-motion', () => {
+    setViewport(390, 800);
+    stubDocumentHeight(3000);
+    const scrollTo = stubScroll();
+    const frames = stubFrames();
+    const { step, target } = addStepFixture('myDemos', { stepTop: 320, stepHeight: 1200 });
+
+    startGuideScroll({ target, step, reducedMotion: true, mobile: true });
+    expect(scrollTops(scrollTo)).toEqual([308]);
+    expect(frames.pending()).toBe(0);
+  });
+
+  it('keeps the hint and actions inside the viewport when the target is offscreen', () => {
+    stubMatchMedia(() => false);
+    render(<GuideOverlay />);
+    const fixture = addFixture('myDemos', 'section', 'Mis demos');
+    fixture.getBoundingClientRect = () => domRect(2000, 40);
+    act(() => {
+      document.dispatchEvent(
+        new CustomEvent(GUIDE_SHOW_EVENT, { detail: { target: 'myDemos' } }),
+      );
+    });
+    const top = parseFloat(screen.getByTestId('guide-bubble').style.top);
+    expect(top).toBeGreaterThanOrEqual(8);
+    expect(top).toBeLessThanOrEqual(window.innerHeight - 8);
+    expect(screen.getByTestId('guide-bubble')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Siguiente' })).toBeNull();
   });
 });

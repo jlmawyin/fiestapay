@@ -3,7 +3,7 @@
  * tappable) plus a bubble with the hint. No libraries. Closes on tap, Esc or after 12 s;
  * `prefers-reduced-motion` renders a static ring. Also runs the /demo step-by-step tour.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { UI_LABELS, UI_TARGETS, type Locale, type UiTarget } from '@fiestapay/shared';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { orbCatalog } from '../i18n/catalogs/orb';
@@ -21,6 +21,7 @@ import {
   type GuideVisibleDetail,
   type VoiceActivityDetail,
 } from './showOnScreen';
+import { guideIsMobileViewport, guideStepFor, startGuideScroll } from './step-preview';
 
 const AUTO_CLOSE_MS = 12000;
 const RING_PAD = 6;
@@ -31,6 +32,8 @@ interface Spot {
   target: UiTarget;
   caption?: string;
   tour?: { steps: UiTarget[]; index: number };
+  /** The target lives in a mobile-preview `[data-guide-step]` wrapper. */
+  step?: boolean;
 }
 
 function useReducedMotion(): boolean {
@@ -73,8 +76,10 @@ export const GuideOverlay: React.FC = () => {
   const reducedMotion = useReducedMotion();
   const [spot, setSpot] = useState<Spot | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const [bubbleHeight, setBubbleHeight] = useState(0);
   const [voiceActive, setVoiceActive] = useState(false);
   const voiceActiveRef = useRef(false);
+  const voiceSpeakingRef = useRef(false);
   const spotRef = useRef<Spot | null>(null);
   spotRef.current = spot;
   const elementRef = useRef<HTMLElement | null>(null);
@@ -119,7 +124,11 @@ export const GuideOverlay: React.FC = () => {
       const detail = (event as CustomEvent<GuideShowDetail>).detail;
       if (!detail?.target) return;
       elementRef.current = null;
-      setSpot({ target: detail.target, ...(detail.caption ? { caption: detail.caption } : {}) });
+      setSpot({
+        target: detail.target,
+        ...(detail.caption ? { caption: detail.caption } : {}),
+        ...(detail.step ? { step: true } : {}),
+      });
     };
     const onTour = (event: Event) => {
       const detail = (event as CustomEvent<GuideTourDetail>).detail;
@@ -139,7 +148,9 @@ export const GuideOverlay: React.FC = () => {
     };
   }, [close]);
 
-  // Focus the guided element (still tappable) and scroll tour steps into view.
+  // Focus the guided element (still tappable) and own the scroll for tours and
+  // marked step wrappers. On mobile the scroll aligns the heading below the
+  // sticky header and previews long steps; desktop keeps the centered scroll.
   useEffect(() => {
     if (!spot) return;
     const element = resolveElement(spot.target);
@@ -166,16 +177,14 @@ export const GuideOverlay: React.FC = () => {
       }
       return;
     }
-    if (spot.tour) {
-      try {
-        element.scrollIntoView({
-          block: 'center',
-          inline: 'center',
-          behavior: reducedMotion ? 'auto' : 'smooth',
-        });
-      } catch {
-        // The ring still shows without the scroll.
-      }
+    let cancelScroll: (() => void) | undefined;
+    if (spot.tour || spot.step) {
+      cancelScroll = startGuideScroll({
+        target: element,
+        step: guideStepFor(element),
+        reducedMotion,
+        previewReady: voiceActiveRef.current ? () => voiceSpeakingRef.current : undefined,
+      });
     }
     const focusable = /^(A|BUTTON|INPUT|SELECT|TEXTAREA)$/.test(element.tagName) || element.hasAttribute('tabindex');
     if (!focusable) {
@@ -195,7 +204,27 @@ export const GuideOverlay: React.FC = () => {
         // A non-focusable element still shows the ring.
       }
     }
+    return () => cancelScroll?.();
   }, [spot, reducedMotion, resolveElement, close]);
+
+  // Measure the hint so it stays fully inside short phone viewports even when
+  // the highlighted target is above or below the fold. The first render has a
+  // spot but no rect yet, so `hasRect` re-runs this when the bubble mounts.
+  const hasRect = rect !== null;
+  useLayoutEffect(() => {
+    if (!spot || !hasRect) return;
+    const node = bubbleRef.current;
+    if (!node) return;
+    const measure = () => {
+      const next = node.getBoundingClientRect().height || node.offsetHeight || 0;
+      if (next > 0) setBubbleHeight(next);
+    };
+    measure();
+    if (typeof ResizeObserver !== 'function') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [spot, hasRect]);
 
   // Track the element rect; a disconnected target (navigation away) closes the guide.
   useEffect(() => {
@@ -231,6 +260,7 @@ export const GuideOverlay: React.FC = () => {
       if (!detail) return;
       const wasActive = voiceActiveRef.current;
       voiceActiveRef.current = detail.active;
+      voiceSpeakingRef.current = detail.active && detail.status === 'speaking';
       setVoiceActive(detail.active);
       if (wasActive && !detail.active) close();
     };
@@ -248,13 +278,14 @@ export const GuideOverlay: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [spot, voiceActive, close]);
 
-  // Esc closes; any tap outside the bubble closes (the tap still lands).
+  // Esc closes. On mobile, swiping through a tour keeps its Next and Exit controls.
   useEffect(() => {
     if (!spot) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') close();
     };
     const onPointerDown = (event: PointerEvent) => {
+      if (spot.tour && guideIsMobileViewport()) return;
       const bubble = bubbleRef.current;
       if (bubble && event.target instanceof Node && bubble.contains(event.target)) return;
       close();
@@ -267,8 +298,9 @@ export const GuideOverlay: React.FC = () => {
     };
   }, [spot, close]);
 
+  const viewportHeight = window.innerHeight || 667;
   const placement: 'top' | 'bottom' =
-    rect && rect.top + rect.height / 2 < window.innerHeight / 2 ? 'bottom' : 'top';
+    rect && rect.top + rect.height / 2 < viewportHeight / 2 ? 'bottom' : 'top';
 
   // Announce visibility + placement so the voice mini-bar parks on the other half.
   useEffect(() => {
@@ -303,10 +335,16 @@ export const GuideOverlay: React.FC = () => {
     Math.max(8, rect.left + rect.width / 2 - BUBBLE_WIDTH / 2),
     Math.max(8, viewportWidth - BUBBLE_WIDTH - 8),
   );
-  const bubbleStyle: React.CSSProperties =
-    placement === 'bottom'
-      ? { left: bubbleLeft, top: rect.bottom + BUBBLE_GAP }
-      : { left: bubbleLeft, bottom: Math.max(8, (window.innerHeight || 667) - rect.top + BUBBLE_GAP) };
+  // Keep the hint and its actions inside the viewport even when the ring is
+  // above or below the fold during a scroll preview.
+  const effectiveBubbleHeight = bubbleHeight || (isTour ? 150 : 96);
+  const desiredBubbleTop =
+    placement === 'bottom' ? rect.bottom + BUBBLE_GAP : rect.top - BUBBLE_GAP - effectiveBubbleHeight;
+  const bubbleTop = Math.min(
+    Math.max(8, desiredBubbleTop),
+    Math.max(8, viewportHeight - effectiveBubbleHeight - 8),
+  );
+  const bubbleStyle: React.CSSProperties = { left: bubbleLeft, top: bubbleTop };
 
   return (
     <>
