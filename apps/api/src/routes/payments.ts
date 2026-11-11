@@ -1,8 +1,9 @@
+import type { PayPalNotificationItem } from '@fiestapay/shared';
 import type { Guest, OrderResult } from '@fiestapay/shared';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { badRequest, unavailable } from '../errors.js';
 import { presentedAdminKey } from '../domain/access.js';
-import { audit } from '../domain/audit.js';
+import { audit, PAYPAL_NOTIFICATION_PREFIX } from '../domain/audit.js';
 import {
   captureOwnOrder,
   createOrderForSession,
@@ -59,9 +60,22 @@ const headerText = (value: unknown, max: number): string | undefined => boundedT
  * redelivering, and that notification is often the only one we ever get — a refund lost that
  * way leaves the collected total permanently inflated.
  */
-type HookOutcome = { kind: 'done'; note?: string } | { kind: 'retry'; reason: string };
+type ReceiptType = PayPalNotificationItem['type'];
 
-const done = (note?: string): HookOutcome => ({ kind: 'done', ...(note ? { note } : {}) });
+interface ReceiptEvidence {
+  eventId: string;
+  type: ReceiptType;
+}
+
+type HookOutcome =
+  | { kind: 'done'; note?: string; evidence?: ReceiptEvidence }
+  | { kind: 'retry'; reason: string };
+
+const done = (note?: string, evidence?: ReceiptEvidence): HookOutcome => ({
+  kind: 'done',
+  ...(note ? { note } : {}),
+  ...(evidence ? { evidence } : {}),
+});
 const retry = (reason: string): HookOutcome => ({ kind: 'retry', reason });
 
 export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDeps): Promise<void> {
@@ -157,7 +171,10 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
        * by trusting the amounts in the notification body. Used by both the capture event and
        * the order-completed event.
        */
-      const applyCapture = async (paypalOrderId: string | null): Promise<HookOutcome> => {
+      const applyCapture = async (
+        paypalOrderId: string | null,
+        receiptType: ReceiptType,
+      ): Promise<HookOutcome> => {
         if (!paypalOrderId) return retry('notificacion de captura sin referencia de orden');
         const order = await findOrderByAnyId(pool, paypalOrderId);
         // Our row may simply not be committed yet (create still settling): ask for redelivery
@@ -165,7 +182,7 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
         if (!order) return retry('orden desconocida todavia');
 
         const outcome = await convergeCapture(pool, paypal, merchantId, order, null);
-        if (isApplied(outcome)) return done();
+        if (isApplied(outcome)) return done(undefined, { eventId: order.event_id, type: receiptType });
         if (outcome.transient) return retry(outcome.reason);
         await audit(pool, order.event_id, 'payment_webhook_rejected');
         return done(outcome.reason);
@@ -182,9 +199,9 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
           // The order-level completion carries no trustworthy amount, so it is verified with
           // getOrder exactly like the capture event before anything is counted.
           case 'CHECKOUT.ORDER.COMPLETED':
-            return applyCapture(resourceId);
+            return applyCapture(resourceId, 'CHECKOUT.ORDER.COMPLETED');
           case 'PAYMENT.CAPTURE.COMPLETED':
-            return applyCapture(relatedOrderId);
+            return applyCapture(relatedOrderId, 'PAYMENT.CAPTURE.COMPLETED');
           case 'PAYMENT.CAPTURE.DECLINED': {
             const order = relatedOrderId ? await findOrderByAnyId(pool, relatedOrderId) : null;
             if (!order) return retry('orden desconocida todavia');
@@ -208,7 +225,11 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
           case 'PAYMENT.CAPTURE.REFUNDED': {
             if (!resourceId) return done('reembolso sin identificador');
             const outcome = await convergeRefund(pool, paypal, resourceId);
-            if (outcome.applied || outcome.duplicate) return done();
+            if (outcome.applied || outcome.duplicate) {
+              return outcome.eventId
+                ? done(undefined, { eventId: outcome.eventId, type: 'PAYMENT.CAPTURE.REFUNDED' })
+                : done();
+            }
             if (outcome.transient) return retry(outcome.reason ?? 'reembolso aun no aplicable');
             if (outcome.eventId) await audit(pool, outcome.eventId, 'payment_webhook_rejected');
             return done(outcome.reason);
@@ -237,11 +258,29 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
       }
       if (outcome.note) req.log.warn({ eventType, webhookId, note: outcome.note }, 'webhook no aplicado');
 
-      // Recorded only after processing, so a failure leaves the notification retryable.
-      await pool.query('INSERT INTO webhook_events (id, event_type) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING', [
-        webhookId,
-        eventType,
-      ]);
+      // Recorded only after processing, so a failure leaves the notification retryable. For a
+      // verified capture/refund reconciliation, the receipt evidence is written by the same
+      // statement and only when this delivery actually inserted the webhook id. Concurrent and
+      // repeated deliveries therefore keep exactly one audit row, while a redelivery under a
+      // new webhook id stays an idempotent ledger no-op with its own receipt evidence.
+      const evidence = outcome.evidence;
+      if (evidence) {
+        await pool.query(
+          `WITH recorded AS (
+             INSERT INTO webhook_events (id, event_type) VALUES ($1, $2)
+             ON CONFLICT (id) DO NOTHING
+             RETURNING id
+           )
+           INSERT INTO audit_log (event_id, action)
+           SELECT $3, $4 FROM recorded`,
+          [webhookId, eventType, evidence.eventId, `${PAYPAL_NOTIFICATION_PREFIX}${evidence.type}`],
+        );
+      } else {
+        await pool.query('INSERT INTO webhook_events (id, event_type) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING', [
+          webhookId,
+          eventType,
+        ]);
+      }
       return { ok: true };
     },
   );

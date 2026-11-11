@@ -25,6 +25,8 @@ export interface PublicChatAssistantProps {
   idSuffix?: string;
   /** Landscape mode (panel height <= 560 px): tighter chrome, same behavior. */
   compact?: boolean;
+  /** Optional draft prompt. The visitor still presses Send. */
+  initialMessage?: string;
 }
 
 interface PublicMessage {
@@ -76,6 +78,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
   context,
   idSuffix,
   compact = false,
+  initialMessage = '',
 }) => {
   const m = useMessages(chatCatalog);
   const { formatMoney, formatDateTime } = useI18n();
@@ -88,7 +91,7 @@ export const PublicChatAssistant: React.FC<PublicChatAssistantProps> = ({
     if (!controlled) setInternalOpen(next);
     onOpenChange?.(next);
   };
-  const [inputMessage, setInputMessage] = useState('');
+  const [inputMessage, setInputMessage] = useState(initialMessage);
   // The welcome snapshot never refreshes: switching languages keeps the
   // visible history and only new replies arrive in the new language.
   const [messages, setMessages] = useState<PublicMessage[]>(() => [

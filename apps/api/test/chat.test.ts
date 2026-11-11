@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { Capabilities, ChatResult, FiestaEvent } from '@fiestapay/shared';
+import type { Capabilities, ChatResult, FiestaEvent, Locale } from '@fiestapay/shared';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
 import { migrate } from '../src/db/migrate.js';
@@ -49,10 +49,10 @@ describeDb('Asistente de texto con herramientas nativas', () => {
     return { app, inputs: script.inputs };
   }
 
-  async function scenario(app: FastifyInstance, companions: number, status: 'yes' | 'maybe' = 'yes') {
+  async function scenario(app: FastifyInstance, companions: number, status: 'yes' | 'maybe' = 'yes', locale?: Locale) {
     const organizer = new Client(app);
     const { event } = body<{ event: FiestaEvent }>(await organizer.post('/api/demo'));
-    const guest = new Client(app);
+    const guest = new Client(app, locale);
     await guest.post(`/api/events/${event.slug}/join`, { name: 'Invitada Chat' });
     await guest.post(`/api/events/${event.slug}/rsvp`, { status, companions });
     return { organizer, guest, event };
@@ -119,6 +119,27 @@ describeDb('Asistente de texto con herramientas nativas', () => {
       expect(after.quotes).toBe(1);
       expect(after.orders).toBe(0);
       expect(after.ledger).toBe(0);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('usa la cotización inglesa del servidor en lugar de repetir el importe del modelo', async () => {
+    const { app } = await appWith([
+      completed(fnCall('quote_en', 'prepare_quote', '{}')),
+      completed(message('Click Confirm and Create Payment ($50,00).')),
+    ]);
+    try {
+      const { guest, event } = await scenario(app, 1, 'yes', 'en');
+      const response = await guest.post('/api/events/' + event.slug + '/chat', {
+        message: 'Please prepare my payment.',
+      });
+      expect(response.statusCode).toBe(200);
+      const result = body<ChatResult>(response);
+      expect(result.text).toContain('total $50.00');
+      expect(result.text).toContain('"Confirm and Create Payment"');
+      expect(result.text).not.toContain('$50,00');
+      expect(result.quote?.amountCents).toBe(5000);
     } finally {
       await app.close();
     }

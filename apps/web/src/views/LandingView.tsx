@@ -8,6 +8,7 @@ import { useI18n, useMessages } from '../i18n/I18nContext';
 import { landingCatalog } from '../i18n/catalogs/landing';
 import { cardsCatalog } from '../i18n/catalogs/cards';
 import { isDemoEvent } from '../lib/event-presentation';
+import type { CreatePath } from '../lib/create-interview';
 
 export interface LandingViewProps {
   events: FiestaEvent[];
@@ -17,10 +18,10 @@ export interface LandingViewProps {
   /** A bounded read failure. Existing events stay visible. */
   eventsError?: string | null;
   onRetryEvents?: () => void;
-  onNavigateCreate: () => void;
+  onNavigateCreate: (path?: CreatePath) => void;
   onNavigateInvite: (slug: string) => void;
   onNavigateDashboard: (slug: string) => void;
-  onNavigateDemo: () => void;
+  onNavigateDemo: (quick?: boolean) => void;
   onNavigateRecover: () => void;
 }
 
@@ -87,13 +88,42 @@ export const LandingView: React.FC<LandingViewProps> = ({
             <VoiceWelcomeCard />
           </div>
         ) : null}
-        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-          <button type="button" onClick={onNavigateCreate} className="btn btn-primary" data-guide="createInvitation">
-            {labels.createInvitation}
+        <div className="landing-stats" aria-label={m.statsTitle}>
+          <p className="landing-stats__title">{m.statsTitle}</p>
+          <ul className="landing-stats__list">
+            <li>{m.statsDrafts}</li>
+            <li>{m.statsFields}</li>
+            <li>{m.statsQuotes}</li>
+          </ul>
+          <p className="landing-stats__note">{m.statsNote}</p>
+        </div>
+        <h2 className="landing-choose__title">{m.chooseTitle}</h2>
+        <div className="landing-choose__actions">
+          <button
+            type="button"
+            onClick={() => onNavigateCreate('sentence')}
+            className="btn btn-primary"
+            data-guide="createInvitation"
+          >
+            {m.pathSentence}
           </button>
-          <button type="button" onClick={onNavigateDemo} className="btn btn-secondary">
-            {labels.judgesDemo}
+          <button type="button" onClick={() => onNavigateCreate('interview')} className="btn btn-secondary">
+            {m.pathInterview}
           </button>
+        </div>
+        <button type="button" onClick={() => onNavigateCreate('manual')} className="landing-path-link">
+          {m.pathManual}
+        </button>
+        <div className="landing-judge-path">
+          <div>
+            <strong>{m.judgePathTitle}</strong>
+            <p>{m.judgePathText}</p>
+          </div>
+          <div className="landing-judge-path__actions">
+            <button type="button" onClick={() => onNavigateDemo(true)} className="btn btn-teal">
+              {m.judgePathCta}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -160,10 +190,10 @@ export const LandingView: React.FC<LandingViewProps> = ({
       <section aria-label={m.useCasesTitle} style={{ minWidth: 0 }}>
         <h2 style={{ fontSize: '1.25rem', marginBottom: '0.75rem' }}>{m.useCasesTitle}</h2>
         <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-          <button type="button" onClick={onNavigateCreate} className="btn btn-secondary">
+          <button type="button" onClick={() => onNavigateCreate()} className="btn btn-secondary">
             {m.useCaseSchool}
           </button>
-          <button type="button" onClick={onNavigateCreate} className="btn btn-secondary">
+          <button type="button" onClick={() => onNavigateCreate()} className="btn btn-secondary">
             {m.useCaseWork}
           </button>
         </div>
@@ -213,7 +243,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
               <button type="button" onClick={() => onRetryEvents?.()} className="btn btn-primary">
                 {cards.retry}
               </button>
-              <button type="button" onClick={onNavigateCreate} className="btn btn-secondary">
+              <button type="button" onClick={() => onNavigateCreate()} className="btn btn-secondary">
                 {cards.createButton}
               </button>
             </div>
@@ -238,10 +268,10 @@ export const LandingView: React.FC<LandingViewProps> = ({
               {m.emptyText}
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-              <button type="button" onClick={onNavigateCreate} className="btn btn-primary" data-guide="createInvitation">
+              <button type="button" onClick={() => onNavigateCreate()} className="btn btn-primary" data-guide="createInvitation">
                 {labels.createInvitation}
               </button>
-              <button type="button" onClick={onNavigateDemo} className="btn btn-secondary">
+              <button type="button" onClick={() => onNavigateDemo()} className="btn btn-secondary">
                 {labels.judgesDemo}
               </button>
             </div>

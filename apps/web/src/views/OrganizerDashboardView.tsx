@@ -7,6 +7,7 @@ import { adminKeyFor, rememberAdminKey } from '../api/admin-key';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { dashboardCatalog } from '../i18n/messages/organizerDashboard';
 import { GuestGrid } from '../components/dashboard/GuestGrid';
+import { PaymentActivityPanel } from '../components/dashboard/PaymentActivityPanel';
 import { ModerationPanel } from '../components/dashboard/ModerationPanel';
 import { ReminderDrafts } from '../components/dashboard/ReminderDrafts';
 import { OrganizerLinkCard } from '../components/dashboard/OrganizerLinkCard';
@@ -317,7 +318,7 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
     }
   };
 
-  const { event, guests, guestTotals, audit, payments } = dashboard;
+  const { event, guests, guestTotals, audit, payments, paymentActivity, paypalNotifications } = dashboard;
   const copy = gatheringCopy(event.template, locale);
   const canConfirm = !event.minimumCents || event.minimumReached;
   const theme = resolveTheme(event.template, event.theme);
@@ -444,6 +445,11 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
           </ul>
         )}
       </section>
+
+      <PaymentActivityPanel
+        activity={paymentActivity ?? []}
+        notifications={paypalNotifications ?? []}
+      />
 
       <FundingStatusPanel event={event} audience="admin" parties={parties} />
 

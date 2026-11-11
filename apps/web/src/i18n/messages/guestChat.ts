@@ -47,7 +47,7 @@ export const guestChatCatalog = defineCatalog({
     error429:
       'Se alcanzó el límite temporal de consultas (429). Tu pregunta no se respondió. Espera un minuto y pulsa «Reintentar».',
     error503:
-      'El proveedor de chat no está disponible en este momento (503). Todas las acciones manuales de esta invitación siguen totalmente funcionales.',
+      'El chat no está disponible en este momento (503). Pulsa Reintentar para volver a enviar tu mensaje.',
     errorTimeout:
       'El agente tardó demasiado. Tu pregunta no se procesó; pulsa «Reintentar».',
     errorGeneric: 'No se pudo obtener respuesta del asistente.',
@@ -106,7 +106,7 @@ export const guestChatCatalog = defineCatalog({
     error429:
       'The temporary question limit was reached (429). Your question was not answered. Wait a minute and press “Retry”.',
     error503:
-      'The chat provider is not available right now (503). Every manual action on this invitation keeps working.',
+      'The chat provider is temporarily unavailable (503). Press Retry to send your message again.',
     errorTimeout:
       'The agent took too long. Your question was not processed; press “Retry”.',
     errorGeneric: 'Could not get an answer from the assistant.',

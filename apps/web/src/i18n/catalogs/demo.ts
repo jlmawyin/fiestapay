@@ -13,6 +13,10 @@ export const demoCatalog = defineCatalog({
     aiStepText:
       'Escribe una frase y pulsa el botón: la IA propone la invitación en «Crear» y tú revisas antes de publicar.',
     aiStepLabel: 'Tu fiesta en una frase',
+    quickTitle: 'Prueba el borrador y el pago',
+    quickIntro: 'Envía el ejemplo al chat. Después puedes revisar el borrador o abrir una invitación ficticia para probar PayPal Sandbox.',
+    quickExample: 'Arma una parrillada para 10 personas, $15 por persona, el próximo sábado en Quito.',
+    quickSampleActivity: 'Actividad de PayPal de ejemplo',
     aiStepExample: 'Parrillada para 10 amigos, $15 cada uno, el sábado a las 4 pm en el parque',
     step1Title: 'Mira el panel de ejemplo',
     step1Text:
@@ -94,6 +98,10 @@ export const demoCatalog = defineCatalog({
     aiStepText:
       'Write one sentence and press the button: the AI drafts the invitation in “Create” and you review before publishing.',
     aiStepLabel: 'Your party in one sentence',
+    quickTitle: 'Try the draft and the payment',
+    quickIntro: 'Send the example to the chat. Then review the draft or open a fictional invitation to try PayPal Sandbox.',
+    quickExample: 'Build a BBQ for 10 people at $15 each next Saturday in Quito.',
+    quickSampleActivity: 'Example PayPal activity',
     aiStepExample: 'BBQ for 10 friends, $15 each, Saturday 4 pm at Central Park',
     step1Title: 'Look at the sample dashboard',
     step1Text:

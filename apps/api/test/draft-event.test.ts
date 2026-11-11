@@ -5,7 +5,7 @@ import type { DraftEventProposal } from '@fiestapay/shared';
 import { buildApp } from '../src/app.js';
 import { migrate } from '../src/db/migrate.js';
 import { createPool, type Pool } from '../src/db/pool.js';
-import { guayaquilToday } from '../src/ai/draft-event.js';
+import { guayaquilToday, rulesDraftEvent } from '../src/ai/draft-event.js';
 import type { RespondFn, RespondInput, RespondOutput } from '../src/ai/openai.js';
 import { sha256 } from '../src/lib/ids.js';
 import { completed, message, scriptedOpenAI } from './openai-script.js';
@@ -220,6 +220,28 @@ describeDb('crear con una frase', () => {
         }),
       ],
     });
+  });
+
+  it('conserva la cuota explícita aunque el modelo la interprete como presupuesto total', async () => {
+    await withApp(async (app) => {
+      const response = await new Client(app).post(ENDPOINT, { text: 'BBQ for 10 at $15 each' });
+      expect(response.statusCode).toBe(200);
+      expect(body<DraftEventProposal>(response)).toMatchObject({
+        headcount: 10, budgetCents: 15_000, perPersonCents: 1_500,
+      });
+    }, { turns: [answer({ template: 'comida', title: 'BBQ', headcount: 10, budgetCents: 1_500 })] });
+  });
+
+  it('distingue total y cuota en el respaldo y conserva una cuota sin cupo', () => {
+    expect(rulesDraftEvent('Asado para 10, $15,25 por persona')).toMatchObject({
+      headcount: 10, budgetCents: 15_250, perPersonCents: 1_525,
+    });
+    expect(rulesDraftEvent('BBQ for 10 with a total budget of $150')).toMatchObject({
+      headcount: 10, budgetCents: 15_000, perPersonCents: 1_500,
+    });
+    expect(rulesDraftEvent('BBQ at $15 each')).toMatchObject({ perPersonCents: 1_500 });
+    expect(rulesDraftEvent('BBQ at $15 each')).not.toHaveProperty('budgetCents');
+    expect(rulesDraftEvent('BBQ for 10 at $15 each or $20 each')).not.toHaveProperty('perPersonCents');
   });
 
   it('usa el respaldo por reglas cuando el proveedor falla', async () => {

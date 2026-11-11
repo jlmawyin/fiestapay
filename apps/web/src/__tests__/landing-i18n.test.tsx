@@ -127,6 +127,25 @@ describe.each(['es', 'en'] as const)('product landing (%s)', (locale) => {
     expect(window.location.pathname).toBe('/demo');
   });
 
+  it('offers the three bounded creation paths and keeps the path in the URL', async () => {
+    const { landingCatalog } = await import('../i18n/catalogs/landing');
+    const copy = landingCatalog[locale];
+    renderLanding(locale, []);
+    await screen.findAllByRole('heading', { level: 1 });
+
+    fireEvent.click(screen.getByRole('button', { name: copy.pathSentence }));
+    expect(window.location.pathname).toBe('/create');
+    expect(window.location.search).toBe('?path=sentence');
+
+    fireEvent.click(screen.getByRole('button', { name: labels.myInvitations }));
+    fireEvent.click(screen.getByRole('button', { name: copy.pathInterview }));
+    expect(window.location.search).toBe('?path=interview');
+
+    fireEvent.click(screen.getByRole('button', { name: labels.myInvitations }));
+    fireEvent.click(screen.getByRole('button', { name: copy.pathManual }));
+    expect(window.location.search).toBe('?path=manual');
+  });
+
   it('lists only own invitations and keeps the panel/recovery behavior', async () => {
     const own = event({ id: 'own-1', slug: 'cena-propia', title: 'Cena propia' });
     const legacy = event({ id: 'legacy-1', slug: 'viaje-viejo', title: 'Viaje viejo', template: 'viaje' });

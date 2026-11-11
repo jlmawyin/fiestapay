@@ -375,6 +375,11 @@ export const PaymentWizard: React.FC<PaymentWizardProps> = ({
         </div>
         {renderHeaderSummary()}
       </div>
+      {payDone && guest && guest.paidCents > 0 && guest.dueCents === 0 ? (
+        <p className="payment-wizard__done-line" role="status">
+          {m.paymentVerified(formatMoney(guest.paidCents))}
+        </p>
+      ) : null}
       <p className="payment-wizard__live" role="status" aria-live="polite">
         {openStep === null ? '' : titles[openStep]}
       </p>

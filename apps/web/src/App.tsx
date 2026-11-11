@@ -19,6 +19,7 @@ import { OrganizerRecoveryView } from './views/OrganizerRecoveryView';
 import { JudgePreviewView } from './views/JudgePreviewView';
 import { AssistantOrb } from './components/assistant/AssistantOrb';
 import { DemoBuyerAccountCard } from './components/demo/DemoBuyerAccountCard';
+import { parseCreatePath, type CreatePath } from './lib/create-interview';
 
 const DEMO_PAYMENT_SLUG_KEY = 'fp_demo_payment_slug';
 
@@ -42,8 +43,8 @@ function rememberDemoPaymentSlug(slug: string): void {
 
 type ViewMode =
   | { mode: 'home' }
-  | { mode: 'demo' }
-  | { mode: 'create' }
+  | { mode: 'demo'; quick?: boolean }
+  | { mode: 'create'; path?: CreatePath }
   | { mode: 'invite'; slug: string }
   | { mode: 'dashboard'; slug: string }
   | { mode: 'recover' };
@@ -108,7 +109,8 @@ export const App: React.FC = () => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // URL Routing helper
+  // URL Routing helper. Keep unrelated query parameters and the bounded create
+  // path so deep links such as /create?path=interview survive locale changes.
   const navigate = useCallback((view: ViewMode, push = true) => {
     setCurrentView(view);
     let path = '/';
@@ -118,8 +120,16 @@ export const App: React.FC = () => {
     else if (view.mode === 'invite') path = `/e/${view.slug}`;
     else if (view.mode === 'dashboard') path = `/e/${view.slug}/admin`;
 
-    if (push && window.location.pathname !== path) {
-      window.history.pushState(view, '', path);
+    const params = new URLSearchParams(window.location.search);
+    params.delete('path');
+    params.delete('quick');
+    if (view.mode === 'demo' && view.quick) params.set('quick', '1');
+    if (view.mode === 'create' && view.path) params.set('path', view.path);
+    const query = params.toString();
+    const url = query ? `${path}?${query}` : path;
+
+    if (push && `${window.location.pathname}${window.location.search}` !== url) {
+      window.history.pushState(view, '', url);
     }
   }, []);
 
@@ -139,7 +149,7 @@ export const App: React.FC = () => {
   const handleLocationChange = useCallback(() => {
     const path = window.location.pathname;
     if (path === '/demo' || path === '/demo/') {
-      setCurrentView({ mode: 'demo' });
+      setCurrentView({ mode: 'demo', quick: new URLSearchParams(window.location.search).get('quick') === '1' });
       return;
     }
     if (path === '/recover' || path === '/recover/') {
@@ -157,7 +167,8 @@ export const App: React.FC = () => {
       return;
     }
     if (path === '/create') {
-      setCurrentView({ mode: 'create' });
+      const rawPath = new URLSearchParams(window.location.search).get('path');
+      setCurrentView({ mode: 'create', path: rawPath === null ? undefined : parseCreatePath(rawPath) });
       return;
     }
     setCurrentView({ mode: 'home' });
@@ -406,10 +417,10 @@ export const App: React.FC = () => {
             capabilities={capabilities}
             eventsError={eventsError}
             onRetryEvents={initApp}
-            onNavigateCreate={() => navigate({ mode: 'create' })}
+            onNavigateCreate={(path) => navigate({ mode: 'create', ...(path ? { path } : {}) })}
             onNavigateInvite={(slug) => navigate({ mode: 'invite', slug })}
             onNavigateDashboard={(slug) => navigate({ mode: 'dashboard', slug })}
-            onNavigateDemo={() => navigate({ mode: 'demo' })}
+            onNavigateDemo={(quick) => navigate({ mode: 'demo', quick })}
             onNavigateRecover={() => navigate({ mode: 'recover' })}
           />
         )}
@@ -422,6 +433,7 @@ export const App: React.FC = () => {
             eventsError={eventsError}
             onRetryEvents={initApp}
             onCreateDemo={handleCreateDemo}
+            quickPath={currentView.quick}
             onBuildPartyWithAi={handleBuildPartyWithAi}
             onStartPaymentDemo={handleStartPaymentDemo}
             onTalkToAssistant={handleTalkToAssistant}
@@ -439,6 +451,8 @@ export const App: React.FC = () => {
             draftRequest={aiDraftRequest}
             onConsumeDraftRequest={consumeAiDraftRequest}
             recoveryAvailable={capabilities?.email === true}
+            createPath={currentView.path}
+            onSelectCreatePath={(path) => navigate({ mode: 'create', path })}
             onEventCreated={(slug) => {
               initApp();
               // The create response already stored the organizer key. A missing key stays public.

@@ -1,7 +1,9 @@
+import type { PayPalNotificationItem } from '@fiestapay/shared';
 import type { Queryable } from './read.js';
 
 /** Audit actions are a closed vocabulary: the dashboard exposes only action + timestamp. */
 export type AuditAction =
+  | `paypal_notification:${PayPalNotificationItem['type']}`
   | 'event_created'
   | 'demo_seeded'
   | 'demo_reset'
@@ -47,6 +49,8 @@ export type AuditAction =
   | 'guest_unblocked'
   | 'guest_removed'
   | 'chat_message_deleted';
+
+export const PAYPAL_NOTIFICATION_PREFIX = 'paypal_notification:';
 
 export async function audit(db: Queryable, eventId: string | null, action: AuditAction): Promise<void> {
   await db.query('INSERT INTO audit_log (event_id, action) VALUES ($1, $2)', [eventId, action]);

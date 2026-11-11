@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ChatAssistant } from '../components/chat/ChatAssistant';
 import { DemoRibbon } from '../components/common/DemoRibbon';
@@ -123,7 +123,7 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
     expect(screen.getByText('Chat: Desactivado')).toBeInTheDocument();
   });
 
-  it('displays 503 fallback visible without Gemini branding and guides manual actions', async () => {
+  it('offers an explicit retry for a provider error without Gemini branding', async () => {
     const capabilities = {
       chat: true,
       llmProvider: 'openai' as const,
@@ -148,12 +148,13 @@ describe('Chat Provider and UI Branding (FP-OPENAI-WEB-20261024)', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'El proveedor de chat no está disponible en este momento (503). Todas las acciones manuales de esta invitación siguen totalmente funcionales.'
+          'El chat no está disponible en este momento (503). Pulsa Reintentar para volver a enviar tu mensaje.'
         )
       ).toBeInTheDocument();
     });
 
     const panel = screen.getByRole('complementary', { name: 'Panel del Agente FiestaPay' });
+    expect(within(within(panel).getByRole('alert')).getByRole('button', { name: 'Reintentar' })).toBeEnabled();
     expect(panel.textContent).not.toMatch(/gemini/i);
   });
 

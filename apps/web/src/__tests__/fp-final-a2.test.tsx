@@ -106,7 +106,7 @@ describe('FP-FINAL-A2 public chat draft card', () => {
     unmount();
     setGuideDraftProposal(DRAFT);
     render(<CreateWizard onSubmit={vi.fn(async () => undefined)} onCancel={vi.fn()} isLoading={false} />);
-    await waitFor(() => expect(screen.getByDisplayValue('Asado de excompañeros')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Asado de excompañeros').length).toBeGreaterThan(0));
     expect(consumeGuideDraftProposal()).toBeNull();
   });
 
@@ -128,7 +128,7 @@ describe('FP-FINAL-A2 public chat draft card', () => {
     await screen.findByTestId('public-draft-card');
     fireEvent.click(screen.getByRole('button', { name: 'Revisar en Crear' }));
 
-    await waitFor(() => expect(screen.getByDisplayValue('Asado de excompañeros')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Asado de excompañeros').length).toBeGreaterThan(0));
     expect(consumeGuideDraftProposal()).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });

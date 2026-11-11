@@ -3,7 +3,6 @@ import { Check, Lock, X } from 'lucide-react';
 import {
   UI_LABELS,
   mealLabel,
-  templateInviteCopy,
   themeLabel,
   themePhrase,
   themesForTemplate,
@@ -27,12 +26,15 @@ import {
   toLocalInput,
   type ExampleHit,
   type EventFormFields,
-  type PublishReview,
 } from './event-form-model';
+import { CreateInterview } from './CreateInterview';
+import {
+  parseCreatePath,
+  type CreatePath,
+} from '../../lib/create-interview';
 import {
   defaultThemeFor,
   formatEventRange,
-  organizerLine,
   resolveTheme,
   suggestThemeFor,
   themeCssVars,
@@ -41,6 +43,7 @@ import { TemplateCover } from '../illustrations/TemplateCover';
 import { TemplateIcon } from './template-icons';
 import { ASSISTANT_THEME_EVENT, type AssistantThemeDetail } from '../assistant/orb-themes';
 import {
+  GUIDE_ACTION_EVENT,
   GUIDE_DRAFT_EVENT,
   GUIDE_PREFILL_EVENT,
   consumeGuideDraftProposal,
@@ -56,6 +59,9 @@ interface CreateWizardProps {
   isLoading: boolean;
   /** One-shot prefill from the judges-demo AI step; the click consented to one AI fill. */
   initialDraft?: { text: string; id: number } | null;
+  /** Bounded creation entry point from /create?path=… */
+  path?: CreatePath;
+  onSelectPath?: (path: CreatePath) => void;
 }
 
 export type CreateWizardStep = 1 | 2 | 3 | 4 | 5 | 6;
@@ -189,7 +195,14 @@ const addMinutesToTime = (time: string, minutes: number): string | null => {
  * event-form model, so the same input sends the same EventInput as the
  * long form, in both languages.
  */
-export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, isLoading, initialDraft = null }) => {
+export const CreateWizard: React.FC<CreateWizardProps> = ({
+  onSubmit,
+  onCancel,
+  isLoading,
+  initialDraft = null,
+  path = 'sentence',
+  onSelectPath,
+}) => {
   const { locale, formatMoney: formatMoneyInLocale } = useI18n();
   const m = useMessages(createEventCatalog);
   const labels = UI_LABELS[locale];
@@ -237,10 +250,23 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
   const [openStep, setOpenStep] = useState<CreateWizardStep>(1);
   const [stepError, setStepError] = useState<string | null>(null);
   const [errorStep, setErrorStep] = useState<CreateWizardStep | null>(null);
-  const [publishReview, setPublishReview] = useState<PublishReview | null>(null);
+  const [reviewVisited, setReviewVisited] = useState(false);
+  const [activePath, setActivePath] = useState<CreatePath>(() => parseCreatePath(path));
   const [focusAfterNav, setFocusAfterNav] = useState<string | null>(null);
   const exampleWarningRef = useRef<HTMLDivElement>(null);
   const posting = useRef(false);
+
+  useEffect(() => {
+    setActivePath(parseCreatePath(path));
+  }, [path]);
+
+  const selectPath = (next: CreatePath) => {
+    setActivePath(next);
+    if (next !== 'interview') setOpenStep(1);
+    setStepError(null);
+    setErrorStep(null);
+    onSelectPath?.(next);
+  };
 
   const { startsAt, endsAt } = computeWhen(template, when);
   const hour = (() => {
@@ -267,8 +293,8 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
     }
   };
 
-  const includeLabel = (key: string): string => {
-    switch (`${template}:${key}`) {
+  const includeLabelFor = (kind: TemplateKind, key: string): string => {
+    switch (`${kind}:${key}`) {
       case 'viaje:hotel':
         return m.includeViajeHotel;
       case 'viaje:transport':
@@ -291,6 +317,8 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
         return key;
     }
   };
+
+  const includeLabel = (key: string): string => includeLabelFor(template, key);
 
   const assembledIncludes = (): string[] => {
     const out: string[] = [];
@@ -336,7 +364,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
     3: labels.stepWhere,
     4: labels.stepShare,
     5: labels.stepLook,
-    6: m.reviewTitle,
+    6: m.reviewSummaryTitle,
   };
   const steps: CreateWizardStep[] = [1, 2, 3, 4, 5, 6];
 
@@ -532,36 +560,47 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
     });
 
   const liveSignature = reviewSignature();
-  const activePublish = publishReview && publishReview.signature === liveSignature ? publishReview : null;
+  const builtLive = buildEventInput(fullFields(), { isEdit: false, isLegacy: false }, m);
+  const liveHits = collectExampleHits(exampleValues(), (key) => m[key]);
+  const needsExampleAck = liveHits.length > 0;
 
   useEffect(() => {
-    if (!activePublish) return;
+    if (openStep !== 6 || !needsExampleAck) return;
     exampleWarningRef.current?.focus();
-  }, [activePublish]);
+  }, [openStep, needsExampleAck, liveSignature]);
+
+  /** First section that stops a valid full payload. Avoids five sequential saves. */
+  const firstInvalidStep = (): CreateWizardStep => {
+    for (const step of [1, 2, 3, 4, 5] as const) {
+      if (validateStep(step)) return step;
+    }
+    return 6;
+  };
+
+  const inputIdForStep = (step: CreateWizardStep): string | null => {
+    if (step === 1) return 'event-title';
+    if (step === 2) return template === 'viaje' ? 'wizard-depart-date' : 'wizard-date';
+    if (step === 3) return 'event-location';
+    if (step === 4) return 'event-price';
+    return null;
+  };
+
+  const jumpToSection = (step: CreateWizardStep, focusId?: string | null) => {
+    setOpenStep(step);
+    if (focusId) setFocusAfterNav(focusId);
+  };
 
   const openReview = () => {
-    const built = buildEventInput(fullFields(), { isEdit: false, isLegacy: false }, m);
-    if (!built.ok) {
-      setStepError(built.message);
-      setErrorStep(6);
-      setOpenStep(6);
-      return;
-    }
     setStepError(null);
     setErrorStep(null);
-    setPublishReview({
-      signature: reviewSignature(),
-      payload: built.payload,
-      hits: collectExampleHits(exampleValues(), (key) => m[key]),
-      datesSuggested: !whenTouched,
-    });
+    setReviewVisited(true);
     setOpenStep(6);
   };
 
   const handleSaveStep = (step: CreateWizardStep) => {
     if (isLoading || posting.current) return;
     if (step === 6) {
-      openReview();
+      void handlePublish();
       return;
     }
     const error = validateStep(step);
@@ -591,7 +630,6 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
     posting.current = true;
     try {
       await onSubmit(payload);
-      setPublishReview(null);
     } catch (err: unknown) {
       setStepError(err instanceof Error ? err.message : m.errSubmit);
       setErrorStep(6);
@@ -600,58 +638,41 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
     }
   };
 
-  const handlePublishReviewed = async () => {
-    if (isLoading || posting.current || !activePublish || activePublish.hits.length > 0) return;
-    const built = buildEventInput(fullFields(), { isEdit: false, isLegacy: false }, m);
-    if (!built.ok) {
-      setStepError(built.message);
-      setErrorStep(6);
-      setPublishReview(null);
+  /** The only publication path: explicit click, fresh validation, fresh payload. */
+  const handlePublish = async () => {
+    if (isLoading || posting.current) return;
+    if (!builtLive.ok) {
+      const target = firstInvalidStep();
+      setStepError(builtLive.message);
+      setErrorStep(target);
+      jumpToSection(target, inputIdForStep(target));
       return;
     }
-    if (
-      reviewSignature() !== activePublish.signature ||
-      JSON.stringify(built.payload) !== JSON.stringify(activePublish.payload)
-    ) {
-      setPublishReview(null);
+    if (needsExampleAck) {
+      exampleWarningRef.current?.focus();
       return;
     }
-    await submitPayload(activePublish.payload);
+    await submitPayload(builtLive.payload);
   };
 
   const handleReviseExamples = () => {
-    if (isLoading || !activePublish || activePublish.hits.length === 0) return;
-    const first: ExampleHit | undefined = activePublish.hits[0];
-    setPublishReview(null);
+    if (isLoading || liveHits.length === 0) return;
+    const first: ExampleHit | undefined = liveHits[0];
     if (!first) return;
     const target: CreateWizardStep = first.field === 'title' ? 1 : 3;
-    setOpenStep(target);
-    setFocusAfterNav(first.inputId);
+    jumpToSection(target, first.inputId);
   };
 
   const handlePublishExamples = async () => {
-    if (isLoading || posting.current || !activePublish || activePublish.hits.length === 0) return;
-    const signature = reviewSignature();
-    if (signature !== activePublish.signature) {
-      setPublishReview(null);
+    if (isLoading || posting.current || liveHits.length === 0) return;
+    if (!builtLive.ok) {
+      const target = firstInvalidStep();
+      setStepError(builtLive.message);
+      setErrorStep(target);
+      jumpToSection(target, inputIdForStep(target));
       return;
     }
-    const built = buildEventInput(fullFields(), { isEdit: false, isLegacy: false }, m);
-    if (!built.ok) {
-      setStepError(built.message);
-      setErrorStep(6);
-      setPublishReview(null);
-      return;
-    }
-    if (collectExampleHits(exampleValues(), (key) => m[key]).length === 0 || reviewSignature() !== signature) {
-      setPublishReview(null);
-      return;
-    }
-    if (JSON.stringify(built.payload) !== JSON.stringify(activePublish.payload)) {
-      setPublishReview(null);
-      return;
-    }
-    await submitPayload(built.payload);
+    await submitPayload(builtLive.payload);
   };
 
   const handleApplyCalculator = () => {
@@ -771,8 +792,18 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
     }
     if (wants.has('includes')) {
       const items = (proposal.includes ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 20);
-      setIncludesFree(items.join(', '));
-      marks.add('includes');
+      const matched: Record<string, boolean> = {};
+      const free: string[] = [];
+      for (const item of items) {
+        const key = INCLUDE_KEYS[nextTemplate].find(
+          (candidate) => includeLabelFor(nextTemplate, candidate).toLowerCase() === item.toLowerCase(),
+        );
+        if (key) matched[`${nextTemplate}:${key}`] = true;
+        else free.push(item);
+      }
+      if (Object.keys(matched).length > 0) setChecks((prev) => ({ ...prev, ...matched }));
+      setIncludesFree(free.join(', '));
+      if (items.length > 0) marks.add('includes');
     }
     if (
       wants.has('headcount') &&
@@ -797,6 +828,12 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
     setDraftNotice(
       proposal.source === 'rules' ? `${m.draftApplied} ${m.draftRules}.` : m.draftApplied,
     );
+    // A draft always lands on the editable summary, never on a locked step 1.
+    selectPath('sentence');
+    setReviewVisited(true);
+    setStepError(null);
+    setErrorStep(null);
+    setOpenStep(6);
   };
 
   /**
@@ -810,7 +847,6 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
   useEffect(() => {
     const apply = (proposal: DraftEventProposal) => {
       applyDraftRef.current(proposal);
-      setOpenStep(1);
     };
     const pending = consumeGuideDraftProposal();
     if (isDraftEventProposal(pending)) apply(pending);
@@ -860,6 +896,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
     if (!initialDraft || autoDraftIdRef.current === initialDraft.id) return;
     autoDraftIdRef.current = initialDraft.id;
     setDraftText(initialDraft.text);
+    setActivePath('sentence');
     void draftFillRef.current(initialDraft.text);
   }, [initialDraft]);
 
@@ -869,6 +906,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
   useEffect(() => {
     const applyPrefill = (sentence: string) => {
       setDraftText(sentence);
+      setActivePath('sentence');
       setOpenStep(1);
     };
     const pending = consumeGuidePrefill();
@@ -880,6 +918,20 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
     };
     document.addEventListener(GUIDE_PREFILL_EVENT, onPrefill);
     return () => document.removeEventListener(GUIDE_PREFILL_EVENT, onPrefill);
+  }, []);
+
+  // Guide targets on /create live in step 1. If the guide asks to highlight the
+  // sentence field while the wizard is showing the summary or the interview,
+  // reopen the sentence path so the documented target stays mounted.
+  useEffect(() => {
+    const onGuideAction = (event: Event) => {
+      const target = (event as CustomEvent<{ target?: string }>).detail?.target;
+      if (target !== 'describeInvitation' && target !== 'fillWithAi') return;
+      setActivePath('sentence');
+      setOpenStep(1);
+    };
+    document.addEventListener(GUIDE_ACTION_EVENT, onGuideAction);
+    return () => document.removeEventListener(GUIDE_ACTION_EVENT, onGuideAction);
   }, []);
 
   const handleSuggestAi = async () => {
@@ -952,6 +1004,11 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
       >
         {labels.saveAndContinue}
       </button>
+      {reviewVisited ? (
+        <button type="button" className="btn btn-secondary" onClick={openReview} disabled={isLoading}>
+          {m.reviewBackToSummary}
+        </button>
+      ) : null}
     </div>
   );
 
@@ -972,45 +1029,47 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
   const renderWhat = () => (
     <>
       <p className="create-wizard__explain">{m.explainWhat}</p>
-      <div className="create-wizard__draft">
-        <label className="form-label" htmlFor="wizard-draft-text" data-guide="describeInvitation">
-          {m.draftTitle}
-        </label>
-        <div className="create-wizard__draft-row">
-          <input
-            id="wizard-draft-text"
-            className="form-input"
-            value={draftText}
-            onChange={(e) => setDraftText(e.target.value)}
-            placeholder={m.draftPlaceholder}
-            maxLength={400}
-            autoComplete="off"
-            aria-describedby="wizard-draft-help"
-          />
-          <button
-            type="button"
-            className="btn btn-primary"
-            data-guide="fillWithAi"
-            onClick={() => void handleDraftFill()}
-            disabled={draftLoading || isLoading}
-          >
-            {draftLoading ? m.draftFilling : m.draftFill}
-          </button>
+      {activePath !== 'manual' ? (
+        <div className="create-wizard__draft">
+          <label className="form-label" htmlFor="wizard-draft-text" data-guide="describeInvitation">
+            {m.draftTitle}
+          </label>
+          <div className="create-wizard__draft-row">
+            <input
+              id="wizard-draft-text"
+              className="form-input"
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+              placeholder={m.draftPlaceholder}
+              maxLength={400}
+              autoComplete="off"
+              aria-describedby="wizard-draft-help"
+            />
+            <button
+              type="button"
+              className="btn btn-primary"
+              data-guide="fillWithAi"
+              onClick={() => void handleDraftFill()}
+              disabled={draftLoading || isLoading}
+            >
+              {draftLoading ? m.draftFilling : m.draftFill}
+            </button>
+          </div>
+          <span id="wizard-draft-help" className="form-label-desc">
+            {m.draftHelp}
+          </span>
+          {draftError ? (
+            <p role="alert" className="create-wizard__error">
+              {draftError}
+            </p>
+          ) : null}
+          {draftNotice ? (
+            <p role="status" className="create-wizard__ai-note">
+              {draftNotice}
+            </p>
+          ) : null}
         </div>
-        <span id="wizard-draft-help" className="form-label-desc">
-          {m.draftHelp}
-        </span>
-        {draftError ? (
-          <p role="alert" className="create-wizard__error">
-            {draftError}
-          </p>
-        ) : null}
-        {draftNotice ? (
-          <p role="status" className="create-wizard__ai-note">
-            {draftNotice}
-          </p>
-        ) : null}
-      </div>
+      ) : null}
       <div>
         <span className="form-label" id="wizard-type-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
           {m.typeLabel} {markBadge('template')}
@@ -1051,7 +1110,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
             setTitle(e.target.value);
           }}
           required
-          placeholder={typeExample(template)}
+          placeholder={m.wizardTitlePlaceholder}
         />
         <button
           type="button"
@@ -1779,15 +1838,16 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
           ))}
         </div>
       </div>
-      <div className="create-wizard__ai">
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={() => void handleSuggestAi()}
-          disabled={aiLoading || isLoading}
-        >
-          {aiLoading ? m.aiLoading : labels.suggestWithAi}
-        </button>
+      {activePath !== 'manual' ? (
+        <div className="create-wizard__ai">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => void handleSuggestAi()}
+            disabled={aiLoading || isLoading}
+          >
+            {aiLoading ? m.aiLoading : labels.suggestWithAi}
+          </button>
         {aiError ? (
           <p role="status" className="create-wizard__ai-note">
             {m.aiError}
@@ -1812,72 +1872,198 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
             </div>
           </div>
         ) : null}
-      </div>
+        </div>
+      ) : null}
     </>
   );
 
-  const reviewedPayload = activePublish?.payload ?? null;
+  const whenReview = (): string => {
+    const startMs = new Date(startsAt).getTime();
+    const endMs = new Date(endsAt).getTime();
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return m.reviewNotSet;
+    return formatEventRange(new Date(startMs).toISOString(), new Date(endMs).toISOString(), undefined, locale);
+  };
+
+  const priceReview = (): string => {
+    const cents = Math.round(parseFloat(priceDollars) * 100);
+    return Number.isFinite(cents) && cents > 0 ? formatMoneyInLocale(cents) : m.reviewNotSet;
+  };
+
+  const capacityReview = (): string => {
+    const value = Number.parseInt(capacity, 10);
+    return Number.isInteger(value) && value > 0 ? String(value) : m.reviewNotSet;
+  };
+
+  const agendaReview = (): string =>
+    agenda
+      .filter((item) => item.title.trim() && item.time.trim())
+      .map((item) => `${item.time} ${item.title}`)
+      .join(' · ');
+
+  type ReviewRowOptions = {
+    mark?: DraftMark;
+    focusId?: string;
+    onEdit?: () => void;
+  };
+
+  const reviewRow = (
+    label: string,
+    value: React.ReactNode,
+    step: CreateWizardStep,
+    options: ReviewRowOptions = {},
+  ) => (
+    <div className="create-wizard__review-row" key={label}>
+      <dt>
+        {label} {options.mark ? markBadge(options.mark) : null}
+      </dt>
+      <dd>{value}</dd>
+      <button
+        type="button"
+        className="btn btn-secondary create-wizard__review-edit"
+        onClick={() => {
+          if (options.onEdit) options.onEdit();
+          else jumpToSection(step, options.focusId);
+        }}
+        disabled={isLoading}
+        aria-label={m.reviewEditAria(label)}
+      >
+        {m.reviewEdit}
+      </button>
+    </div>
+  );
+
+  const editAdvanced = (focusId: string) => {
+    setAdvancedOpen(true);
+    jumpToSection(4, focusId);
+  };
 
   const renderReview = () => (
     <>
       <p className="create-wizard__explain">{m.explainReview}</p>
-      {reviewedPayload ? (
-        <section className="publish-review" aria-label={m.reviewAria} style={themeCssVars(selectedTheme)}>
-          <h3 style={{ margin: 0 }}>{m.reviewTitle}</h3>
-          <p className="theme-phrase" style={{ fontSize: '1.15rem' }}>{themePhrase(selectedTheme.key, locale)}</p>
-          {activePublish?.datesSuggested ? (
-            <p>{m.reviewDatesSuggested}</p>
-          ) : (
-            <p>{m.reviewDatesFixed}</p>
+      <section className="publish-review" aria-label={m.reviewAria} style={themeCssVars(selectedTheme)}>
+        <h3 style={{ margin: 0 }}>{m.reviewSummaryTitle}</h3>
+        <p className="theme-phrase" style={{ fontSize: '1.15rem' }}>{themePhrase(selectedTheme.key, locale)}</p>
+        {draftNotice ? (
+          <p role="status" className="create-wizard__ai-note">
+            {draftNotice}
+          </p>
+        ) : null}
+        <p className={builtLive.ok ? 'create-wizard__review-note' : 'create-wizard__review-note create-wizard__review-note--missing'}>
+          {builtLive.ok ? m.reviewReady : m.reviewIncomplete}
+        </p>
+        {!whenTouched ? <p>{m.reviewDatesSuggestedDraft}</p> : <p>{m.reviewDatesFixed}</p>}
+        <dl className="create-wizard__review-list">
+          {reviewRow(m.reviewType, templateLabels[template], 1, { mark: 'template', focusId: 'event-title' })}
+          {reviewRow(m.reviewHeading, title.trim() || m.reviewNotSet, 1, { mark: 'title', focusId: 'event-title' })}
+          {reviewRow(
+            m.reviewOrganizer,
+            organizerName.trim() ? organizerName : m.reviewNoName,
+            1,
+            { focusId: 'event-organizer' },
           )}
-          <dl>
-            <dt>{m.reviewType}</dt>
-            <dd>{templateInviteCopy(reviewedPayload.template, locale).welcome}</dd>
-            <dt>{m.reviewHeading}</dt>
-            <dd>{reviewedPayload.title}</dd>
-            <dt>{m.reviewOrganizer}</dt>
-            <dd>{organizerLine(reviewedPayload.organizerName, locale) ?? m.reviewNoName}</dd>
-            <dt>{m.reviewWhen}</dt>
-            <dd>{formatEventRange(reviewedPayload.startsAt, reviewedPayload.endsAt, undefined, locale)}</dd>
-            <dt>{m.reviewWhere}</dt>
-            <dd>{reviewedPayload.location}</dd>
-            <dt>{m.reviewPrice}</dt>
-            <dd>{formatMoneyInLocale(reviewedPayload.priceCents)}</dd>
-            <dt>{m.reviewMinimum}</dt>
-            <dd>{reviewedPayload.minimumCents === null ? m.reviewNoMinimum : formatMoneyInLocale(reviewedPayload.minimumCents)}</dd>
-            <dt>{m.reviewGoal}</dt>
-            <dd>{reviewedPayload.goalCents === null ? m.reviewNoGoal : formatMoneyInLocale(reviewedPayload.goalCents)}</dd>
-            {reviewedPayload.template === 'comida' ? (
-              <>
-                <dt>{m.reviewMeal}</dt>
-                <dd style={{ textTransform: 'capitalize' }}>{mealLabel(reviewedPayload.meal, locale)}</dd>
-              </>
-            ) : null}
-          </dl>
-          {activePublish && activePublish.hits.length === 0 ? (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <button type="button" className="btn btn-secondary" onClick={() => setPublishReview(null)} disabled={isLoading}>
-                {m.reviewKeepEditing}
-              </button>
-              <button type="button" className="btn btn-primary btn-theme-primary" onClick={() => void handlePublishReviewed()} disabled={isLoading}>
-                {m.reviewPublish}
-              </button>
-            </div>
-          ) : null}
-        </section>
-      ) : (
+          {reviewRow(
+            m.reviewWhen,
+            <>
+              {whenReview()}
+              <span className="create-wizard__review-sub">{m.reviewTimeZone}</span>
+            </>,
+            2,
+            {
+              mark: !whenTouched ? 'date' : suggestedMarks.has('startTime') ? 'startTime' : undefined,
+              focusId: template === 'viaje' ? 'wizard-depart-date' : 'wizard-date',
+            },
+          )}
+          {reviewRow(m.reviewWhere, location.trim() || m.reviewNotSet, 3, {
+            mark: 'location',
+            focusId: 'event-location',
+          })}
+          {reviewRow(
+            m.reviewIncludes,
+            includes.length > 0 ? includes.join(', ') : m.reviewNoIncludes,
+            3,
+            { mark: 'includes', focusId: 'event-includes' },
+          )}
+          {reviewRow(m.reviewPrice, priceReview(), 4, { mark: 'price', focusId: 'event-price' })}
+          {reviewRow(m.reviewCapacity, capacityReview(), 4, { mark: 'capacity', focusId: 'event-capacity' })}
+          {minimumDollars.trim()
+            ? reviewRow(
+                m.reviewMinimum,
+                formatMoneyInLocale(Math.round(parseFloat(minimumDollars) * 100)),
+                4,
+                { focusId: 'event-minimum', onEdit: () => editAdvanced('event-minimum') },
+              )
+            : null}
+          {goalDollars.trim()
+            ? reviewRow(
+                m.reviewGoal,
+                formatMoneyInLocale(Math.round(parseFloat(goalDollars) * 100)),
+                4,
+                { focusId: 'event-goal', onEdit: () => editAdvanced('event-goal') },
+              )
+            : null}
+          {deadlineLocal.trim()
+            ? reviewRow(m.reviewDeadline, deadlineLocal.replace('T', ' '), 4, {
+                focusId: 'event-funding-deadline',
+                onEdit: () => editAdvanced('event-funding-deadline'),
+              })
+            : null}
+          {template === 'comida'
+            ? reviewRow(m.reviewMeal, capitalLabel(mealLabel(meal, locale), locale), 2, {
+                mark: 'meal',
+                focusId: 'wizard-meal',
+              })
+            : null}
+          {foodStyleText
+            ? reviewRow(m.reviewFoodStyle, foodStyleText, 2, { focusId: 'wizard-meal' })
+            : null}
+          {template === 'evento' && agendaReview()
+            ? reviewRow(m.reviewAgenda, agendaReview(), 2)
+            : null}
+          {reviewRow(
+            m.reviewTheme,
+            <>
+              {themeLabel(theme, locale)}
+              {!themeTouched ? <span className="create-wizard__suggested-badge">{m.draftRules}</span> : null}
+            </>,
+            5,
+          )}
+          {reviewRow(
+            m.reviewDescription,
+            description.trim() ? description.trim() : m.reviewNoDescription,
+            3,
+            { focusId: 'event-desc' },
+          )}
+        </dl>
         <div className="create-wizard__actions">
           <button
             type="button"
-            className="btn btn-primary"
-            onClick={() => handleSaveStep(6)}
+            className="btn btn-secondary"
+            onClick={() => {
+              const target = builtLive.ok ? 1 : firstInvalidStep();
+              setReviewVisited(true);
+              jumpToSection(target, target === 6 ? null : inputIdForStep(target));
+            }}
             disabled={isLoading}
           >
-            {isLoading ? m.saving : m.reviewTitle}
+            {m.reviewKeepEditing}
           </button>
+          {!builtLive.ok ? (
+            <button type="button" className="btn btn-primary" onClick={() => void handlePublish()} disabled={isLoading}>
+              {m.reviewComplete}
+            </button>
+          ) : needsExampleAck ? null : (
+            <button
+              type="button"
+              className="btn btn-primary btn-theme-primary"
+              onClick={() => void handlePublish()}
+              disabled={isLoading}
+            >
+              {m.reviewPublish}
+            </button>
+          )}
         </div>
-      )}
-      {activePublish && activePublish.hits.length > 0 ? (
+      </section>
+      {needsExampleAck ? (
         <div
           ref={exampleWarningRef}
           id="example-values-warning"
@@ -1897,7 +2083,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
             {m.exampleTitle}
           </p>
           <ul style={{ margin: '0 0 0.75rem', paddingLeft: '1.25rem' }}>
-            {activePublish.hits.map((hit) => (
+            {liveHits.map((hit) => (
               <li key={hit.field}>
                 {hit.label}: {hit.raw}
               </li>
@@ -1907,7 +2093,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
             <button type="button" className="btn btn-secondary" onClick={handleReviseExamples} disabled={isLoading}>
               {m.exampleRevise}
             </button>
-            <button type="button" className="btn btn-primary" onClick={handlePublishExamples} disabled={isLoading}>
+            <button type="button" className="btn btn-primary" onClick={() => void handlePublishExamples()} disabled={isLoading}>
               {m.examplePublish}
             </button>
           </div>
@@ -2012,52 +2198,83 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({ onSubmit, onCancel, 
     }
   };
 
+  const pathLabels: Record<CreatePath, string> = {
+    sentence: m.pathSentence,
+    interview: m.pathInterview,
+    manual: m.pathManual,
+  };
+
   return (
     <section aria-label={m.wizardAria} className="create-wizard">
       <div className="create-wizard__header">
         <h2 className="create-wizard__title">{labels.createWizardTitle}</h2>
       </div>
+      <div className="create-wizard__paths" role="group" aria-label={m.pathLabel}>
+        {(['sentence', 'interview', 'manual'] as CreatePath[]).map((option) => (
+          <button
+            key={option}
+            type="button"
+            className="create-wizard__path"
+            data-selected={activePath === option}
+            aria-pressed={activePath === option}
+            onClick={() => selectPath(option)}
+            disabled={isLoading}
+          >
+            {pathLabels[option]}
+          </button>
+        ))}
+      </div>
       <p className="create-wizard__live" aria-live="polite">
-        {titles[openStep]}
+        {activePath === 'interview' ? m.interviewTitle : titles[openStep]}
       </p>
-      <ol className="create-wizard__steps">
-        {steps.map((step) => {
-          const state = stepState(step);
-          return (
-            <li
-              key={step}
-              ref={(element) => {
-                stepRefs.current[step] = element;
-              }}
-              tabIndex={state === 'open' ? -1 : undefined}
-              aria-current={state === 'open' ? 'step' : undefined}
-              aria-disabled={state === 'locked' ? true : undefined}
-              data-step-state={state}
-              className={`create-wizard__step create-wizard__step--${state}`}
-            >
-              <div className="create-wizard__step-head">
-                <span aria-hidden="true" className="create-wizard__badge">
-                  {state === 'done' ? (
-                    <Check size={14} aria-hidden="true" />
-                  ) : state === 'locked' ? (
-                    <Lock size={14} aria-hidden="true" />
-                  ) : (
-                    step
-                  )}
-                </span>
-                <strong className="create-wizard__step-title">{titles[step]}</strong>
-              </div>
-              {state === 'locked' ? (
-                <p className="create-wizard__locked-hint">{m.lockedHint(titles[(step - 1) as CreateWizardStep])}</p>
-              ) : state === 'done' ? (
-                <div className="create-wizard__step-body">{renderDoneBody(step)}</div>
-              ) : (
-                <div className="create-wizard__step-body">{renderStepBody(step)}</div>
-              )}
-            </li>
-          );
-        })}
-      </ol>
+      {activePath === 'interview' ? (
+        <CreateInterview
+          onProposal={applyDraftProposal}
+          onManual={() => selectPath('manual')}
+          onCancel={onCancel}
+        />
+      ) : (
+        <ol className="create-wizard__steps">
+          {(openStep === 6 ? [6 as const] : steps).map((step) => {
+            const state = stepState(step);
+            return (
+              <li
+                key={step}
+                ref={(element) => {
+                  stepRefs.current[step] = element;
+                }}
+                tabIndex={state === 'open' ? -1 : undefined}
+                aria-current={state === 'open' ? 'step' : undefined}
+                aria-disabled={state === 'locked' ? true : undefined}
+                data-step-state={state}
+                className={`create-wizard__step create-wizard__step--${state}`}
+              >
+                {step !== 6 || state !== 'open' ? (
+                  <div className="create-wizard__step-head">
+                    <span aria-hidden="true" className="create-wizard__badge">
+                      {state === 'done' ? (
+                        <Check size={14} aria-hidden="true" />
+                      ) : state === 'locked' ? (
+                        <Lock size={14} aria-hidden="true" />
+                      ) : (
+                        step
+                      )}
+                    </span>
+                    <strong className="create-wizard__step-title">{titles[step]}</strong>
+                  </div>
+                ) : null}
+                {state === 'locked' ? (
+                  <p className="create-wizard__locked-hint">{m.lockedHint(titles[(step - 1) as CreateWizardStep])}</p>
+                ) : state === 'done' ? (
+                  <div className="create-wizard__step-body">{renderDoneBody(step)}</div>
+                ) : (
+                  <div className="create-wizard__step-body">{renderStepBody(step)}</div>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      )}
       <div className="create-wizard__footer">
         <button type="button" onClick={onCancel} className="btn btn-secondary" disabled={isLoading}>
           {m.cancel}
