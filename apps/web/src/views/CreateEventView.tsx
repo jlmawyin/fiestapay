@@ -7,6 +7,7 @@ import { createEventCatalog } from '../i18n/messages/organizerCreate';
 import { OrganizerLinkCard } from '../components/dashboard/OrganizerLinkCard';
 import { RecoveryEmailCard } from '../components/dashboard/RecoveryEmailCard';
 import { CreateWizard } from '../components/events/CreateWizard';
+import type { CreatePath } from '../lib/create-interview';
 
 export interface CreateDraftRequest {
   text: string;
@@ -21,6 +22,9 @@ interface CreateEventViewProps {
   /** One-shot prefill from the judges-demo AI step. Consumed on mount. */
   draftRequest?: CreateDraftRequest | null;
   onConsumeDraftRequest?: () => void;
+  /** Bounded /create?path=… entry point. */
+  createPath?: CreatePath;
+  onSelectCreatePath?: (path: CreatePath) => void;
 }
 
 export const CreateEventView: React.FC<CreateEventViewProps> = ({
@@ -30,6 +34,8 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
   recoveryAvailable = false,
   draftRequest = null,
   onConsumeDraftRequest,
+  createPath = 'sentence',
+  onSelectCreatePath,
 }) => {
   const m = useMessages(createEventCatalog);
   const [isLoading, setIsLoading] = useState(false);
@@ -123,6 +129,8 @@ export const CreateEventView: React.FC<CreateEventViewProps> = ({
               onCancel={onCancel}
               isLoading={isLoading}
               initialDraft={draftRequest}
+              path={createPath}
+              onSelectPath={onSelectCreatePath}
             />
           </>
         )}

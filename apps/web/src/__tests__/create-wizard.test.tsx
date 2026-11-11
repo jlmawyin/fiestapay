@@ -95,7 +95,7 @@ describe('creation wizard structure', () => {
     expectStepState(L.stepWhere, 'locked');
     expectStepState(L.stepShare, 'locked');
     expectStepState(L.stepLook, 'locked');
-    expectStepState('Revisar invitación', 'locked');
+    expectStepState('Revisar y publicar', 'locked');
     expect(screen.getByLabelText(/Título del Evento/i)).toBeInTheDocument();
     // Later steps stay locked: their forms never render.
     expect(screen.queryByLabelText(/Lugar o Dirección/i)).toBeNull();
@@ -704,7 +704,7 @@ describe('wizard ES/EN parity', () => {
     'Cambiar',
     'Título del Evento',
     'Cuota por persona',
-    'Revisar invitación',
+    'Revisar y publicar',
     'Publicar invitación',
     'Opciones avanzadas',
     'Sugerir con IA',

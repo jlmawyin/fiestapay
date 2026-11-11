@@ -1,5 +1,4 @@
-import type { ChatResult } from '@fiestapay/shared';
-import type { Locale } from '@fiestapay/shared';
+import { UI_LABELS, type ChatResult, type Locale, type Quote } from '@fiestapay/shared';
 import type { Config, OpenAIConfig } from '../config.js';
 import type { Pool } from '../db/pool.js';
 import { HttpError, annotateHttpError, unavailable } from '../errors.js';
@@ -46,6 +45,14 @@ function assistantFailed(locale: Locale): string {
 
 function fallbackText(locale: Locale): string {
   return locale === 'en' ? FALLBACK_TEXT_EN : FALLBACK_TEXT_ES;
+}
+
+function preparedQuoteReply(quote: Quote, locale: Locale): string {
+  if (quote.amountCents === 0) return quote.summary;
+  const labels = UI_LABELS[locale];
+  return locale === 'en'
+    ? quote.summary + '. Review the amount under "' + labels.quoteReview + '" and choose "' + labels.generatePayment + '" when ready.'
+    : quote.summary + '. Revisa el importe en "' + labels.quoteReview + '" y elige "' + labels.generatePayment + '" cuando estés listo.';
 }
 
 /** Test seam: a scripted model replaces the provider HTTP round trip. */
@@ -132,6 +139,7 @@ export async function converse(
     signal?: AbortSignal;
     locale?: Locale;
     startedAt?: number;
+    quoteReply?: (quote: Quote) => string;
   },
 ): Promise<ConversationResult> {
   const allowedTools = options?.allowedTools ?? TOOL_NAMES;
@@ -145,6 +153,11 @@ export async function converse(
   for (let round = 0; round <= adapter.maxToolRounds; round += 1) {
     const pendingRound = adapter.round(history, signal);
     const output = signal ? await withinDeadline(signal, pendingRound, locale, startedAt) : await pendingRound;
+    if (quote && options?.quoteReply && (output.calls.length === 0 || round === adapter.maxToolRounds)) {
+      text = options.quoteReply(quote);
+      await persist({ role: 'model', parts: [{ text }] });
+      break;
+    }
     if (output.turn) {
       history.push(output.turn);
       await persist(output.turn);
@@ -320,7 +333,7 @@ export async function chatWithAssistant(
           const saved = await appendChatTurn(pool, event.id, sessionId, turn.role, turn.parts, storedUser.revision);
           if (turn.role === 'model') assistantIds.push(saved.id);
         },
-        { signal, locale, startedAt },
+        { signal, locale, startedAt, quoteReply: (quote) => preparedQuoteReply(quote, locale) },
       );
     } catch (err) {
       if (isAbortLike(err, signal) || (err instanceof HttpError && err.logCause === 'timeout')) {

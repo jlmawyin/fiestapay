@@ -12,14 +12,16 @@ import type {
 } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
-import { UI_LABELS } from '@fiestapay/shared';
+import { UI_LABELS, type PaymentActivityItem } from '@fiestapay/shared';
 import { startGuidedTour } from '../guide/showOnScreen';
 import type { Capabilities, FiestaEvent } from '../types';
 import { Modal } from '../components/common/Modal';
 import { GridToolbar } from '../components/common/GridToolbar';
 import { EventCard } from '../components/demo/EventCard';
 import { VoiceWelcomeCard } from '../components/voice/VoiceWelcomeCard';
+import { PaymentActivityPanel } from '../components/dashboard/PaymentActivityPanel';
 import { PayPalAiPanel } from '../components/demo/PayPalAiPanel';
+import { PublicChatAssistant } from '../components/chat/PublicChatAssistant';
 import { SamplePartyCards } from '../components/demo/SamplePartyCards';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { cardsCatalog } from '../i18n/catalogs/cards';
@@ -31,6 +33,7 @@ import { SAMPLE_PARTIES, samplePartyById, samplePartyTitle, sampleTotals, type S
 export interface JudgePreviewViewProps {
   /** Session events; only `isDemo === true` rows are listed here. */
   events?: FiestaEvent[];
+  quickPath?: boolean;
   isLoading?: boolean;
   /** Voice capabilities. The welcome card only shows while voice is known to be on. */
   capabilities?: Capabilities | null;
@@ -52,6 +55,11 @@ export interface JudgePreviewViewProps {
   onNavigateRecover?: () => void;
   onBack: () => void;
 }
+
+const EXAMPLE_PAYMENT_ACTIVITY: PaymentActivityItem[] = [
+  { id: 'sample-refund', kind: 'refund', guestName: 'Sam', amountCents: -500, captureId: 'EXAMPLE-01', createdAt: '2026-11-10T20:15:00Z' },
+  { id: 'sample-capture', kind: 'capture', guestName: 'Sam', amountCents: 2500, captureId: 'EXAMPLE-01', createdAt: '2026-11-10T19:00:00Z' },
+];
 
 type DemoCopy = (typeof demoCatalog)['es'];
 
@@ -88,6 +96,7 @@ const GRID_LOCALE_TEXT_ES = {
  */
 export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
   events = [],
+  quickPath = false,
   isLoading = false,
   capabilities = null,
   eventsError = null,
@@ -343,6 +352,27 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         ) : null}
       </section>
 
+      {quickPath ? (
+        <section className="panel" aria-labelledby="judge-quick-heading" style={{ display: 'grid', gap: '0.75rem', minWidth: 0 }}>
+          <h2 id="judge-quick-heading">{m.quickTitle}</h2>
+          <p>{m.quickIntro}</p>
+          <PublicChatAssistant
+            capabilities={capabilities}
+            embedded
+            open
+            context="demo"
+            idSuffix="judge-quick"
+            key={locale}
+            initialMessage={m.quickExample}
+          />
+          <div>
+            <button type="button" className="btn btn-teal" onClick={() => void handlePaymentDemo()} disabled={isPaying || !onStartPaymentDemo}>
+              {isPaying ? m.paymentLoading : labels.paymentDemo}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       <section aria-label={m.sampleTitle} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', minWidth: 0 }}>
         <div>
           <h2 style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>{m.sampleTitle}</h2>
@@ -354,6 +384,10 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
       </section>
 
       <PayPalAiPanel />
+      <details>
+        <summary>{m.quickSampleActivity}</summary>
+        <PaymentActivityPanel activity={EXAMPLE_PAYMENT_ACTIVITY} notifications={[]} example />
+      </details>
 
       <ol style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: 0, margin: 0 }}>
         <li

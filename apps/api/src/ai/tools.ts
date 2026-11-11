@@ -1,4 +1,4 @@
-import { VOICE_PAYMENT_PENDING, usd, type Locale, type Quote } from '@fiestapay/shared';
+import { UI_LABELS, VOICE_PAYMENT_PENDING, formatMoney, type Locale, type Quote } from '@fiestapay/shared';
 import { z } from 'zod';
 import type { Pool } from '../db/pool.js';
 import { MAX_COMPANIONS } from '../lib/schemas.js';
@@ -94,7 +94,7 @@ const rsvpProposalSchema = z.object({
 const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 
-function eventDetails(event: EventRow, totals: { collectedCents: number; confirmedPeople: number }) {
+function eventDetails(event: EventRow, totals: { collectedCents: number; confirmedPeople: number }, locale: Locale) {
   const meal = mealForTemplate(event.template, event.meal);
   return {
     titulo: event.title,
@@ -109,7 +109,7 @@ function eventDetails(event: EventRow, totals: { collectedCents: number; confirm
     lugar: event.location,
     incluye: Array.isArray(event.includes) ? event.includes : [],
     agenda: Array.isArray(event.agenda) ? event.agenda : [],
-    precio_por_persona: usd(event.price_cents),
+    precio_por_persona: formatMoney(event.price_cents, locale),
     precio_por_persona_centavos: event.price_cents,
     cupo_maximo: event.capacity,
     personas_confirmadas: totals.confirmedPeople,
@@ -120,11 +120,13 @@ function eventDetails(event: EventRow, totals: { collectedCents: number; confirm
 export async function runTool(ctx: ToolContext, name: string, rawArgs: unknown): Promise<ToolOutcome> {
   await assertSessionMayAct(ctx.pool, ctx.event.id, ctx.sessionId);
   const args = asRecord(rawArgs);
+  const locale = ctx.locale ?? 'es';
+  const money = (cents: number) => formatMoney(cents, locale);
 
   switch (name) {
     case 'get_event_details': {
       const totals = await eventTotals(ctx.pool, ctx.event.id);
-      return { response: eventDetails(ctx.event, totals) };
+      return { response: eventDetails(ctx.event, totals, locale) };
     }
 
     case 'get_my_status': {
@@ -139,9 +141,9 @@ export async function runTool(ctx: ToolContext, name: string, rawArgs: unknown):
           nombre: ctx.guest.name,
           asistencia: ctx.guest.status,
           acompanantes: ctx.guest.companions,
-          pagado: usd(paid),
+          pagado: money(paid),
           pagado_centavos: paid,
-          pendiente: usd(due),
+          pendiente: money(due),
           pendiente_centavos: due,
           estado_legible:
             ctx.guest.status !== 'yes'
@@ -160,12 +162,12 @@ export async function runTool(ctx: ToolContext, name: string, rawArgs: unknown):
       const goal = facts.goalCents;
       return {
         response: {
-          recaudado_bruto: usd(facts.collectedCents),
+          recaudado_bruto: money(facts.collectedCents),
           recaudado_bruto_centavos: facts.collectedCents,
-          meta: goal === null ? null : usd(goal),
+          meta: goal === null ? null : money(goal),
           meta_centavos: goal,
           meta_faltante_centavos: goal === null ? null : Math.max(0, goal - facts.collectedCents),
-          minimo: minimum === null ? null : usd(minimum),
+          minimo: minimum === null ? null : money(minimum),
           minimo_centavos: minimum,
           minimo_faltante_centavos: minimum === null ? null : Math.max(0, minimum - facts.collectedCents),
           minimo_alcanzado: minimum !== null && facts.collectedCents >= minimum,
@@ -173,11 +175,11 @@ export async function runTool(ctx: ToolContext, name: string, rawArgs: unknown):
           estado_financiamiento: facts.fundingStatus,
           fecha_limite: facts.fundingDeadlineAt,
           fecha_limite_guayaquil: facts.fundingDeadlineLabel,
-          reembolso_registrado: usd(facts.refundedCents),
+          reembolso_registrado: money(facts.refundedCents),
           reembolso_registrado_centavos: facts.refundedCents,
-          reembolso_pendiente: usd(facts.pendingRefundCents),
+          reembolso_pendiente: money(facts.pendingRefundCents),
           reembolso_pendiente_centavos: facts.pendingRefundCents,
-          reembolso_en_revision: usd(facts.needsReviewRefundCents),
+          reembolso_en_revision: money(facts.needsReviewRefundCents),
           reembolso_en_revision_centavos: facts.needsReviewRefundCents,
           nota: `${minimumRefundText(facts)} El recaudado (antes de comisiones), el minimo y la meta salen del servidor. El minimo y la meta no son el mismo numero.`,
         },
@@ -210,23 +212,27 @@ export async function runTool(ctx: ToolContext, name: string, rawArgs: unknown):
         ctx.event.slug,
         ctx.quoteTtlSeconds,
         null,
-        ctx.locale ?? 'es',
+        locale,
       );
-      const nextStep = ctx.locale === 'en'
-        ? 'Press "Approve in PayPal" on screen and approve the payment inside PayPal. The assistant cannot charge or confirm it: only a capture verified by the server counts as paid.'
-        : 'Pulsa «Aprobar en PayPal» en pantalla y aprueba el pago dentro de PayPal. El asistente no cobra ni confirma el pago: solo una captura verificada por el servidor cuenta como pagado.';
+      const labels = UI_LABELS[locale];
+      const nextStep = locale === 'en'
+        ? 'Use the "Approve in PayPal" card to review the quote, then approve personally inside PayPal. Only a server-verified capture counts as paid.'
+        : 'Usa la tarjeta «Aprobar en PayPal» para revisar la cotización y después aprueba personalmente en PayPal. Solo una captura verificada por el servidor cuenta como pagada.';
       return {
         response: {
           ok: true,
           estado: VOICE_PAYMENT_PENDING,
           resumen: quote.summary,
           personas: quote.people,
-          total: usd(quote.totalCents),
-          a_pagar: usd(quote.amountCents),
+          total: money(quote.totalCents),
+          a_pagar: money(quote.amountCents),
           a_pagar_centavos: quote.amountCents,
           vence: quote.expiresAt,
           siguiente_paso: nextStep,
-          nota: 'Repite el resumen y pide confirmacion; el pago solo ocurre si la persona lo aprueba en la interfaz y en PayPal.',
+          boton_de_pago: labels.generatePayment,
+          nota: locale === 'en'
+            ? 'Read resumen exactly as provided. Quote the button label without adding an amount.'
+            : 'Lee resumen tal como se entrega. Cita la etiqueta del botón sin añadir un importe.',
         },
         quote,
         actions: quote.amountCents > 0 ? ['pay'] : [],

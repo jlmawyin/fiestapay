@@ -14,9 +14,9 @@
 ## 0:00–0:25 — The AI builds the party
 
 1. On `/demo?lang=en`, open the public chat and type: **“Build a BBQ for 10 at $15 each.”**
-2. The agent answers with a complete proposal card: event type, 10 people, the server-computed USD 15 share per person, date and place. Press **Review in Create**; the whole proposal opens in the creation wizard.
-3. Review the pre-filled fields and point out the boundary: AI prepared the draft, but the **server** computes the per-person amount in integer cents. Press **Publish** once, manually, only when the invitation looks right. The agent never publishes it.
-4. The normal creation wizard also offers **Describe your invitation in one sentence** → **Fill with AI** (`POST /api/ai/draft-event`). AI reminders are drafted later in friendly, funny or formal tones; the organizer sends them personally.
+2. The agent answers with a complete proposal card: event type, 10 people, and the server-computed USD 15 share per person. Check the date, place and other suggestions in the editor. Press **Review in Create**; the whole proposal opens in the creation wizard.
+3. Check the editable summary, including the suggested fields and the share in integer cents. Fill any required details and press **Publish** yourself when the invitation is ready.
+4. From the home page, **I already have an idea** takes one sentence, **Help me plan it** starts a short interview, and **I’ll fill the form myself** opens the manual form. Both AI options open the same editable summary. AI reminders are drafted later in friendly, funny or formal tones; the organizer sends them personally.
 
 ## 0:25–0:55 — The voice agent guides you
 
@@ -45,7 +45,7 @@ The runtime is **Gemini only**: voice is `gemini-3.8-live` through the Gemini Li
 
 ## 2:10–3:00 — Organizer dashboard and AI reminder
 
-1. Open the organizer dashboard. In **AG Grid Community**, use quick search, toggle **Pending only**, sort a column and export **CSV**. Show the highlighted rows and the totals row calculated by the server.
+1. Open the organizer dashboard. In **AG Grid Community**, use quick search, toggle **Pending only**, sort a column and export **CSV**. Check the highlighted rows and the totals row calculated by the server. Open **PayPal activity** to see the capture amount and reference. The panel also shows verified refunds if any exist and signed notifications reconciled for the event after the activity feature was enabled.
 2. Ask the organizer assistant for a read-only summary: collection progress, who still owes and reminder drafts. It cannot change the ledger, approve payments or confirm attendance.
 3. Draft a reminder in a **friendly**, **funny** or **formal** tone. Use **Copy** or open the WhatsApp draft; the organizer sends it personally. FiestaPay never sends messages automatically.
 4. Close on the product boundary: *the agent guides and prepares; people approve in PayPal; only a server-verified capture counts as paid.*

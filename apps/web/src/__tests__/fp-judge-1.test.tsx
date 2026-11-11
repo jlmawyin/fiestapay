@@ -312,9 +312,12 @@ describe('FP-JUDGE-1 AI prefill into /create', () => {
     expect(input.value).toBe('Parrillada para 10 amigos, $15 cada uno, el sábado a las 4 pm en el parque');
     await waitFor(() => expect(draft).toHaveBeenCalledTimes(1));
     expect(draft).toHaveBeenCalledWith('Parrillada para 10 amigos, $15 cada uno, el sábado a las 4 pm en el parque');
-    // The proposal lands for review; nothing is published by itself.
-    expect(await screen.findByText('Campos rellenados. Revisa cada paso antes de crear.')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Título del Evento/i)).toHaveValue('BBQ Saturday');
+    // The proposal lands on the editable summary; nothing is published by itself.
+    expect(await screen.findByRole('heading', { name: 'Revisar y publicar' })).toBeInTheDocument();
+    expect(
+      screen.getByText(/Redacté tu invitación\. Los campos sugeridos están marcados/),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText('BBQ Saturday').length).toBeGreaterThan(0);
     await waitFor(() => expect(draft).toHaveBeenCalledTimes(1));
   });
 

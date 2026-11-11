@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DraftEventProposal } from '@fiestapay/shared';
 import { CreateWizard } from '../components/events/CreateWizard';
@@ -44,8 +44,8 @@ function saveStepEs(): void {
   fireEvent.click(screen.getByRole('button', { name: 'Guardar y seguir' }));
 }
 
-function saveStepEn(): void {
-  fireEvent.click(screen.getByRole('button', { name: 'Save and continue' }));
+function summaryRegion(): HTMLElement {
+  return screen.getByRole('region', { name: 'Resumen de la invitación' });
 }
 
 function fillSentenceEs(sentence: string): void {
@@ -83,46 +83,33 @@ const COMIDA_PROPOSAL = (date: string): DraftEventProposal => ({
 });
 
 describe('draft-event fill (ES)', () => {
-  it('fills every wizard step from the proposal and publishes once with those values', async () => {
+  it('opens the editable summary and publishes exactly once with those values', async () => {
     const date = futureDate(9);
     const draft = vi.spyOn(api, 'draftEvent').mockResolvedValue(COMIDA_PROPOSAL(date));
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     renderEs(<CreateWizard onSubmit={onSubmit} onCancel={vi.fn()} isLoading={false} />);
 
-    expect(screen.getByPlaceholderText('Asado para 10 el sábado a las 13:00 con $150')).toBeInTheDocument();
-    fillSentenceEs('Asado para 10 el sábado a las 13:00 con $150');
+    expect(
+      screen.getByPlaceholderText('Asado para 10 el sábado a las 13:00, $15 cada uno'),
+    ).toBeInTheDocument();
+    fillSentenceEs('Asado para 10 el sábado a las 13:00, $15 cada uno');
 
     await waitFor(() => {
-      expect(screen.getAllByText('Sugerido por IA')).toHaveLength(2);
+      expect(screen.getByRole('heading', { name: 'Revisar y publicar' })).toBeInTheDocument();
     });
     expect(draft).toHaveBeenCalledTimes(1);
-    expect(draft).toHaveBeenCalledWith('Asado para 10 el sábado a las 13:00 con $150');
+    expect(draft).toHaveBeenCalledWith('Asado para 10 el sábado a las 13:00, $15 cada uno');
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(screen.getByRole('status')).toHaveTextContent('Campos rellenados. Revisa cada paso antes de crear.');
-    expect(screen.getByLabelText(/Título del Evento/i)).toHaveValue('Asado del sábado');
+    expect(
+      screen.getByText(/Redacté tu invitación\. Los campos sugeridos están marcados/),
+    ).toBeInTheDocument();
+    const summary = summaryRegion();
+    expect(within(summary).getByText('Asado del sábado')).toBeInTheDocument();
+    expect(within(summary).getByText('Parque Central')).toBeInTheDocument();
+    expect(within(summary).getByText('Carne, Bebidas')).toBeInTheDocument();
+    expect(within(summary).getByText(/15,00/)).toBeInTheDocument();
+    expect(screen.getAllByText('Sugerido por IA').length).toBeGreaterThan(0);
 
-    saveStepEs();
-    expect((screen.getByLabelText(/Fecha/) as HTMLInputElement).value).toBe(date);
-    expect((screen.getByLabelText(/Hora de inicio/) as HTMLInputElement).value).toBe('13:00');
-    expect(screen.getByRole('radio', { name: '3 h' })).toHaveAttribute('aria-checked', 'true');
-    expect((screen.getByLabelText(/Tipo de Comida/) as HTMLSelectElement).value).toBe('almuerzo');
-    expect(screen.getAllByText('Sugerido por IA')).toHaveLength(4);
-
-    saveStepEs();
-    expect(screen.getByLabelText(/Lugar o Dirección/i)).toHaveValue('Parque Central');
-    expect(screen.getByLabelText(/Qué incluye la cuota/i)).toHaveValue('Carne, Bebidas');
-    expect(screen.getAllByText('Sugerido por IA')).toHaveLength(2);
-
-    saveStepEs();
-    // The server per-person share is shown as is: 1500 cents -> 15.00.
-    expect(screen.getByLabelText(/Cuota por persona/i)).toHaveValue(15);
-    expect(screen.getByLabelText(/Capacidad máxima/i)).toHaveValue(10);
-    expect(screen.getAllByText('Sugerido por IA')).toHaveLength(2);
-
-    saveStepEs();
-    saveStepEs();
-    expect(screen.getByText('Estas fechas son una sugerencia. Publicar la invitación las confirma.')).toBeInTheDocument();
-    expect(onSubmit).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Publicar invitación' }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
 
@@ -138,23 +125,27 @@ describe('draft-event fill (ES)', () => {
     expect(payload.capacity).toBe(10);
   });
 
-  it('clears only the edited field mark', async () => {
+  it('clears only the edited field mark and refreshes the summary', async () => {
     const date = futureDate(9);
     vi.spyOn(api, 'draftEvent').mockResolvedValue(COMIDA_PROPOSAL(date));
     renderEs(<CreateWizard onSubmit={vi.fn()} onCancel={vi.fn()} isLoading={false} />);
-    fillSentenceEs('Asado para 10 el sábado a las 13:00 con $150');
+    fillSentenceEs('Asado para 10 el sábado a las 13:00, $15 cada uno');
     await waitFor(() => {
-      expect(screen.getAllByText('Sugerido por IA')).toHaveLength(2);
+      expect(screen.getByRole('heading', { name: 'Revisar y publicar' })).toBeInTheDocument();
     });
+    const before = screen.getAllByText('Sugerido por IA').length;
 
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Título' }));
     fireEvent.change(screen.getByLabelText(/Título del Evento/i), { target: { value: 'Mi propio título' } });
+    // Only the untouched template mark remains in the step 1 form.
     expect(screen.getAllByText('Sugerido por IA')).toHaveLength(1);
 
-    fireEvent.click(screen.getByRole('radio', { name: /Evento/ }));
-    expect(screen.queryByText('Sugerido por IA')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Volver al resumen' }));
+    expect(screen.getAllByText('Sugerido por IA')).toHaveLength(before - 1);
+    expect(screen.getAllByText('Mi propio título').length).toBeGreaterThan(0);
   });
 
-  it('switches template and shows rules output as automatic suggestion, never as AI', async () => {
+  it('shows rules output as automatic suggestion and keeps the date/time editable', async () => {
     const date = futureDate(9);
     vi.spyOn(api, 'draftEvent').mockResolvedValue({
       template: 'casa',
@@ -171,20 +162,21 @@ describe('draft-event fill (ES)', () => {
     fillSentenceEs('Noche de juegos en casa');
 
     await waitFor(() => {
-      expect(screen.getAllByText('Sugerencia automática')).toHaveLength(2);
+      expect(screen.getByRole('heading', { name: 'Revisar y publicar' })).toBeInTheDocument();
     });
     expect(screen.queryByText('Sugerido por IA')).toBeNull();
-    expect(screen.getByRole('radio', { name: /En Casa/ })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByLabelText(/Título del Evento/i)).toHaveValue('Noche de juegos');
+    expect(screen.getAllByText('Sugerencia automática').length).toBeGreaterThan(0);
+    expect(screen.getByText('En Casa')).toBeInTheDocument();
+    expect(screen.getAllByText('Noche de juegos').length).toBeGreaterThan(0);
 
-    saveStepEs();
-    expect((screen.getByLabelText(/Fecha/) as HTMLInputElement).value).toBe(date);
-    expect((screen.getByLabelText(/Hora de llegada/) as HTMLInputElement).value).toBe('20:00');
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Cuándo' }));
+    expect((screen.getByLabelText('Fecha') as HTMLInputElement).value).toBe(date);
+    expect((screen.getByLabelText('Hora de llegada') as HTMLInputElement).value).toBe('20:00');
     expect(screen.getByRole('radio', { name: '+3 h' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getAllByText('Sugerencia automática')).toHaveLength(3);
   });
 
-  it('applies only the suggested fields and leaves the rest untouched', async () => {
+  it('applies only the suggested fields and leaves the rest empty', async () => {
     vi.spyOn(api, 'draftEvent').mockResolvedValue({
       template: 'viaje',
       title: 'Ruta a la playa',
@@ -197,13 +189,13 @@ describe('draft-event fill (ES)', () => {
     fillSentenceEs('Ruta a la playa');
 
     await waitFor(() => {
-      expect(screen.getAllByText('Sugerido por IA')).toHaveLength(1);
+      expect(screen.getAllByText('Ruta a la playa').length).toBeGreaterThan(0);
     });
-    expect(screen.getByLabelText(/Título del Evento/i)).toHaveValue('Ruta a la playa');
-    expect(screen.getByRole('radio', { name: /Comida/ })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getAllByText('Sugerido por IA')).toHaveLength(1);
+    expect(screen.getAllByText(/Aún sin definir/).length).toBeGreaterThan(0);
+    expect(screen.getByText('Aún no hay nada incluido')).toBeInTheDocument();
 
-    saveStepEs();
-    saveStepEs();
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Lugar' }));
     expect((screen.getByLabelText(/Lugar o Dirección/i) as HTMLInputElement).value).toBe('');
   });
 
@@ -222,9 +214,9 @@ describe('draft-event fill (ES)', () => {
     renderEs(<CreateWizard onSubmit={vi.fn()} onCancel={vi.fn()} isLoading={false} />);
     fillSentenceEs('Charla de parrilla de dos horas');
     await waitFor(() => {
-      expect(screen.getByLabelText(/Título del Evento/i)).toHaveValue('Charla de parrilla');
+      expect(screen.getAllByText('Charla de parrilla').length).toBeGreaterThan(0);
     });
-    saveStepEs();
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Cuándo' }));
     expect((screen.getByLabelText(/Fecha/) as HTMLInputElement).value).toBe(date);
     expect((screen.getByLabelText(/Hora de inicio/) as HTMLInputElement).value).toBe('10:00');
     expect((screen.getByLabelText(/Hora de fin/) as HTMLInputElement).value).toBe('12:00');
@@ -244,9 +236,9 @@ describe('draft-event fill (ES)', () => {
     renderEs(<CreateWizard onSubmit={vi.fn()} onCancel={vi.fn()} isLoading={false} />);
     fillSentenceEs('Viaje a Baños');
     await waitFor(() => {
-      expect(screen.getByLabelText(/Título del Evento/i)).toHaveValue('Ruta a Baños');
+      expect(screen.getAllByText('Ruta a Baños').length).toBeGreaterThan(0);
     });
-    saveStepEs();
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Cuándo' }));
     expect((screen.getByLabelText(/Fecha de ida/) as HTMLInputElement).value).toBe(depart);
     expect((screen.getByLabelText(/Hora de salida/) as HTMLInputElement).value).toBe('08:00');
     // A minutes duration does not apply to a multi-day trip, so it is not marked.
@@ -290,7 +282,7 @@ describe('draft-event fill (ES)', () => {
 });
 
 describe('draft-event fill (EN)', () => {
-  it('fills the wizard in English with AI suggestion marks and publishes once', async () => {
+  it('opens the summary in English with AI suggestion marks and publishes once', async () => {
     const date = futureDate(9);
     const draft = vi.spyOn(api, 'draftEvent').mockResolvedValue({
       ...COMIDA_PROPOSAL(date),
@@ -301,26 +293,22 @@ describe('draft-event fill (EN)', () => {
     renderEn(<CreateWizard onSubmit={onSubmit} onCancel={vi.fn()} isLoading={false} />);
 
     fireEvent.change(screen.getByLabelText('Describe your gathering in one sentence'), {
-      target: { value: 'BBQ for 10 on Saturday' },
+      target: { value: 'BBQ for 10 on Saturday, $15 each' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Fill with AI' }));
 
     await waitFor(() => {
-      expect(screen.getAllByText('AI suggestion')).toHaveLength(2);
+      expect(draft).toHaveBeenCalledWith('BBQ for 10 on Saturday, $15 each');
+      expect(screen.getByRole('heading', { name: 'Review and publish' })).toBeInTheDocument();
     });
-    expect(draft).toHaveBeenCalledWith('BBQ for 10 on Saturday');
-    expect(screen.getByRole('status')).toHaveTextContent('Fields filled in. Review each step before creating.');
-    expect(screen.getByLabelText(/Event Title/)).toHaveValue('Saturday BBQ');
+    expect(
+      screen.getByText(/I drafted your invitation\. Suggested fields are marked/),
+    ).toBeInTheDocument();
+    const summary = screen.getByRole('region', { name: 'Invitation summary' });
+    expect(within(summary).getByText('Saturday BBQ')).toBeInTheDocument();
+    expect(within(summary).getByText('Central Park')).toBeInTheDocument();
+    expect(screen.getAllByText('AI suggestion').length).toBeGreaterThan(0);
 
-    saveStepEn();
-    expect((screen.getByLabelText('Date', { exact: false }) as HTMLInputElement).value).toBe(date);
-    saveStepEn();
-    expect(screen.getByLabelText(/Place or Address/)).toHaveValue('Central Park');
-    saveStepEn();
-    expect(screen.getByLabelText(/Share per person/)).toHaveValue(15);
-    expect(screen.getByLabelText(/Maximum capacity/)).toHaveValue(10);
-    saveStepEn();
-    saveStepEn();
     fireEvent.click(screen.getByRole('button', { name: 'Publish invitation' }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect((onSubmit.mock.calls[0][0] as EventInput).priceCents).toBe(1500);
@@ -338,7 +326,7 @@ describe('draft-event fill (EN)', () => {
     }
   });
 
-  it('shows rules output as automatic suggestion and the bilingual error on 503', async () => {
+  it('shows rules output as automatic suggestion, then keeps answers on a 503', async () => {
     vi.spyOn(api, 'draftEvent')
       .mockResolvedValueOnce({
         template: 'comida',
@@ -355,10 +343,12 @@ describe('draft-event fill (EN)', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Fill with AI' }));
     await waitFor(() => {
-      expect(screen.getAllByText('Automatic suggestion')).toHaveLength(1);
+      expect(screen.getByRole('heading', { name: 'Review and publish' })).toBeInTheDocument();
     });
+    expect(screen.getAllByText('Automatic suggestion').length).toBeGreaterThan(0);
     expect(screen.queryByText('AI suggestion')).toBeNull();
 
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Title' }));
     fireEvent.click(screen.getByRole('button', { name: 'Fill with AI' }));
     await waitFor(() => {
       expect(
