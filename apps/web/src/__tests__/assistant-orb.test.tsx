@@ -1,3 +1,4 @@
+import { dispatchGuideAction } from '../guide/showOnScreen';
 import type { ComponentProps } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -147,6 +148,33 @@ describe('unified AssistantOrb', () => {
 
     openOrb();
     expect(screen.getByText('Respuesta que debe sobrevivir al cierre.')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('restores mobile text history and unfinished input after following a guide from the demo', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('pointer: coarse') }));
+    fetchMock.mockResolvedValue(response({ text: 'Respuesta de la demo.' }));
+    const { rerender } = render(publicOrb({ context: 'demo' }));
+    openOrb();
+    const input = screen.getByRole('textbox', { name: 'Pregunta para el chat público' });
+    fireEvent.change(input, { target: { value: '¿Cómo funciona la demo?' } });
+    fireEvent.submit(input.closest('form')!);
+    await screen.findByText('Respuesta de la demo.');
+    fireEvent.change(input, { target: { value: 'Pregunta pendiente' } });
+
+    act(() => dispatchGuideAction({ page: 'create' }));
+    rerender(publicOrb({ context: 'landing' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Abrir Agente FiestaPay' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Volver al chat' }));
+    expect(screen.getByText('Respuesta de la demo.')).toBeVisible();
+    expect(screen.getByRole('textbox', { name: 'Pregunta para el chat público' })).toHaveValue('Pregunta pendiente');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Minimizar panel del agente' }));
+    const reopen = screen.getByRole('button', { name: 'Volver al chat' });
+    expect(reopen).toHaveFocus();
+    fireEvent.click(reopen);
+    expect(screen.getByRole('tab', { name: 'Escribir' })).toHaveFocus();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 

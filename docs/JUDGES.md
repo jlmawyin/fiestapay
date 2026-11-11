@@ -23,7 +23,7 @@
 1. Open the **FiestaPay orb**, choose **Talk**, accept the microphone consent and start.
 2. Say: **“Take me to the judges demo.”** The public voice agent uses `show_on_screen`, navigates to the judges demo and highlights **Try a PayPal payment**.
 3. Show that the agent does **not** press the button. It can open pages, highlight controls and leave a spoken party sentence in Create for you to press **Fill with AI**; it never clicks, publishes, pays or creates anything. Button names in its replies are tappable, and **Guided tour** is available in the demo.
-4. Say **“Stop”**, switch to text or close the orb to end voice. Voice sessions are capped at 120 seconds.
+4. Say **“Stop”**, switch to text or close the orb to end voice. On mobile, the active voice session stays in a corner with Stop and Open controls.
 
 The runtime is **Gemini only**: voice is `gemini-3.8-live` through the Gemini Live API, and the browser connects with a single-use ephemeral token minted by the server. The API key never reaches the browser.
 

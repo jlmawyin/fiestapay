@@ -1,5 +1,6 @@
 import type { Pool, PoolClient } from '../db/pool.js';
 import type { Locale } from '@fiestapay/shared';
+import { GEMINI_VOICE_AUDIO_SECONDS } from '../config.js';
 import { HttpError, forbidden, notFound, unavailable } from '../errors.js';
 import { newId } from '../lib/ids.js';
 import { withTransaction } from '../db/pool.js';
@@ -15,7 +16,7 @@ export const VOICE_CLIENT_COOLDOWN_SECONDS = 15;
 /** Minimum separation between client-attested activity writes. Stops a ping loop. */
 export const VOICE_ACTIVITY_MIN_INTERVAL_SECONDS = 5;
 
-const MAX_SECONDS = 300;
+
 const ACTIVE_LEASE_ES = 'Ya tienes una sesión de voz activa. Espera a que termine o pulsa Detener.';
 const ACTIVE_LEASE_EN = 'You already have an active voice session. Wait for it to end or press Stop.';
 const RATE_LIMIT_ES = 'Has iniciado demasiadas sesiones de voz. Espera un minuto antes de intentarlo otra vez.';
@@ -38,7 +39,7 @@ function leaseMessage(es: string, en: string, locale: Locale = 'es'): string {
  *
  * The full reserved duration is charged before the provider token is requested and the
  * row is kept forever: a failed token, an idle expiry or an explicit release never returns
- * budget. Only rows created today count toward the UTC daily cap.
+ * budget. When a daily cap is configured, only rows created today count toward it.
  */
 export async function reserveVoiceLease(
   pool: Pool,
@@ -47,7 +48,7 @@ export async function reserveVoiceLease(
     /** Null only for the public informational audience; no fictional event is created. */
     eventId: string | null;
     reservedSeconds: number;
-    dailySeconds: number;
+    dailySeconds: number | null;
     audience: VoiceAudience;
     locale?: Locale;
     authorize: (db: PoolClient) => Promise<void>;
@@ -58,7 +59,7 @@ export async function reserveVoiceLease(
     throw new HttpError(400, leaseMessage('Reserva de voz inválida', 'Invalid voice reservation', locale));
   }
   const reservedSeconds = Math.floor(input.reservedSeconds);
-  if (!Number.isInteger(reservedSeconds) || reservedSeconds < 1 || reservedSeconds > MAX_SECONDS) {
+  if (!Number.isInteger(reservedSeconds) || reservedSeconds < 1 || reservedSeconds > GEMINI_VOICE_AUDIO_SECONDS) {
     throw new HttpError(400, leaseMessage('Duración de voz inválida', 'Invalid voice duration', locale));
   }
 
@@ -81,14 +82,16 @@ export async function reserveVoiceLease(
       [input.sessionId, VOICE_IDLE_SECONDS],
     );
 
-    const usage = await db.query<{ seconds: string }>(
-      `SELECT COALESCE(SUM(reserved_seconds), 0)::text AS seconds
-         FROM voice_leases
-        WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`,
-    );
-    const used = Number(usage.rows[0]?.seconds ?? '0');
-    if (!Number.isSafeInteger(used) || used + reservedSeconds > input.dailySeconds) {
-      throw new HttpError(429, leaseMessage(DAILY_LIMIT_ES, DAILY_LIMIT_EN, locale));
+    if (input.dailySeconds !== null) {
+      const usage = await db.query<{ seconds: string }>(
+        `SELECT COALESCE(SUM(reserved_seconds), 0)::text AS seconds
+           FROM voice_leases
+          WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`,
+      );
+      const used = Number(usage.rows[0]?.seconds ?? '0');
+      if (!Number.isSafeInteger(used) || used + reservedSeconds > input.dailySeconds) {
+        throw new HttpError(429, leaseMessage(DAILY_LIMIT_ES, DAILY_LIMIT_EN, locale));
+      }
     }
 
     const active = await db.query(

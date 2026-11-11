@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { MessageCircle, Minus, X } from 'lucide-react';
 import { UI_LABELS, type AssistantContext, type MealKind, type ThemeKey } from '@fiestapay/shared';
 import type { Capabilities, Guest, Quote, RsvpStatus, TemplateKind } from '../../types';
 import { PublicChatAssistant } from '../chat/PublicChatAssistant';
@@ -141,8 +141,13 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
   const m = useMessages(orbCatalog);
   const labels = UI_LABELS[locale];
   const [isOpen, setIsOpen] = useState(false);
+  const [docked, setDocked] = useState(false);
+  const [textContext, setTextContext] = useState<AssistantContext | null>(null);
+  const [guidedVoiceContext, setGuidedVoiceContext] = useState<AssistantContext | null>(null);
   const [mode, setMode] = useState<AssistantOrbMode>('text');
   const launcherRef = useRef<HTMLButtonElement>(null);
+  const dockButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusRef = useRef(false);
   const textTabRef = useRef<HTMLButtonElement>(null);
   const justClosedRef = useRef(false);
   const lastSignalRef = useRef(openSignal);
@@ -176,6 +181,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   // Landscape phones (height <= 560 px): one-line header, full-height panel.
   const compact = useMediaQuery('(max-height: 560px)');
+  const mobile = useMediaQuery('(max-width: 639px), (pointer: coarse) and (max-height: 560px)');
 
   // The pill alternates between the agent name and the theme motto.
   const [showSlogan, setShowSlogan] = useState(false);
@@ -238,16 +244,26 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
     return () => window.clearTimeout(timer);
   }, []);
 
-  const closeOrb = () => {
+  const closeOrb = useCallback(() => {
     justClosedRef.current = true;
+    setDocked(false);
+    setTextContext(null);
+    setGuidedVoiceContext(null);
     setIsOpen(false);
     setMode('text');
+  }, []);
+
+  const minimizePanel = () => {
+    restoreFocusRef.current = true;
+    if (mode === 'text') setTextContext((previous) => previous ?? activeContext);
+    setDocked(true);
   };
 
   useEffect(() => {
     if (lastSignalRef.current !== openSignal) {
       lastSignalRef.current = openSignal;
       if (openSignal !== undefined) {
+        setDocked(false);
         setMode('text');
         setIsOpen(true);
       }
@@ -264,16 +280,17 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || docked) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') closeOrb();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen]);
+  }, [isOpen, docked, closeOrb]);
 
   useEffect(() => {
     const onOpenRequest = () => {
+      setDocked(false);
       setMode('text');
       setIsOpen(true);
     };
@@ -289,6 +306,9 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
   useEffect(() => {
     const onVoiceRequest = () => {
       if (audience !== 'public') return;
+      const state = orbStateRef.current;
+      if (state.mode === 'voice' && state.isOpen && (voiceLiveRef.current || state.docked)) return;
+      setDocked(false);
       setFallbackNotice(null);
       setMode('voice');
       setIsOpen(true);
@@ -298,10 +318,8 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
     return () => document.removeEventListener(ASSISTANT_VOICE_OPEN_EVENT, onVoiceRequest);
   }, [audience]);
 
-  // FP-GUIDE-1: running a guide action from the panel minimizes it so the guided
-  // element stays visible. The text components stay mounted, so reopening the orb
-  // recovers the conversation intact. While public voice is live, the panel hides
-  // behind a floating bar instead, so the session keeps running.
+  // On mobile the live voice panel stays mounted behind the corner controls.
+  // The temporary guide bar still handles placement and desktop behavior.
   const [voiceLive, setVoiceLive] = useState<{
     active: boolean;
     status: 'listening' | 'speaking' | 'processing';
@@ -309,17 +327,21 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
   const [fallbackNotice, setFallbackNotice] = useState<string | null>(null);
   const [guideBar, setGuideBar] = useState<{ placement: 'top' | 'bottom' } | null>(null);
   const voiceLiveRef = useRef(false);
-  const orbStateRef = useRef({ isOpen: false, mode: 'text' as AssistantOrbMode });
-  orbStateRef.current = { isOpen, mode };
+  const orbStateRef = useRef({ isOpen, mode, mobile, docked, activeContext });
+  orbStateRef.current = { isOpen, mode, mobile, docked, activeContext };
   const barTimerRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     const onVoiceActivity = (event: Event) => {
       const detail = (event as CustomEvent<VoiceActivityDetail>).detail;
       if (!detail || detail.audience !== audience) return;
+      const wasLive = voiceLiveRef.current;
+      const state = orbStateRef.current;
       voiceLiveRef.current = detail.active;
+      if (wasLive && !detail.active && state.mobile && state.docked && state.mode === 'voice') closeOrb();
       setVoiceLive({ active: detail.active, status: detail.status });
       if (!detail.active) {
+        setGuidedVoiceContext(null);
         window.clearTimeout(barTimerRef.current);
         barTimerRef.current = undefined;
         setGuideBar(null);
@@ -330,17 +352,24 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
       const detail = (event as CustomEvent<GuideActionDetail>).detail;
       const guidesThisAudience = audience === 'public'
         || (audience === 'guest' && isInviteTarget(detail?.target));
-      if (guidesThisAudience && state.mode === 'voice' && state.isOpen && voiceLiveRef.current) {
+      if (!guidesThisAudience || !state.isOpen) return;
+      if (state.mobile) {
+        if (state.mode === 'text') setTextContext((previous) => previous ?? state.activeContext);
+        if (state.mode === 'voice' && voiceLiveRef.current && audience === 'public') {
+          // Keep the original public token and its context across the guided handoff.
+          setGuidedVoiceContext((previous) => previous ?? state.activeContext);
+        }
+        if (state.mode === 'text' || voiceLiveRef.current) setDocked(true);
+        else closeOrb();
+        return;
+      }
+      if (state.mode === 'voice' && voiceLiveRef.current) {
         setGuideBar((prev) => prev ?? { placement: 'bottom' });
-        // A navigation without a highlight restores the panel after 5 s; a visible
-        // highlight clears this timer and owns the bar until it hides.
         window.clearTimeout(barTimerRef.current);
         barTimerRef.current = window.setTimeout(() => setGuideBar(null), 5000);
         return;
       }
-      justClosedRef.current = true;
-      setMode('text');
-      setIsOpen(false);
+      closeOrb();
     };
     const onGuideVisible = (event: Event) => {
       if (!voiceLiveRef.current) return;
@@ -359,6 +388,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
     const onVoiceFallback = (event: Event) => {
       const detail = (event as CustomEvent<VoiceFallbackDetail>).detail;
       if (!detail?.message || detail.audience !== audience) return;
+      voiceLiveRef.current = false;
       window.clearTimeout(barTimerRef.current);
       barTimerRef.current = undefined;
       setGuideBar(null);
@@ -379,7 +409,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
       document.removeEventListener(GUIDE_HIDDEN_EVENT, onGuideHidden);
       window.clearTimeout(barTimerRef.current);
     };
-  }, [audience]);
+  }, [audience, closeOrb]);
 
   // The voice pane unmounts on switch/close, which stops its session; the bar and
   // the live flag reset with it. While the bar shows, the pane stays mounted hidden.
@@ -390,13 +420,51 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
     setGuideBar(null);
   }, [mode, isOpen]);
 
-  const showVoiceBar =
-    guideBar !== null && isOpen && mode === 'voice' && voiceLive.active;
+  useEffect(() => {
+    if (mobile && voiceLive.active && mode === 'voice' && isOpen) setDocked(true);
+  }, [mobile, voiceLive.active, mode, isOpen]);
+
+  const showVoiceBar = isOpen && mode === 'voice' && voiceLive.active
+    && (mobile ? docked : guideBar !== null);
+  const showTextDock = mobile && docked && isOpen && mode === 'text';
+  const panelVisible = isOpen && !showVoiceBar && !showTextDock;
+
+  const reopenPanel = () => {
+    restoreFocusRef.current = true;
+    window.clearTimeout(barTimerRef.current);
+    barTimerRef.current = undefined;
+    setGuideBar(null);
+    setDocked(false);
+  };
+
+  useEffect(() => {
+    if (!restoreFocusRef.current) return;
+    restoreFocusRef.current = false;
+    if (panelVisible) {
+      document.getElementById(`${panelId}-${mode}-tab`)?.focus({ preventScroll: true });
+    } else {
+      dockButtonRef.current?.focus({ preventScroll: true });
+    }
+  }, [showTextDock, showVoiceBar, panelVisible, mode, panelId]);
+
+  const panelControls = (
+    <div className="fp-orb-header-controls">
+      {mobile && (mode === 'text' || voiceLive.active) ? (
+        <button type="button" className="fp-orb-header-button" onClick={minimizePanel} aria-label={m.minimizePanel}>
+          <Minus size={18} aria-hidden="true" />
+        </button>
+      ) : null}
+      <button type="button" className="fp-orb-header-button" onClick={closeOrb} aria-label={m.closePanel}>
+        <X size={18} aria-hidden="true" />
+      </button>
+    </div>
+  );
 
   return (
     <>
       <button
         ref={launcherRef}
+        hidden={showVoiceBar || showTextDock || (mobile && panelVisible)}
         type="button"
         onClick={() => {
           if (isOpen) closeOrb();
@@ -449,7 +517,8 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
         aria-modal="false"
         className="fp-orb-panel"
         data-compact={compact ? 'true' : 'false'}
-        style={{ display: isOpen && !showVoiceBar ? 'flex' : 'none' }}
+        data-mobile={mobile ? 'true' : 'false'}
+        style={{ display: panelVisible ? 'flex' : 'none' }}
       >
         {compact ? (
           <header
@@ -497,23 +566,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
                 {labels.voiceTab}
               </button>
             </div>
-            <button
-              type="button"
-              onClick={closeOrb}
-              aria-label={m.closePanel}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#FFFFFF',
-                cursor: 'pointer',
-                lineHeight: 1,
-                padding: '0.2rem',
-                flex: '0 0 auto',
-                display: 'inline-flex',
-              }}
-            >
-              <X size={16} aria-hidden="true" />
-            </button>
+            {panelControls}
           </header>
         ) : (
           <>
@@ -546,23 +599,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
                   </span>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={closeOrb}
-                aria-label={m.closePanel}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#FFFFFF',
-                  cursor: 'pointer',
-                  lineHeight: 1,
-                  padding: '0.2rem',
-                  flex: '0 0 auto',
-                  display: 'inline-flex',
-                }}
-              >
-                <X size={18} aria-hidden="true" />
-              </button>
+              {panelControls}
             </header>
 
             <div
@@ -645,7 +682,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
                 <div
                   key={`${textKey}:${ctx}`}
                   style={{
-                    display: activeContext === ctx ? 'flex' : 'none',
+                    display: (textContext ?? activeContext) === ctx ? 'flex' : 'none',
                     flex: 1,
                     minHeight: 0,
                     flexDirection: 'column',
@@ -698,7 +735,7 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
               capabilities={capabilities}
               guest={guest}
               audience={audience}
-              context={activeContext}
+              context={guidedVoiceContext ?? activeContext}
               embedded
               open
               accessRevoked={accessRevoked}
@@ -716,16 +753,30 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
         )}
       </section>
 
-      {showVoiceBar && guideBar ? (
+      {showTextDock ? (
+        <button
+          ref={dockButtonRef}
+          type="button"
+          className="fp-voice-bar fp-assistant-dock fp-assistant-dock--text"
+          data-placement="bottom"
+          aria-controls={panelId}
+          aria-expanded={false}
+          onClick={reopenPanel}
+        >
+          <MessageCircle size={18} aria-hidden="true" />
+          {m.returnToChat}
+        </button>
+      ) : null}
+      {showVoiceBar ? (
         <div
-          className="fp-voice-bar"
-          data-placement={guideBar.placement}
+          className={mobile ? 'fp-voice-bar fp-assistant-dock' : 'fp-voice-bar'}
+          data-placement={guideBar?.placement ?? 'bottom'}
           data-testid="voice-guide-bar"
-          role="status"
         >
           <OrbArt orb={orb} accent={accent} icon={orbIcon} meal={theme?.meal} size={28} static={reducedMotion} />
-          <span className="fp-voice-bar__status">
-            {voiceLive.status === 'speaking' ? m.guideBarSpeaking : m.guideBarListening}
+          <span className="fp-voice-bar__status" role="status">
+            {voiceLive.status === 'speaking' ? m.guideBarSpeaking
+              : voiceLive.status === 'processing' ? m.guideBarProcessing : m.guideBarListening}
           </span>
           <button
             type="button"
@@ -743,11 +794,10 @@ export const AssistantOrb: React.FC<AssistantOrbProps> = ({
           <button
             type="button"
             className="btn btn-primary"
-            onClick={() => {
-              window.clearTimeout(barTimerRef.current);
-              barTimerRef.current = undefined;
-              setGuideBar(null);
-            }}
+            ref={dockButtonRef}
+            aria-controls={panelId}
+            aria-expanded={false}
+            onClick={reopenPanel}
           >
             {m.guideBarOpen}
           </button>
