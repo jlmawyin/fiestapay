@@ -142,7 +142,7 @@ describe('organizer verified payment activity panel', () => {
 
     expect(await screen.findByRole('heading', { name: 'Actividad de pagos' })).toBeInTheDocument();
     expect(screen.getAllByText('Ana Histórica').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText('$50,00')).toBeInTheDocument();
+    expect(within(screen.getByTestId('payment-activity-grid')).getByText('$50,00')).toBeInTheDocument();
     expect(screen.getByText('Reembolso completado')).toBeInTheDocument();
   });
 });

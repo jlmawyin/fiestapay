@@ -250,7 +250,6 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
   const [openStep, setOpenStep] = useState<CreateWizardStep>(1);
   const [stepError, setStepError] = useState<string | null>(null);
   const [errorStep, setErrorStep] = useState<CreateWizardStep | null>(null);
-  const [ackSignature, setAckSignature] = useState<string | null>(null);
   const [reviewVisited, setReviewVisited] = useState(false);
   const [activePath, setActivePath] = useState<CreatePath>(() => parseCreatePath(path));
   const [focusAfterNav, setFocusAfterNav] = useState<string | null>(null);
@@ -365,7 +364,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
     3: labels.stepWhere,
     4: labels.stepShare,
     5: labels.stepLook,
-    6: m.reviewTitle,
+    6: m.reviewSummaryTitle,
   };
   const steps: CreateWizardStep[] = [1, 2, 3, 4, 5, 6];
 
@@ -563,7 +562,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
   const liveSignature = reviewSignature();
   const builtLive = buildEventInput(fullFields(), { isEdit: false, isLegacy: false }, m);
   const liveHits = collectExampleHits(exampleValues(), (key) => m[key]);
-  const needsExampleAck = liveHits.length > 0 && ackSignature !== liveSignature;
+  const needsExampleAck = liveHits.length > 0;
 
   useEffect(() => {
     if (openStep !== 6 || !needsExampleAck) return;
@@ -631,7 +630,6 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
     posting.current = true;
     try {
       await onSubmit(payload);
-      setAckSignature(null);
     } catch (err: unknown) {
       setStepError(err instanceof Error ? err.message : m.errSubmit);
       setErrorStep(6);
@@ -660,7 +658,6 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
   const handleReviseExamples = () => {
     if (isLoading || liveHits.length === 0) return;
     const first: ExampleHit | undefined = liveHits[0];
-    setAckSignature(null);
     if (!first) return;
     const target: CreateWizardStep = first.field === 'title' ? 1 : 3;
     jumpToSection(target, first.inputId);
@@ -675,7 +672,6 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
       jumpToSection(target, inputIdForStep(target));
       return;
     }
-    setAckSignature(liveSignature);
     await submitPayload(builtLive.payload);
   };
 
@@ -1114,7 +1110,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
             setTitle(e.target.value);
           }}
           required
-          placeholder={m.titlePlaceholder}
+          placeholder={m.wizardTitlePlaceholder}
         />
         <button
           type="button"
@@ -1945,7 +1941,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
     <>
       <p className="create-wizard__explain">{m.explainReview}</p>
       <section className="publish-review" aria-label={m.reviewAria} style={themeCssVars(selectedTheme)}>
-        <h3 style={{ margin: 0 }}>{m.reviewTitle}</h3>
+        <h3 style={{ margin: 0 }}>{m.reviewSummaryTitle}</h3>
         <p className="theme-phrase" style={{ fontSize: '1.15rem' }}>{themePhrase(selectedTheme.key, locale)}</p>
         {draftNotice ? (
           <p role="status" className="create-wizard__ai-note">
@@ -1955,7 +1951,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
         <p className={builtLive.ok ? 'create-wizard__review-note' : 'create-wizard__review-note create-wizard__review-note--missing'}>
           {builtLive.ok ? m.reviewReady : m.reviewIncomplete}
         </p>
-        {!whenTouched ? <p>{m.reviewDatesSuggested}</p> : <p>{m.reviewDatesFixed}</p>}
+        {!whenTouched ? <p>{m.reviewDatesSuggestedDraft}</p> : <p>{m.reviewDatesFixed}</p>}
         <dl className="create-wizard__review-list">
           {reviewRow(m.reviewType, templateLabels[template], 1, { mark: 'template', focusId: 'event-title' })}
           {reviewRow(m.reviewHeading, title.trim() || m.reviewNotSet, 1, { mark: 'title', focusId: 'event-title' })}

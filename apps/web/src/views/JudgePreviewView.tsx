@@ -57,7 +57,7 @@ export interface JudgePreviewViewProps {
 }
 
 const EXAMPLE_PAYMENT_ACTIVITY: PaymentActivityItem[] = [
-  { id: 'sample-refund', kind: 'refund', guestName: 'Sam', amountCents: -500, captureId: 'EXAMPLE-01', createdAt: '2026-11-10T20:15:00Z' },
+  { id: 'sample-refund', kind: 'refund', guestName: 'Sam', amountCents: 500, captureId: 'EXAMPLE-01', createdAt: '2026-11-10T20:15:00Z' },
   { id: 'sample-capture', kind: 'capture', guestName: 'Sam', amountCents: 2500, captureId: 'EXAMPLE-01', createdAt: '2026-11-10T19:00:00Z' },
 ];
 
@@ -118,6 +118,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
   const labels = UI_LABELS[locale];
   const [quickFilter, setQuickFilter] = useState('');
   const [pendingOnly, setPendingOnly] = useState(false);
+  const [showExampleActivity, setShowExampleActivity] = useState(false);
   const [aiEdited, setAiEdited] = useState<string | null>(null);
   const aiPhrase = aiEdited ?? m.aiStepExample;
   const [selectedPartyId, setSelectedPartyId] = useState(SAMPLE_PARTIES[0].id);
@@ -384,9 +385,9 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
       </section>
 
       <PayPalAiPanel />
-      <details>
+      <details onToggle={(event) => setShowExampleActivity(event.currentTarget.open)}>
         <summary>{m.quickSampleActivity}</summary>
-        <PaymentActivityPanel activity={EXAMPLE_PAYMENT_ACTIVITY} notifications={[]} example />
+        {showExampleActivity ? <PaymentActivityPanel activity={EXAMPLE_PAYMENT_ACTIVITY} notifications={[]} example /> : null}
       </details>
 
       <ol style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: 0, margin: 0 }}>

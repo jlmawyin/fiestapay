@@ -170,8 +170,8 @@ describe('draft-event fill (ES)', () => {
     expect(screen.getAllByText('Noche de juegos').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'Editar Cuándo' }));
-    expect((screen.getByLabelText('Fecha') as HTMLInputElement).value).toBe(date);
-    expect((screen.getByLabelText('Hora de llegada') as HTMLInputElement).value).toBe('20:00');
+    expect((screen.getByLabelText(/^Fecha(?: Sugerencia automática)?$/) as HTMLInputElement).value).toBe(date);
+    expect((screen.getByLabelText(/^Hora de llegada(?: Sugerencia automática)?$/) as HTMLInputElement).value).toBe('20:00');
     expect(screen.getByRole('radio', { name: '+3 h' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getAllByText('Sugerencia automática')).toHaveLength(3);
   });
