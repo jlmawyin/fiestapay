@@ -2235,7 +2235,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
         />
       ) : (
         <ol className="create-wizard__steps">
-          {steps.map((step) => {
+          {(openStep === 6 ? [6 as const] : steps).map((step) => {
             const state = stepState(step);
             return (
               <li
@@ -2249,18 +2249,20 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
                 data-step-state={state}
                 className={`create-wizard__step create-wizard__step--${state}`}
               >
-                <div className="create-wizard__step-head">
-                  <span aria-hidden="true" className="create-wizard__badge">
-                    {state === 'done' ? (
-                      <Check size={14} aria-hidden="true" />
-                    ) : state === 'locked' ? (
-                      <Lock size={14} aria-hidden="true" />
-                    ) : (
-                      step
-                    )}
-                  </span>
-                  <strong className="create-wizard__step-title">{titles[step]}</strong>
-                </div>
+                {step !== 6 ? (
+                  <div className="create-wizard__step-head">
+                    <span aria-hidden="true" className="create-wizard__badge">
+                      {state === 'done' ? (
+                        <Check size={14} aria-hidden="true" />
+                      ) : state === 'locked' ? (
+                        <Lock size={14} aria-hidden="true" />
+                      ) : (
+                        step
+                      )}
+                    </span>
+                    <strong className="create-wizard__step-title">{titles[step]}</strong>
+                  </div>
+                ) : null}
                 {state === 'locked' ? (
                   <p className="create-wizard__locked-hint">{m.lockedHint(titles[(step - 1) as CreateWizardStep])}</p>
                 ) : state === 'done' ? (

@@ -139,6 +139,7 @@ describe('guided interview flow', () => {
     await waitFor(() => expect(draft).toHaveBeenCalledTimes(1));
     expect(draft.mock.calls[0][0].length).toBeLessThanOrEqual(400);
     expect(await screen.findByRole('heading', { name: 'Revisar y publicar' })).toBeInTheDocument();
+    expect(screen.getAllByRole('listitem').filter((item) => item.hasAttribute('data-step-state'))).toHaveLength(1);
     expect(screen.getAllByText('Asado del sábado').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Publicar invitación' })).toBeInTheDocument();
   });
