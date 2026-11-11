@@ -87,7 +87,7 @@ interface VoiceInvitationAgentProps {
 }
 
 const MIC_PAUSE_AFTER_MS = 5000;
-const ANDROID_SPEAKER_ECHO_TAIL_MS = 180;
+const SPEAKER_ECHO_TAIL_MS = 650;
 const MIN_MIC_SIGNAL_POWER = 0.0001;
 const VOICE_GAIN_STORAGE_KEY = 'fp_voice_gain';
 const VOICE_GAIN_LEVELS = [
@@ -780,6 +780,13 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
         let lastMicSignalAt = Date.now();
         let speakerQuietAt = 0;
         let modelTurnPending = true;
+        let clearWorkletBuffer = () => {};
+        const computeSpeakerEchoTailMs = () => {
+          const latencySec =
+            (typeof ctx.outputLatency === 'number' && Number.isFinite(ctx.outputLatency) ? ctx.outputLatency : 0) +
+            (typeof ctx.baseLatency === 'number' && Number.isFinite(ctx.baseLatency) ? ctx.baseLatency : 0);
+          return SPEAKER_ECHO_TAIL_MS + Math.min(450, Math.max(0, Math.round(latencySec * 1000)));
+        };
         const replyAudioPending = () =>
           playbackSpeakingRef.current || Boolean(playbackRef.current?.isBusy);
 
@@ -803,12 +810,15 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
           onActivity: ({ speaking }) => {
             if (!isCurrentSession()) return;
             playbackSpeakingRef.current = speaking;
+            clearWorkletBuffer();
+            resamplerRef.current?.reset();
             if (speaking) {
+              speakerQuietAt = Date.now() + computeSpeakerEchoTailMs();
               setAgentStatus('speaking');
               return;
             }
             lastMicSignalAt = Date.now();
-            speakerQuietAt = lastMicSignalAt + ANDROID_SPEAKER_ECHO_TAIL_MS;
+            speakerQuietAt = lastMicSignalAt + computeSpeakerEchoTailMs();
             setAgentStatus(toolsInFlightRef.current ? 'processing' : 'listening');
             // The lease already answered inactive while this reply was still being heard.
             // Finish the audio first; the Stop is applied here, never mid-phrase.
@@ -831,6 +841,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
               this.stopped = false;
               this.port.onmessage = (ev) => {
                 if (ev.data === 'stop') this.stopped = true;
+                if (ev.data === 'clear') this.writeIndex = 0;
               };
             }
             process(inputs) {
@@ -901,8 +912,9 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
         const captureMicSamples = (samples: Float32Array) => {
           const resampler = resamplerRef.current;
           if (!isCurrentSession() || !isReadyRef.current || micPausedRef.current || !resampler) return;
-          // With platform echo cancellation off, keep the agent's own speaker audio out of its input.
-          if (useAndroidMediaAudio && (replyAudioPending() || Date.now() < speakerQuietAt)) {
+          // Keep the agent's own boosted speaker audio and room echo tail out of its microphone input on all platforms.
+          if (replyAudioPending() || Date.now() < speakerQuietAt) {
+            clearWorkletBuffer();
             resampler.reset();
             return;
           }
@@ -916,6 +928,13 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
         silentSink.connect(ctx.destination);
         if (workletSupported) {
           const workletNode = new AudioWorkletNode(ctx, 'pcm-capture');
+          clearWorkletBuffer = () => {
+            try {
+              workletNode.port.postMessage('clear');
+            } catch {
+              // ignore
+            }
+          };
           workletNode.port.onmessage = (ev: MessageEvent) => {
             const data = ev.data as { type: string; samples: Float32Array };
             if (data?.type === 'pcm-chunk') captureMicSamples(data.samples);
@@ -1027,6 +1046,7 @@ export const VoiceInvitationAgent: React.FC<VoiceInvitationAgentProps> = ({
               onAudio: (audioBase64) => {
                 if (!isCurrentSession()) return;
                 if (audioBase64 && playbackRef.current) {
+                  speakerQuietAt = Date.now() + computeSpeakerEchoTailMs();
                   playbackRef.current.enqueueBase64(audioBase64);
                   // A streaming reply is real activity: a long answer keeps the
                   // server lease live while its audio actually arrives.

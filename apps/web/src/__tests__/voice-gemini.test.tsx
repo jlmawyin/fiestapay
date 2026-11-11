@@ -6,11 +6,12 @@ import { api } from '../api/client';
 import { I18nProvider } from '../i18n/I18nContext';
 import { setActiveLocale } from '../i18n/locale-store';
 import { pcm16ToBase64 } from '../voice/pcm';
-import type {
-  GeminiLiveCallbacks,
-  GeminiLiveConnector,
-  GeminiLiveSessionHandle,
-  GeminiLiveToolResponse,
+import {
+  formatKickoffTurn,
+  type GeminiLiveCallbacks,
+  type GeminiLiveConnector,
+  type GeminiLiveSessionHandle,
+  type GeminiLiveToolResponse,
 } from '../voice/gemini-live';
 import type { Capabilities, Guest, Quote } from '../types';
 
@@ -510,7 +511,19 @@ describe('Gemini Live voice transport', () => {
     expect(localStorage.getItem('fp_voice_gain')).toBe('3.2');
   });
 
-  it('keeps Android speaker output out of Gemini input and listens again when it ends', async () => {
+  it('frames the kickoff greeting as a single-voice instruction so Gemini never roleplays the user', () => {
+    const es = formatKickoffTurn('¡Hola! Soy el agente de FiestaPay. ¿Qué celebramos?');
+    expect(es).toContain('INSTRUCCIÓN DE INICIO DE VOZ');
+    expect(es).toContain('PROHIBIDO responder a tu propia pregunta');
+    expect(es).toContain('«¡Hola! Soy el agente de FiestaPay. ¿Qué celebramos?»');
+
+    const en = formatKickoffTurn("Hi! I'm your FiestaPay agent. What are we celebrating?");
+    expect(en).toContain('VOICE SESSION START INSTRUCTION');
+    expect(en).toContain('NEVER answer your own question');
+    expect(en).toContain(`"Hi! I'm your FiestaPay agent. What are we celebrating?"`);
+  });
+
+  it('keeps speaker output and echo tail out of Gemini input on all platforms and listens again when it ends', async () => {
     vi.useFakeTimers();
     vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
       'Mozilla/5.0 (Linux; Android 15) Chrome/146.0 Mobile Safari/537.36',
@@ -535,7 +548,12 @@ describe('Gemini Live voice transport', () => {
     act(() => MockAudioContext.capture?.(samples));
     expect(session.audios).toHaveLength(1);
 
+    // At 200ms after onended, the physical speaker echo tail (650ms) is still active (e.g. "siguiente").
     await act(async () => vi.advanceTimersByTimeAsync(200));
+    act(() => MockAudioContext.capture?.(samples));
+    expect(session.audios).toHaveLength(1);
+
+    await act(async () => vi.advanceTimersByTimeAsync(500));
     act(() => MockAudioContext.capture?.(samples));
     expect(session.audios).toHaveLength(2);
   });
