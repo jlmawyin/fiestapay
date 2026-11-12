@@ -144,6 +144,7 @@ function handleMessage(message: unknown, callbacks: GeminiLiveCallbacks): void {
   if (!serverContent || typeof serverContent !== 'object') return;
   if (serverContent.interrupted === true) {
     callbacks.onInterrupted?.();
+    return;
   }
   const modelTurn = serverContent.modelTurn as { parts?: unknown } | undefined;
   if (modelTurn && typeof modelTurn === 'object' && Array.isArray(modelTurn.parts)) {
@@ -169,17 +170,15 @@ export function formatKickoffTurn(text: string): string {
   const isEnglish = /^(?:hi|welcome|organizer)\b/i.test(trimmed);
   if (isEnglish) {
     return [
-      'VOICE SESSION START INSTRUCTION (do not roleplay the user or switch voices):',
-      'Speak aloud ONLY the exact greeting below in your single assistant voice, then STOP immediately and wait in silence for the person to speak.',
-      'NEVER answer your own question, NEVER invent or simulate the user\'s party or reply, NEVER call tools during this greeting, and NEVER use a second voice or perform a two-person dialogue.',
-      `Exact greeting to speak: "${trimmed}"`,
+      'VOICE SESSION START INSTRUCTION:',
+      'Please greet me aloud with your single assistant voice by saying exactly:',
+      `"${trimmed}"`,
     ].join('\n');
   }
   return [
-    'INSTRUCCIÓN DE INICIO DE VOZ (no simules al usuario ni cambies de voz):',
-    'Pronuncia en voz alta ÚNICAMENTE el saludo exacto de abajo con tu única voz de asistente y luego DETENTE de inmediato en silencio esperando a que la persona hable.',
-    'PROHIBIDO responder a tu propia pregunta, PROHIBIDO inventar o simular la fiesta o la respuesta de la persona, PROHIBIDO llamar herramientas en este saludo inicial y PROHIBIDO usar una segunda voz o hacer un diálogo entre dos personas.',
-    `Saludo exacto a pronunciar: «${trimmed}»`,
+    'INSTRUCCIÓN DE INICIO DE VOZ:',
+    'Por favor salúdame en voz alta con tu única voz de asistente diciendo exactamente:',
+    `«${trimmed}»`,
   ].join('\n');
 }
 

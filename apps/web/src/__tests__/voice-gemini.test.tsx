@@ -514,12 +514,10 @@ describe('Gemini Live voice transport', () => {
   it('frames the kickoff greeting as a single-voice instruction so Gemini never roleplays the user', () => {
     const es = formatKickoffTurn('¡Hola! Soy el agente de FiestaPay. ¿Qué celebramos?');
     expect(es).toContain('INSTRUCCIÓN DE INICIO DE VOZ');
-    expect(es).toContain('PROHIBIDO responder a tu propia pregunta');
     expect(es).toContain('«¡Hola! Soy el agente de FiestaPay. ¿Qué celebramos?»');
 
     const en = formatKickoffTurn("Hi! I'm your FiestaPay agent. What are we celebrating?");
     expect(en).toContain('VOICE SESSION START INSTRUCTION');
-    expect(en).toContain('NEVER answer your own question');
     expect(en).toContain(`"Hi! I'm your FiestaPay agent. What are we celebrating?"`);
   });
 
