@@ -2746,3 +2746,558 @@ button.fp-assistant-label {
   padding-top: 0.4rem;
   border-top: 1px solid var(--color-border);
 }
+
+/* ==========================================================================
+   Reference Invitations Bar & Signature Invitation Cards
+   (Álbum del reencuentro · Gala Esmeralda · Pergamino Clásico · Festiva)
+   ========================================================================== */
+
+.create-wizard__ref-bar {
+  margin-top: 0.65rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--color-border-dark);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.create-wizard__ref-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-ink-muted);
+}
+
+.create-wizard__ref-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.create-wizard__ref-chip {
+  appearance: none;
+  border: 1px solid var(--color-border-dark);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 0.14s ease, border-color 0.14s ease, background-color 0.14s ease;
+}
+
+.create-wizard__ref-chip:hover:not(:disabled) {
+  border-color: var(--color-blue);
+  background: var(--color-blue-tint);
+  transform: translateY(-1px);
+}
+
+.sig-invite-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.sig-invite-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+}
+
+.sig-invite-toolbar__label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--color-ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sig-invite-toolbar__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+}
+
+.sig-invite-pill {
+  appearance: none;
+  border: 1px solid var(--color-border-dark);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.32rem 0.7rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.sig-invite-pill--active {
+  background: var(--color-ink);
+  color: var(--color-surface);
+  border-color: var(--color-ink);
+}
+
+.sig-invite-card {
+  position: relative;
+  border-radius: 14px;
+  padding: 1.35rem 1.25rem;
+  overflow: hidden;
+  box-shadow: 0 16px 36px rgba(10, 18, 32, 0.24);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.sig-invite-card--compact {
+  padding: 1.05rem 1rem;
+}
+
+/* Style 1: Álbum del reencuentro (Deep Navy + Gold + Polaroids) */
+.sig-invite-card--reencuentro {
+  --sig-bg: #0b1d3a;
+  --sig-frame-border: #d4af37;
+  --sig-ink: #f8fafc;
+  --sig-muted: #cbd5e1;
+  --sig-accent: #f3cf68;
+  --sig-rule: rgba(212, 175, 55, 0.45);
+  --sig-box-bg: rgba(15, 36, 71, 0.78);
+  background:
+    radial-gradient(circle at 18% 12%, rgba(212, 175, 55, 0.14), transparent 48%),
+    linear-gradient(165deg, #09172e 0%, #0d2346 55%, #08152b 100%);
+  color: var(--sig-ink);
+  border: 2px solid #d4af37;
+}
+
+/* Style 2: Gala Esmeralda (Forest Green + Double Gold Filete) */
+.sig-invite-card--elegante {
+  --sig-bg: #0f2c23;
+  --sig-frame-border: #c8a464;
+  --sig-ink: #f5f2eb;
+  --sig-muted: #d1ddd7;
+  --sig-accent: #e0be7b;
+  --sig-rule: rgba(200, 164, 100, 0.42);
+  --sig-box-bg: rgba(10, 31, 24, 0.72);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(200, 164, 100, 0.14), transparent 55%),
+    linear-gradient(180deg, #113228 0%, #0d261e 100%);
+  color: var(--sig-ink);
+  border: 1.5px solid #c8a464;
+}
+
+/* Style 3: Pergamino Clásico (Warm Vintage Paper + Sepia Ink) */
+.sig-invite-card--retro {
+  --sig-bg: #e7dbc3;
+  --sig-frame-border: #6e5536;
+  --sig-ink: #2b2017;
+  --sig-muted: #53402f;
+  --sig-accent: #7a2e1d;
+  --sig-rule: rgba(110, 85, 54, 0.42);
+  --sig-box-bg: rgba(244, 236, 218, 0.76);
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255, 250, 240, 0.55), rgba(196, 176, 142, 0.35) 100%),
+    linear-gradient(180deg, #ece1cb 0%, #dfd0b3 100%);
+  color: var(--sig-ink);
+  border: 2px solid #6e5536;
+}
+
+/* Style 4: Celebración Festiva (Warm Midnight + Amber/Coral) */
+.sig-invite-card--festiva {
+  --sig-bg: #1c1829;
+  --sig-frame-border: #f59e0b;
+  --sig-ink: #fffbeb;
+  --sig-muted: #fde68a;
+  --sig-accent: #fbbf24;
+  --sig-rule: rgba(251, 191, 36, 0.38);
+  --sig-box-bg: rgba(41, 32, 62, 0.78);
+  background:
+    radial-gradient(circle at 85% 15%, rgba(251, 113, 133, 0.2), transparent 45%),
+    radial-gradient(circle at 15% 85%, rgba(245, 158, 11, 0.18), transparent 45%),
+    linear-gradient(165deg, #1e182d 0%, #151122 100%);
+  color: var(--sig-ink);
+  border: 1.5px solid #f59e0b;
+}
+
+.sig-invite-card__frame {
+  border: 1px solid var(--sig-rule);
+  border-radius: 10px;
+  padding: 1.25rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+}
+
+.sig-invite__crest {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--sig-accent, #c8a464);
+}
+
+.sig-invite__crest-inner {
+  width: 54px;
+  height: 54px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.sig-invite__crest-svg {
+  width: 48px;
+  height: 48px;
+}
+
+.sig-invite__crest-caption {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.9;
+  text-align: center;
+}
+
+.sig-invite__polaroids {
+  display: flex;
+  justify-content: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  margin: 0.2rem 0 0.65rem;
+}
+
+.sig-invite__polaroids--bottom {
+  margin: 0.65rem 0 0.15rem;
+}
+
+.sig-invite__polaroid {
+  background: #fdfbf7;
+  color: #1e293b;
+  padding: 0.35rem 0.35rem 0.5rem;
+  border-radius: 4px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+  width: 132px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.sig-invite__polaroid-photo {
+  position: relative;
+  width: 100%;
+  height: 68px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: #1e293b;
+}
+
+.sig-invite__polaroid-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.sig-invite__polaroid-tag {
+  position: absolute;
+  bottom: 3px;
+  right: 4px;
+  background: rgba(15, 23, 42, 0.78);
+  color: #f8fafc;
+  font-size: 0.55rem;
+  font-weight: 700;
+  padding: 0.08rem 0.3rem;
+  border-radius: 3px;
+}
+
+.sig-invite__polaroid-caption {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: #1e293b;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.sig-invite-card__header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.sig-invite-card__kicker {
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sig-accent);
+}
+
+.sig-invite-card__title {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.35rem, 3.2vw, 1.85rem);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--sig-ink);
+}
+
+.sig-invite-card--reencuentro .sig-invite-card__title {
+  text-transform: uppercase;
+  color: var(--sig-accent);
+  letter-spacing: 0.02em;
+}
+
+.sig-invite-card__subtitle {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 0.96rem;
+  color: var(--sig-accent);
+}
+
+.sig-invite-card__divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  width: min(260px, 85%);
+  margin: 0.25rem auto 0;
+  color: var(--sig-accent);
+}
+
+.sig-invite-card__divider--inline {
+  margin: 0.35rem 0 0.75rem;
+  justify-content: flex-start;
+}
+
+.sig-invite-card__divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--sig-rule, rgba(200, 164, 100, 0.45));
+}
+
+.sig-invite-card__divider-gem {
+  font-size: 0.82rem;
+  line-height: 1;
+}
+
+.sig-invite-card__greeting {
+  text-align: center;
+  max-width: 58ch;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.sig-invite-card__salutation {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--sig-accent);
+}
+
+.sig-invite-card__body {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--sig-ink);
+  opacity: 0.94;
+}
+
+.sig-invite-card__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--sig-rule);
+  border-bottom: 1px solid var(--sig-rule);
+  margin: 0.2rem 0;
+}
+
+.sig-invite-card__cell {
+  padding: 0.75rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.2rem;
+}
+
+.sig-invite-card__cell:nth-child(odd) {
+  border-right: 1px solid var(--sig-rule);
+}
+
+.sig-invite-card__cell:nth-child(1),
+.sig-invite-card__cell:nth-child(2) {
+  border-bottom: 1px solid var(--sig-rule);
+}
+
+.sig-invite-card__cell-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sig-accent);
+}
+
+.sig-invite-card__cell-value {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--sig-ink);
+}
+
+.sig-invite-card__cell-value--accent {
+  color: var(--sig-accent);
+  font-size: 1.06rem;
+}
+
+.sig-invite-card__cell-sub {
+  font-size: 0.72rem;
+  color: var(--sig-muted);
+}
+
+.sig-invite-card__deadline {
+  margin: 0;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--sig-accent);
+}
+
+.sig-invite-card__share-box {
+  border: 1px solid var(--sig-rule);
+  border-radius: 8px;
+  padding: 0.85rem 0.95rem;
+  background: var(--sig-box-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.sig-invite-card__share-title {
+  margin: 0;
+  text-align: center;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--sig-accent);
+}
+
+.sig-invite-card__includes {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.25rem 0.75rem;
+  font-size: 0.82rem;
+  color: var(--sig-ink);
+}
+
+.sig-invite-card__agenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.sig-invite-card__agenda-chip {
+  font-size: 0.74rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--sig-rule);
+  color: var(--sig-ink);
+}
+
+.sig-invite-card__paypal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--sig-rule);
+  font-size: 0.82rem;
+  color: var(--sig-ink);
+}
+
+.sig-invite-card__footer {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  padding-top: 0.2rem;
+}
+
+.sig-invite-card__closing {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 0.9rem;
+  color: var(--sig-accent);
+}
+
+.sig-invite-card__signature {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sig-muted);
+}
+
+.sig-invite-card__signature-line {
+  width: 28px;
+  height: 1px;
+  background: var(--sig-rule);
+}
+
+.ticket-card__ceremonial-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.ticket-card__ceremonial-head .sig-invite__crest {
+  flex-direction: row;
+  gap: 0.5rem;
+  color: var(--color-ink);
+}
+
+.ticket-card__ceremonial-head .sig-invite__crest-inner {
+  width: 38px;
+  height: 38px;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border-dark);
+}
+
+.ticket-card__ceremonial-head .sig-invite__crest-svg {
+  width: 32px;
+  height: 32px;
+}
+
+@media (max-width: 560px) {
+  .sig-invite-card__grid {
+    grid-template-columns: 1fr;
+  }
+  .sig-invite-card__cell:nth-child(odd) {
+    border-right: none;
+  }
+  .sig-invite-card__cell {
+    border-bottom: 1px solid var(--sig-rule);
+  }
+  .sig-invite-card__cell:last-child {
+    border-bottom: none;
+  }
+}

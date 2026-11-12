@@ -5,7 +5,7 @@ import type { DraftEventProposal } from '@fiestapay/shared';
 import { buildApp } from '../src/app.js';
 import { migrate } from '../src/db/migrate.js';
 import { createPool, type Pool } from '../src/db/pool.js';
-import { guayaquilToday, rulesDraftEvent } from '../src/ai/draft-event.js';
+import { completeDraftProposal, guayaquilToday, rulesDraftEvent } from '../src/ai/draft-event.js';
 import type { RespondFn, RespondInput, RespondOutput } from '../src/ai/openai.js';
 import { sha256 } from '../src/lib/ids.js';
 import { completed, message, scriptedOpenAI } from './openai-script.js';
@@ -302,5 +302,35 @@ describeDb('crear con una frase', () => {
       expect((await client.post(ENDPOINT, { text: 'x'.repeat(401) })).statusCode).toBe(400);
       expect((await client.post(ENDPOINT, { text: 'Cena para 6', template: 'comida' })).statusCode).toBe(400);
     });
+  });
+
+  it('completeDraftProposal completa todos los campos pendientes para que el asistente quede listo', () => {
+    const partial = rulesDraftEvent('Reencuentro de promoción');
+    const completedProposal = completeDraftProposal(partial, 'Reencuentro de promoción', 'es', '2026-11-11');
+    expect(completedProposal.template).toBe('comida');
+    expect(completedProposal.title).toBe('Reencuentro de promoción');
+    expect(completedProposal.meal).toBe('cena');
+    expect(completedProposal.date).toBe('2026-11-14');
+    expect(completedProposal.startTime).toBe('19:30');
+    expect(completedProposal.durationMinutes).toBe(180);
+    expect(completedProposal.location).toContain('Salón Principal');
+    expect(completedProposal.includes.length).toBeGreaterThanOrEqual(3);
+    expect(completedProposal.headcount).toBe(25);
+    expect(completedProposal.perPersonCents).toBe(2500);
+    expect(completedProposal.budgetCents).toBe(62500);
+    expect(completedProposal.suggested).toEqual(
+      expect.arrayContaining([
+        'template',
+        'title',
+        'meal',
+        'date',
+        'startTime',
+        'durationMinutes',
+        'location',
+        'includes',
+        'headcount',
+        'budgetCents',
+      ]),
+    );
   });
 });

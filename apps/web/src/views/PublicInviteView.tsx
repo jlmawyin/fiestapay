@@ -25,6 +25,17 @@ import {
 } from '../lib/event-presentation';
 import { orderStatusLabel } from '../lib/order-status';
 import { showOnScreen } from '../guide/showOnScreen';
+import {
+  CrestMedallion,
+  PolaroidStrip,
+  SignatureInvitationCard,
+} from '../components/invite/SignatureInvitationCard';
+import {
+  polaroidsForEvent,
+  resolveInvitationStyle,
+  themeForInvitationStyle,
+  type InvitationCardStyle,
+} from '../lib/invitation-blueprints';
 
 interface PublicInviteViewProps {
   slug: string;
@@ -54,6 +65,8 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const [unlocking, setUnlocking] = useState(false);
   const [isSavingRsvp, setIsSavingRsvp] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [showSignatureCard, setShowSignatureCard] = useState(false);
+  const [guestCardStyle, setGuestCardStyle] = useState<InvitationCardStyle | null>(null);
   const { locale, formatMoney } = useI18n();
   const m = useMessages(inviteCatalog);
   const copyRef = useRef(m);
@@ -457,12 +470,17 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const paidOrCovered = Boolean(
     guest && guest.status === 'yes' && (quote ? quote.amountCents === 0 : guest.dueCents === 0 && guest.paidCents > 0),
   ) || activeOrder?.status === 'paid';
+  const resolvedCardStyle =
+    guestCardStyle ?? resolveInvitationStyle(event.template, theme.key, event.title, event.description);
+  const activeCardTheme = guestCardStyle
+    ? themeForInvitationStyle(event.template, guestCardStyle)
+    : theme.key;
 
   return (
     <ThemeScope theme={theme}>
     <div className="invite-shell" data-invite-slug={slug}>
       {/* Main Signature Invitation Ticket */}
-      <article className="ticket-card" aria-label={m.inviteAria(event.title)}>
+      <article className={`ticket-card ticket-card--sig-${resolvedCardStyle}`} aria-label={m.inviteAria(event.title)}>
         {/* Cover illustration */}
         <TemplateCover template={event.template} accent={theme.accent} height="200px" />
 
@@ -482,6 +500,13 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
             ) : null}
           </div>
 
+          <div className="ticket-card__ceremonial-head">
+            <CrestMedallion style={resolvedCardStyle} locale={locale} />
+            {resolvedCardStyle === 'reencuentro' ? (
+              <PolaroidStrip memories={polaroidsForEvent(event.title, event.organizerName ?? '', locale)} position="top" />
+            ) : null}
+          </div>
+
           <p className="theme-phrase" style={{ margin: '0 0 0.35rem' }}>{copy.welcome}</p>
           {greeting ? (
             <p style={{ margin: '0 0 0.35rem', color: 'var(--theme-muted, var(--color-ink-muted))' }}>{greeting}</p>
@@ -493,6 +518,14 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
           <h1 style={{ fontSize: '1.85rem', marginBottom: '0.5rem', color: 'var(--color-ink)' }}>
             {event.title}
           </h1>
+
+          <div className="sig-invite-card__divider sig-invite-card__divider--inline" aria-hidden="true">
+            <span className="sig-invite-card__divider-line" />
+            <span className="sig-invite-card__divider-gem">
+              {resolvedCardStyle === 'retro' ? '◆' : '◇'}
+            </span>
+            <span className="sig-invite-card__divider-line" />
+          </div>
 
           <p style={{ fontSize: '0.95rem', color: 'var(--color-ink-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
             {event.description}
@@ -553,7 +586,48 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
               <QrCode size={16} aria-hidden="true" />
               <span>{m.qrCta}</span>
             </button>
+            <button
+              type="button"
+              data-testid="toggle-signature-card"
+              onClick={() => setShowSignatureCard((prev) => !prev)}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
+              aria-expanded={showSignatureCard}
+            >
+              <span>
+                {showSignatureCard
+                  ? locale === 'en'
+                    ? 'Hide commemorative card'
+                    : 'Ocultar tarjeta conmemorativa'
+                  : locale === 'en'
+                    ? '✨ View commemorative card'
+                    : '✨ Ver tarjeta conmemorativa'}
+              </span>
+            </button>
           </div>
+
+          {showSignatureCard ? (
+            <div style={{ marginTop: '1rem' }}>
+              <SignatureInvitationCard
+                template={event.template}
+                theme={activeCardTheme}
+                title={event.title}
+                organizerName={event.organizerName ?? ''}
+                description={event.description ?? ''}
+                location={event.location}
+                startsAt={event.startsAt}
+                endsAt={event.endsAt ?? ''}
+                priceCents={event.priceCents}
+                capacity={event.capacity ?? 12}
+                includes={event.includes}
+                meal={event.meal}
+                agenda={event.agenda}
+                deadlineLocal={event.fundingDeadlineAt ?? undefined}
+                locale={locale}
+                onSelectStyle={(style) => setGuestCardStyle(style)}
+              />
+            </div>
+          ) : null}
         </div>
 
         {/* Ticket Perforated Divider */}
