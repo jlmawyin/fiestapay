@@ -398,6 +398,9 @@ describe('draft-event fill (EN)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pergamino Clásico' }));
     expect(screen.getByTestId('signature-invitation-card')).toHaveAttribute('data-card-style', 'retro');
 
+    fireEvent.click(screen.getByRole('button', { name: 'Celebración Festiva' }));
+    expect(screen.getByTestId('signature-invitation-card')).toHaveAttribute('data-card-style', 'festiva');
+
     fireEvent.click(screen.getByRole('button', { name: 'Publicar invitación' }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     const payload = onSubmit.mock.calls[0][0] as EventInput;

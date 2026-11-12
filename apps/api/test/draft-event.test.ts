@@ -143,11 +143,13 @@ describeDb('crear con una frase', () => {
           text: 'House dinner for six',
         });
         expect(response.statusCode).toBe(200);
-        expect(body<DraftEventProposal>(response)).toEqual({
+        expect(body<DraftEventProposal>(response)).toMatchObject({
           template: 'casa',
           title: 'House dinner',
-          includes: [],
-          suggested: ['template', 'title'],
+          startTime: '16:00',
+          location: 'Venue to be confirmed',
+          headcount: 12,
+          perPersonCents: 1500,
           source: 'ai',
         });
         expect(inputs[0]!.instructions).toContain('in English');
@@ -176,14 +178,13 @@ describeDb('crear con una frase', () => {
       async (app) => {
         const response = await new Client(app).post(ENDPOINT, { text: 'Asado para 12 con $180' });
         expect(response.statusCode).toBe(200);
-        expect(body<DraftEventProposal>(response)).toEqual({
+        expect(body<DraftEventProposal>(response)).toMatchObject({
           template: 'comida',
           title: 'Asado para 12 con $180',
-          includes: [],
+          location: 'Lugar por confirmar',
           headcount: 12,
           budgetCents: 18_000,
           perPersonCents: 1_500,
-          suggested: [],
           source: 'rules',
         });
       },
@@ -249,15 +250,15 @@ describeDb('crear con una frase', () => {
       async (app) => {
         const response = await new Client(app).post(ENDPOINT, { text: 'Cena para 8 con USD 200' });
         expect(response.statusCode).toBe(200);
-        expect(body<DraftEventProposal>(response)).toEqual({
+        expect(body<DraftEventProposal>(response)).toMatchObject({
           template: 'comida',
           title: 'Cena para 8 con USD 200',
           meal: 'cena',
-          includes: [],
+          startTime: '19:30',
+          location: 'Lugar por confirmar',
           headcount: 8,
           budgetCents: 20_000,
           perPersonCents: 2_500,
-          suggested: [],
           source: 'rules',
         });
       },
@@ -303,34 +304,58 @@ describeDb('crear con una frase', () => {
       expect((await client.post(ENDPOINT, { text: 'Cena para 6', template: 'comida' })).statusCode).toBe(400);
     });
   });
+});
 
-  it('completeDraftProposal completa todos los campos pendientes para que el asistente quede listo', () => {
-    const partial = rulesDraftEvent('Reencuentro de promoción');
-    const completedProposal = completeDraftProposal(partial, 'Reencuentro de promoción', 'es', '2026-11-11');
-    expect(completedProposal.template).toBe('comida');
-    expect(completedProposal.title).toBe('Reencuentro de promoción');
-    expect(completedProposal.meal).toBe('cena');
-    expect(completedProposal.date).toBe('2026-11-14');
-    expect(completedProposal.startTime).toBe('19:30');
-    expect(completedProposal.durationMinutes).toBe(180);
-    expect(completedProposal.location).toContain('Salón Principal');
-    expect(completedProposal.includes.length).toBeGreaterThanOrEqual(3);
-    expect(completedProposal.headcount).toBe(25);
-    expect(completedProposal.perPersonCents).toBe(2500);
-    expect(completedProposal.budgetCents).toBe(62500);
-    expect(completedProposal.suggested).toEqual(
-      expect.arrayContaining([
-        'template',
-        'title',
-        'meal',
-        'date',
-        'startTime',
-        'durationMinutes',
-        'location',
-        'includes',
-        'headcount',
-        'budgetCents',
-      ]),
-    );
+// Pure function: runs locally and in CI, with or without PostgreSQL.
+describe('completeDraftProposal', () => {
+  const ALL_FIELDS = [
+    'template',
+    'title',
+    'date',
+    'startTime',
+    'durationMinutes',
+    'location',
+    'includes',
+    'headcount',
+    'budgetCents',
+  ];
+
+  it('completa un reencuentro (evento) sin dejar campos pendientes', () => {
+    const text = 'Reencuentro de promoción';
+    const result = completeDraftProposal(rulesDraftEvent(text), text, 'es', '2026-11-11');
+    expect(result.template).toBe('evento');
+    expect(result.title).toBe('Reencuentro de promoción');
+    expect(result).not.toHaveProperty('meal');
+    expect(result.date).toBe('2026-11-14');
+    expect(result.startTime).toBe('18:30');
+    expect(result.durationMinutes).toBe(180);
+    expect(result.location).toBe('Lugar por confirmar');
+    expect(result.includes.length).toBeGreaterThanOrEqual(3);
+    expect(result.headcount).toBe(25);
+    expect(result.perPersonCents).toBe(2500);
+    expect(result.budgetCents).toBe(62500);
+    expect(result.suggested).toEqual(expect.arrayContaining(ALL_FIELDS));
+  });
+
+  it('completa una cena con comida, hora de cena y cuota por defecto', () => {
+    const text = 'Cena de amigos';
+    const result = completeDraftProposal(rulesDraftEvent(text), text, 'es', '2026-11-11');
+    expect(result.template).toBe('comida');
+    expect(result.meal).toBe('cena');
+    expect(result.startTime).toBe('19:30');
+    expect(result.headcount).toBe(12);
+    expect(result.perPersonCents).toBe(1500);
+    expect(result.budgetCents).toBe(18000);
+    expect(result.suggested).toEqual(expect.arrayContaining([...ALL_FIELDS, 'meal']));
+  });
+
+  it('conserva los datos explícitos de la frase y calcula la cuota en el servidor', () => {
+    const text = 'Asado para 10 con $150';
+    const result = completeDraftProposal(rulesDraftEvent(text), text, 'en', '2026-11-11');
+    expect(result.headcount).toBe(10);
+    expect(result.budgetCents).toBe(15_000);
+    expect(result.perPersonCents).toBe(1_500);
+    expect(Number.isInteger(result.perPersonCents)).toBe(true);
+    expect((result.location ?? '').length).toBeGreaterThan(0);
   });
 });

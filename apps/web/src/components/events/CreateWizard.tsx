@@ -339,7 +339,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
       if (checks[`${template}:${key}`]) out.push(includeLabel(key));
     }
     out.push(...splitIncludesFree(includesFree));
-    return out;
+    return [...new Set(out)];
   };
   const includes = assembledIncludes();
 
@@ -713,6 +713,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
   const applyDraftProposal = (
     proposal: DraftEventProposal,
     referenceBlueprint?: InvitationReferenceBlueprint,
+    sentence = '',
   ) => {
     const wants = new Set(proposal.suggested ?? []);
     const marks = new Set<DraftMark>();
@@ -845,7 +846,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
     if (isCompleteDraft) {
       const extras = enrichWizardExtrasForProposal(
         proposal,
-        referenceBlueprint ? referenceBlueprint.sentence[locale] : draftText,
+        referenceBlueprint?.sentence[locale] ?? sentence,
         locale,
         referenceBlueprint?.style,
       );
@@ -855,13 +856,17 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
       if (referenceBlueprint || !description.trim()) {
         setDescription(referenceBlueprint ? referenceBlueprint.description[locale] : extras.description);
       }
+      if (nextTemplate === 'comida' && (referenceBlueprint || (!foodStyle && !foodStyleFree.trim()))) {
+        if (referenceBlueprint) setFoodStyle('');
+        setFoodStyleFree(referenceBlueprint?.foodStyle?.[locale] ?? extras.foodStyle);
+      }
       if (
         nextTemplate === 'evento' &&
         (referenceBlueprint?.agenda || agenda.every((item) => !item.title.trim()))
       ) {
         setAgenda(referenceBlueprint?.agenda?.[locale] ?? extras.agenda);
       }
-      if (referenceBlueprint || (!themeTouched && extras.style !== 'festiva')) {
+      if (referenceBlueprint || !themeTouched || nextTemplate !== template) {
         setTheme(extras.theme);
         setThemeTouched(true);
       }
@@ -929,7 +934,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
     setDraftNotice(null);
     try {
       const proposal = await api.draftEvent(text);
-      applyDraftProposal(proposal);
+      applyDraftProposal(proposal, undefined, text);
     } catch (err: unknown) {
       // 429/503 keep the existing bilingual AI message; the manual form stays usable.
       if (err instanceof ApiError && (err.status === 429 || err.status === 503)) {
@@ -1889,8 +1894,8 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
         location={location}
         startsAt={startsAt}
         endsAt={endsAt}
-        priceCents={Number.isFinite(parsedCents) && parsedCents > 0 ? parsedCents : 2500}
-        capacity={Number.isInteger(parsedCap) && parsedCap > 0 ? parsedCap : 12}
+        priceCents={Number.isFinite(parsedCents) && parsedCents > 0 ? parsedCents : 0}
+        capacity={Number.isInteger(parsedCap) && parsedCap > 0 ? parsedCap : 0}
         includes={includes}
         meal={meal}
         foodStyle={foodStyleText}

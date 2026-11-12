@@ -111,50 +111,44 @@ export function themeForInvitationStyle(template: TemplateKind, style: Invitatio
 /** Infers the best visual card style from text keywords and template. */
 export function inferStyleFromText(text: string, template: TemplateKind): InvitationCardStyle {
   const lower = text.toLowerCase();
-  if (/promoci[oó]n|academia|naval|colegio|graduaci[oó]n|36\s*a[nñ]os|\bxx\b|curso|fima|recuerdo/.test(lower)) {
+  if (/promoci[oó]n|academia|naval|colegio|graduaci[oó]n|class reunion|classmates|graduation|alumni/.test(lower)) {
     return 'reencuentro';
   }
-  if (/pergamino|retro|cl[aá]sic[oa]|tertulia|bodas|antiguo|tradicional|historia/.test(lower)) {
+  if (/pergamino|retro|cl[aá]sic[oa]|tertulia|boda|antiguo|tradicional|historia|vintage|parchment|wedding|traditional/.test(lower)) {
     return 'retro';
   }
-  if (/reencuentro|asociaci[oó]n|extrabajadores|compa[nñ]eros|gala|anual|confraternidad|aniversario|ejecutiv/.test(lower)) {
+  if (/reencuentro|asociaci[oó]n|extrabajadores|compa[nñ]eros|gala|anual|confraternidad|aniversario|ejecutiv|reunion|anniversary|colleagues|association|annual|formal/.test(lower)) {
     return 'elegante';
   }
+  if (/cumplea[nñ]os|birthday|fiesta|party/.test(lower)) return 'festiva';
   if (template === 'evento') {
     return 'elegante';
   }
   return 'festiva';
 }
 
-/** Resolves the active InvitationCardStyle from the stored ThemeKey and event text. */
+/** Resolves the active InvitationCardStyle from the stored ThemeKey. */
 export function resolveInvitationStyle(
   template: TemplateKind,
   theme: ThemeKey,
-  title = '',
-  description = '',
 ): InvitationCardStyle {
   const list: readonly ThemeKey[] = TEMPLATE_THEMES[template];
-  const slotIdx = list.indexOf(theme);
-  if (slotIdx >= 1 && slotIdx < SLOT_INDEX_STYLE.length) {
-    return SLOT_INDEX_STYLE[slotIdx]!;
-  }
-  const combined = `${title} ${description}`.trim();
-  if (combined.length > 0) {
-    const inferred = inferStyleFromText(combined, template);
-    if (inferred !== 'festiva') return inferred;
-  }
-  return SLOT_INDEX_STYLE[slotIdx >= 0 ? slotIdx : 0] ?? 'festiva';
+  return SLOT_INDEX_STYLE[list.indexOf(theme)] ?? 'festiva';
 }
 
+/** Next Saturday counted from today in America/Guayaquil, never the browser's zone. */
 function nextSaturdayDate(offsetWeeks = 1): string {
-  const now = new Date();
-  const day = now.getDay();
-  const daysUntilSat = ((6 - day + 7) % 7) || 7;
-  const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntilSat + (offsetWeeks - 1) * 7);
-  const y = target.getFullYear();
-  const m = String(target.getMonth() + 1).padStart(2, '0');
-  const d = String(target.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Guayaquil',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  const base = new Date(Date.UTC(get('year'), get('month') - 1, get('day'), 12));
+  const daysUntilSat = ((6 - base.getUTCDay() + 7) % 7) || 7;
+  base.setUTCDate(base.getUTCDate() + daysUntilSat + (offsetWeeks - 1) * 7);
+  return base.toISOString().slice(0, 10);
 }
 
 export interface InvitationReferenceBlueprint {
@@ -183,8 +177,8 @@ export const INVITATION_REFERENCES: readonly InvitationReferenceBlueprint[] = [
       en: 'Class Reunion · Keepsake Album',
     },
     sentence: {
-      es: 'Reencuentro de promoción en Master Buffet (Kennedy Norte) para 30 compañeros a $30 por persona con almuerzo buffet, brindis y recuerdo conmemorativo',
-      en: 'Class reunion at Master Buffet (Kennedy Norte) for 30 classmates at $30 per person with buffet lunch, toast and commemorative keepsake',
+      es: 'Reencuentro de promoción para 30 compañeros a $30 por persona con almuerzo buffet, brindis y recuerdo conmemorativo',
+      en: 'Class reunion for 30 classmates at $30 per person with buffet lunch, toast and a commemorative keepsake',
     },
     organizerName: {
       es: 'Comité Organizador · Promoción',
@@ -210,15 +204,15 @@ export const INVITATION_REFERENCES: readonly InvitationReferenceBlueprint[] = [
       template: 'evento',
       title:
         locale === 'en'
-          ? '36 Years Later, Friendship Remains Intact! · Class Reunion'
-          : '¡36 años después, la amistad sigue intacta! · Reencuentro',
+          ? 'Friendship Stands the Test of Time · Class Reunion'
+          : 'La amistad sigue intacta · Reencuentro de promoción',
       date: nextSaturdayDate(2),
       startTime: '14:15',
       durationMinutes: 180,
       location:
         locale === 'en'
-          ? 'Master Buffet (Kennedy Norte) · Reserved Hall'
-          : 'Master Buffet (Kennedy Norte) · Salón Reservado',
+          ? 'Venue to be confirmed'
+          : 'Lugar por confirmar',
       includes:
         locale === 'en'
           ? [
@@ -260,8 +254,8 @@ export const INVITATION_REFERENCES: readonly InvitationReferenceBlueprint[] = [
       en: 'Emerald Gala · Annual Reunion',
     },
     sentence: {
-      es: 'Cena de reencuentro anual de compañeros en Master Buffet el sábado a las 18:00 para 28 personas a $25 cada uno con buffet, brindis y sorpresas',
-      en: 'Annual colleagues reunion dinner at Master Buffet on Saturday at 18:00 for 28 people at $25 each with buffet, toast and surprises',
+      es: 'Cena de reencuentro anual de compañeros el sábado a las 18:00 para 28 personas a $25 cada uno con buffet, brindis y sorpresas',
+      en: 'Annual colleagues reunion dinner on Saturday at 18:00 for 28 people at $25 each with buffet, toast and surprises',
     },
     organizerName: {
       es: 'Comité Organizador · Asociación de Compañeros',
@@ -287,8 +281,8 @@ export const INVITATION_REFERENCES: readonly InvitationReferenceBlueprint[] = [
       durationMinutes: 180,
       location:
         locale === 'en'
-          ? 'Master Buffet · Kennedy Norte, Main Hall'
-          : 'Master Buffet · Kennedy Norte, Salón Principal',
+          ? 'Venue to be confirmed'
+          : 'Lugar por confirmar',
       includes:
         locale === 'en'
           ? [
@@ -358,8 +352,8 @@ export const INVITATION_REFERENCES: readonly InvitationReferenceBlueprint[] = [
       durationMinutes: 180,
       location:
         locale === 'en'
-          ? 'Master Buffet Classic Hall · Kennedy Norte'
-          : 'Salón Clásico Master Buffet · Kennedy Norte',
+          ? 'Venue to be confirmed'
+          : 'Lugar por confirmar',
       includes:
         locale === 'en'
           ? [
@@ -529,7 +523,7 @@ export function enrichWizardExtrasForProposal(
   let foodStyle = '';
   if (proposal.template === 'comida') {
     if (proposal.includes && proposal.includes.length > 0) {
-      foodStyle = proposal.includes.slice(0, 2).join(' · ').slice(0, 120);
+      foodStyle = proposal.includes[0]!;
     } else {
       const mealKind: MealKind = proposal.meal ?? 'cena';
       foodStyle =
