@@ -356,4 +356,53 @@ describe('draft-event fill (EN)', () => {
       ).toBeInTheDocument();
     });
   });
+
+  it('fills organizerName and description automatically on a complete AI draft and renders the signature invitation card', async () => {
+    const date = futureDate(9);
+    vi.spyOn(api, 'draftEvent').mockResolvedValue(COMIDA_PROPOSAL(date));
+    renderEs(<CreateWizard onSubmit={vi.fn()} onCancel={vi.fn()} isLoading={false} />);
+
+    fillSentenceEs('Asado para 10 el sábado a las 13:00, $15 cada uno');
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Revisar y publicar' })).toBeInTheDocument();
+    });
+
+    const summary = summaryRegion();
+    expect(within(summary).queryByText('Sin nombre público')).toBeNull();
+    expect(within(summary).queryByText('Aún no hay descripción para invitados')).toBeNull();
+    expect(within(summary).queryByText('Aún sin definir')).toBeNull();
+    expect(within(summary).queryByText('Aún no hay nada incluido')).toBeNull();
+    expect(screen.getByTestId('signature-invitation-card')).toBeInTheDocument();
+  });
+
+  it('loads reference invitations with one click and lets the organizer switch between the 4 designer card styles', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    renderEs(<CreateWizard onSubmit={onSubmit} onCancel={vi.fn()} isLoading={false} />);
+
+    fireEvent.click(screen.getByTestId('reference-invite-reencuentro-promocion'));
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Revisar y publicar' })).toBeInTheDocument();
+    });
+
+    const card = screen.getByTestId('signature-invitation-card');
+    expect(card).toHaveAttribute('data-card-style', 'reencuentro');
+
+    const summary = summaryRegion();
+    expect(within(summary).getByText('Comité Organizador · Promoción')).toBeInTheDocument();
+    expect(within(summary).queryByText('Sin nombre público')).toBeNull();
+    expect(within(summary).queryByText('Aún no hay descripción para invitados')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gala Esmeralda' }));
+    expect(screen.getByTestId('signature-invitation-card')).toHaveAttribute('data-card-style', 'elegante');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pergamino Clásico' }));
+    expect(screen.getByTestId('signature-invitation-card')).toHaveAttribute('data-card-style', 'retro');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Publicar invitación' }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    const payload = onSubmit.mock.calls[0][0] as EventInput;
+    expect(payload.organizerName).toBe('Comité Organizador · Promoción');
+    expect(payload.description.length).toBeGreaterThan(20);
+    expect(payload.agenda.length).toBeGreaterThanOrEqual(3);
+  });
 });

@@ -41,6 +41,14 @@ import {
 } from '../../lib/event-presentation';
 import { TemplateCover } from '../illustrations/TemplateCover';
 import { TemplateIcon } from './template-icons';
+import { SignatureInvitationCard } from '../invite/SignatureInvitationCard';
+import {
+  INVITATION_REFERENCES,
+  enrichWizardExtrasForProposal,
+  themeForInvitationStyle,
+  type InvitationCardStyle,
+  type InvitationReferenceBlueprint,
+} from '../../lib/invitation-blueprints';
 import { ASSISTANT_THEME_EVENT, type AssistantThemeDetail } from '../assistant/orb-themes';
 import {
   GUIDE_ACTION_EVENT,
@@ -702,7 +710,10 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
    * so the review keeps describing them as a suggestion until the person edits.
    * The per-person share always comes from the server `perPersonCents`, as is.
    */
-  const applyDraftProposal = (proposal: DraftEventProposal) => {
+  const applyDraftProposal = (
+    proposal: DraftEventProposal,
+    referenceBlueprint?: InvitationReferenceBlueprint,
+  ) => {
     const wants = new Set(proposal.suggested ?? []);
     const marks = new Set<DraftMark>();
     const nextTemplate =
@@ -823,6 +834,39 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
       marks.add('price');
     }
 
+    const isCompleteDraft =
+      Boolean(referenceBlueprint) ||
+      (wants.has('template') &&
+        wants.has('title') &&
+        Boolean(proposal.location?.trim()) &&
+        wants.has('headcount') &&
+        wants.has('budgetCents'));
+
+    if (isCompleteDraft) {
+      const extras = enrichWizardExtrasForProposal(
+        proposal,
+        referenceBlueprint ? referenceBlueprint.sentence[locale] : draftText,
+        locale,
+        referenceBlueprint?.style,
+      );
+      if (referenceBlueprint || !organizerName.trim()) {
+        setOrganizerName(referenceBlueprint ? referenceBlueprint.organizerName[locale] : extras.organizerName);
+      }
+      if (referenceBlueprint || !description.trim()) {
+        setDescription(referenceBlueprint ? referenceBlueprint.description[locale] : extras.description);
+      }
+      if (
+        nextTemplate === 'evento' &&
+        (referenceBlueprint?.agenda || agenda.every((item) => !item.title.trim()))
+      ) {
+        setAgenda(referenceBlueprint?.agenda?.[locale] ?? extras.agenda);
+      }
+      if (referenceBlueprint || (!themeTouched && extras.style !== 'festiva')) {
+        setTheme(extras.theme);
+        setThemeTouched(true);
+      }
+    }
+
     setSuggestedMarks(marks);
     setDraftSource(proposal.source);
     setDraftNotice(
@@ -834,6 +878,19 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
     setStepError(null);
     setErrorStep(null);
     setOpenStep(6);
+  };
+
+  const handleApplyReference = (ref: InvitationReferenceBlueprint) => {
+    if (draftLoading || isLoading || posting.current) return;
+    setDraftError(null);
+    setDraftText(ref.sentence[locale]);
+    applyDraftProposal(ref.proposal(locale), ref);
+  };
+
+  const handleSelectCardStyle = (style: InvitationCardStyle) => {
+    const nextTheme = themeForInvitationStyle(template, style);
+    setTheme(nextTheme);
+    setThemeTouched(true);
   };
 
   /**
@@ -1058,6 +1115,35 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
           <span id="wizard-draft-help" className="form-label-desc">
             {m.draftHelp}
           </span>
+          <div
+            className="create-wizard__ref-bar"
+            role="group"
+            aria-label={
+              locale === 'en'
+                ? 'Reference invitation templates'
+                : 'Base de invitaciones de referencia'
+            }
+          >
+            <span className="create-wizard__ref-label">
+              {locale === 'en'
+                ? 'Or load a complete reference invitation:'
+                : 'O carga una invitación de referencia completa:'}
+            </span>
+            <div className="create-wizard__ref-chips">
+              {INVITATION_REFERENCES.map((ref) => (
+                <button
+                  key={ref.id}
+                  type="button"
+                  className="create-wizard__ref-chip"
+                  data-testid={`reference-invite-${ref.id}`}
+                  onClick={() => handleApplyReference(ref)}
+                  disabled={draftLoading || isLoading}
+                >
+                  {ref.chipLabel[locale]}
+                </button>
+              ))}
+            </div>
+          </div>
           {draftError ? (
             <p role="alert" className="create-wizard__error">
               {draftError}
@@ -1790,9 +1876,37 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
 
   const selectedTheme = resolveTheme(template, theme);
 
+  const renderInvitationCardPreview = (compact = false) => {
+    const parsedCents = Math.round(parseFloat(priceDollars) * 100);
+    const parsedCap = Number.parseInt(capacity, 10);
+    return (
+      <SignatureInvitationCard
+        template={template}
+        theme={theme}
+        title={title}
+        organizerName={organizerName}
+        description={description}
+        location={location}
+        startsAt={startsAt}
+        endsAt={endsAt}
+        priceCents={Number.isFinite(parsedCents) && parsedCents > 0 ? parsedCents : 2500}
+        capacity={Number.isInteger(parsedCap) && parsedCap > 0 ? parsedCap : 12}
+        includes={includes}
+        meal={meal}
+        foodStyle={foodStyleText}
+        agenda={agenda}
+        deadlineLocal={deadlineLocal}
+        locale={locale}
+        onSelectStyle={handleSelectCardStyle}
+        compact={compact}
+      />
+    );
+  };
+
   const renderLook = () => (
     <>
       <p className="create-wizard__explain">{m.explainLook}</p>
+      {renderInvitationCardPreview(true)}
       <div
         role="region"
         aria-label={m.lookPreviewAria}
@@ -1940,6 +2054,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
   const renderReview = () => (
     <>
       <p className="create-wizard__explain">{m.explainReview}</p>
+      {renderInvitationCardPreview(false)}
       <section className="publish-review" aria-label={m.reviewAria} style={themeCssVars(selectedTheme)}>
         <h3 style={{ margin: 0 }}>{m.reviewSummaryTitle}</h3>
         <p className="theme-phrase" style={{ fontSize: '1.15rem' }}>{themePhrase(selectedTheme.key, locale)}</p>

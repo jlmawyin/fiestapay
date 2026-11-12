@@ -27,3 +27,21 @@
 
 - Pruebas unitarias en `apps/web/src/__tests__/voice.test.ts` (ganancia, AGC, limitador suave sin superar `0.98` y actualización en vivo con `setGain`), `apps/web/src/__tests__/voice-session.test.tsx` (solicitud de micrófono sin procesamiento en Android Chrome y con procesamiento fuera de Android) y `apps/web/src/__tests__/voice-gemini.test.tsx` (`formatKickoffTurn`, selector de volumen y bloqueo del eco del altavoz durante la reproducción y la cola de `650 ms` antes de volver a escuchar).
 - `npm run check` completo en verde: ESLint, TypeScript (`@fiestapay/shared`, `@fiestapay/api`, `@fiestapay/web`), pruebas unitarias y build de producción.
+
+## 5. Prellenado 100 % completo en el asistente con IA (`apps/api/src/ai/draft-event.ts`, `apps/web/src/components/events/CreateWizard.tsx`)
+
+- **Servidor (`completeDraftProposal` + `instructionFor` en `apps/api/src/ai/draft-event.ts`):**
+  - El prompt del asistente instruye a Gemini (`gemini-3.5-flash`) a proponer valores completos y coherentes para todos los campos (`template`, `title`, `meal`, `date`, `startTime`, `durationMinutes`, `location`, `includes`, `headcount`, `budgetCents`) cuando la frase del organizador omite alguno.
+  - Además, `completeDraftProposal` garantiza en llamadas reales que ningún campo quede vacío: completa fecha sugerida (próximo sábado futuro en `America/Guayaquil`), horario acorde al tipo de comida/encuentro, duración, lugar descriptivo según la ocasión, de 3 a 4 elementos incluidos en la cuota, cupo estimado, cuota por persona y presupuesto total, marcándolos en `suggested`.
+- **Cliente (`applyDraftProposal` y `enrichWizardExtrasForProposal` en `CreateWizard.tsx` y `apps/web/src/lib/invitation-blueprints.ts`):**
+  - Al aplicar un borrador completo de IA o una invitación de referencia, el asistente rellena automáticamente `organizerName` (`Comité Organizador` / `Anfitrión del Evento`), `description` (texto cálido y específico según la ocasión), `agenda` (para eventos con 3 hitos horarios) y `theme` (acorde al diseño visual inferido), de modo que el Paso 6 (`Revisar y publicar`) nunca deje filas en `«Sin nombre público»`, `«Aún no hay descripción para invitados»`, `«Aún sin definir»` ni `«Aún no hay nada incluido»`.
+
+## 6. Base de invitaciones de referencia y tarjetas de invitación conmemorativas (`apps/web/src/lib/invitation-blueprints.ts`, `apps/web/src/components/invite/SignatureInvitationCard.tsx`, `apps/web/src/views/PublicInviteView.tsx`)
+
+- **Base de 4 invitaciones de referencia listas con un clic en `/create` (`INVITATION_REFERENCES`):**
+  1. **🎓 Reencuentro de Promoción (Álbum):** Inspirada en reencuentros de promoción (estilo azul marino y dorado con marcos Polaroid de recuerdos, almuerzo buffet, brindis de honor y recuerdo conmemorativo).
+  2. **✨ Cena de Compañeros (Gala Esmeralda):** Inspirada en reuniones anuales de compañeros y asociaciones (fondo verde bosque esmeralda, doble filete dorado, emblema superior y grilla 2×2 en líneas finas doradas).
+  3. **📜 Amigos de Toda la Vida (Pergamino):** Edición clásica sobre papel pergamino cálido con tinta sepia, sello conmemorativo y divisores ornamentales con rombo `◆`.
+  4. **🔥 Parrillada y Cumpleaños (Festiva):** Diseño moderno y cálido para cumpleaños, parrilladas y reuniones de amigos.
+- **Tarjeta de invitación en vivo (`<SignatureInvitationCard />`):**
+  - Se muestra en vivo en el Paso 5 (`Presentación y portada`), en el Paso 6 (`Revisar y publicar`) y en la vista pública del invitado (`PublicInviteView.tsx`), alimentada dinámicamente con todo lo que el usuario ha planificado (`title`, `organizerName`, `description`, `location`, `startsAt`, `endsAt`, `priceCents`, `capacity`, `includes`, `meal`, `agenda`, `deadlineLocal`) y con selector interactivo entre los 4 estilos (`Álbum del reencuentro`, `Gala Esmeralda`, `Pergamino Clásico`, `Celebración Festiva`) persistido en `event.theme` sin migraciones SQL.
