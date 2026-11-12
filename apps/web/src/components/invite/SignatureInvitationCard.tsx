@@ -40,10 +40,11 @@ export interface SignatureInvitationCardProps {
 function formatCardDate(isoOrLocal: string, locale: Locale): string {
   const ms = new Date(isoOrLocal).getTime();
   if (!Number.isFinite(ms)) {
-    return locale === 'en' ? 'Saturday · Upcoming date' : 'Sábado · Próxima fecha';
+    return locale === 'en' ? 'Date to be defined' : 'Fecha por definir';
   }
   const d = new Date(ms);
   return d.toLocaleDateString(locale === 'en' ? 'en-US' : 'es-EC', {
+    timeZone: 'America/Guayaquil',
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -55,10 +56,11 @@ function formatCardTimeRange(startsAt: string, endsAt: string, locale: Locale): 
   const startMs = new Date(startsAt).getTime();
   const endMs = new Date(endsAt).getTime();
   if (!Number.isFinite(startMs)) {
-    return '18:00 a 21:00';
+    return locale === 'en' ? 'Time to be defined' : 'Hora por definir';
   }
   const fmt = (ms: number) =>
     new Date(ms).toLocaleTimeString(locale === 'en' ? 'en-US' : 'es-EC', {
+      timeZone: 'America/Guayaquil',
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
@@ -195,7 +197,7 @@ export const SignatureInvitationCard: React.FC<SignatureInvitationCardProps> = (
   onSelectStyle,
   compact = false,
 }) => {
-  const activeStyle = resolveInvitationStyle(template, theme, title, description);
+  const activeStyle = resolveInvitationStyle(template, theme);
   const displayTitle =
     title.trim() ||
     (locale === 'en'
@@ -206,7 +208,7 @@ export const SignatureInvitationCard: React.FC<SignatureInvitationCardProps> = (
     (locale === 'en' ? 'Organizing Committee' : 'Comité Organizador');
   const displayLocation =
     location.trim() ||
-    (locale === 'en' ? 'Main Hall · Confirmed Venue' : 'Salón Principal · Punto confirmado');
+    (locale === 'en' ? 'Venue to be confirmed' : 'Lugar por confirmar');
   const displayDate = formatCardDate(startsAt, locale);
   const displayTime = formatCardTimeRange(startsAt, endsAt, locale);
   const displayShare =
@@ -215,14 +217,10 @@ export const SignatureInvitationCard: React.FC<SignatureInvitationCardProps> = (
         ? `${formatMoney(priceCents, locale)} per person`
         : `${formatMoney(priceCents, locale)} por persona`
       : locale === 'en'
-        ? '$25.00 per person'
-        : '$25,00 por persona';
+        ? 'To be defined'
+        : 'Por definir';
 
-  const displayDescription =
-    description.trim() ||
-    (locale === 'en'
-      ? 'Warmest greetings! Time has passed, yet our friendship remains intact. Join us to share great stories, delicious food and unforgettable moments together.'
-      : 'Reciban un afectuoso saludo. El tiempo ha pasado, pero la amistad sigue intacta. Los invitamos a nuestra reunión para recordar anécdotas y compartir agradables momentos.');
+  const displayDescription = description.trim();
 
   const salutation =
     activeStyle === 'reencuentro'
@@ -244,7 +242,7 @@ export const SignatureInvitationCard: React.FC<SignatureInvitationCardProps> = (
   const closingLine =
     activeStyle === 'reencuentro'
       ? locale === 'en'
-        ? 'Reserve your spot early · Limited capacity with keepsake!'
+        ? 'Reserve your spot early!'
         : '¡Reserva tu cupo a tiempo · La amistad sigue intacta!'
       : activeStyle === 'elegante' || activeStyle === 'retro'
         ? locale === 'en'
@@ -319,7 +317,7 @@ export const SignatureInvitationCard: React.FC<SignatureInvitationCardProps> = (
             </div>
           </header>
 
-          {!compact ? (
+          {!compact && displayDescription ? (
             <section className="sig-invite-card__greeting">
               <p className="sig-invite-card__salutation">{salutation}</p>
               <p className="sig-invite-card__body">{displayDescription}</p>
@@ -354,7 +352,13 @@ export const SignatureInvitationCard: React.FC<SignatureInvitationCardProps> = (
               </span>
               <strong className="sig-invite-card__cell-value">{displayTime}</strong>
               <span className="sig-invite-card__cell-sub">
-                {locale === 'en' ? `${capacity || 12} spots available` : `${capacity || 12} cupos disponibles`}
+                {capacity > 0
+                  ? locale === 'en'
+                    ? `Capacity: ${capacity} guests`
+                    : `Cupo total: ${capacity} personas`
+                  : locale === 'en'
+                    ? 'Spots to be defined'
+                    : 'Cupos por definir'}
               </span>
             </div>
             <div className="sig-invite-card__cell">
@@ -372,8 +376,8 @@ export const SignatureInvitationCard: React.FC<SignatureInvitationCardProps> = (
 
           {deadlineLocal?.trim() ? (
             <p className="sig-invite-card__deadline">
-              {locale === 'en' ? 'Confirm and pay by: ' : 'Confirma tu asistencia y realiza el pago hasta: '}
-              <strong>{deadlineLocal.replace('T', ' ')}</strong>
+              {locale === 'en' ? 'Payment deadline: ' : 'Plazo de pago: '}
+              <strong>{formatCardDate(deadlineLocal, locale)} · {formatCardTimeRange(deadlineLocal, '', locale)}</strong>
             </p>
           ) : null}
 

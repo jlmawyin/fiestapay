@@ -33,8 +33,6 @@ import {
 import {
   polaroidsForEvent,
   resolveInvitationStyle,
-  themeForInvitationStyle,
-  type InvitationCardStyle,
 } from '../lib/invitation-blueprints';
 
 interface PublicInviteViewProps {
@@ -66,7 +64,6 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const [isSavingRsvp, setIsSavingRsvp] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [showSignatureCard, setShowSignatureCard] = useState(false);
-  const [guestCardStyle, setGuestCardStyle] = useState<InvitationCardStyle | null>(null);
   const { locale, formatMoney } = useI18n();
   const m = useMessages(inviteCatalog);
   const copyRef = useRef(m);
@@ -470,11 +467,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const paidOrCovered = Boolean(
     guest && guest.status === 'yes' && (quote ? quote.amountCents === 0 : guest.dueCents === 0 && guest.paidCents > 0),
   ) || activeOrder?.status === 'paid';
-  const resolvedCardStyle =
-    guestCardStyle ?? resolveInvitationStyle(event.template, theme.key, event.title, event.description);
-  const activeCardTheme = guestCardStyle
-    ? themeForInvitationStyle(event.template, guestCardStyle)
-    : theme.key;
+  const resolvedCardStyle = resolveInvitationStyle(event.template, theme.key);
 
   return (
     <ThemeScope theme={theme}>
@@ -610,7 +603,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
             <div style={{ marginTop: '1rem' }}>
               <SignatureInvitationCard
                 template={event.template}
-                theme={activeCardTheme}
+                theme={theme.key}
                 title={event.title}
                 organizerName={event.organizerName ?? ''}
                 description={event.description ?? ''}
@@ -618,13 +611,12 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
                 startsAt={event.startsAt}
                 endsAt={event.endsAt ?? ''}
                 priceCents={event.priceCents}
-                capacity={event.capacity ?? 12}
+                capacity={event.capacity ?? 0}
                 includes={event.includes}
                 meal={event.meal}
                 agenda={event.agenda}
                 deadlineLocal={event.fundingDeadlineAt ?? undefined}
                 locale={locale}
-                onSelectStyle={(style) => setGuestCardStyle(style)}
               />
             </div>
           ) : null}
