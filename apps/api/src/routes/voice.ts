@@ -4,6 +4,7 @@ import {
   DEMO_TOUR,
   INVITE_SHOW_ON_SCREEN_DECLARATION,
   INVITE_UI_TARGETS,
+  PRODUCT_TOUR,
   SHOW_ON_SCREEN_DECLARATION,
   UI_LABELS,
   type AssistantContext,
@@ -142,6 +143,7 @@ function publicScreenGuideContext(locale: Locale, context: AssistantContext): st
 function publicScreenGuideRules(locale: Locale): string {
   const L = UI_LABELS[locale];
   const tour = DEMO_TOUR.join(', ');
+  const productTour = PRODUCT_TOUR.join(', ');
   if (locale === 'en') {
     return [
       `Your only tool is show_on_screen. Call it only when the person asks to go somewhere, see something or find a button or element on screen. Choose the correct "target" (or "page" when they only want to open a page) and a short "caption" of at most 60 characters in their language.`,
@@ -149,7 +151,7 @@ function publicScreenGuideRules(locale: Locale): string {
       `When the person describes their party (type, people, amount, date, place), call show_on_screen with target "fillWithAi" and "sentence" set to their description in their own words, without inventing details. After the tool result, say in one sentence that you left their phrase in "Create" and that they must press "${L.fillWithAi}" and review every step. Never say you created or published the invitation.`,
       `The current page can change during the session: trust the "page" field of the latest successful show_on_screen result; before any result, use the starting context page (home page or demo). Never claim they are on a different page than that result.`,
       `If the result is ok:false, explain briefly that it is unavailable there and do not retry in a loop: at most one retry with another valid destination.`,
-      `Tour: if they ask for a tour or "show me the demo", use DEMO_TOUR step by step: one show_on_screen per step (${tour}), explain each step and wait for the person to say "next" before the following step. Never call more than one show_on_screen per turn and never say "next" yourself or advance to the next step until the person speaks.`,
+      `For a demo-only tour, show these targets in order: ${tour}. For a tour of all FiestaPay or of an event of their own, show these tutorial topics in order: ${productTour}. If they ask to see a particular topic, show that target directly (tutorialShare for QR codes, tutorialAccess for forgotten access). Use one show_on_screen call per turn, explain that step, then wait. Only advance when the person asks to continue. Never say "next" yourself or submit any action.`,
       'Do not use show_on_screen for questions unrelated to the screen (prices, schedules, payments, account status). You still cannot query, create, change or cancel events, guests, payments, refunds, capacity or attendance.',
     ].join('\n');
   }
@@ -159,7 +161,7 @@ function publicScreenGuideRules(locale: Locale): string {
     `Cuando la persona describa su fiesta (tipo, personas, importe, fecha, lugar), llama a show_on_screen con target "fillWithAi" y "sentence" con su descripción en sus propias palabras, sin inventar datos. Después del resultado, di en una frase que dejaste su frase en «Crear» y que pulse «${L.fillWithAi}» y revise cada paso. Nunca digas que creaste o publicaste la invitación.`,
     `La página actual puede cambiar durante la sesión: la verdad es el campo "page" del último resultado correcto de show_on_screen; si todavía no hay resultado, vale la página del contexto inicial (portada o demo). No afirmes que está en una página distinta de la del último resultado.`,
     `Si el resultado es ok:false, explica brevemente que no está disponible ahí y no reintentes en bucle: como máximo un reintento con otro destino válido.`,
-    `Recorrido: si piden un recorrido o «muéstrame la demo», usa DEMO_TOUR paso a paso: un show_on_screen por paso (${tour}), explica cada paso y espera a que la persona diga «siguiente» antes del siguiente. Nunca llames más de un show_on_screen por turno y nunca digas «siguiente» por tu cuenta ni avances al siguiente paso sin que la persona hable.`,
+    `Para recorrer solo la demo, muestra estos targets en orden: ${tour}. Para recorrer todo FiestaPay o el uso con un evento propio, muestra estos temas del tutorial en orden: ${productTour}. Si piden ver un tema concreto, muéstralo directamente (tutorialShare para QR, tutorialAccess para acceso olvidado). Usa una llamada a show_on_screen por turno, explica ese paso y espera. Avanza solo cuando la persona lo pida. Nunca digas «siguiente» por tu cuenta ni ejecutes ninguna acción.`,
     'No uses show_on_screen para preguntas que no tienen que ver con la pantalla (precios, horarios, pagos, estado de cuenta). Tampoco puedes consultar, crear, cambiar ni cancelar eventos, invitados, pagos, reembolsos, cupos ni asistencia.',
   ].join('\n');
 }

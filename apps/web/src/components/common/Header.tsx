@@ -8,6 +8,7 @@ interface HeaderProps {
   onNavigateHome: () => void;
   onNavigateCreate: () => void;
   onNavigateDemo?: () => void;
+  onNavigateTutorial?: () => void;
   hasActiveEvent?: boolean;
 }
 
@@ -15,6 +16,7 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateHome,
   onNavigateCreate,
   onNavigateDemo,
+  onNavigateTutorial,
 }) => {
   const { locale } = useI18n();
   const m = useMessages(headerCatalog);
@@ -91,6 +93,16 @@ export const Header: React.FC<HeaderProps> = ({
               data-guide="judgesDemo"
             >
               {labels.judgesDemo}
+            </button>
+          ) : null}
+          {onNavigateTutorial ? (
+            <button
+              type="button"
+              onClick={onNavigateTutorial}
+              className="btn btn-secondary fp-header-btn"
+              data-guide="productTutorial"
+            >
+              {labels.productTutorial}
             </button>
           ) : null}
           <button

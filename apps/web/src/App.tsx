@@ -17,6 +17,7 @@ import { PublicInviteView } from './views/PublicInviteView';
 import { OrganizerDashboardView } from './views/OrganizerDashboardView';
 import { OrganizerRecoveryView } from './views/OrganizerRecoveryView';
 import { JudgePreviewView } from './views/JudgePreviewView';
+import { TutorialView } from './views/TutorialView';
 import { AssistantOrb } from './components/assistant/AssistantOrb';
 import { DemoBuyerAccountCard } from './components/demo/DemoBuyerAccountCard';
 import { parseCreatePath, type CreatePath } from './lib/create-interview';
@@ -47,7 +48,8 @@ type ViewMode =
   | { mode: 'create'; path?: CreatePath }
   | { mode: 'invite'; slug: string }
   | { mode: 'dashboard'; slug: string }
-  | { mode: 'recover' };
+  | { mode: 'recover' }
+  | { mode: 'tutorial' };
 
 /** Guide pages are the public routes; invite/dashboard are not guide pages. */
 function viewToGuidePage(view: ViewMode): UiPage | null {
@@ -55,6 +57,7 @@ function viewToGuidePage(view: ViewMode): UiPage | null {
   if (view.mode === 'demo') return 'demo';
   if (view.mode === 'create') return 'create';
   if (view.mode === 'recover') return 'recover';
+  if (view.mode === 'tutorial') return 'tutorial';
   return null;
 }
 
@@ -62,6 +65,7 @@ function guidePageToView(page: UiPage): ViewMode {
   if (page === 'demo') return { mode: 'demo' };
   if (page === 'create') return { mode: 'create' };
   if (page === 'recover') return { mode: 'recover' };
+  if (page === 'tutorial') return { mode: 'tutorial' };
   return { mode: 'home' };
 }
 
@@ -117,6 +121,7 @@ export const App: React.FC = () => {
     if (view.mode === 'create') path = '/create';
     else if (view.mode === 'demo') path = '/demo';
     else if (view.mode === 'recover') path = '/recover';
+    else if (view.mode === 'tutorial') path = '/tutorial';
     else if (view.mode === 'invite') path = `/e/${view.slug}`;
     else if (view.mode === 'dashboard') path = `/e/${view.slug}/admin`;
 
@@ -154,6 +159,10 @@ export const App: React.FC = () => {
     }
     if (path === '/recover' || path === '/recover/') {
       setCurrentView({ mode: 'recover' });
+      return;
+    }
+    if (path === '/tutorial' || path === '/tutorial/') {
+      setCurrentView({ mode: 'tutorial' });
       return;
     }
     const dashboardMatch = path.match(/^\/e\/([^/]+)\/(?:admin|dashboard)\/?$/);
@@ -378,6 +387,7 @@ export const App: React.FC = () => {
         onNavigateHome={goToOwnInvitations}
         onNavigateCreate={() => navigate({ mode: 'create' })}
         onNavigateDemo={() => navigate({ mode: 'demo' })}
+        onNavigateTutorial={() => navigate({ mode: 'tutorial' })}
         hasActiveEvent={events.length > 0}
       />
 
@@ -482,6 +492,15 @@ export const App: React.FC = () => {
 
         {currentView.mode === 'recover' && <OrganizerRecoveryView available={capabilities?.email === true} />}
 
+        {currentView.mode === 'tutorial' && (
+          <TutorialView
+            onNavigateDemo={() => navigate({ mode: 'demo' })}
+            onNavigateCreate={() => navigate({ mode: 'create' })}
+            onNavigateInvitations={goToOwnInvitations}
+            onNavigateRecover={() => navigate({ mode: 'recover' })}
+          />
+        )}
+
         {currentView.mode === 'dashboard' && (
           <OrganizerDashboardView
             slug={currentView.slug}
@@ -501,7 +520,8 @@ export const App: React.FC = () => {
         {(currentView.mode === 'home' ||
           currentView.mode === 'demo' ||
           currentView.mode === 'create' ||
-          currentView.mode === 'recover') && (
+          currentView.mode === 'recover' ||
+          currentView.mode === 'tutorial') && (
           <AssistantOrb
             audience="public"
             capabilities={capabilities}

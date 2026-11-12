@@ -7,7 +7,7 @@
  * facts, tools, authorization and redaction rules.
  */
 
-import { DEMO_GUEST_NAME, UI_LABELS, formatMoney, type AssistantContext, type Locale } from '@fiestapay/shared';
+import { DEMO_GUEST_NAME, PRODUCT_TOUR, PRODUCT_TUTORIAL_HINTS, UI_LABELS, formatMoney, type AssistantContext, type Locale } from '@fiestapay/shared';
 
 export type ProgramGuideRole = 'public' | 'guest' | 'organizer';
 export type ProgramGuideChannel = 'text' | 'voice';
@@ -239,6 +239,21 @@ export function languageDirective(locale: Locale): string {
   return LANGUAGE_DIRECTIVES[locale];
 }
 
+function productTutorialGuide(locale: Locale): string {
+  const labels = UI_LABELS[locale];
+  const topics = PRODUCT_TOUR.map((topic) => `"${labels[topic]}": ${PRODUCT_TUTORIAL_HINTS[locale][topic]}`);
+  const overview = locale === 'en'
+    ? [
+        `Offer "${labels.productTutorial}" for a complete walkthrough of the demo and a person's own event. Own events still use PayPal Sandbox in this deployment. Quote the corresponding topic when they ask about a specific step.`,
+        'Keep the organizer QR code private because it opens the dashboard. The guest QR code opens the public invitation. If the guest forgets the access code, ask the organizer. Organizer email recovery requires a verified email for that invitation and an enabled server.',
+      ]
+    : [
+        `Ofrece "${labels.productTutorial}" para el recorrido completo del demo y de un evento propio. Los eventos propios también usan PayPal Sandbox en este despliegue. Cita el tema correspondiente si preguntan por un paso concreto.`,
+        'El QR de organizador abre el panel y debe guardarse en privado. El QR para invitados abre la invitación pública. Si olvidan el código de invitado, deben pedirlo a quien organiza. La recuperación del panel por correo requiere un correo verificado para esa invitación y que el servidor ofrezca la opción.',
+      ];
+  return [...overview, ...topics].join('\n');
+}
+
 /** Compose the shared section. Callers keep their existing event-specific and tool rules. */
 export function programGuide(role: ProgramGuideRole, channel: ProgramGuideChannel, locale: Locale = 'es'): string {
   const parts = [
@@ -246,6 +261,7 @@ export function programGuide(role: ProgramGuideRole, channel: ProgramGuideChanne
     locale === 'en' ? `Role: ${role}. Channel: ${channel}.` : `Rol: ${role}. Canal: ${channel}.`,
     languageDirective(locale),
     visibleUiGuide(locale),
+    productTutorialGuide(locale),
     roleScope(role),
     channelStyle(channel, locale),
   ];

@@ -611,6 +611,40 @@ describe('FP-GUIDE-1 guided tour', () => {
   });
 });
 
+describe('FiestaPay product tutorial', () => {
+  it('walks through demo and own-event topics, then opens the existing recovery page', async () => {
+    stubAppFetch('Hola.');
+    render(<I18nProvider><App /></I18nProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Tutorial de FiestaPay' }));
+    expect(await screen.findByRole('heading', { name: 'Tutorial de FiestaPay' })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/tutorial');
+    fireEvent.click(screen.getByRole('button', { name: 'Empezar recorrido' }));
+    for (const hint of [/tabla|panel de ejemplo/, /revisa el borrador/, /QR de invitados/, /confirma la asistencia/, /Mis invitaciones/, /correo de recuperación verificado/]) {
+      const bubble = await screen.findByTestId('guide-bubble');
+      expect(bubble).toHaveTextContent(hint);
+      fireEvent.click(within(bubble).getByRole('button', { name: 'Siguiente' }));
+    }
+    expect(screen.queryByTestId('guide-bubble')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Recuperar mi enlace' }));
+    expect(window.location.pathname).toBe('/recover');
+  });
+
+  it('lets the assistant open and highlight the QR topic using its closed target list', async () => {
+    stubAppFetch('Hello.');
+    window.history.replaceState({}, '', '/?lang=en');
+    render(<I18nProvider><App /></I18nProvider>);
+    await screen.findByRole('button', { name: 'FiestaPay tutorial' });
+    let action: ReturnType<typeof showOnScreen> | undefined;
+    act(() => { action = showOnScreen({ target: 'tutorialShare' }); });
+    await screen.findByRole('heading', { name: 'Share by link or QR code' });
+    await act(async () => {
+      await expect(action).resolves.toMatchObject({ ok: true, page: 'tutorial', target: 'tutorialShare' });
+    });
+    expect(await screen.findByTestId('guide-bubble')).toHaveTextContent('Share by link or QR code');
+    expect(screen.queryByRole('button', { name: 'Publish invitation' })).not.toBeInTheDocument();
+  });
+});
+
 describe('FP-GUIDE-1 reduced motion and dismissal', () => {
   it('renders a static ring under prefers-reduced-motion', () => {
     stubMatchMedia((query) => query === '(prefers-reduced-motion: reduce)');
