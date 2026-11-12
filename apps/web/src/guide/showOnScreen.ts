@@ -9,6 +9,7 @@
  */
 import {
   DEMO_TOUR,
+  PRODUCT_TOUR,
   INVITE_UI_TARGETS,
   UI_PAGES,
   UI_TARGETS,
@@ -171,6 +172,11 @@ export function openCreateWithDraft(proposal: DraftEventProposal): void {
 export function startGuidedTour(steps: readonly UiTarget[] = DEMO_TOUR): void {
   dispatchGuideAction({ page: 'demo', tour: true });
   dispatchGuideEvent(GUIDE_TOUR_EVENT, { steps: [...steps] } satisfies GuideTourDetail);
+}
+
+export function startProductTour(): void {
+  dispatchGuideAction({ page: 'tutorial', tour: true });
+  dispatchGuideEvent(GUIDE_TOUR_EVENT, { steps: [...PRODUCT_TOUR] } satisfies GuideTourDetail);
 }
 
 /** App-owned router wiring. Registered once by App; null anywhere else (tests). */

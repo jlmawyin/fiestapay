@@ -8,7 +8,7 @@ import type { GeminiFunctionDeclaration } from './index.js';
 import { UI_LABELS, type Locale } from './i18n.js';
 
 /** Public pages the agent may open. */
-export const UI_PAGES = ['landing', 'demo', 'create', 'recover'] as const;
+export const UI_PAGES = ['landing', 'demo', 'create', 'recover', 'tutorial'] as const;
 export type UiPage = (typeof UI_PAGES)[number];
 
 export const UI_PAGE_PATHS: Record<UiPage, string> = {
@@ -16,6 +16,7 @@ export const UI_PAGE_PATHS: Record<UiPage, string> = {
   demo: '/demo',
   create: '/create',
   recover: '/recover',
+  tutorial: '/tutorial',
 };
 
 type UiLabelKey = keyof (typeof UI_LABELS)['es'];
@@ -44,6 +45,13 @@ export const UI_TARGETS = {
   resetDemos: { page: 'demo', label: 'resetDemos' },
   describeInvitation: { page: 'create', label: 'describeInvitation' },
   guidedTour: { page: 'demo', label: 'guidedTour' },
+  productTutorial: { page: 'any', label: 'productTutorial', opens: 'tutorial' },
+  tutorialDemo: { page: 'tutorial', label: 'tutorialDemo' },
+  tutorialCreate: { page: 'tutorial', label: 'tutorialCreate' },
+  tutorialShare: { page: 'tutorial', label: 'tutorialShare' },
+  tutorialGuest: { page: 'tutorial', label: 'tutorialGuest' },
+  tutorialOrganizer: { page: 'tutorial', label: 'tutorialOrganizer' },
+  tutorialAccess: { page: 'tutorial', label: 'tutorialAccess' },
   aiBuildParty: { page: 'demo', label: 'aiBuildParty' },
   fillWithAi: { page: 'create', label: 'fillWithAi' },
   quoteReview: { page: 'invite', label: 'quoteReview' },
@@ -59,6 +67,36 @@ const PUBLIC_UI_TARGETS = UI_TARGET_IDS.filter((id) => UI_TARGETS[id].page !== '
 
 /** Guided tour of the judges demo, in order. */
 export const DEMO_TOUR: readonly UiTarget[] = ['aiBuildParty', 'previewPanel', 'paymentDemo', 'paypalAiPanel'];
+
+export const PRODUCT_TOUR = [
+  'tutorialDemo',
+  'tutorialCreate',
+  'tutorialShare',
+  'tutorialGuest',
+  'tutorialOrganizer',
+  'tutorialAccess',
+] as const satisfies readonly UiTarget[];
+
+export type ProductTutorialTopic = (typeof PRODUCT_TOUR)[number];
+
+export const PRODUCT_TUTORIAL_HINTS: Record<Locale, Record<ProductTutorialTopic, string>> = {
+  es: {
+    tutorialDemo: 'Prueba la IA, el panel de ejemplo y PayPal Sandbox con datos ficticios.',
+    tutorialCreate: 'Describe tu plan, revisa el borrador y el diseño, y publica cuando esté listo.',
+    tutorialShare: 'Comparte el QR de invitados. Guarda aparte el QR privado de organización.',
+    tutorialGuest: 'Primero confirma la asistencia. Revisa la cuota y aprueba el pago en PayPal Sandbox.',
+    tutorialOrganizer: 'Abre Mis invitaciones para gestionar invitados, cobros y borradores de recordatorios.',
+    tutorialAccess: 'Usa el enlace privado guardado o solicita otro con tu correo de recuperación verificado.',
+  },
+  en: {
+    tutorialDemo: 'Try AI, the sample dashboard, and PayPal Sandbox with fictional data.',
+    tutorialCreate: 'Describe your plan, review the draft and design, and publish when it is ready.',
+    tutorialShare: 'Share the guest QR code. Keep the private organizer QR code somewhere safe.',
+    tutorialGuest: 'RSVP first. Review the share and approve the payment in PayPal Sandbox.',
+    tutorialOrganizer: 'Open My invitations to manage guests, payments, and reminder drafts.',
+    tutorialAccess: 'Use your saved private link or request a new one with your verified recovery email.',
+  },
+};
 
 /** Label text → target, for clickable labels inside text answers. Exact match after trimming. */
 export function targetForLabel(locale: Locale, text: string): UiTarget | null {

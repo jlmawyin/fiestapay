@@ -4,7 +4,7 @@
  * `prefers-reduced-motion` renders a static ring. Also runs the /demo step-by-step tour.
  */
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { UI_LABELS, UI_TARGETS, type Locale, type UiTarget } from '@fiestapay/shared';
+import { PRODUCT_TUTORIAL_HINTS, UI_LABELS, UI_TARGETS, type Locale, type UiTarget } from '@fiestapay/shared';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { orbCatalog } from '../i18n/catalogs/orb';
 import { demoCatalog } from '../i18n/catalogs/demo';
@@ -57,11 +57,15 @@ function useReducedMotion(): boolean {
   return reduced;
 }
 
-function tourTextFor(step: UiTarget, demo: (typeof demoCatalog)['es']): string | null {
+function tourTextFor(step: UiTarget, demo: (typeof demoCatalog)['es'], locale: Locale): string | null {
   if (step === 'aiBuildParty') return demo.tourAi;
   if (step === 'previewPanel') return demo.tourPreview;
   if (step === 'paymentDemo') return demo.tourPayment;
   if (step === 'paypalAiPanel') return demo.tourPaypal;
+  if (step in PRODUCT_TUTORIAL_HINTS[locale]) {
+    const hints = PRODUCT_TUTORIAL_HINTS[locale];
+    return hints[step as keyof typeof hints];
+  }
   return null;
 }
 
@@ -325,7 +329,7 @@ export const GuideOverlay: React.FC = () => {
   // party details with AI" wrongly suggests the AI is already working before
   // the person presses anything.
   const body =
-    (isTour && tourSteps[tourIndex] ? tourTextFor(tourSteps[tourIndex], demo) : null) ??
+    (isTour && tourSteps[tourIndex] ? tourTextFor(tourSteps[tourIndex], demo, locale) : null) ??
     (spot.target === 'fillWithAi'
       ? orb.guideFillWithAi
       : (spot.caption ?? defaultCaptionFor(locale, spot.target, orb.guideTapHere)));
