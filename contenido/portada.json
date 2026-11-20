@@ -44,8 +44,19 @@
   "compositorSubdominio": {
     "prefijo": "https://",
     "campoPlaceholder": { "es": "tu-grupo", "en": "your-group" },
+    "campoNombreGrupo": { "es": "Nombre del grupo", "en": "Group name" },
+    "placeholderNombreGrupo": { "es": "Tu grupo", "en": "Your group" },
     "sufijo": ".somospanas.com",
-    "boton": { "es": "Crear un nuevo espacio", "en": "Create a new space" }
+    "boton": { "es": "Crear un nuevo espacio", "en": "Create a new space" },
+    "estadoNoDisponible": {
+      "es": "Crear espacio no está disponible todavía. Vuelve pronto.",
+      "en": "Create space is not available yet. Check back soon."
+    },
+    "estadoCreando": { "es": "Creando espacio…", "en": "Creating space…" },
+    "estadoListo": {
+      "es": "Espacio creado. Abre el enlace para terminar la configuración.",
+      "en": "Space created. Open the link to finish setup."
+    }
   },
   "eventosPublicos": {
     "aviso": {

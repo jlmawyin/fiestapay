@@ -8,6 +8,7 @@
       { "id": "como-funciona", "bloque": "ComoFunciona" },
       { "id": "eventos-publicos", "bloque": "EventosPublicos" },
       { "id": "donaciones", "bloque": "DonacionesRecaudaciones" },
+      { "id": "preguntas", "bloque": "PreguntasFrecuentes" },
       { "id": "pie", "bloque": "PiePortada" }
     ]
   }

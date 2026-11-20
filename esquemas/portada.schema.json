@@ -59,12 +59,27 @@
     },
     "compositorSubdominio": {
       "type": "object",
-      "required": ["prefijo", "campoPlaceholder", "sufijo", "boton"],
+      "required": [
+        "prefijo",
+        "campoPlaceholder",
+        "campoNombreGrupo",
+        "placeholderNombreGrupo",
+        "sufijo",
+        "boton",
+        "estadoNoDisponible",
+        "estadoCreando",
+        "estadoListo"
+      ],
       "properties": {
         "prefijo": { "type": "string" },
         "sufijo": { "type": "string" },
         "campoPlaceholder": { "$ref": "texto-bilingue.schema.json" },
-        "boton": { "$ref": "texto-bilingue.schema.json" }
+        "campoNombreGrupo": { "$ref": "texto-bilingue.schema.json" },
+        "placeholderNombreGrupo": { "$ref": "texto-bilingue.schema.json" },
+        "boton": { "$ref": "texto-bilingue.schema.json" },
+        "estadoNoDisponible": { "$ref": "texto-bilingue.schema.json" },
+        "estadoCreando": { "$ref": "texto-bilingue.schema.json" },
+        "estadoListo": { "$ref": "texto-bilingue.schema.json" }
       }
     },
     "eventosPublicos": {

@@ -12,6 +12,7 @@ import { DemoRibbon } from './components/common/DemoRibbon';
 import { Header } from './components/common/Header';
 import { ToastContainer } from './components/common/Toast';
 import { LandingView } from './views/LandingView';
+import { PortalLandingView } from './views/PortalLandingView';
 import { CreateEventView } from './views/CreateEventView';
 import { PublicInviteView } from './views/PublicInviteView';
 import { OrganizerDashboardView } from './views/OrganizerDashboardView';
@@ -25,7 +26,7 @@ import { SiteHomeView } from './views/SiteHomeView';
 import { SiteSettingsView } from './views/SiteSettingsView';
 import sitioTextos from '../../../contenido/sitio.json';
 import { shouldRenderLegacyOrb } from './lib/legacy-orb';
-import { readSiteHostContext } from './lib/site-host';
+import { readAppHostContext } from './lib/app-host';
 import { siteThemeStyle } from './lib/site-theme';
 import type { TenantSiteSettings } from './lib/site-types';
 import { AssistantOrb } from './components/assistant/AssistantOrb';
@@ -87,7 +88,9 @@ function guidePageToView(page: UiPage): ViewMode {
   return { mode: 'home' };
 }
 
-const SITE_HOST = readSiteHostContext();
+const APP_HOST = readAppHostContext();
+const IS_SOMOSPANAS_ROOT = APP_HOST.kind === 'somospanas-root';
+const IS_LEGACY_HOST = APP_HOST.kind === 'legacy';
 
 export const App: React.FC = () => {
   captureAdminKeyFromLocation();
@@ -203,7 +206,7 @@ export const App: React.FC = () => {
       setCurrentView({ mode: 'verify' });
       return;
     }
-    if (SITE_HOST.isSiteHost && (path === '/settings' || path === '/settings/')) {
+    if (APP_HOST.isSiteHost && (path === '/settings' || path === '/settings/')) {
       setCurrentView({ mode: 'site-settings' });
       return;
     }
@@ -222,7 +225,7 @@ export const App: React.FC = () => {
       setCurrentView({ mode: 'create', path: rawPath === null ? undefined : parseCreatePath(rawPath) });
       return;
     }
-    if (SITE_HOST.isSiteHost) {
+    if (APP_HOST.isSiteHost) {
       setCurrentView({ mode: 'site-home' });
       return;
     }
@@ -254,8 +257,11 @@ export const App: React.FC = () => {
   // Initialize capabilities and restore organizer session. Both reads are bounded by the
   // API client timeout, so the home loader cannot stay pending forever.
   const initApp = useCallback(async () => {
-    if (SITE_HOST.isSiteHost) {
+    if (APP_HOST.isSiteHost) {
       await initSiteProfile();
+      return;
+    }
+    if (IS_SOMOSPANAS_ROOT) {
       return;
     }
     setSessionError(null);
@@ -448,14 +454,14 @@ export const App: React.FC = () => {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', ...siteTheme }}>
       {/* Sandbox Demo Ribbon */}
-      {!SITE_HOST.isSiteHost ? <DemoRibbon
+      {IS_LEGACY_HOST ? <DemoRibbon
         capabilities={capabilities}
         status={capabilities ? 'ready' : sessionError ? 'unavailable' : 'loading'}
         onRetry={capabilities || !sessionError ? undefined : initApp}
       /> : null}
 
       {/* Global Navigation Header */}
-      {!SITE_HOST.isSiteHost ? <Header
+      {IS_LEGACY_HOST ? <Header
         onNavigateHome={goToOwnInvitations}
         onNavigateCreate={() => navigate({ mode: 'create' })}
         onNavigateDemo={() => navigate({ mode: 'demo' })}
@@ -464,7 +470,7 @@ export const App: React.FC = () => {
       /> : null}
 
       {/* Expired Session / Connection Recovery Banner */}
-      {!SITE_HOST.isSiteHost && sessionError && (
+      {IS_LEGACY_HOST && sessionError && (
         <div
           style={{
             backgroundColor: 'var(--color-coral-tint)',
@@ -492,7 +498,7 @@ export const App: React.FC = () => {
 
       {/* Main Body View */}
       <main className="app-container" style={{ marginTop: '1.5rem', flex: 1 }}>
-        {SITE_HOST.isSiteHost && siteProfileError && (
+        {APP_HOST.isSiteHost && siteProfileError && (
           <p role="alert">{siteProfileError}</p>
         )}
         {currentView.mode === 'site-home' && siteProfile && (
@@ -512,7 +518,15 @@ export const App: React.FC = () => {
           />
         )}
 
-        {currentView.mode === 'home' && (
+        {currentView.mode === 'home' && IS_SOMOSPANAS_ROOT ? (
+          <PortalLandingView
+            onNavigateTutorial={() => navigate({ mode: 'tutorial' })}
+            onNavigateRegister={() => navigate({ mode: 'register' })}
+            onNavigateLogin={() => navigate({ mode: 'login' })}
+          />
+        ) : null}
+
+        {currentView.mode === 'home' && IS_LEGACY_HOST ? (
           <LandingView
             events={events}
             isLoading={isLoadingEvents}
@@ -525,7 +539,7 @@ export const App: React.FC = () => {
             onNavigateDemo={(quick) => navigate({ mode: 'demo', quick })}
             onNavigateRecover={() => navigate({ mode: 'recover' })}
           />
-        )}
+        ) : null}
 
         {currentView.mode === 'demo' && (
           <JudgePreviewView
@@ -627,7 +641,7 @@ export const App: React.FC = () => {
           recovery get one launcher; invite and dashboard keep their own role-scoped orb.
           Landing and demo keep separate public conversations by context.
         */}
-        {shouldRenderLegacyOrb(SITE_HOST.isSiteHost, currentView.mode) && (
+        {shouldRenderLegacyOrb(APP_HOST.isSiteHost, currentView.mode, APP_HOST.kind) && (
           <AssistantOrb
             audience="public"
             capabilities={capabilities}

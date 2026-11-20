@@ -49,6 +49,24 @@ export class ApiError extends Error {
   }
 }
 
+/** Fila pública del directorio en la raíz Somos Panas (SP-6). */
+export interface PortalListedEvent {
+  slug: string;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  location: string;
+  siteSlug: string;
+  siteName: string;
+  url: string;
+}
+
+/** Contrato congelado de `POST /api/sites` (SP-7); el botón de la portada lo consume cuando exista la ruta. */
+export interface CreateSiteResult {
+  site: { slug: string; url: string };
+  handoff: { code: string; expiresAt: string };
+}
+
 export const REQUEST_TIMEOUT_MS = 30_000;
 
 /** AI routes wait longer: the model answers before 45 s and the client gives it 55 s. */
@@ -514,6 +532,19 @@ export const api = {
     payload: { leaseId: string; name: string; arguments: Record<string, unknown> },
   ): Promise<{ response: unknown }> {
     return request(`/api/events/${encodeURIComponent(slug)}/organizer-voice/tool`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /** Listado de eventos marcados públicos; solo disponible en host raíz. */
+  async getPortalEvents(): Promise<{ events: PortalListedEvent[] }> {
+    return request<{ events: PortalListedEvent[] }>('/api/portal/events');
+  },
+
+  /** Alta de espacio en la raíz (SP-7). Responde 404 mientras la ruta no esté fusionada. */
+  async createSiteSpace(payload: { slug: string; displayName: string }): Promise<CreateSiteResult> {
+    return request<CreateSiteResult>('/api/sites', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
