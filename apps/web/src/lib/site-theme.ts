@@ -12,8 +12,8 @@ function safeHex(value: string): string | null {
 }
 
 /**
- * Devuelve propiedades React `style` para el contenedor raíz del sitio.
- * Entrada: paleta del API; salida: objeto con variables `--sp-color-*`.
+ * Devuelve propiedades React `style` para pisar tokens del sitio (SP5-D-1).
+ * Entrada: paleta del API ya validada. Salida: mapa `--sp-color-*` para el contenedor con `tokens.css`.
  */
 export function siteThemeStyle(settings: TenantSiteSettings): CSSProperties {
   const { colores } = settings;

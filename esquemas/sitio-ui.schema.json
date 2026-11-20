@@ -3,7 +3,7 @@
   "$id": "sitio-ui.schema.json",
   "title": "TextosUiSitio",
   "type": "object",
-  "required": ["ajustes", "inicio"],
+  "required": ["ajustes", "inicio", "errores"],
   "additionalProperties": false,
   "properties": {
     "ajustes": {
@@ -46,6 +46,16 @@
         "recaudacionTitulo": { "$ref": "texto-bilingue.schema.json" },
         "recaudacionTexto": { "$ref": "texto-bilingue.schema.json" },
         "irAjustes": { "$ref": "texto-bilingue.schema.json" }
+      }
+    },
+    "errores": {
+      "type": "object",
+      "required": ["guardarFallo", "red", "cargarSitio"],
+      "additionalProperties": false,
+      "properties": {
+        "guardarFallo": { "$ref": "texto-bilingue.schema.json" },
+        "red": { "$ref": "texto-bilingue.schema.json" },
+        "cargarSitio": { "$ref": "texto-bilingue.schema.json" }
       }
     }
   }

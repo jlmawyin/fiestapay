@@ -3,10 +3,12 @@
  * Etiquetas en `contenido/sitio.json`; guardado vía PUT `/api/site/settings`.
  */
 import React, { useMemo, useState } from 'react';
+import '../../../../estilos/tokens.css';
+import '../styles/site-shell.css';
 import sitio from '../../../../contenido/sitio.json';
 import { useI18n } from '../i18n/I18nContext';
+import { SITE_COLOR_KEYS } from '../lib/site-color-keys';
 import type { TenantSiteSettings } from '../lib/site-types';
-import { DEFAULT_SITE_COLORS } from './site-settings-defaults';
 
 type LocaleKey = 'es' | 'en';
 
@@ -23,7 +25,7 @@ export interface SiteSettingsViewProps {
 export const SiteSettingsView: React.FC<SiteSettingsViewProps> = ({ initial, onSaved, onBack }) => {
   const { locale } = useI18n();
   const lang = (locale === 'en' ? 'en' : 'es') as LocaleKey;
-  const copy = useMemo(() => sitio.ajustes, []);
+  const copy = useMemo(() => ({ ...sitio.ajustes, errores: sitio.errores }), []);
   const [form, setForm] = useState<TenantSiteSettings>(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,19 +51,19 @@ export const SiteSettingsView: React.FC<SiteSettingsViewProps> = ({ initial, onS
       });
       const data = (await res.json()) as { error?: string; settings?: TenantSiteSettings };
       if (!res.ok) {
-        setError(data.error ?? 'No se pudo guardar');
+        setError(data.error ?? pick(copy.errores.guardarFallo, lang));
         return;
       }
       if (data.settings) onSaved(data.settings);
     } catch {
-      setError(pick({ es: 'Error de red.', en: 'Network error.' }, lang));
+      setError(pick(copy.errores.red, lang));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <section style={{ maxWidth: '36rem', margin: '0 auto', padding: '1.5rem' }}>
+    <section className="site-shell" style={{ maxWidth: '36rem', margin: '0 auto', padding: '1.5rem' }}>
       <h1>{pick(copy.titulo, lang)}</h1>
       <form onSubmit={submit}>
         <label style={{ display: 'block', marginBottom: '0.75rem' }}>
@@ -95,7 +97,7 @@ export const SiteSettingsView: React.FC<SiteSettingsViewProps> = ({ initial, onS
         </label>
         <fieldset style={{ marginBottom: '1rem' }}>
           <legend>{pick(copy.colores, lang)}</legend>
-          {(Object.keys(DEFAULT_SITE_COLORS) as (keyof typeof DEFAULT_SITE_COLORS)[]).map((key) => (
+          {SITE_COLOR_KEYS.map((key) => (
             <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
               <span style={{ width: '6rem' }}>{key}</span>
               <input
@@ -149,10 +151,10 @@ export const SiteSettingsView: React.FC<SiteSettingsViewProps> = ({ initial, onS
           </label>
         </fieldset>
         {error ? <p role="alert">{error}</p> : null}
-        <button type="submit" disabled={busy}>
+        <button type="submit" className="site-btn" disabled={busy}>
           {pick(copy.guardar, lang)}
         </button>
-        <button type="button" onClick={onBack} style={{ marginLeft: '0.5rem' }}>
+        <button type="button" className="site-btn-secondary site-btn" onClick={onBack} style={{ marginLeft: '0.5rem' }}>
           {pick(copy.volver, lang)}
         </button>
       </form>

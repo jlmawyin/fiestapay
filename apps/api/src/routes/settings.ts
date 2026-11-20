@@ -3,9 +3,10 @@
  * Depende de `domain/tenant-settings.ts`, `domain/accounts.ts` y clasificación de `Host`.
  */
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { badRequest, forbidden, notFound, unavailable } from '../errors.js';
+import { forbidden, notFound } from '../errors.js';
 import { currentAccount } from '../domain/accounts.js';
 import {
+  assertSiteAssistantVoiceAllowed,
   parseAndValidateSiteSettings,
   readPublicSiteSettings,
   readTenantSettingsForAdmin,
@@ -14,6 +15,10 @@ import {
 } from '../domain/tenant-settings.js';
 import type { RouteDeps } from './deps.js';
 
+/**
+ * Exige host clasificado como `site` y devuelve el slug del subdominio.
+ * Entrada: request Fastify con `hostClassification`. Salida: slug o HttpError 404.
+ */
 function assertSiteHost(req: FastifyRequest): string {
   const host = req.hostClassification;
   if (host?.kind !== 'site' || !host.slug) throw notFound('Ruta no encontrada');
@@ -21,7 +26,8 @@ function assertSiteHost(req: FastifyRequest): string {
 }
 
 /**
- * En rutas de admin del sitio, visitante sin cuenta verificada recibe 403 (criterio SP-5), no 401.
+ * Resuelve un usuario verificado para rutas de admin; visitante anónimo recibe 403 (SP-5).
+ * Entrada: dependencias y request. Salida: `userId` del admin autenticado o HttpError 403.
  */
 async function requireSiteAdminUser(deps: RouteDeps, req: FastifyRequest): Promise<{ userId: string }> {
   const { user } = await currentAccount(deps.pool, deps.config, req);
@@ -30,10 +36,11 @@ async function requireSiteAdminUser(deps: RouteDeps, req: FastifyRequest): Promi
 }
 
 /**
- * Registra GET/PUT de configuración, lectura pública de marca y voz pública del sitio.
+ * Registra GET/PUT de configuración, lectura pública de marca y stub de voz del sitio (404 hasta SP-10).
+ * Entrada: instancia Fastify y `RouteDeps`. Salida: void cuando las rutas quedan montadas.
  */
 export async function registerSettingsRoutes(app: FastifyInstance, deps: RouteDeps): Promise<void> {
-  const { pool, config } = deps;
+  const { pool } = deps;
 
   app.get('/site/profile', async (req) => {
     const hostSlug = assertSiteHost(req);
@@ -57,20 +64,12 @@ export async function registerSettingsRoutes(app: FastifyInstance, deps: RouteDe
   });
 
   /**
-   * Voz pública del subdominio: 404 si `modulo_asistente` está apagado (prueba distinta del corte de host).
-   * Con el módulo encendido exige consentimiento como el endpoint legado.
+   * SP5-D-5: sin token efímero real hasta SP-10; la guarda del módulo sigue activa y siempre 404 después.
    */
   app.post('/site/voice/public/token', async (req) => {
     const hostSlug = assertSiteHost(req);
     const enabled = await siteAssistantModuleEnabled(pool, hostSlug);
-    if (!enabled) throw notFound('Ruta no encontrada');
-    const body = req.body;
-    const consent =
-      body && typeof body === 'object' && 'consent' in body ? (body as { consent?: unknown }).consent : undefined;
-    if (consent !== true) throw badRequest('Se requiere consentimiento');
-    if (!config.voice.enabled) {
-      throw unavailable('La voz no está habilitada');
-    }
-    return { ok: true as const, audience: 'public' as const };
+    assertSiteAssistantVoiceAllowed(enabled);
+    throw notFound('Ruta no encontrada');
   });
 }

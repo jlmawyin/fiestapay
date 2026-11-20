@@ -23,6 +23,7 @@ import { tenantIdForSlug } from './domain/access.js';
 import { requestLogger } from './lib/redact.js';
 import { PayPalSandboxClient } from './paypal/client.js';
 import type { PayPalAdapter } from './paypal/types.js';
+import { capabilitiesForHost } from './payments/provider.js';
 import { registerAccountRoutes } from './routes/accounts.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerRecoveryRoutes } from './routes/recovery.js';
@@ -166,6 +167,17 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     if (pathOnly === WEBHOOK_PATH && !isPayPalWebhookHost(hostClassification)) {
       reply.code(404).send({ error: 'Ruta no encontrada' });
       return reply;
+    }
+
+    // SP-8: credenciales de comprador demo solo en el host legado (no en raíz ni subdominios de grupo).
+    if (pathOnly === '/api/demo/buyer' && hostClassification.kind !== 'legacy') {
+      reply.code(404).send({ error: 'Ruta no encontrada' });
+      return reply;
+    }
+
+    // SP-8: capacidades según host sin duplicar la ruta de core (legado conserva PayPal sandbox).
+    if (method === 'GET' && pathOnly === '/api/capabilities') {
+      return reply.send(capabilitiesForHost(hostClassification, config, email !== null));
     }
 
     if (method === 'GET' || method === 'HEAD') return;

@@ -20,5 +20,10 @@
       "en": "Group fundraising will show here when SP-9 ships."
     },
     "irAjustes": { "es": "Ajustes", "en": "Settings" }
+  },
+  "errores": {
+    "guardarFallo": { "es": "No se pudo guardar", "en": "Could not save" },
+    "red": { "es": "Error de red.", "en": "Network error." },
+    "cargarSitio": { "es": "No se pudo cargar el sitio", "en": "Could not load the site" }
   }
 }

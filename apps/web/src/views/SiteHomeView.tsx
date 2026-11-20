@@ -1,8 +1,11 @@
 /**
  * Portada mínima de un subdominio de grupo (SP-5): muestra textos y módulos del tenant.
  * Textos de UI desde `contenido/sitio.json`; datos del sitio desde `/api/site/profile`.
+ * SP5-D-1: importa `estilos/tokens.css` y pinta con `var(--sp-color-*)`.
  */
 import React from 'react';
+import '../../../../estilos/tokens.css';
+import '../styles/site-shell.css';
 import sitio from '../../../../contenido/sitio.json';
 import { useI18n } from '../i18n/I18nContext';
 import type { TenantSiteSettings } from '../lib/site-types';
@@ -24,19 +27,31 @@ export const SiteHomeView: React.FC<SiteHomeViewProps> = ({ settings, onNavigate
   const copy = sitio.inicio;
 
   return (
-    <section style={{ maxWidth: '40rem', margin: '0 auto', padding: '1.5rem' }}>
+    <section className="site-shell" style={{ maxWidth: '40rem', margin: '0 auto', padding: '1.5rem' }}>
       <header style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ margin: 0 }}>{settings.displayName}</h1>
-        {settings.tagline ? <p style={{ color: 'var(--sp-color-ink-muted, #4A5D73)' }}>{settings.tagline}</p> : null}
-        <button type="button" onClick={onNavigateSettings} style={{ marginTop: '0.5rem' }}>
+        <h1 data-testid="site-display-name" style={{ margin: 0, color: 'var(--sp-color-ink)' }}>
+          {settings.displayName}
+        </h1>
+        {settings.tagline ? (
+          <p className="site-muted" data-testid="site-tagline">
+            {settings.tagline}
+          </p>
+        ) : null}
+        <button type="button" className="site-btn" onClick={onNavigateSettings} style={{ marginTop: '0.5rem' }}>
           {pick(copy.irAjustes, lang)}
         </button>
       </header>
-      {settings.about ? <p>{settings.about}</p> : null}
+      {settings.about ? <p style={{ color: 'var(--sp-color-ink)' }}>{settings.about}</p> : null}
       {settings.modulos.recaudacion ? (
-        <aside aria-labelledby="site-fundraising-heading" style={{ marginTop: '2rem' }}>
-          <h2 id="site-fundraising-heading">{pick(copy.recaudacionTitulo, lang)}</h2>
-          <p>{pick(copy.recaudacionTexto, lang)}</p>
+        <aside
+          data-testid="site-fundraising-block"
+          aria-labelledby="site-fundraising-heading"
+          style={{ marginTop: '2rem' }}
+        >
+          <h2 id="site-fundraising-heading" style={{ color: 'var(--sp-color-ink)' }}>
+            {pick(copy.recaudacionTitulo, lang)}
+          </h2>
+          <p className="site-muted">{pick(copy.recaudacionTexto, lang)}</p>
         </aside>
       ) : null}
     </section>

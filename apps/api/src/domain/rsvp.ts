@@ -18,7 +18,7 @@ import {
   lockEvent,
   lockGuest,
   loadGuest,
-  toFiestaEvent,
+  eventForClient,
   type GuestRow,
 } from './read.js';
 
@@ -131,9 +131,10 @@ export async function setRsvp(
 
     const unchanged = guest.status === change.status && guest.companions === change.companions;
     if (unchanged) {
+      const totals = await eventTotals(client, event.id);
       return {
         guest: await loadGuest(client, guest, event),
-        event: toFiestaEvent(event, await eventTotals(client, event.id)),
+        event: await eventForClient(client, event, totals),
       };
     }
 
@@ -162,9 +163,10 @@ export async function setRsvp(
     for (const _order of superseded.rows) await audit(client, event.id, 'order_superseded');
     await audit(client, event.id, 'rsvp_updated');
 
+    const totals = await eventTotals(client, event.id);
     return {
       guest: await loadGuest(client, updated, event),
-      event: toFiestaEvent(event, await eventTotals(client, event.id)),
+      event: await eventForClient(client, event, totals),
     };
   });
   if ('blocked' in outcome) throw conflict(outcome.blocked);

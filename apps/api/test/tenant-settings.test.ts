@@ -10,7 +10,13 @@ import { migrate } from '../src/db/migrate.js';
 import { createPool, type Pool } from '../src/db/pool.js';
 import type { EmailAdapter, EmailSendResult, OutboundEmail } from '../src/email/types.js';
 import { hashPassword, hmacEmailHash, resolveEmailHmacKey } from '../src/domain/accounts.js';
-import { DEFAULT_SITE_COLORS, type TenantSiteSettings } from '../src/domain/tenant-settings.js';
+import {
+  assertSiteAssistantVoiceAllowed,
+  assertSiteColorContrast,
+  DEFAULT_SITE_COLORS,
+  type TenantSiteSettings,
+} from '../src/domain/tenant-settings.js';
+import { HttpError } from '../src/errors.js';
 import { LEGACY_TENANT_SLUG } from '../src/lib/host.js';
 import { announceSkipWithoutDatabase, DATABASE_URL, MERCHANT, testConfig } from './harness.js';
 import { FakePayPal } from './fake-paypal.js';
@@ -243,7 +249,67 @@ describe('tenant-settings SP-5', () => {
     expect(lowContrast.body).toMatch(/contraste/i);
   });
 
-  it('con asistente apagado el POST /api/site/voice/public/token responde 404 en el subdominio', async () => {
+  it('exige contraste ink sobre yellow, no yellow sobre cloudwhite (SP5 extra)', () => {
+    expect(() =>
+      assertSiteColorContrast({
+        ...DEFAULT_SITE_COLORS,
+        ink: '#5A6570',
+        yellow: '#FFC85A',
+      }),
+    ).toThrow(/yellow/i);
+  });
+
+  it('displayName solo espacios responde 400 antes del CHECK SQL (SP5-D-3)', async () => {
+    const slug = `sp5d3${randomBytes(3).toString('hex')}`;
+    const tenant = await seedTenant(pool, slug, 'Espacios');
+    const admin = await seedUserVerified(pool, `admin-${slug}@example.test`, PASSWORD);
+    await pool.query(`INSERT INTO memberships (tenant_id, user_id, role) VALUES ($1,$2,'admin')`, [tenant, admin]);
+    const cookie = sessionCookie(
+      await injectJson(app, 'POST', '/api/accounts/login', {
+        host: ROOT_HOST,
+        origin: ROOT_ORIGIN,
+        payload: { email: `admin-${slug}@example.test`, password: PASSWORD },
+      }),
+    )!;
+    const res = await injectJson(app, 'PUT', '/api/site/settings', {
+      host: `${slug}.somospanas.com`,
+      origin: `https://${slug}.somospanas.com`,
+      cookie,
+      payload: defaultSettings({ displayName: '   ' }),
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toMatch(/displayName/);
+    expect(res.body).toMatch(/sitio\.schema\.json/);
+  });
+
+  it('propiedad adicional nombrada en el error Ajv (SP5-D-4)', async () => {
+    const slug = `sp5d4${randomBytes(3).toString('hex')}`;
+    const tenant = await seedTenant(pool, slug, 'Extra');
+    const admin = await seedUserVerified(pool, `admin-${slug}@example.test`, PASSWORD);
+    await pool.query(`INSERT INTO memberships (tenant_id, user_id, role) VALUES ($1,$2,'admin')`, [tenant, admin]);
+    const cookie = sessionCookie(
+      await injectJson(app, 'POST', '/api/accounts/login', {
+        host: ROOT_HOST,
+        origin: ROOT_ORIGIN,
+        payload: { email: `admin-${slug}@example.test`, password: PASSWORD },
+      }),
+    )!;
+    const res = await injectJson(app, 'PUT', '/api/site/settings', {
+      host: `${slug}.somospanas.com`,
+      origin: `https://${slug}.somospanas.com`,
+      cookie,
+      payload: { ...defaultSettings(), payment_provider: 'none' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toMatch(/payment_provider/);
+  });
+
+  it('assertSiteAssistantVoiceAllowed lanza 404 cuando el módulo está apagado', () => {
+    expect(() => assertSiteAssistantVoiceAllowed(false)).toThrow(HttpError);
+    expect(() => assertSiteAssistantVoiceAllowed(true)).not.toThrow();
+  });
+
+  it('POST /api/site/voice/public/token responde 404 hasta SP-10 (SP5-D-5)', async () => {
     const slug = `sp5v${randomBytes(3).toString('hex')}`;
     const tenant = await seedTenant(pool, slug, 'Sin voz');
     await pool.query(`UPDATE tenant_settings SET modulo_asistente = false WHERE tenant_id = $1`, [tenant]);
@@ -261,7 +327,7 @@ describe('tenant-settings SP-5', () => {
       origin: `https://${slug}.somospanas.com`,
       payload: { consent: true },
     });
-    expect(on.statusCode).not.toBe(404);
+    expect(on.statusCode).toBe(404);
   });
 
   it('en host legado la voz pública no consulta modulo_asistente', async () => {

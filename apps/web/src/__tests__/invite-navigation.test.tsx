@@ -17,6 +17,7 @@ function createDeferred<T>() {
 const mockCapabilities: Capabilities = {
   paypal: false,
   paypalClientId: null,
+  paymentProvider: 'paypal_sandbox',
   chat: false,
   voice: false,
   sandbox: true,

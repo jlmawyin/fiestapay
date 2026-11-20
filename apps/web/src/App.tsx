@@ -23,6 +23,7 @@ import { AccountLoginView } from './views/AccountLoginView';
 import { AccountVerifyView } from './views/AccountVerifyView';
 import { SiteHomeView } from './views/SiteHomeView';
 import { SiteSettingsView } from './views/SiteSettingsView';
+import sitioTextos from '../../../contenido/sitio.json';
 import { readSiteHostContext } from './lib/site-host';
 import { siteThemeStyle } from './lib/site-theme';
 import type { TenantSiteSettings } from './lib/site-types';
@@ -233,13 +234,19 @@ export const App: React.FC = () => {
     try {
       const res = await fetch('/api/site/profile', { credentials: 'include' });
       const data = (await res.json()) as { settings?: TenantSiteSettings; error?: string };
+      const fallo =
+        localeRef.current === 'en'
+          ? sitioTextos.errores.cargarSitio.en
+          : sitioTextos.errores.cargarSitio.es;
       if (!res.ok || !data.settings) {
-        setSiteProfileError(data.error ?? 'No se pudo cargar el sitio');
+        setSiteProfileError(data.error ?? fallo);
         return;
       }
       setSiteProfile(data.settings);
     } catch {
-      setSiteProfileError('No se pudo cargar el sitio');
+      setSiteProfileError(
+        localeRef.current === 'en' ? sitioTextos.errores.cargarSitio.en : sitioTextos.errores.cargarSitio.es,
+      );
     }
   }, []);
 
@@ -437,9 +444,11 @@ export const App: React.FC = () => {
 
   const publicContext: AssistantContext = currentView.mode === 'demo' ? 'demo' : 'landing';
   const siteTheme = siteProfile ? siteThemeStyle(siteProfile) : undefined;
-  const showLegacyOrb =
-    !SITE_HOST.isSiteHost ||
-    (SITE_HOST.isSiteHost && siteProfile?.modulos.asistente === true && currentView.mode === 'site-home');
+  /**
+   * SP5-D-5: en subdominio no montamos el orbe FiestaPay; la voz del sitio llega en SP-10.
+   * Entrada: nada (usa `SITE_HOST`). Salida: booleano para renderizar `AssistantOrb` legado.
+   */
+  const showLegacyOrb = !SITE_HOST.isSiteHost;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', ...siteTheme }}>
@@ -628,8 +637,7 @@ export const App: React.FC = () => {
           currentView.mode === 'demo' ||
           currentView.mode === 'create' ||
           currentView.mode === 'recover' ||
-          currentView.mode === 'tutorial' ||
-          currentView.mode === 'site-home') && (
+          currentView.mode === 'tutorial') && (
           <AssistantOrb
             audience="public"
             capabilities={capabilities}

@@ -444,10 +444,8 @@ export const api = {
     audience?: VoiceAudience;
     provider?: VoiceProvider;
   }> {
-    const site = typeof window !== 'undefined' && window.location.hostname.endsWith('.somospanas.com')
-      && !['somospanas.com', 'www.somospanas.com', 'fiestapay.somospanas.com'].includes(window.location.hostname.toLowerCase());
-    const path = site ? '/api/site/voice/public/token' : '/api/voice/public/token';
-    return request(path, {
+    // SP5-D-5: la voz en subdominio llega en SP-10; el cliente legado sigue en `/api/voice/public/token`.
+    return request('/api/voice/public/token', {
       method: 'POST',
       body: JSON.stringify({ consent: true, context }),
     });

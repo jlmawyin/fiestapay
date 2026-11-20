@@ -1,9 +1,14 @@
 import type { Guest, OrderResult } from '@fiestapay/shared';
-import type { Config } from '../config.js';
 import { withTransaction, type Pool, type PoolClient } from '../db/pool.js';
 import { badGateway, conflict, forbidden, notFound, unavailable } from '../errors.js';
 import { newId, requestIdFor } from '../lib/ids.js';
-import { PayPalError, type PayPalAdapter } from '../paypal/types.js';
+import {
+  NONE_UNAVAILABLE,
+  type OnlinePaymentDeps,
+  paymentProviderIdForEventId,
+  paypalAdapterOf,
+} from '../payments/provider.js';
+import { PayPalError } from '../paypal/types.js';
 import { approveUrlOf } from '../paypal/verify.js';
 import { assertPrivateAccess } from './access.js';
 import { REVOKED_MESSAGE, assertSessionMayAct, guestAccessRevoked } from './moderation.js';
@@ -33,25 +38,8 @@ import {
 } from './read.js';
 import { assertCanOwe } from './rsvp.js';
 
-export interface PayPalDeps {
-  paypal: PayPalAdapter;
-  merchantId: string;
-  /** Public origin the payer's browser comes back to; return URLs are built per invitation. */
-  origin?: string;
-}
-
-/** Throws the honest 503 when PayPal is not configured, instead of faking a payment. */
-export function requirePayPal(config: Config, paypal: PayPalAdapter | null): PayPalDeps {
-  if (!config.paypal || !paypal) {
-    throw unavailable(config.paypalDisabledReason ?? 'PayPal no esta configurado en este servidor');
-  }
-  const origin = config.publicOrigin ?? config.allowedOrigins[0];
-  return {
-    paypal,
-    merchantId: config.paypal.merchantId,
-    ...(origin ? { origin } : {}),
-  };
-}
+/** Alias histórico: el dominio ya habla con `OnlinePaymentDeps` (SP-8). */
+export type PayPalDeps = OnlinePaymentDeps;
 
 /**
  * PayPal returns the payer to the invitation itself, which is a route the front end actually
@@ -103,6 +91,8 @@ async function reserveOrderIntent(
     const eventId = found.rows[0]?.id;
     if (!eventId) throw notFound('Evento no encontrado');
     const locked = await lockEvent(client, eventId);
+    const providerId = await paymentProviderIdForEventId(client, locked.id);
+    if (providerId === 'none') throw unavailable(NONE_UNAVAILABLE);
     const settled = await decideFundingIfDue(client, locked);
     const blocked = fundingBlocksNewCharge(settled.event, settled.at);
     if (blocked) return { blocked };
@@ -251,7 +241,7 @@ export async function createOrderForSession(
   if (order.paypal_order_id) return asOrderResult(order);
 
   try {
-    const created = await deps.paypal.createOrder({
+    const created = await deps.provider.createOrder({
       requestId: order.request_id,
       amountCents: order.amount_cents,
       currency: 'USD',
@@ -413,7 +403,7 @@ export async function captureOwnOrder(
     // No capture is *started* for an order that stopped being the live obligation or whose
     // invitation was archived. But money PayPal already captured is real: it is counted once,
     // against its own (possibly archived) event, with its own audit action.
-    const historic = await convergeCapture(pool, deps.paypal, deps.merchantId, claim.order, null);
+    const historic = await convergeCapture(pool, paypalAdapterOf(deps.provider), deps.merchantId, claim.order, null);
     if (isApplied(historic)) return paid();
     throw conflict(claim.reason);
   }
@@ -421,11 +411,11 @@ export async function captureOwnOrder(
   const claimed = claim.order;
   let outcome: CaptureOutcome;
   try {
-    const captured = await deps.paypal.captureOrder({
+    const captured = await deps.provider.captureOrder({
       paypalOrderId: claimed.paypal_order_id!,
       requestId: `${claimed.request_id}-capture`,
     });
-    outcome = await convergeCapture(pool, deps.paypal, deps.merchantId, claimed, captured);
+    outcome = await convergeCapture(pool, paypalAdapterOf(deps.provider), deps.merchantId, claimed, captured);
   } catch (err) {
     if (!(err instanceof PayPalError)) {
       // The request may already have moved money; a local parse/DB failure is not a rejection.
@@ -433,7 +423,7 @@ export async function captureOwnOrder(
     }
     // The order may already be captured (duplicate click, webhook first, timeout after
     // PayPal captured). Reconcile from the authoritative order before reporting a failure.
-    outcome = await convergeCapture(pool, deps.paypal, deps.merchantId, claimed, null);
+    outcome = await convergeCapture(pool, paypalAdapterOf(deps.provider), deps.merchantId, claimed, null);
     if (!isApplied(outcome)) {
       if (err.timeout) {
         // The claim stays. Retrying replays the very same capture request id, so PayPal either
@@ -477,7 +467,7 @@ export async function readOwnOrder(
 
   if (deps && order.paypal_order_id && RECONCILABLE_ON_READ.has(order.status)) {
     try {
-      const outcome = await convergeCapture(pool, deps.paypal, deps.merchantId, order, null);
+      const outcome = await convergeCapture(pool, paypalAdapterOf(deps.provider), deps.merchantId, order, null);
       if (isApplied(outcome)) status = 'paid';
     } catch {
       // Reconciliation is best-effort: a PayPal outage must not break the status read.

@@ -89,10 +89,18 @@ function siteSettingsValidator(): ValidateFunction {
 }
 
 /**
- * Formatea el primer error Ajv con campo, expectativa y archivo de esquema (criterio SP-5).
+ * Formatea el primer error Ajv con campo, expectativa y archivo de esquema (SP5-D-4).
+ * Entrada: error Ajv. Salida: mensaje en español para `{ error }`.
  */
 function formatSchemaError(error: ErrorObject): string {
-  const campo = error.instancePath?.replace(/^\//, '').replace(/\//g, '.') || '(raíz)';
+  let campo = error.instancePath?.replace(/^\//, '').replace(/\//g, '.') ?? '';
+  if (error.keyword === 'additionalProperties') {
+    const extra = (error.params as { additionalProperty?: string }).additionalProperty;
+    if (typeof extra === 'string' && extra.length > 0) {
+      campo = campo ? `${campo}.${extra}` : extra;
+    }
+  }
+  if (!campo) campo = '(raíz)';
   const esperado = error.message ?? 'valor inválido';
   return `Campo "${campo}": se esperaba ${esperado} (esquema ${SCHEMA_FILE})`;
 }
@@ -100,14 +108,32 @@ function formatSchemaError(error: ErrorObject): string {
 const CONTRAST_PAIRS: { name: string; foreground: keyof SiteColorPalette; background: keyof SiteColorPalette; minimum: number }[] = [
   { name: 'ink-on-cloudwhite', foreground: 'ink', background: 'cloudwhite', minimum: 4.5 },
   { name: 'inkMuted-on-cloudwhite', foreground: 'inkMuted', background: 'cloudwhite', minimum: 4.5 },
+  { name: 'ink-on-yellow', foreground: 'ink', background: 'yellow', minimum: 4.5 },
   { name: 'blue-on-cloudwhite', foreground: 'blue', background: 'cloudwhite', minimum: 3 },
   { name: 'teal-on-cloudwhite', foreground: 'teal', background: 'cloudwhite', minimum: 3 },
   { name: 'coral-on-cloudwhite', foreground: 'coral', background: 'cloudwhite', minimum: 3 },
 ];
 
 /**
+ * Recorta `displayName` antes de Ajv para evitar 500 por CHECK SQL (SP5-D-3).
+ * Entrada: cuerpo JSON del PUT. Salida: cuerpo listo para validar o lanza 400.
+ */
+function prepareSiteSettingsBody(body: unknown): unknown {
+  if (!body || typeof body !== 'object') return body;
+  const draft = { ...(body as Record<string, unknown>) };
+  if (typeof draft.displayName === 'string') {
+    const trimmed = draft.displayName.trim();
+    if (trimmed.length < 1) {
+      throw badRequest(`Campo "displayName": se esperaba minLength 1 (esquema ${SCHEMA_FILE})`);
+    }
+    draft.displayName = trimmed;
+  }
+  return draft;
+}
+
+/**
  * Rechaza paletas con contraste insuficiente antes de persistir (servidor, no solo UI).
- * Entrada: objeto `colores` ya con hex válido.
+ * Entrada: objeto `colores` ya con hex válido. Salida: void o HttpError 400.
  */
 export function assertSiteColorContrast(colores: SiteColorPalette): void {
   for (const pair of CONTRAST_PAIRS) {
@@ -126,12 +152,13 @@ export function assertSiteColorContrast(colores: SiteColorPalette): void {
  * Salida: objeto tipado listo para persistir.
  */
 export function parseAndValidateSiteSettings(body: unknown): TenantSiteSettings {
+  const prepared = prepareSiteSettingsBody(body);
   const validate = siteSettingsValidator();
-  if (!validate(body)) {
+  if (!validate(prepared)) {
     const first = validate.errors?.[0];
     throw badRequest(first ? formatSchemaError(first) : `Datos inválidos (esquema ${SCHEMA_FILE})`);
   }
-  const settings = body as TenantSiteSettings;
+  const settings = prepared as TenantSiteSettings;
   assertSiteColorContrast(settings.colores);
   return {
     displayName: settings.displayName.trim(),
@@ -142,7 +169,10 @@ export function parseAndValidateSiteSettings(body: unknown): TenantSiteSettings 
   };
 }
 
-/** Convierte fila SQL a DTO del API. */
+/**
+ * Convierte fila SQL a DTO del API.
+ * Entrada: fila `tenant_settings`. Salida: objeto camelCase para JSON.
+ */
 export function rowToSiteSettings(row: TenantSettingsDbRow): TenantSiteSettings {
   return {
     displayName: row.display_name,
@@ -173,7 +203,7 @@ const SETTINGS_SELECT = `SELECT display_name, tagline, about,
 
 /**
  * Lectura pública de la configuración visible en el subdominio (sin auth).
- * Entrada: slug del host `site`.
+ * Entrada: pool y slug del host `site`. Salida: configuración completa o 404.
  */
 export async function readPublicSiteSettings(db: Queryable, hostSlug: string): Promise<TenantSiteSettings> {
   const tenantId = await tenantIdForSlug(db, hostSlug);
@@ -186,6 +216,7 @@ export async function readPublicSiteSettings(db: Queryable, hostSlug: string): P
 
 /**
  * Lectura para pantalla de admin (exige admin del mismo tenant).
+ * Entrada: slug, usuario verificado. Salida: configuración o 403/404.
  */
 export async function readTenantSettingsForAdmin(
   db: Queryable,
@@ -200,6 +231,7 @@ export async function readTenantSettingsForAdmin(
 
 /**
  * Persiste configuración validada; solo admin del sitio.
+ * Entrada: slug, admin y DTO validado. Salida: fila guardada como DTO.
  */
 export async function updateTenantSiteSettings(
   db: Queryable,
@@ -244,7 +276,16 @@ export async function updateTenantSiteSettings(
 }
 
 /**
+ * Guarda de voz del sitio: 404 si el módulo asistente está apagado (SP5-D-5; el token real llega en SP-10).
+ * Entrada: booleano del módulo. Salida: void o HttpError 404.
+ */
+export function assertSiteAssistantVoiceAllowed(moduleEnabled: boolean): void {
+  if (!moduleEnabled) throw notFound('Ruta no encontrada');
+}
+
+/**
  * Indica si el módulo asistente está activo en el sitio (solo hosts `site`; el legado no consulta esto).
+ * Entrada: slug del host. Salida: true/false (false si no hay fila).
  */
 export async function siteAssistantModuleEnabled(db: Queryable, hostSlug: string): Promise<boolean> {
   const tenantId = await tenantIdForSlug(db, hostSlug);
