@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evento.schema.json",
+  "title": "TipoEvento",
+  "type": "object",
+  "required": ["id", "nombre", "descripcion", "plantilla"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "nombre": { "$ref": "texto-bilingue.schema.json" },
+    "descripcion": { "$ref": "texto-bilingue.schema.json" },
+    "plantilla": {
+      "type": "string",
+      "enum": ["comida", "casa", "viaje", "evento"]
+    },
+    "preguntasSugeridas": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

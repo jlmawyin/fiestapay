@@ -1,0 +1,48 @@
+{
+  "preguntas": [
+    {
+      "id": "que-es-un-espacio",
+      "pregunta": {
+        "es": "¿Qué es un espacio en Somos Panas?",
+        "en": "What is a space on Somos Panas?"
+      },
+      "respuesta": {
+        "es": "Un subdominio propio de tu grupo (por ejemplo tu-grupo.somospanas.com) con nombre, colores, eventos y recaudaciones.",
+        "en": "Your group's own subdomain (for example your-group.somospanas.com) with a name, colors, events, and fundraisers."
+      }
+    },
+    {
+      "id": "eventos-publicos-portada",
+      "pregunta": {
+        "es": "¿Por qué no veo todos los eventos en la portada?",
+        "en": "Why don't I see every event on the homepage?"
+      },
+      "respuesta": {
+        "es": "La portada solo lista eventos que su dueño marcó públicos. El resto permanece privado en el sitio del grupo.",
+        "en": "The homepage only lists events marked public by their owner. The rest stay private on the group's site."
+      }
+    },
+    {
+      "id": "recaudaciones-procesador",
+      "pregunta": {
+        "es": "¿Las recaudaciones de la portada son pagos en línea?",
+        "en": "Are homepage fundraisers online payments?"
+      },
+      "respuesta": {
+        "es": "No necesariamente. Las cifras reales las anota el administrador del grupo; no son cobros verificados por un procesador hasta que exista uno configurado.",
+        "en": "Not necessarily. Real totals are noted by the group admin; they are not processor-verified charges until a provider is configured."
+      }
+    },
+    {
+      "id": "tutorial-voz",
+      "pregunta": {
+        "es": "¿El tutorial necesita micrófono?",
+        "en": "Does the tutorial need a microphone?"
+      },
+      "respuesta": {
+        "es": "No. Puedes seguirlo por texto. La voz es opcional y siempre pide tu consentimiento antes de activarse.",
+        "en": "No. You can follow it in text. Voice is optional and always asks for your consent before starting."
+      }
+    }
+  ]
+}

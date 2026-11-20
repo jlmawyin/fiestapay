@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sitio.schema.json",
+  "title": "ConfiguracionSitio",
+  "description": "Esquema de la configuración editable por el administrador de un sitio (SP-3 en adelante).",
+  "type": "object",
+  "required": [
+    "displayName",
+    "tagline",
+    "about",
+    "colores",
+    "modulos"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "tagline": { "type": "string", "maxLength": 200 },
+    "about": { "type": "string", "maxLength": 4000 },
+    "colores": {
+      "type": "object",
+      "required": [
+        "cloudwhite",
+        "ink",
+        "inkMuted",
+        "blue",
+        "teal",
+        "yellow",
+        "coral"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "cloudwhite": { "$ref": "#/$defs/colorHex" },
+        "ink": { "$ref": "#/$defs/colorHex" },
+        "inkMuted": { "$ref": "#/$defs/colorHex" },
+        "blue": { "$ref": "#/$defs/colorHex" },
+        "teal": { "$ref": "#/$defs/colorHex" },
+        "yellow": { "$ref": "#/$defs/colorHex" },
+        "coral": { "$ref": "#/$defs/colorHex" }
+      }
+    },
+    "modulos": {
+      "type": "object",
+      "required": ["reuniones", "eventos", "recaudacion", "asistente"],
+      "additionalProperties": false,
+      "properties": {
+        "reuniones": { "type": "boolean" },
+        "eventos": { "type": "boolean" },
+        "recaudacion": { "type": "boolean" },
+        "asistente": { "type": "boolean" }
+      }
+    }
+  },
+  "$defs": {
+    "colorHex": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}$"
+    }
+  }
+}

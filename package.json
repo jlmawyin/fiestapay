@@ -17,11 +17,14 @@
     "test": "npm run build -w @fiestapay/shared && vitest run",
     "lint": "eslint .",
     "check": "npm run lint && npm run typecheck && npm test && npm run build",
+    "verificar": "node scripts/verificar.mjs",
     "start": "node --env-file-if-exists=.env apps/api/dist/index.js",
     "test:e2e": "playwright test",
     "providers:check": "node --env-file-if-exists=.env scripts/check-providers.mjs"
   },
   "devDependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "@eslint/js": "^10.0.0",
     "@playwright/test": "^1.56.0",
     "@types/node": "^24.0.0",

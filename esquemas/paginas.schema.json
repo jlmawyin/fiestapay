@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "paginas.schema.json",
+  "title": "OrdenPaginas",
+  "type": "object",
+  "required": ["portadaRaiz"],
+  "additionalProperties": false,
+  "properties": {
+    "portadaRaiz": {
+      "type": "object",
+      "required": ["secciones"],
+      "additionalProperties": false,
+      "properties": {
+        "secciones": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "bloque"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+              "bloque": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

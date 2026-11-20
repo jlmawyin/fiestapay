@@ -1,0 +1,96 @@
+/*
+ * Tokens de diseño Somos Panas — único lugar de colores, tipografía y espaciados
+ * para la portada y los sitios de grupo. La web legada puede seguir en index.css
+ * hasta que SP-6 conecte la portada raíz a estos valores.
+ */
+
+:root {
+  /* Colores de marca (paleta FiestaPay / Somos Panas) */
+  --sp-color-cloudwhite: #F7FAFC;
+  --sp-color-ink: #12263A;
+  --sp-color-ink-muted: #4A5D73;
+  --sp-color-ink-light: #7E90A3;
+  --sp-color-blue: #125FE6;
+  --sp-color-blue-hover: #0E4DBB;
+  --sp-color-blue-tint: #EEF4FD;
+  --sp-color-teal: #0B8075;
+  --sp-color-teal-hover: #08665E;
+  --sp-color-teal-tint: #E8F6F4;
+  --sp-color-yellow: #FFC85A;
+  --sp-color-yellow-dark: #C28D05;
+  --sp-color-yellow-tint: #FFF9EB;
+  --sp-color-coral: #E85D4A;
+  --sp-color-coral-hover: #D04836;
+  --sp-color-coral-tint: #FDEDEA;
+
+  /* Superficies y bordes */
+  --sp-color-border: #E2E8F0;
+  --sp-color-border-dark: #CBD5E1;
+  --sp-color-surface: #FFFFFF;
+  --sp-color-surface-subtle: #F1F5F9;
+
+  /* Tipografía */
+  --sp-font-display: 'Nunito Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --sp-font-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --sp-font-size-base: 16px;
+  --sp-line-height-body: 1.5;
+  --sp-line-height-heading: 1.25;
+
+  /* Espaciados */
+  --sp-space-xs: 4px;
+  --sp-space-sm: 8px;
+  --sp-space-md: 16px;
+  --sp-space-lg: 24px;
+  --sp-space-xl: 32px;
+  --sp-space-2xl: 48px;
+  --sp-space-3xl: 64px;
+
+  /* Radios y sombras */
+  --sp-radius-sm: 6px;
+  --sp-radius-md: 10px;
+  --sp-radius-lg: 16px;
+  --sp-radius-xl: 24px;
+  --sp-radius-full: 9999px;
+
+  --sp-shadow-sm: 0 1px 2px 0 rgba(18, 38, 58, 0.05);
+  --sp-shadow-md: 0 4px 6px -1px rgba(18, 38, 58, 0.08), 0 2px 4px -2px rgba(18, 38, 58, 0.05);
+  --sp-shadow-lg: 0 10px 15px -3px rgba(18, 38, 58, 0.1), 0 4px 6px -4px rgba(18, 38, 58, 0.05);
+
+  /* Anchos de referencia para pruebas visuales (390×844 móvil, 1440×960 escritorio) */
+  --sp-viewport-mobile: 390px;
+  --sp-viewport-desktop: 1440px;
+}
+
+/* Demostración mínima de aplicación de tokens (usada por pruebas de render) */
+.sp-tokens-preview {
+  font-family: var(--sp-font-body);
+  font-size: var(--sp-font-size-base);
+  line-height: var(--sp-line-height-body);
+  color: var(--sp-color-ink);
+  background-color: var(--sp-color-cloudwhite);
+  padding: var(--sp-space-md);
+}
+
+.sp-tokens-preview h1 {
+  font-family: var(--sp-font-display);
+  line-height: var(--sp-line-height-heading);
+  color: var(--sp-color-ink);
+  margin-bottom: var(--sp-space-md);
+}
+
+.sp-tokens-preview .sp-accent {
+  color: var(--sp-color-blue);
+}
+
+@media (min-width: 768px) {
+  .sp-tokens-preview {
+    padding: var(--sp-space-xl);
+    max-width: var(--sp-viewport-desktop);
+  }
+}
+
+@media (max-width: 767px) {
+  .sp-tokens-preview {
+  max-width: var(--sp-viewport-mobile);
+  }
+}

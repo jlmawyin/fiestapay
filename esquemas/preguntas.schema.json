@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "preguntas.schema.json",
+  "title": "PreguntasFrecuentes",
+  "type": "object",
+  "required": ["preguntas"],
+  "additionalProperties": false,
+  "properties": {
+    "preguntas": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "pregunta", "respuesta"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "pregunta": { "$ref": "texto-bilingue.schema.json" },
+          "respuesta": { "$ref": "texto-bilingue.schema.json" }
+        }
+      }
+    }
+  }
+}

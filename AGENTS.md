@@ -42,3 +42,20 @@ Updated by Jorge's request on 10 Nov 2026 for the final hackathon stretch (Devpo
 
 - One active director (Claude or Codex). Builders: Muse and DSH, at most two construction fronts with disjoint ownership; AGY Gemini Flash verifies independently; AGY Gemini 4 Argon handles recovery. Grok is retired. OpenCode free usage is exhausted and its paid balance is reserved for emergencies; do not migrate DSH to a paid API automatically.
 - Workers never commit or push, never revert others and never edit outside their assigned paths. Changing providers does not reset attempt counters (see dirigir-agentes/references/deepseek.md for DSH).
+
+## Somos Panas — mapa de edición (contenido y diseño)
+
+Método completo: [docs/somospanas/METODO.md](docs/somospanas/METODO.md). Cada cambio de contenido o tokens termina con `npm run verificar` (validación de JSON + pruebas + `npm run check`). La vista previa local de la app es `npm run dev`.
+
+| Quiero cambiar… | Archivo | Prueba |
+| --- | --- | --- |
+| Texto de la portada (hero, barra, ejemplos C2) | `contenido/portada.json` | `scripts/somospanas/portada.test.ts` |
+| Pasos del tutorial | `contenido/tutorial.json` | `scripts/somospanas/tutorial.test.ts` |
+| Tipos de evento (catálogo / formulario) | `contenido/tipos-evento.json` + `esquemas/evento.schema.json` | `scripts/somospanas/tipos-evento.test.ts` |
+| Colores, tipografía y espaciados | `estilos/tokens.css` | `scripts/somospanas/tokens.test.ts` (variables; revisión visual 390×844 y 1440×960 con `npm run dev` en local) |
+| Orden de secciones en la portada | `contenido/paginas.json` | `scripts/somospanas/portada.test.ts` |
+| Preguntas frecuentes | `contenido/preguntas.json` | validación en `npm run verificar` |
+| Configuración de sitio (futuro admin) | `esquemas/sitio.schema.json` | validación de esquema en `npm run verificar` |
+| Qué bloque usa cada sección | `bloques/LEEME.md` | — |
+
+Historial de pedidos: `CHANGELOG.md`.
