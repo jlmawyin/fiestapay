@@ -1,7 +1,11 @@
+/**
+ * Cerrojos de acceso a eventos y membresías de sitio Somos Panas (SP-4 en lo de tenants).
+ * Depende de `events`, `tenants`, `memberships` y cabeceras legadas de organizador.
+ */
 import { timingSafeEqual } from 'node:crypto';
 import type { FastifyRequest } from 'fastify';
 import type { Pool, PoolClient } from '../db/pool.js';
-import { forbidden, gone } from '../errors.js';
+import { badRequest, forbidden, gone, notFound } from '../errors.js';
 import { sha256 } from '../lib/ids.js';
 import type { EventRow, Queryable } from './read.js';
 
@@ -83,4 +87,131 @@ export async function rememberUnlock(db: Pool | PoolClient, eventId: string, ses
      ON CONFLICT (event_id, session_id) DO NOTHING`,
     [eventId, sessionId],
   );
+}
+
+export type TenantMembershipRole = 'admin' | 'member';
+
+/**
+ * Resuelve el id del sitio por slug de subdominio.
+ * Entrada: slug del host clasificado como `site`.
+ * Salida: uuid del tenant o null si no existe fila.
+ */
+export async function tenantIdForSlug(db: Queryable, slug: string): Promise<string | null> {
+  const { rows } = await db.query<{ id: string }>('SELECT id FROM tenants WHERE slug = $1 LIMIT 1', [slug]);
+  return rows[0]?.id ?? null;
+}
+
+/**
+ * Devuelve el rol del usuario en el sitio, si tiene membresía.
+ * Entrada: ids de tenant y usuario.
+ * Salida: rol o null.
+ */
+export async function membershipRoleForUser(
+  db: Queryable,
+  tenantId: string,
+  userId: string,
+): Promise<TenantMembershipRole | null> {
+  const { rows } = await db.query<{ role: TenantMembershipRole }>(
+    `SELECT role FROM memberships WHERE tenant_id = $1 AND user_id = $2`,
+    [tenantId, userId],
+  );
+  return rows[0]?.role ?? null;
+}
+
+/**
+ * Exige que el usuario sea admin del sitio indicado (403 si no).
+ * Entrada: tenant, usuario autenticado.
+ */
+export async function assertTenantAdmin(db: Queryable, tenantId: string, userId: string): Promise<void> {
+  const role = await membershipRoleForUser(db, tenantId, userId);
+  if (role !== 'admin') throw forbidden('No autorizado');
+}
+
+interface TenantSettingsRow {
+  tenant_id: string;
+  display_name: string;
+  tagline: string;
+}
+
+/**
+ * Lee la configuración visible del sitio actual (solo admins del mismo tenant).
+ * Entrada: slug del host y usuario verificado.
+ * Salida: campos de `tenant_settings`.
+ */
+export async function readTenantSettingsForAdmin(
+  db: Queryable,
+  hostSlug: string,
+  userId: string,
+): Promise<TenantSettingsRow> {
+  const tenantId = await tenantIdForSlug(db, hostSlug);
+  if (!tenantId) throw notFound('Ruta no encontrada');
+  await assertTenantAdmin(db, tenantId, userId);
+  const { rows } = await db.query<TenantSettingsRow>(
+    `SELECT tenant_id, display_name, tagline FROM tenant_settings WHERE tenant_id = $1`,
+    [tenantId],
+  );
+  const row = rows[0];
+  if (!row) throw notFound('Ruta no encontrada');
+  return row;
+}
+
+/**
+ * Actualiza un campo editable de configuración en el propio sitio (admin).
+ * Entrada: slug del host, usuario y nuevo nombre visible.
+ * Salida: fila actualizada.
+ */
+export async function updateTenantSettingsDisplayName(
+  db: Queryable,
+  hostSlug: string,
+  userId: string,
+  displayName: string,
+): Promise<TenantSettingsRow> {
+  const tenantId = await tenantIdForSlug(db, hostSlug);
+  if (!tenantId) throw notFound('Ruta no encontrada');
+  await assertTenantAdmin(db, tenantId, userId);
+  const trimmed = displayName.trim();
+  if (trimmed.length < 1 || trimmed.length > 120) throw badRequest('Datos invalidos');
+  const { rows } = await db.query<TenantSettingsRow>(
+    `UPDATE tenant_settings SET display_name = $2, updated_at = now()
+       WHERE tenant_id = $1
+       RETURNING tenant_id, display_name, tagline`,
+    [tenantId, trimmed],
+  );
+  return rows[0]!;
+}
+
+/**
+ * Lee un evento privado del sitio si el usuario es admin de ese tenant (403 si es otro sitio o sin rol).
+ * Entrada: slug del evento y contexto de host/usuario.
+ * Salida: fila del evento.
+ */
+interface SiteEventGateRow {
+  id: string;
+  slug: string;
+  title: string;
+  tenant_id: string;
+  visibility: 'private' | 'public';
+  purged_at: Date | null;
+}
+
+export async function readPrivateEventForSiteAdmin(
+  db: Queryable,
+  hostSlug: string,
+  userId: string,
+  eventSlug: string,
+): Promise<SiteEventGateRow> {
+  const tenantId = await tenantIdForSlug(db, hostSlug);
+  if (!tenantId) throw notFound('Ruta no encontrada');
+  const role = await membershipRoleForUser(db, tenantId, userId);
+  if (role !== 'admin') throw forbidden('No autorizado');
+
+  const { rows } = await db.query<SiteEventGateRow>(
+    `SELECT id, slug, title, tenant_id, visibility, purged_at FROM events WHERE slug = $1 LIMIT 1`,
+    [eventSlug],
+  );
+  const event = rows[0];
+  if (!event || event.purged_at) throw notFound('Evento no encontrado');
+  if (event.tenant_id !== tenantId) throw forbidden('No autorizado');
+  if (event.visibility !== 'private') throw forbidden('No autorizado');
+  return event;
 }
