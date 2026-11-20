@@ -200,6 +200,12 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
         // instead of swallowing the notification.
         if (!order) return retry('orden desconocida todavia');
 
+        // SP8-D-6: una captura firmada no se contabiliza si el evento pertenece a un tenant `none`.
+        if ((await paymentProviderIdForEventId(pool, order.event_id)) === 'none') {
+          await audit(pool, order.event_id, 'payment_webhook_rejected');
+          return done('tenant sin procesador de pago');
+        }
+
         const outcome = await convergeCapture(pool, paypal, merchantId, order, null);
         if (isApplied(outcome)) return done(undefined, { eventId: order.event_id, type: receiptType });
         if (outcome.transient) return retry(outcome.reason);
@@ -212,6 +218,14 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
           case 'CHECKOUT.ORDER.APPROVED': {
             // Approved is not paid: it only records that the payer finished at PayPal.
             if (!resourceId) return done('aprobacion sin identificador de orden');
+            const approvedOrder = await findOrderByAnyId(pool, resourceId);
+            if (
+              approvedOrder &&
+              (await paymentProviderIdForEventId(pool, approvedOrder.event_id)) === 'none'
+            ) {
+              await audit(pool, approvedOrder.event_id, 'payment_webhook_rejected');
+              return done('tenant sin procesador de pago');
+            }
             const outcome = await markOrderApproved(pool, resourceId);
             return outcome === 'unknown' ? retry('orden desconocida todavia') : done();
           }

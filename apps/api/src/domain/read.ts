@@ -1,4 +1,14 @@
-import type { AgendaItem, FiestaEvent, FundingStatus, Guest, RefundSummary, RsvpStatus, TemplateKind } from '@fiestapay/shared';
+import type {
+  AgendaItem,
+  FiestaEvent,
+  FundingStatus,
+  Guest,
+  PaymentProviderId,
+  RefundSummary,
+  RsvpStatus,
+  TemplateKind,
+} from '@fiestapay/shared';
+import { paymentProviderIdForEventId } from '../payments/provider.js';
 import { normalizeOrganizerName, resolveTheme } from '@fiestapay/shared';
 import { sumToCents, type Pool, type PoolClient } from '../db/pool.js';
 import { notFound } from '../errors.js';
@@ -199,7 +209,11 @@ export const peopleOf = (guest: GuestRow): number => (guest.status === 'yes' ? 1
  */
 export type FiestaEventWithDemo = FiestaEvent & { isDemo: boolean };
 
-export function toFiestaEvent(row: EventRow, totals: EventTotals): FiestaEventWithDemo {
+export function toFiestaEvent(
+  row: EventRow,
+  totals: EventTotals,
+  paymentProvider?: PaymentProviderId,
+): FiestaEventWithDemo {
   const minimumCents = row.minimum_cents;
   return {
     id: row.id,
@@ -232,11 +246,13 @@ export function toFiestaEvent(row: EventRow, totals: EventTotals): FiestaEventWi
     organizerName: normalizeOrganizerName(row.organizer_name),
     theme: resolveTheme(row.template, row.theme).key,
     isDemo: row.is_demo,
+    ...(paymentProvider ? { paymentProvider } : {}),
   };
 }
 
 export async function loadFiestaEvent(db: Queryable, row: EventRow): Promise<FiestaEventWithDemo> {
-  return toFiestaEvent(row, await eventTotals(db, row.id));
+  const paymentProvider = await paymentProviderIdForEventId(db, row.id);
+  return toFiestaEvent(row, await eventTotals(db, row.id), paymentProvider);
 }
 
 export function toGuestWithPrice(row: GuestRow, priceCents: number, paidCents: number): Guest {

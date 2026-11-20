@@ -384,7 +384,8 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
         {progressMessage ? <div style={progressBoxStyle}>{progressMessage}</div> : null}
       </div>
 
-      {order.status === 'approved' && (
+      {/* SP8-D-3: sin captura en sitio `none`; el modo fallback sin SDK sigue mostrando captura manual. */}
+      {order.status === 'approved' && !onlinePaymentDisabled && (
         <div
           style={{
             backgroundColor: 'var(--color-teal-tint)',

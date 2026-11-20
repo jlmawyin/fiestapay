@@ -4,12 +4,13 @@
  */
 import { randomBytes, randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { Capabilities, OrderResult, Quote } from '@fiestapay/shared';
+import type { Capabilities, FiestaEvent, OrderResult, Quote } from '@fiestapay/shared';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
 import { migrate } from '../src/db/migrate.js';
 import { createPool, type Pool } from '../src/db/pool.js';
-import { fundingForNewEvent } from '../src/domain/funding.js';
+import { sha256 } from '../src/lib/ids.js';
+import { decideDueEvents, fundingForNewEvent } from '../src/domain/funding.js';
 import { FakePayPal } from './fake-paypal.js';
 import { announceSkipWithoutDatabase, body, Client, DATABASE_URL, MERCHANT, testConfig } from './harness.js';
 
@@ -25,6 +26,8 @@ describeDb('proveedor de pago por sitio (SP-8)', () => {
   let noneTenantId: string;
   let noneEventSlug: string;
   let noneSessionId: string;
+  let noneEventId: string;
+  const noneAdminKey = 'clave-sp8-none-admin';
 
   async function seedNoneSite(): Promise<void> {
     const legacy = await pool.query<{ id: string }>(`SELECT id FROM tenants WHERE slug = 'fiestapay' LIMIT 1`);
@@ -49,17 +52,17 @@ describeDb('proveedor de pago por sitio (SP-8)', () => {
     noneSessionId = randomUUID();
     await pool.query('INSERT INTO sessions (id, token_hash) VALUES ($1, $2)', [noneSessionId, randomBytes(32)]);
 
-    const eventId = randomUUID();
+    noneEventId = randomUUID();
     noneEventSlug = `evt-none-${randomBytes(4).toString('hex')}`;
     const starts = new Date(Date.now() + 86_400_000).toISOString();
     const ends = new Date(Date.now() + 90_000_000).toISOString();
     await pool.query(
       `INSERT INTO events (
          id, slug, tenant_id, organizer_session_id, generation, title, template, meal, description,
-         starts_at, ends_at, location, price_cents, minimum_cents, funding_status
+         starts_at, ends_at, location, price_cents, minimum_cents, funding_status, admin_key_hash
        ) VALUES ($1,$2,$3,$4,1,'Reunion SP-8','casa','cena','Sin PayPal',
-         $5::timestamptz,$6::timestamptz,'Casa',2500,5000,'inactive')`,
-      [eventId, noneEventSlug, noneTenantId, noneSessionId, starts, ends],
+         $5::timestamptz,$6::timestamptz,'Casa',2500,5000,'inactive',$7)`,
+      [noneEventId, noneEventSlug, noneTenantId, noneSessionId, starts, ends, sha256(noneAdminKey)],
     );
   }
 
@@ -100,11 +103,122 @@ describeDb('proveedor de pago por sitio (SP-8)', () => {
       minimumCents: 10_000,
       fundingDeadlineAt: '2026-12-15T17:00:00.000Z',
     };
-    const open = fundingForNewEvent(input, now);
+    const open = fundingForNewEvent(input, now, 'paypal_sandbox');
     expect(open.status).toBe('open');
-    const inactive = fundingForNewEvent(input, now, { paymentProvider: 'none' });
+    const inactive = fundingForNewEvent(input, now, 'none');
     expect(inactive.status).toBe('inactive');
-    expect(inactive.deadline).not.toBeNull();
+    expect(inactive.deadline).toBeNull();
+  });
+
+  it('GET /api/events/:slug publica paymentProvider del tenant (SP8-D-2)', async () => {
+    const res = await app.inject({ method: 'GET', url: `/api/events/${noneEventSlug}` });
+    expect(res.statusCode).toBe(200);
+    const payload = res.json() as { event: FiestaEvent };
+    expect(payload.event.paymentProvider).toBe('none');
+  });
+
+  it('PUT con mínimo en tenant none deja funding_status inactive (SP8-D-1)', async () => {
+    const org = new Client(app);
+    org.authorize(noneEventSlug, noneAdminKey);
+    const getRes = await org.get(`/api/events/${noneEventSlug}`);
+    if (getRes.statusCode !== 200) throw new Error(`GET falló ${getRes.statusCode}: ${getRes.body}`);
+    const current = body<{ event: FiestaEvent }>(getRes).event;
+    const starts = new Date(Date.now() + 86_400_000).toISOString();
+    const ends = new Date(Date.now() + 90_000_000).toISOString();
+  const deadline = new Date(Date.now() + 43_200_000).toISOString();
+    const put = await org.put(`/api/events/${noneEventSlug}`, {
+      title: current.title,
+      template: current.template,
+      meal: current.meal,
+      description: current.description,
+      startsAt: starts,
+      endsAt: ends,
+      location: current.location,
+      includes: current.includes,
+      agenda: current.agenda,
+      priceCents: current.priceCents,
+      capacity: current.capacity ?? 50,
+      goalCents: current.goalCents,
+      minimumCents: 5000,
+      fundingDeadlineAt: deadline,
+    });
+    expect(put.statusCode, put.body).toBe(200);
+    const row = await pool.query<{ funding_status: string }>(
+      `SELECT funding_status FROM events WHERE id = $1`,
+      [noneEventId],
+    );
+    expect(row.rows[0]?.funding_status).toBe('inactive');
+  });
+
+  async function resetNoneEventFunding(): Promise<void> {
+    await pool.query(
+      `UPDATE events SET funding_status = 'inactive', funding_deadline_at = NULL, minimum_cents = NULL, closed_at = NULL, confirmed = false
+        WHERE id = $1`,
+      [noneEventId],
+    );
+  }
+
+  it('decideDueEvents ignora eventos none aunque figuren open (SP8-D-1)', async () => {
+    const past = new Date(Date.now() - 60_000).toISOString();
+    await pool.query(
+      `UPDATE events SET funding_status = 'open', funding_deadline_at = $2::timestamptz, minimum_cents = 5000 WHERE id = $1`,
+      [noneEventId, past],
+    );
+    const decided = await decideDueEvents(pool, 10);
+    expect(decided).toBe(0);
+    const row = await pool.query<{ funding_status: string }>(`SELECT funding_status FROM events WHERE id = $1`, [
+      noneEventId,
+    ]);
+    expect(row.rows[0]?.funding_status).toBe('open');
+    await resetNoneEventFunding();
+  });
+
+  it('webhook de captura no aplica libro en tenant none (SP8-D-6)', async () => {
+    const guestId = randomUUID();
+    const guestSession = randomUUID();
+    const quoteId = randomUUID();
+    await pool.query('INSERT INTO sessions (id, token_hash) VALUES ($1, $2)', [guestSession, randomBytes(32)]);
+    await pool.query(`INSERT INTO guests (id, event_id, session_id, name) VALUES ($1,$2,$3,'Webhook guest')`, [
+      guestId,
+      noneEventId,
+      guestSession,
+    ]);
+    await pool.query(
+      `INSERT INTO quotes (id, event_id, guest_id, obligation_version, people, unit_cents, total_cents,
+         paid_cents, amount_cents, summary, expires_at)
+       VALUES ($1,$2,$3,1,1,2500,2500,0,2500,'Cuenta',$4::timestamptz)`,
+      [quoteId, noneEventId, guestId, new Date(Date.now() + 3_600_000).toISOString()],
+    );
+    const orderId = randomUUID();
+    const paypalOrderId = `PAYPAL-NONE-${randomBytes(4).toString('hex')}`;
+    await pool.query(
+      `INSERT INTO orders (id, event_id, guest_id, quote_id, obligation_version, request_id,
+         paypal_order_id, amount_cents, payee_merchant_id, status)
+       SELECT $1, $2, g.id, q.id, 1, $3, $4, 2500, $5, 'approved'
+         FROM guests g
+         JOIN quotes q ON q.guest_id = g.id
+        WHERE g.event_id = $2
+        LIMIT 1`,
+      [orderId, noneEventId, `req-${randomBytes(3).toString('hex')}`, paypalOrderId, MERCHANT],
+    );
+    const client = new Client(app);
+    const webhookId = `WH-NONE-${randomBytes(3).toString('hex')}`;
+    const res = await client.post(
+      '/api/paypal/webhook',
+      {
+        id: webhookId,
+        event_type: 'CHECKOUT.ORDER.COMPLETED',
+        resource: { id: paypalOrderId },
+      },
+      null,
+    );
+    expect(res.statusCode).toBe(200);
+    const ledger = await pool.query<{ n: number }>(
+      `SELECT COUNT(*)::int AS n FROM payment_ledger WHERE order_id = $1`,
+      [orderId],
+    );
+    expect(ledger.rows[0]?.n).toBe(0);
+    await resetNoneEventFunding();
   });
 
   it('crear orden en sitio none responde 503 y no inserta en orders', async () => {

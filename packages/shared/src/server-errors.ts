@@ -209,6 +209,7 @@ export const SERVER_ERROR_EN: Readonly<Record<string, string>> = {
   // PayPal webhook and configuration reasons.
   'El cobro en linea no esta disponible en este sitio; el organizador coordina el pago por fuera de la app':
     'Online checkout is not available on this site; the organizer coordinates payment outside the app.',
+  'Sitio no encontrado': 'Site not found.',
   'PayPal no esta configurado en este servidor': 'PayPal is not configured on this server.',
   'PAYPAL_WEBHOOK_ID no esta configurado': 'PAYPAL_WEBHOOK_ID is not configured.',
   'Cuerpo vacio': 'The request body is empty.',

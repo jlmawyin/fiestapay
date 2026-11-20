@@ -267,6 +267,7 @@ export const PaymentWizard: React.FC<PaymentWizardProps> = ({
                 onRefreshQuote={onRefreshQuote}
                 onCreateOrder={onCreateOrder}
                 isCreatingOrder={isCreatingOrder}
+                onlineCheckout={event.paymentProvider !== 'none'}
                 template={event.template}
               />
             </div>

@@ -3,6 +3,7 @@ import { sumToCents, withTransaction, type Pool, type PoolClient } from '../db/p
 import { PayPalError, type PayPalAdapter, type PayPalRefund } from '../paypal/types.js';
 import { captureIdFromRefund } from '../paypal/verify.js';
 import { usdToCents } from '../lib/money.js';
+import { paymentProviderIdForEventId } from '../payments/provider.js';
 import { lockEvent } from './read.js';
 import { decideDueEvents, fundingNow, refreshFailedRefunds } from './funding.js';
 import { convergeRefund, type RefundOutcome } from './payments.js';
@@ -289,6 +290,11 @@ async function executeTask(
 ): Promise<'refunded' | 'pending' | 'review'> {
   const token = task.lease_token;
   if (!token) return 'review';
+  // SP8-D-6: no llamar a PayPal para reembolsos de un sitio sin procesador.
+  if ((await paymentProviderIdForEventId(pool, task.event_id)) === 'none') {
+    await markReview(pool, task.id, token, 'Sitio sin procesador PayPal', null);
+    return 'review';
+  }
   let refund: PayPalRefund | null;
   try {
     refund = task.paypal_refund_id

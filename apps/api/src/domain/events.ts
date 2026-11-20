@@ -7,6 +7,7 @@ import { assertAdminKey, digestMatches, rememberUnlock, revokeUnlocks } from './
 import { audit } from './audit.js';
 import { decideFundingIfDue, fundingBlocksNewCharge, fundingForNewEvent, fundingNow, nextFundingTerms, type FundingGate } from './funding.js';
 import { legacyTenantId } from '../lib/host.js';
+import { paymentProviderIdForEventId, paymentProviderIdForTenant } from '../payments/provider.js';
 import { isPastRetention, tombstoneEvent } from './retention.js';
 import { EVENT_COLUMNS, eventTotals, loadFiestaEvent, lockEvent, toFiestaEvent, type EventRow, type FiestaEventWithDemo, type Queryable } from './read.js';
 
@@ -52,9 +53,10 @@ export async function insertEvent(
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const slug = newSlug(input.template);
     try {
-      const funding = fundingForNewEvent(input, fundingNow());
       const presentation = presentationOf(input);
       const tenantId = await legacyTenantId(db);
+      const paymentProvider = await paymentProviderIdForTenant(db, tenantId);
+      const funding = fundingForNewEvent(input, fundingNow(), paymentProvider);
       const { rows } = await db.query<EventRow>(
         `INSERT INTO events (id, slug, tenant_id, organizer_session_id, generation, title, template, meal, description,
            starts_at, ends_at, location, includes, agenda, price_cents, capacity, goal_cents, minimum_cents,
@@ -388,7 +390,15 @@ export async function updateEvent(
     if (!sameMoney(event, input) && ((usage?.guests ?? 0) > 0 || (usage?.orders ?? 0) > 0)) {
       throw conflict('No se pueden cambiar la cuota, la meta o el minimo cuando ya hay invitados o pagos');
     }
-    const terms = nextFundingTerms(event, input, new Date(input.startsAt), usage?.orders ?? 0, fundingNow());
+    const paymentProvider = await paymentProviderIdForEventId(client, event.id);
+    const terms = nextFundingTerms(
+      event,
+      input,
+      new Date(input.startsAt),
+      usage?.orders ?? 0,
+      fundingNow(),
+      paymentProvider,
+    );
 
     let accessCodeHash: Buffer | null | undefined;
     if (input.accessCode === undefined) accessCodeHash = undefined;

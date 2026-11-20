@@ -6,8 +6,10 @@ import type { Capabilities } from '@fiestapay/shared';
 import { type PaymentProviderId, isPaymentProviderId, siteAllowsPayPalCheckout } from '@fiestapay/shared';
 import type { Config } from '../config.js';
 import { notFound, unavailable } from '../errors.js';
+import type { Pool, PoolClient } from '../db/pool.js';
 import type { HostClassification } from '../lib/host.js';
-import type { Queryable } from '../domain/read.js';
+
+type TenantLookup = Pick<Pool, 'query'> | Pick<PoolClient, 'query'>;
 import type {
   CreateOrderInput,
   CreatedOrder,
@@ -124,17 +126,17 @@ export function buildPaymentProvider(id: PaymentProviderId, paypal: PayPalAdapte
 }
 
 /**
- * Lee `payment_provider` del tenant de un evento.
- * Entrada: pool/cliente y `tenant_id` del evento.
- * Salida: id del procesador o error si el tenant no existe.
+ * Lee `payment_provider` de una fila `tenants`.
+ * Entrada: acceso a base y uuid del tenant.
+ * Salida: `none` o `paypal_sandbox`.
  */
-export async function paymentProviderIdForTenant(db: Queryable, tenantId: string): Promise<PaymentProviderId> {
+export async function paymentProviderIdForTenant(db: TenantLookup, tenantId: string): Promise<PaymentProviderId> {
   const { rows } = await db.query<{ payment_provider: string }>(
     `SELECT payment_provider FROM tenants WHERE id = $1 LIMIT 1`,
     [tenantId],
   );
   const raw = rows[0]?.payment_provider;
-  if (!rows[0]) throw notFound('Evento no encontrado');
+  if (!rows[0]) throw notFound('Sitio no encontrado');
   if (!isPaymentProviderId(raw)) {
     throw unavailable('PayPal no esta configurado en este servidor');
   }
@@ -142,11 +144,11 @@ export async function paymentProviderIdForTenant(db: Queryable, tenantId: string
 }
 
 /**
- * Resuelve el procesador a partir del slug de invitación.
- * Entrada: acceso a base y slug global del evento.
- * Salida: id del tenant dueño del evento.
+ * Lee el procesador del tenant dueño de un evento por id interno.
+ * Entrada: acceso a base y uuid de `events.id`.
+ * Salida: `none` o `paypal_sandbox`.
  */
-export async function paymentProviderIdForEventId(db: Queryable, eventId: string): Promise<PaymentProviderId> {
+export async function paymentProviderIdForEventId(db: TenantLookup, eventId: string): Promise<PaymentProviderId> {
   const { rows } = await db.query<{ payment_provider: string }>(
     `SELECT t.payment_provider
        FROM events e
@@ -163,7 +165,12 @@ export async function paymentProviderIdForEventId(db: Queryable, eventId: string
   return raw;
 }
 
-export async function paymentProviderIdForEventSlug(db: Queryable, slug: string): Promise<PaymentProviderId> {
+/**
+ * Lee el procesador del tenant dueño de un evento por slug de invitación.
+ * Entrada: acceso a base y `events.slug` global.
+ * Salida: `none` o `paypal_sandbox`.
+ */
+export async function paymentProviderIdForEventSlug(db: TenantLookup, slug: string): Promise<PaymentProviderId> {
   const { rows } = await db.query<{ payment_provider: string }>(
     `SELECT t.payment_provider
        FROM events e

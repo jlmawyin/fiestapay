@@ -88,6 +88,8 @@ export interface FiestaEvent {
   theme?: ThemeKey;
   /** True for judge-demo events (events.is_demo). Absent means false. */
   isDemo?: boolean;
+  /** Procesador del sitio dueño del evento; el invitado no confía solo en el Host (SP8-D-2). */
+  paymentProvider?: PaymentProviderId;
 }
 export interface Guest {
   id: string;

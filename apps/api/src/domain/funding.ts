@@ -3,6 +3,7 @@ import { withTransaction, sumToCents, type Pool, type PoolClient } from '../db/p
 import { badRequest, conflict } from '../errors.js';
 import { newId } from '../lib/ids.js';
 import { centsToUsd } from '../lib/money.js';
+import { paymentProviderIdForEventId } from '../payments/provider.js';
 import { audit } from './audit.js';
 import { EVENT_COLUMNS, lockEvent, type EventRow } from './read.js';
 
@@ -37,16 +38,11 @@ export function assertDeadlineOpen(deadline: Date, startsAt: Date, now: Date): v
   if (deadline.getTime() > startsAt.getTime()) throw badRequest('La fecha limite no puede ser posterior al inicio');
 }
 
-export interface FundingForNewEventOptions {
-  /** SP-8 (D2): sitios `none` no arman financiamiento con reembolsos automáticos. */
-  paymentProvider?: PaymentProviderId;
-}
-
 /** New events only. A minimum with no explicit deadline is armed at startsAt. */
 export function fundingForNewEvent(
   input: EventInput,
   now: Date,
-  opts: FundingForNewEventOptions = {},
+  paymentProvider: PaymentProviderId,
 ): { status: 'inactive' | 'open'; deadline: Date | null } {
   const startsAt = new Date(input.startsAt);
   if (input.minimumCents === null) {
@@ -55,9 +51,9 @@ export function fundingForNewEvent(
   }
   const deadline = input.fundingDeadlineAt ? new Date(input.fundingDeadlineAt) : startsAt;
   assertDeadlineOpen(deadline, startsAt, now);
-  // Un mínimo con reembolsos PayPal exige procesador; los sitios nuevos quedan inactivos (D2).
-  if (opts.paymentProvider === 'none') {
-    return { status: 'inactive', deadline };
+  // SP8-D-1: en `none` el mínimo se guarda pero el check de forma exige deadline NULL si inactive.
+  if (paymentProvider === 'none') {
+    return { status: 'inactive', deadline: null };
   }
   return { status: 'open', deadline };
 }
@@ -77,6 +73,7 @@ export function nextFundingTerms(
   startsAt: Date,
   orderCount: number,
   now: Date,
+  paymentProvider: PaymentProviderId,
 ): { status: FundingStatus; deadline: Date | null } {
   const rawDeadline = input.fundingDeadlineAt;
   const omitted = rawDeadline === undefined;
@@ -94,6 +91,10 @@ export function nextFundingTerms(
     if (event.funding_deadline_at && event.funding_deadline_at.getTime() > startsAt.getTime()) {
       throw conflict('La fecha limite de financiamiento quedaria despues del inicio');
     }
+    // SP8-D-1: corrige filas que quedaron `open` por error en un tenant sin procesador.
+    if (paymentProvider === 'none' && event.funding_status === 'open') {
+      return { status: 'inactive', deadline: null };
+    }
     return { status: event.funding_status, deadline: event.funding_deadline_at };
   }
   if (input.minimumCents === null) {
@@ -110,6 +111,9 @@ export function nextFundingTerms(
   const deadline = !omitted ? requested ?? null : event.funding_deadline_at ?? startsAt;
   if (deadline === null) throw badRequest('Un minimo requiere fecha limite de financiamiento');
   assertDeadlineOpen(deadline, startsAt, now);
+  if (paymentProvider === 'none') {
+    return { status: 'inactive', deadline: null };
+  }
   return { status: 'open', deadline };
 }
 
@@ -301,6 +305,10 @@ export async function syncRefundTasks(client: PoolClient, eventId: string): Prom
  */
 export async function decideFundingIfDue(client: PoolClient, event: EventRow): Promise<FundingInstant> {
   const at = fundingNow();
+  // SP8-D-1: el worker no decide financiamiento ni dispara reembolsos PayPal en sitios `none`.
+  if ((await paymentProviderIdForEventId(client, event.id)) === 'none') {
+    return { event, at };
+  }
   if (event.funding_status !== 'open' || !event.funding_deadline_at || event.minimum_cents === null) {
     return { event, at };
   }
@@ -333,13 +341,16 @@ export async function decideDueEvents(pool: Pool, batch = 20): Promise<number> {
   for (let round = 0; round < 5; round += 1) {
     const count = await withTransaction(pool, async (client) => {
       const due = await client.query<{ id: string }>(
-        `SELECT id FROM events
-          WHERE funding_status = 'open'
-            AND funding_deadline_at IS NOT NULL
-            AND funding_deadline_at <= $1::timestamptz
-          ORDER BY funding_deadline_at, id
+        `SELECT e.id
+           FROM events e
+           JOIN tenants t ON t.id = e.tenant_id
+          WHERE e.funding_status = 'open'
+            AND t.payment_provider = 'paypal_sandbox'
+            AND e.funding_deadline_at IS NOT NULL
+            AND e.funding_deadline_at <= $1::timestamptz
+          ORDER BY e.funding_deadline_at, e.id
           LIMIT $2
-          FOR UPDATE SKIP LOCKED`,
+          FOR UPDATE OF e SKIP LOCKED`,
         [fundingNow().toISOString(), batch],
       );
       let n = 0;
@@ -366,7 +377,9 @@ export async function refreshFailedRefunds(pool: Pool, batch = 50): Promise<numb
   const { rows } = await pool.query<{ id: string }>(
     `SELECT e.id
        FROM events e
+       JOIN tenants t ON t.id = e.tenant_id
       WHERE e.funding_status = 'failed'
+        AND t.payment_provider = 'paypal_sandbox'
         AND (
           EXISTS (
             SELECT 1
