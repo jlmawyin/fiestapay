@@ -11,6 +11,7 @@ import { migrate } from '../src/db/migrate.js';
 import { createPool, type Pool } from '../src/db/pool.js';
 import { sha256 } from '../src/lib/ids.js';
 import { decideDueEvents, fundingForNewEvent } from '../src/domain/funding.js';
+import { runFundingPass } from '../src/domain/funding-refunds.js';
 import { FakePayPal } from './fake-paypal.js';
 import { announceSkipWithoutDatabase, body, Client, DATABASE_URL, MERCHANT, testConfig } from './harness.js';
 
@@ -143,6 +144,7 @@ describeDb('proveedor de pago por sitio (SP-8)', () => {
       fundingDeadlineAt: deadline,
     });
     expect(put.statusCode, put.body).toBe(200);
+    expect(body<{ event: FiestaEvent }>(put).event.paymentProvider).toBe('none');
     const row = await pool.query<{ funding_status: string }>(
       `SELECT funding_status FROM events WHERE id = $1`,
       [noneEventId],
@@ -219,6 +221,165 @@ describeDb('proveedor de pago por sitio (SP-8)', () => {
     );
     expect(ledger.rows[0]?.n).toBe(0);
     await resetNoneEventFunding();
+  });
+
+  it('POST /rsvp en tenant none devuelve paymentProvider none (SP8-D-2)', async () => {
+    const guest = new Client(app);
+    expect((await guest.post(`/api/events/${noneEventSlug}/join`, { name: 'Rsvp SP8' })).statusCode).toBe(200);
+    const res = await guest.post(`/api/events/${noneEventSlug}/rsvp`, { status: 'yes', companions: 0 });
+    expect(res.statusCode).toBe(200);
+    expect(body<{ event: FiestaEvent; guest: unknown }>(res).event.paymentProvider).toBe('none');
+  });
+
+  it('webhook DECLINED no concilia en tenant none (SP8-D-6)', async () => {
+    const paypalOrderId = `PAYPAL-DECL-${randomBytes(4).toString('hex')}`;
+    const orderId = randomUUID();
+    const guestId = randomUUID();
+    const guestSession = randomUUID();
+    const quoteId = randomUUID();
+    await pool.query('INSERT INTO sessions (id, token_hash) VALUES ($1, $2)', [guestSession, randomBytes(32)]);
+    await pool.query(`INSERT INTO guests (id, event_id, session_id, name, status) VALUES ($1,$2,$3,'Decl guest','yes')`, [
+      guestId,
+      noneEventId,
+      guestSession,
+    ]);
+    await pool.query(
+      `INSERT INTO quotes (id, event_id, guest_id, obligation_version, people, unit_cents, total_cents,
+         paid_cents, amount_cents, summary, expires_at)
+       VALUES ($1,$2,$3,1,1,2500,2500,0,2500,'Cuenta',$4::timestamptz)`,
+      [quoteId, noneEventId, guestId, new Date(Date.now() + 3_600_000).toISOString()],
+    );
+    await pool.query(
+      `INSERT INTO orders (id, event_id, guest_id, quote_id, obligation_version, request_id,
+         paypal_order_id, amount_cents, payee_merchant_id, status)
+       VALUES ($1,$2,$3,$4,1,$5,$6,2500,$7,'capturing')`,
+      [orderId, noneEventId, guestId, quoteId, `req-${randomBytes(3).toString('hex')}`, paypalOrderId, MERCHANT],
+    );
+    const captureId = `CAP-DECL-NONE-${randomBytes(3).toString('hex')}`;
+    const client = new Client(app);
+    const res = await client.post(
+      '/api/paypal/webhook',
+      {
+        id: `WH-DECL-${randomBytes(3).toString('hex')}`,
+        event_type: 'PAYMENT.CAPTURE.DECLINED',
+        resource: {
+          id: captureId,
+          supplementary_data: { related_ids: { order_id: paypalOrderId } },
+        },
+      },
+      null,
+    );
+    expect(res.statusCode).toBe(200);
+    const ledger = await pool.query<{ n: number }>(
+      `SELECT COUNT(*)::int AS n FROM payment_ledger WHERE order_id = $1`,
+      [orderId],
+    );
+    expect(ledger.rows[0]?.n).toBe(0);
+    const orderRow = await pool.query<{ status: string }>(`SELECT status FROM orders WHERE id = $1`, [orderId]);
+    expect(orderRow.rows[0]?.status).toBe('capturing');
+  });
+
+  it('webhook REFUNDED no aplica libro en tenant none (SP8-D-6)', async () => {
+    const paypalOrderId = `PAYPAL-RFD-${randomBytes(4).toString('hex')}`;
+    const orderId = randomUUID();
+    const guestId = randomUUID();
+    const guestSession = randomUUID();
+    const quoteId = randomUUID();
+    const captureId = `CAP-RFD-NONE-${randomBytes(3).toString('hex')}`;
+    await pool.query('INSERT INTO sessions (id, token_hash) VALUES ($1, $2)', [guestSession, randomBytes(32)]);
+    await pool.query(`INSERT INTO guests (id, event_id, session_id, name, status) VALUES ($1,$2,$3,'Rfd guest','yes')`, [
+      guestId,
+      noneEventId,
+      guestSession,
+    ]);
+    await pool.query(
+      `INSERT INTO quotes (id, event_id, guest_id, obligation_version, people, unit_cents, total_cents,
+         paid_cents, amount_cents, summary, expires_at)
+       VALUES ($1,$2,$3,1,1,2500,2500,0,2500,'Cuenta',$4::timestamptz)`,
+      [quoteId, noneEventId, guestId, new Date(Date.now() + 3_600_000).toISOString()],
+    );
+    await pool.query(
+      `INSERT INTO orders (id, event_id, guest_id, quote_id, obligation_version, request_id,
+         paypal_order_id, amount_cents, payee_merchant_id, status)
+       VALUES ($1,$2,$3,$4,1,$5,$6,2500,$7,'paid')`,
+      [orderId, noneEventId, guestId, quoteId, `req-${randomBytes(3).toString('hex')}`, paypalOrderId, MERCHANT],
+    );
+    const refund = fake.addRefund(captureId, 2500);
+    const client = new Client(app);
+    const res = await client.post(
+      '/api/paypal/webhook',
+      {
+        id: `WH-RFD-${randomBytes(3).toString('hex')}`,
+        event_type: 'PAYMENT.CAPTURE.REFUNDED',
+        resource: {
+          id: refund.id,
+          supplementary_data: { related_ids: { order_id: paypalOrderId } },
+        },
+      },
+      null,
+    );
+    expect(res.statusCode).toBe(200);
+    const ledger = await pool.query<{ n: number }>(
+      `SELECT COUNT(*)::int AS n FROM payment_ledger WHERE capture_id = $1`,
+      [captureId],
+    );
+    expect(ledger.rows[0]?.n).toBe(0);
+  });
+
+  it('executeTask en tenant none no llama a PayPal (SP8-D-6)', async () => {
+    const captureId = `CAP-EXEC-NONE-${randomBytes(3).toString('hex')}`;
+    const orderId = randomUUID();
+    const guestId = randomUUID();
+    const guestSession = randomUUID();
+    const quoteId = randomUUID();
+    await pool.query('INSERT INTO sessions (id, token_hash) VALUES ($1, $2)', [guestSession, randomBytes(32)]);
+    await pool.query(`INSERT INTO guests (id, event_id, session_id, name, status) VALUES ($1,$2,$3,'Worker','yes')`, [
+      guestId,
+      noneEventId,
+      guestSession,
+    ]);
+    await pool.query(
+      `INSERT INTO quotes (id, event_id, guest_id, obligation_version, people, unit_cents, total_cents,
+         paid_cents, amount_cents, summary, expires_at)
+       VALUES ($1,$2,$3,1,1,2500,2500,2500,0,'Cuenta',$4::timestamptz)`,
+      [quoteId, noneEventId, guestId, new Date(Date.now() + 3_600_000).toISOString()],
+    );
+    await pool.query(
+      `INSERT INTO orders (id, event_id, guest_id, quote_id, obligation_version, request_id,
+         paypal_order_id, amount_cents, payee_merchant_id, status, capture_id)
+       VALUES ($1,$2,$3,$4,1,$5,$6,2500,$7,'paid',$8)`,
+      [
+        orderId,
+        noneEventId,
+        guestId,
+        quoteId,
+        `req-${randomBytes(3).toString('hex')}`,
+        `PAYPAL-EXEC-${randomBytes(3).toString('hex')}`,
+        MERCHANT,
+        captureId,
+      ],
+    );
+    await pool.query(
+      `INSERT INTO payment_ledger (id, event_id, guest_id, order_id, kind, amount_cents, external_id, capture_id)
+       VALUES ($1,$2,$3,$4,'capture',2500,$5,$5)`,
+      [randomUUID(), noneEventId, guestId, orderId, captureId],
+    );
+    const taskId = randomUUID();
+    await pool.query(
+      `INSERT INTO funding_refund_tasks (
+         id, event_id, order_id, guest_id, capture_id, amount_cents, currency,
+         request_id, request_body, status
+       ) VALUES ($1,$2,$3,$4,$5,2500,'USD',$6,'{}','pending')`,
+      [taskId, noneEventId, orderId, guestId, captureId, `fp-rfd-${taskId}`],
+    );
+    const beforeRefund = fake.refundCaptureCalls.length;
+    const beforeGet = fake.refundCalls.length;
+    const outcome = await runFundingPass(pool, fake, { batch: 5 });
+    expect(outcome.review).toBeGreaterThanOrEqual(1);
+    expect(fake.refundCaptureCalls.length).toBe(beforeRefund);
+    expect(fake.refundCalls.length).toBe(beforeGet);
+    const task = await pool.query<{ status: string }>(`SELECT status FROM funding_refund_tasks WHERE id = $1`, [taskId]);
+    expect(task.rows[0]?.status).toBe('needs_review');
   });
 
   it('crear orden en sitio none responde 503 y no inserta en orders', async () => {

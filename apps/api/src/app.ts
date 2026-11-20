@@ -19,10 +19,12 @@ import {
   isPayPalWebhookHost,
   type HostClassification,
 } from './lib/host.js';
+import { tenantIdForSlug } from './domain/access.js';
 import { requestLogger } from './lib/redact.js';
 import { PayPalSandboxClient } from './paypal/client.js';
 import type { PayPalAdapter } from './paypal/types.js';
 import { capabilitiesForHost } from './payments/provider.js';
+import { registerAccountRoutes } from './routes/accounts.js';
 import { registerRecoveryRoutes } from './routes/recovery.js';
 import { registerChatRoutes } from './routes/chat.js';
 import { registerSuggestRoutes } from './routes/suggest.js';
@@ -64,6 +66,26 @@ declare module 'fastify' {
   interface FastifyRequest {
     hostClassification?: HostClassification;
   }
+}
+
+/**
+ * SP4-D-3: en host `site` solo entran `/api/site/*` (y el health); el API de invitaciones queda en raíz/legado.
+ * Sin fila en `tenants`, el subdominio sigue respondiendo 404.
+ */
+async function isRequestRoutable(
+  method: string,
+  pathOnly: string,
+  host: HostClassification,
+  db: Pool,
+): Promise<boolean> {
+  if (isHealthProbeExempt(method, pathOnly)) return true;
+  if (isHostRoutable(host)) return true;
+  if (host.kind === 'site' && host.slug) {
+    const tenantId = await tenantIdForSlug(db, host.slug);
+    if (!tenantId) return false;
+    return pathOnly === '/api/site' || pathOnly.startsWith('/api/site/');
+  }
+  return false;
 }
 
 /** HTTP status for a thrown error: ours, Fastify's (validation, rate limit) or 500. */
@@ -136,7 +158,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     if (pathOnly === '/api' || pathOnly.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
 
     // D-1: el healthcheck interno usa 127.0.0.1/local sin tratar esos Host como legado en producción.
-    if (!isHealthProbeExempt(method, pathOnly) && !isHostRoutable(hostClassification)) {
+    if (!(await isRequestRoutable(method, pathOnly, hostClassification, pool))) {
       reply.code(404).send({ error: 'Ruta no encontrada' });
       return reply;
     }
@@ -234,6 +256,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await app.register(
     async (api) => {
       await registerCoreRoutes(api, deps);
+      await registerAccountRoutes(api, deps);
       await registerRecoveryRoutes(api, deps);
       await registerPaymentRoutes(api, deps);
       await registerChatRoutes(api, deps);

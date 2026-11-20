@@ -75,11 +75,13 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   /** SP8-D-2: el invitado sigue el tenant del evento, no solo el Host del navegador. */
   const inviteCapabilities = useMemo((): Capabilities | null => {
     if (!capabilities) return null;
-    const provider = event?.paymentProvider ?? capabilities.paymentProvider ?? 'paypal_sandbox';
-    const paypalOn = siteAllowsPayPalCheckout(provider, capabilities.paypal);
+    // SP8-D-2: sin proveedor explícito no se asume PayPal (fail-closed).
+    const provider = event?.paymentProvider ?? capabilities.paymentProvider;
+    const paypalOn =
+      provider === 'paypal_sandbox' && siteAllowsPayPalCheckout(provider, capabilities.paypal);
     return {
       ...capabilities,
-      paymentProvider: provider,
+      ...(provider ? { paymentProvider: provider } : {}),
       paypal: paypalOn,
       paypalClientId: paypalOn ? capabilities.paypalClientId : null,
     };
@@ -236,7 +238,10 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
       const data = await api.rsvp(slug, status, companions);
       if (scope !== scopeVersion.current) return;
       setGuest(data.guest);
-      setEvent(data.event);
+      setEvent((prev) => ({
+        ...data.event,
+        paymentProvider: data.event.paymentProvider ?? prev?.paymentProvider,
+      }));
       setQuote(null);
       setActiveOrder(null); // reset prior active order if assistance changed
       try {

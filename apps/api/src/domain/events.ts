@@ -9,7 +9,16 @@ import { decideFundingIfDue, fundingBlocksNewCharge, fundingForNewEvent, funding
 import { legacyTenantId } from '../lib/host.js';
 import { paymentProviderIdForEventId, paymentProviderIdForTenant } from '../payments/provider.js';
 import { isPastRetention, tombstoneEvent } from './retention.js';
-import { EVENT_COLUMNS, eventTotals, loadFiestaEvent, lockEvent, toFiestaEvent, type EventRow, type FiestaEventWithDemo, type Queryable } from './read.js';
+import {
+  EVENT_COLUMNS,
+  eventForClient,
+  eventTotals,
+  loadFiestaEvent,
+  lockEvent,
+  type EventRow,
+  type FiestaEventWithDemo,
+  type Queryable,
+} from './read.js';
 
 const UNIQUE_VIOLATION = '23505';
 
@@ -115,7 +124,10 @@ async function mintAndInsert(
   });
   await audit(client, row.id, isDemo ? 'demo_seeded' : 'event_created');
   if (input.accessCode) await audit(client, row.id, 'access_code_set');
-  return { event: toFiestaEvent(row, await eventTotals(client, row.id)), adminKey };
+  return {
+    event: await eventForClient(client, row, await eventTotals(client, row.id)),
+    adminKey,
+  };
 }
 
 export async function createEvent(pool: Pool, sessionId: string, input: EventInput): Promise<MintedEvent> {
@@ -172,7 +184,12 @@ export async function startDemo(pool: Pool, sessionId: string): Promise<MintedEv
       [sessionId, generation],
     );
     const row = existing.rows[0];
-    if (row) return { event: toFiestaEvent(row, await eventTotals(client, row.id)), adminKey: null };
+    if (row) {
+      return {
+        event: await eventForClient(client, row, await eventTotals(client, row.id)),
+        adminKey: null,
+      };
+    }
     return mintAndInsert(client, sessionId, demoEventInput(), generation, true);
   });
 }
@@ -357,7 +374,7 @@ export async function confirmEvent(pool: Pool, slug: string, presentedKey: strin
       await client.query('UPDATE events SET confirmed = true WHERE id = $1', [event.id]);
       await audit(client, event.id, 'event_confirmed');
     }
-    return { event: toFiestaEvent({ ...event, confirmed: true }, totals) };
+    return { event: await eventForClient(client, { ...event, confirmed: true }, totals) };
   });
   if ('blocked' in outcome) throw conflict(outcome.blocked);
   return outcome.event;
@@ -456,7 +473,7 @@ export async function updateEvent(
       await audit(client, event.id, nextHash === null ? 'access_code_cleared' : 'access_code_set');
     }
     await audit(client, event.id, 'event_updated');
-    return toFiestaEvent(updated, totals);
+    return await eventForClient(client, updated, totals);
   });
 }
 
@@ -468,7 +485,7 @@ export async function closeEvent(pool: Pool, slug: string, presentedKey: string 
       [event.id],
     );
     if (!event.closed_at) await audit(client, event.id, 'event_closed');
-    return toFiestaEvent(rows[0]!, await eventTotals(client, event.id));
+    return await eventForClient(client, rows[0]!, await eventTotals(client, event.id));
   });
 }
 

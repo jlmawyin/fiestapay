@@ -20,6 +20,7 @@ import {
 } from '../payments/provider.js';
 import { convergeCapture, convergeRefund, isApplied, type CaptureOutcome } from '../domain/payments.js';
 import { findOrderByAnyId } from '../domain/read.js';
+import { captureIdFromRefund } from '../paypal/verify.js';
 import { assertNoClientMoneyState, orderIdParamSchema, orderSchema, parseOr400, slugParamSchema } from '../lib/schemas.js';
 import { requireSession } from '../lib/session.js';
 import type { RouteDeps } from './deps.js';
@@ -238,6 +239,11 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
           case 'PAYMENT.CAPTURE.DECLINED': {
             const order = relatedOrderId ? await findOrderByAnyId(pool, relatedOrderId) : null;
             if (!order) return retry('orden desconocida todavia');
+            // SP8-D-6: no conciliar ni liberar orden en un tenant sin procesador.
+            if ((await paymentProviderIdForEventId(pool, order.event_id)) === 'none') {
+              await audit(pool, order.event_id, 'payment_webhook_rejected');
+              return done('tenant sin procesador de pago');
+            }
             // A decline never marks anything paid. Reconcile first: if PayPal reports a settled
             // capture anyway, it is applied and the order is not released. If reconciliation
             // cannot reach PayPal, ask for redelivery instead of guessing about the money.
@@ -257,6 +263,28 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
           }
           case 'PAYMENT.CAPTURE.REFUNDED': {
             if (!resourceId) return done('reembolso sin identificador');
+            let tenantEventId: string | null = null;
+            const refundOrder = relatedOrderId ? await findOrderByAnyId(pool, relatedOrderId) : null;
+            if (refundOrder) tenantEventId = refundOrder.event_id;
+            if (!tenantEventId) {
+              try {
+                const peek = await paypal.getRefund(resourceId);
+                const captureId = captureIdFromRefund(peek);
+                if (captureId) {
+                  const located = await pool.query<{ event_id: string }>(
+                    `SELECT event_id FROM payment_ledger WHERE capture_id = $1 AND kind = 'capture' LIMIT 1`,
+                    [captureId],
+                  );
+                  tenantEventId = located.rows[0]?.event_id ?? null;
+                }
+              } catch {
+                /* convergeRefund resolverá reintento o rechazo definitivo */
+              }
+            }
+            if (tenantEventId && (await paymentProviderIdForEventId(pool, tenantEventId)) === 'none') {
+              await audit(pool, tenantEventId, 'payment_webhook_rejected');
+              return done('tenant sin procesador de pago');
+            }
             const outcome = await convergeRefund(pool, paypal, resourceId);
             if (outcome.applied || outcome.duplicate) {
               return outcome.eventId

@@ -255,6 +255,16 @@ export async function loadFiestaEvent(db: Queryable, row: EventRow): Promise<Fie
   return toFiestaEvent(row, await eventTotals(db, row.id), paymentProvider);
 }
 
+/** SP8-D-2: toda respuesta HTTP con evento incluye el proveedor del tenant. */
+export async function eventForClient(
+  db: Queryable,
+  row: EventRow,
+  totals: EventTotals,
+): Promise<FiestaEventWithDemo> {
+  const paymentProvider = await paymentProviderIdForEventId(db, row.id);
+  return toFiestaEvent(row, totals, paymentProvider);
+}
+
 export function toGuestWithPrice(row: GuestRow, priceCents: number, paidCents: number): Guest {
   const obligation = row.status === 'yes' ? priceCents * (1 + row.companions) : 0;
   return {

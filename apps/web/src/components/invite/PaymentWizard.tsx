@@ -267,7 +267,12 @@ export const PaymentWizard: React.FC<PaymentWizardProps> = ({
                 onRefreshQuote={onRefreshQuote}
                 onCreateOrder={onCreateOrder}
                 isCreatingOrder={isCreatingOrder}
-                onlineCheckout={event.paymentProvider !== 'none'}
+                onlineCheckout={
+                  event.paymentProvider !== 'none' &&
+                  (event.paymentProvider === 'paypal_sandbox' ||
+                    (event.paymentProvider === undefined &&
+                      capabilities?.paymentProvider === 'paypal_sandbox'))
+                }
                 template={event.template}
               />
             </div>
