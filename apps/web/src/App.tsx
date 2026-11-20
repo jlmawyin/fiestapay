@@ -24,6 +24,7 @@ import { AccountVerifyView } from './views/AccountVerifyView';
 import { SiteHomeView } from './views/SiteHomeView';
 import { SiteSettingsView } from './views/SiteSettingsView';
 import sitioTextos from '../../../contenido/sitio.json';
+import { shouldRenderLegacyOrb } from './lib/legacy-orb';
 import { readSiteHostContext } from './lib/site-host';
 import { siteThemeStyle } from './lib/site-theme';
 import type { TenantSiteSettings } from './lib/site-types';
@@ -444,12 +445,6 @@ export const App: React.FC = () => {
 
   const publicContext: AssistantContext = currentView.mode === 'demo' ? 'demo' : 'landing';
   const siteTheme = siteProfile ? siteThemeStyle(siteProfile) : undefined;
-  /**
-   * SP5-D-5: en subdominio no montamos el orbe FiestaPay; la voz del sitio llega en SP-10.
-   * Entrada: nada (usa `SITE_HOST`). Salida: booleano para renderizar `AssistantOrb` legado.
-   */
-  const showLegacyOrb = !SITE_HOST.isSiteHost;
-
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', ...siteTheme }}>
       {/* Sandbox Demo Ribbon */}
@@ -632,12 +627,7 @@ export const App: React.FC = () => {
           recovery get one launcher; invite and dashboard keep their own role-scoped orb.
           Landing and demo keep separate public conversations by context.
         */}
-        {showLegacyOrb &&
-        (currentView.mode === 'home' ||
-          currentView.mode === 'demo' ||
-          currentView.mode === 'create' ||
-          currentView.mode === 'recover' ||
-          currentView.mode === 'tutorial') && (
+        {shouldRenderLegacyOrb(SITE_HOST.isSiteHost, currentView.mode) && (
           <AssistantOrb
             audience="public"
             capabilities={capabilities}

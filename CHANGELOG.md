@@ -18,6 +18,14 @@ Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, 
 
 **Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/tenant-settings.test.ts apps/api/test/accounts.test.ts` (Postgres 16 como CI).
 
+### 2026-11-20 — SP-5 · Correcciones verificador (intento 3)
+
+**Pedido:** SP5-D-7 — `LEGACY_ORB_MODES` y `shouldRenderLegacyOrb` con pruebas que fallan al quitar la guarda de host sitio o al incluir `site-home`; perfil de prueba con `asistente: true`.
+
+**Archivos:** `apps/web/src/lib/legacy-orb.ts`, `App.tsx`, `apps/web/src/__tests__/app-site-orb.test.tsx`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/tenant-settings.test.ts apps/api/test/accounts.test.ts apps/web/src/__tests__/app-site-orb.test.tsx` (Postgres 16 como CI).
+
 ## 2026-11-20 — SP-8 · Proveedor de pago intercambiable
 
 **Pedido:** ENCARGO SP-8 — sitios nuevos con `none` (503 al crear orden, sin filas en `orders`, sin `funding_status` open); legado PayPal sandbox intacto; interfaz sin botón PayPal en `none`; `GET /api/demo/buyer` solo en host legado.
