@@ -18,6 +18,9 @@ import { OrganizerDashboardView } from './views/OrganizerDashboardView';
 import { OrganizerRecoveryView } from './views/OrganizerRecoveryView';
 import { JudgePreviewView } from './views/JudgePreviewView';
 import { TutorialView } from './views/TutorialView';
+import { AccountRegisterView } from './views/AccountRegisterView';
+import { AccountLoginView } from './views/AccountLoginView';
+import { AccountVerifyView } from './views/AccountVerifyView';
 import { AssistantOrb } from './components/assistant/AssistantOrb';
 import { DemoBuyerAccountCard } from './components/demo/DemoBuyerAccountCard';
 import { parseCreatePath, type CreatePath } from './lib/create-interview';
@@ -49,7 +52,10 @@ type ViewMode =
   | { mode: 'invite'; slug: string }
   | { mode: 'dashboard'; slug: string }
   | { mode: 'recover' }
-  | { mode: 'tutorial' };
+  | { mode: 'tutorial' }
+  | { mode: 'register' }
+  | { mode: 'login' }
+  | { mode: 'verify' };
 
 /** Guide pages are the public routes; invite/dashboard are not guide pages. */
 function viewToGuidePage(view: ViewMode): UiPage | null {
@@ -58,6 +64,9 @@ function viewToGuidePage(view: ViewMode): UiPage | null {
   if (view.mode === 'create') return 'create';
   if (view.mode === 'recover') return 'recover';
   if (view.mode === 'tutorial') return 'tutorial';
+  if (view.mode === 'register') return 'landing';
+  if (view.mode === 'login') return 'landing';
+  if (view.mode === 'verify') return 'landing';
   return null;
 }
 
@@ -122,6 +131,9 @@ export const App: React.FC = () => {
     else if (view.mode === 'demo') path = '/demo';
     else if (view.mode === 'recover') path = '/recover';
     else if (view.mode === 'tutorial') path = '/tutorial';
+    else if (view.mode === 'register') path = '/register';
+    else if (view.mode === 'login') path = '/login';
+    else if (view.mode === 'verify') path = '/verify';
     else if (view.mode === 'invite') path = `/e/${view.slug}`;
     else if (view.mode === 'dashboard') path = `/e/${view.slug}/admin`;
 
@@ -163,6 +175,18 @@ export const App: React.FC = () => {
     }
     if (path === '/tutorial' || path === '/tutorial/') {
       setCurrentView({ mode: 'tutorial' });
+      return;
+    }
+    if (path === '/register' || path === '/register/') {
+      setCurrentView({ mode: 'register' });
+      return;
+    }
+    if (path === '/login' || path === '/login/') {
+      setCurrentView({ mode: 'login' });
+      return;
+    }
+    if (path === '/verify' || path === '/verify/') {
+      setCurrentView({ mode: 'verify' });
       return;
     }
     const dashboardMatch = path.match(/^\/e\/([^/]+)\/(?:admin|dashboard)\/?$/);
@@ -499,6 +523,24 @@ export const App: React.FC = () => {
             onNavigateInvitations={goToOwnInvitations}
             onNavigateRecover={() => navigate({ mode: 'recover' })}
           />
+        )}
+
+        {currentView.mode === 'register' && (
+          <AccountRegisterView
+            onNavigateLogin={() => navigate({ mode: 'login' })}
+            onRegistered={() => navigate({ mode: 'login' })}
+          />
+        )}
+
+        {currentView.mode === 'login' && (
+          <AccountLoginView
+            onNavigateRegister={() => navigate({ mode: 'register' })}
+            onLoggedIn={() => navigate({ mode: 'home' })}
+          />
+        )}
+
+        {currentView.mode === 'verify' && (
+          <AccountVerifyView onVerified={() => navigate({ mode: 'login' })} />
         )}
 
         {currentView.mode === 'dashboard' && (
