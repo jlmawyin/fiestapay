@@ -1,6 +1,6 @@
 import type { Capabilities, CreatedEvent, Dashboard, FiestaEvent, Guest, Quote } from '@fiestapay/shared';
 import type { FastifyInstance } from 'fastify';
-import { assertPrivateAccess, presentedAdminKey } from '../domain/access.js';
+import { assertGroupPrivateEventOnPortalHost, assertPrivateAccess, presentedAdminKey } from '../domain/access.js';
 import { dashboardFor } from '../domain/dashboard.js';
 import {
   assertActive,
@@ -131,6 +131,14 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
     await concealExpired(pool, event);
     assertActive(event);
     const session = await readSession(pool, config, req);
+    let accountUserId: string | null = null;
+    if (session) {
+      const linked = await pool.query<{ user_id: string | null }>(`SELECT user_id FROM sessions WHERE id = $1`, [
+        session.id,
+      ]);
+      accountUserId = linked.rows[0]?.user_id ?? null;
+    }
+    await assertGroupPrivateEventOnPortalHost(pool, slug, req.hostClassification?.kind, accountUserId);
     await assertPrivateAccess(pool, event, session?.id ?? null, presentedAdminKey(req));
     const guestRow = session ? await findGuestBySession(pool, event.id, session.id) : null;
     return {

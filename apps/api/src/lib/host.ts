@@ -38,7 +38,6 @@ export const RESERVED_SITE_SLUGS = new Set([
   'test',
   'demo',
   'fiestapay',
-  'muestra',
   'ns1',
   'ns2',
   'localhost',

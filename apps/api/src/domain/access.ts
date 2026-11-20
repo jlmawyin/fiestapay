@@ -6,6 +6,7 @@ import { timingSafeEqual } from 'node:crypto';
 import type { FastifyRequest } from 'fastify';
 import type { Pool, PoolClient } from '../db/pool.js';
 import { forbidden, gone, notFound } from '../errors.js';
+import type { HostKind } from '../lib/host.js';
 import { sha256 } from '../lib/ids.js';
 import type { EventRow, Queryable } from './read.js';
 
@@ -139,6 +140,34 @@ interface SiteEventGateRow {
   tenant_id: string;
   visibility: 'private' | 'public';
   purged_at: Date | null;
+}
+
+/**
+ * En raíz o legado, un evento privado de un sitio que no es FiestaPay no se expone
+ * salvo al admin de ese sitio (SP7-D-2 / herencia SP-4); evita filtrar cuerpo por slug global.
+ * Entrada: slug del evento, clase de host y usuario de cuenta si la sesión está enlazada.
+ * Salida: void o HttpError 404 como evento inexistente.
+ */
+export async function assertGroupPrivateEventOnPortalHost(
+  db: Queryable,
+  eventSlug: string,
+  hostKind: HostKind | undefined,
+  accountUserId: string | null,
+): Promise<void> {
+  if (hostKind !== 'root' && hostKind !== 'legacy') return;
+  const { rows } = await db.query<{ tenant_kind: string; tenant_id: string; visibility: 'private' | 'public' }>(
+    `SELECT t.kind AS tenant_kind, e.tenant_id, e.visibility
+       FROM events e
+       JOIN tenants t ON t.id = e.tenant_id
+      WHERE e.slug = $1 LIMIT 1`,
+    [eventSlug],
+  );
+  const row = rows[0];
+  if (!row || row.tenant_kind === 'legacy') return;
+  if (row.visibility !== 'private') return;
+  if (!accountUserId) throw notFound('Evento no encontrado');
+  const role = await membershipRoleForUser(db, row.tenant_id, accountUserId);
+  if (role !== 'admin') throw notFound('Evento no encontrado');
 }
 
 export async function readPrivateEventForSiteAdmin(
