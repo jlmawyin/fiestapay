@@ -2,6 +2,20 @@
 
 Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, pedido, archivos tocados y pruebas ejecutadas.
 
+## 2026-11-20 — SP-8 · Proveedor de pago intercambiable
+
+**Pedido:** ENCARGO SP-8 — sitios nuevos con `none` (503 al crear orden, sin filas en `orders`, sin `funding_status` open); legado PayPal sandbox intacto; interfaz sin botón PayPal en `none`; `GET /api/demo/buyer` solo en host legado.
+
+**Archivos:** `packages/shared/src/payments.ts`, `packages/shared/src/index.ts`, `packages/shared/src/server-errors.ts`, `apps/api/src/payments/provider.ts`, `apps/api/src/domain/events.ts`, `apps/api/src/domain/rsvp.ts`, `apps/api/src/domain/read.ts`, `apps/api/src/domain/orders.ts`, `apps/api/src/domain/funding.ts`, `apps/api/src/domain/funding-refunds.ts`, `apps/api/src/routes/payments.ts`, hook en `apps/api/src/app.ts`, `apps/web/src/components/invite/PayPalSection.tsx`, `apps/web/src/components/invite/QuoteReviewCard.tsx`, `apps/web/src/components/invite/PaymentWizard.tsx`, `apps/web/src/views/PublicInviteView.tsx`, `apps/web/src/i18n/messages/paypal.ts`, `apps/api/test/payment-provider.test.ts`, `apps/web/src/__tests__/payment-provider-none.test.tsx`, `AGENTS.md`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run verificar` y `npx vitest run apps/api/test/payment-provider.test.ts apps/api/test/payment-races.test.ts apps/api/test/funding.test.ts apps/api/test/webhook-header.test.ts` (+ `payment-provider-none.test.tsx` vía `npm run check`).
+
+### 2026-11-20 — SP-8 · Correcciones verificador (intento 3)
+
+**Pedido:** SP8-D-2 `paymentProvider` en respuestas RSVP/PUT y cliente fail-closed; SP8-D-6 webhooks DECLINED/REFUNDED y prueba `executeTask` en tenant `none`.
+
+**Archivos:** `domain/rsvp.ts`, `domain/events.ts`, `domain/read.ts`, `routes/payments.ts`, `PublicInviteView.tsx`, `PaymentWizard.tsx`, `payment-provider.test.ts`, `payment-provider-none.test.tsx`, `CHANGELOG.md`.
+
 ## 2026-11-20 — SP-4 · Cuentas y roles
 
 **Pedido:** ENCARGO SP-4 — registro e inicio de sesión en la raíz (scrypt, HMAC de correo, verificación por token), cookie HttpOnly sin `Domain`, aislamiento admin entre sitios, legado con `X-Fiesta-Admin-Key` intacto; migración `0014_account_email_verify.sql`; trigger `events_fill_legacy_tenant_id` sin retirar (inserts de prueba aún omiten `tenant_id`).

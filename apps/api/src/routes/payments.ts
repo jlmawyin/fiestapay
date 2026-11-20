@@ -1,7 +1,7 @@
 import type { PayPalNotificationItem } from '@fiestapay/shared';
 import type { Guest, OrderResult } from '@fiestapay/shared';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { badRequest, unavailable } from '../errors.js';
+import { badRequest, notFound, unavailable } from '../errors.js';
 import { presentedAdminKey } from '../domain/access.js';
 import { audit, PAYPAL_NOTIFICATION_PREFIX } from '../domain/audit.js';
 import {
@@ -10,10 +10,17 @@ import {
   markOrderApproved,
   markOrderDeclined,
   readOwnOrder,
-  requirePayPal,
 } from '../domain/orders.js';
+import {
+  buildPaymentProvider,
+  paymentProviderIdForEventId,
+  paymentProviderIdForEventSlug,
+  paypalAdapterOf,
+  requireOnlinePayment,
+} from '../payments/provider.js';
 import { convergeCapture, convergeRefund, isApplied, type CaptureOutcome } from '../domain/payments.js';
 import { findOrderByAnyId } from '../domain/read.js';
+import { captureIdFromRefund } from '../paypal/verify.js';
 import { assertNoClientMoneyState, orderIdParamSchema, orderSchema, parseOr400, slugParamSchema } from '../lib/schemas.js';
 import { requireSession } from '../lib/session.js';
 import type { RouteDeps } from './deps.js';
@@ -90,8 +97,9 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
       assertNoClientMoneyState(req.body, ['confirmed']);
       const { quoteId } = parseOr400(orderSchema, req.body);
       const session = await requireSession(pool, config, req);
-      const paypal = requirePayPal(config, deps.paypal);
-      return createOrderForSession(pool, paypal, session.id, slug, quoteId, presentedAdminKey(req));
+      const tenantProviderId = await paymentProviderIdForEventSlug(pool, slug);
+      const payment = requireOnlinePayment(config, deps.paypal, tenantProviderId);
+      return createOrderForSession(pool, payment, session.id, slug, quoteId, presentedAdminKey(req));
     },
   );
 
@@ -101,8 +109,11 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
     async (req): Promise<{ status: string; guest: Guest }> => {
       const { orderId } = parseOr400(orderIdParamSchema, req.params);
       const session = await requireSession(pool, config, req);
-      const paypal = requirePayPal(config, deps.paypal);
-      return captureOwnOrder(pool, paypal, session.id, orderId, presentedAdminKey(req));
+      const orderHead = await findOrderByAnyId(pool, orderId);
+      if (!orderHead) throw notFound('Orden no encontrada');
+      const tenantProviderId = await paymentProviderIdForEventId(pool, orderHead.event_id);
+      const payment = requireOnlinePayment(config, deps.paypal, tenantProviderId);
+      return captureOwnOrder(pool, payment, session.id, orderId, presentedAdminKey(req));
     },
   );
 
@@ -114,8 +125,17 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
     async (req): Promise<{ status: string; guest: Guest }> => {
       const { orderId } = parseOr400(orderIdParamSchema, req.params);
       const session = await requireSession(pool, config, req);
-      const paypal = config.paypal && deps.paypal ? requirePayPal(config, deps.paypal) : null;
-      return readOwnOrder(pool, paypal, session.id, orderId, presentedAdminKey(req));
+      let payment: ReturnType<typeof requireOnlinePayment> | null = null;
+      if (config.paypal && deps.paypal) {
+        const orderHead = await findOrderByAnyId(pool, orderId);
+        if (orderHead) {
+          const tenantProviderId = await paymentProviderIdForEventId(pool, orderHead.event_id);
+          if (tenantProviderId === 'paypal_sandbox') {
+            payment = requireOnlinePayment(config, deps.paypal, tenantProviderId);
+          }
+        }
+      }
+      return readOwnOrder(pool, payment, session.id, orderId, presentedAdminKey(req));
     },
   );
 
@@ -164,7 +184,7 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
       const relatedOrderId =
         asString(body.resource?.supplementary_data?.related_ids?.order_id) ?? asString(body.resource?.custom_id);
       const merchantId = config.paypal.merchantId;
-      const paypal = deps.paypal;
+      const paypal = paypalAdapterOf(buildPaymentProvider('paypal_sandbox', deps.paypal));
 
       /**
        * Applies a capture notification by re-reading the authoritative order from PayPal, never
@@ -181,6 +201,12 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
         // instead of swallowing the notification.
         if (!order) return retry('orden desconocida todavia');
 
+        // SP8-D-6: una captura firmada no se contabiliza si el evento pertenece a un tenant `none`.
+        if ((await paymentProviderIdForEventId(pool, order.event_id)) === 'none') {
+          await audit(pool, order.event_id, 'payment_webhook_rejected');
+          return done('tenant sin procesador de pago');
+        }
+
         const outcome = await convergeCapture(pool, paypal, merchantId, order, null);
         if (isApplied(outcome)) return done(undefined, { eventId: order.event_id, type: receiptType });
         if (outcome.transient) return retry(outcome.reason);
@@ -193,6 +219,14 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
           case 'CHECKOUT.ORDER.APPROVED': {
             // Approved is not paid: it only records that the payer finished at PayPal.
             if (!resourceId) return done('aprobacion sin identificador de orden');
+            const approvedOrder = await findOrderByAnyId(pool, resourceId);
+            if (
+              approvedOrder &&
+              (await paymentProviderIdForEventId(pool, approvedOrder.event_id)) === 'none'
+            ) {
+              await audit(pool, approvedOrder.event_id, 'payment_webhook_rejected');
+              return done('tenant sin procesador de pago');
+            }
             const outcome = await markOrderApproved(pool, resourceId);
             return outcome === 'unknown' ? retry('orden desconocida todavia') : done();
           }
@@ -205,6 +239,11 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
           case 'PAYMENT.CAPTURE.DECLINED': {
             const order = relatedOrderId ? await findOrderByAnyId(pool, relatedOrderId) : null;
             if (!order) return retry('orden desconocida todavia');
+            // SP8-D-6: no conciliar ni liberar orden en un tenant sin procesador.
+            if ((await paymentProviderIdForEventId(pool, order.event_id)) === 'none') {
+              await audit(pool, order.event_id, 'payment_webhook_rejected');
+              return done('tenant sin procesador de pago');
+            }
             // A decline never marks anything paid. Reconcile first: if PayPal reports a settled
             // capture anyway, it is applied and the order is not released. If reconciliation
             // cannot reach PayPal, ask for redelivery instead of guessing about the money.
@@ -224,6 +263,28 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
           }
           case 'PAYMENT.CAPTURE.REFUNDED': {
             if (!resourceId) return done('reembolso sin identificador');
+            let tenantEventId: string | null = null;
+            const refundOrder = relatedOrderId ? await findOrderByAnyId(pool, relatedOrderId) : null;
+            if (refundOrder) tenantEventId = refundOrder.event_id;
+            if (!tenantEventId) {
+              try {
+                const peek = await paypal.getRefund(resourceId);
+                const captureId = captureIdFromRefund(peek);
+                if (captureId) {
+                  const located = await pool.query<{ event_id: string }>(
+                    `SELECT event_id FROM payment_ledger WHERE capture_id = $1 AND kind = 'capture' LIMIT 1`,
+                    [captureId],
+                  );
+                  tenantEventId = located.rows[0]?.event_id ?? null;
+                }
+              } catch {
+                /* convergeRefund resolverá reintento o rechazo definitivo */
+              }
+            }
+            if (tenantEventId && (await paymentProviderIdForEventId(pool, tenantEventId)) === 'none') {
+              await audit(pool, tenantEventId, 'payment_webhook_rejected');
+              return done('tenant sin procesador de pago');
+            }
             const outcome = await convergeRefund(pool, paypal, resourceId);
             if (outcome.applied || outcome.duplicate) {
               return outcome.eventId

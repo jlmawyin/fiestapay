@@ -55,6 +55,7 @@ function eventFor(template: TemplateKind, title: string): FiestaEvent {
     minimumReached: false,
     createdAt: '2026-10-20T00:00:00.000Z',
     fundingStatus: 'open',
+    paymentProvider: 'paypal_sandbox',
   };
 }
 

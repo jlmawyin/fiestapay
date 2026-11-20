@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback, useLayoutEffect, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useLayoutEffect, useRef, useMemo } from 'react';
+import { siteAllowsPayPalCheckout } from '@fiestapay/shared';
 import { Check, MapPin, QrCode } from 'lucide-react';
 import type { FiestaEvent, Guest, Quote, OrderResult, Capabilities, RsvpStatus, AgendaItem } from '../types';
 import { api, ApiError } from '../api/client';
@@ -71,6 +72,20 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const localeRef = useRef(locale);
   localeRef.current = locale;
   const scopeVersion = useRef(0);
+  /** SP8-D-2: el invitado sigue el tenant del evento, no solo el Host del navegador. */
+  const inviteCapabilities = useMemo((): Capabilities | null => {
+    if (!capabilities) return null;
+    // SP8-D-2: sin proveedor explícito no se asume PayPal (fail-closed).
+    const provider = event?.paymentProvider ?? capabilities.paymentProvider;
+    const paypalOn =
+      provider === 'paypal_sandbox' && siteAllowsPayPalCheckout(provider, capabilities.paypal);
+    return {
+      ...capabilities,
+      ...(provider ? { paymentProvider: provider } : {}),
+      paypal: paypalOn,
+      paypalClientId: paypalOn ? capabilities.paypalClientId : null,
+    };
+  }, [capabilities, event?.paymentProvider]);
   useLayoutEffect(() => {
     scopeVersion.current += 1;
     return () => { scopeVersion.current += 1; };
@@ -223,7 +238,10 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
       const data = await api.rsvp(slug, status, companions);
       if (scope !== scopeVersion.current) return;
       setGuest(data.guest);
-      setEvent(data.event);
+      setEvent((prev) => ({
+        ...data.event,
+        paymentProvider: data.event.paymentProvider ?? prev?.paymentProvider,
+      }));
       setQuote(null);
       setActiveOrder(null); // reset prior active order if assistance changed
       try {
@@ -710,7 +728,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
             guest={guest}
             quote={quote}
             activeOrder={activeOrder}
-            capabilities={capabilities}
+            capabilities={inviteCapabilities}
             isJoining={isJoining}
             isSavingRsvp={isSavingRsvp}
             isLoadingQuote={isLoadingQuote}
