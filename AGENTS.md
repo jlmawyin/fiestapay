@@ -49,6 +49,7 @@ Método completo: [docs/somospanas/METODO.md](docs/somospanas/METODO.md). Cada c
 
 | Quiero cambiar… | Archivo | Prueba |
 | --- | --- | --- |
+| Sitios, cuentas, visibilidad y tenant legado en la base | `apps/api/src/db/migrations/0013_tenants.sql` + alta en `apps/api/src/domain/events.ts` | `apps/api/test/tenants-migration.test.ts` |
 | Clasificación raíz / legado / sitio por `Host` | `apps/api/src/lib/host.ts` + hook en `apps/api/src/app.ts` | `apps/api/test/host.test.ts` |
 | Texto de la portada (hero, barra, ejemplos C2) | `contenido/portada.json` | `scripts/somospanas/portada.test.ts` |
 | Pasos del tutorial | `contenido/tutorial.json` | `scripts/somospanas/tutorial.test.ts` |
