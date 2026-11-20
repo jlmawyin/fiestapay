@@ -4,7 +4,7 @@
 
 **Director:** Meche
 
-**Última actualización:** 20 de noviembre de 2026, 13:00 America/Guayaquil
+**Última actualización:** 20 de noviembre de 2026, 13:05 America/Guayaquil
 
 **Uso:** desconocido
 
@@ -23,19 +23,21 @@ SP-0 no modificó código de la aplicación.
 
 ## Etapas
 
-| Id | Estado | Meta | Depende de | Paralelo con | Tamaño |
-| --- | --- | --- | --- | --- | --- |
-| SP-0 | hecho | Plan y tablero, sin código de la app | — | — | pequeño |
-| SP-1 | pendiente | Suite y build verdes, y pruebas que fijan el comportamiento actual | — | nadie | pequeño |
-| SP-2 | pendiente | Clasificar raíz, legado y sitio por el encabezado Host | SP-1 | nadie | pequeño |
-| SP-3 | pendiente | Tablas de sitio, cuenta y visibilidad; eventos actuales en el sitio legado | SP-2 | nadie | mediano |
-| SP-4 | pendiente | Registro, sesión y roles admin/miembro, aislados por sitio | SP-3 | SP-8 | grande |
-| SP-5 | pendiente | Nombre, textos, colores y módulos editables por el admin | SP-4 | SP-8 | mediano |
-| SP-6 | pendiente | Portada C2 y listado solo de lo marcado público | SP-5 | SP-7, SP-8 | grande |
-| SP-7 | pendiente | Plantilla `muestra` y clonación sin gente ni dinero | SP-5 | SP-6, SP-8 | pequeño |
-| SP-8 | pendiente | Proveedor `none` en sitios nuevos; PayPal solo en el legado | SP-3 | SP-4, SP-5, SP-6, SP-7 | grande |
-| SP-9 | pendiente | Recaudaciones anotadas por el grupo, fuera del libro PayPal | SP-6, SP-8 | SP-10 | mediano |
-| SP-10 | pendiente | Tutorial de la raíz por voz y texto, sin herramientas de cobro | SP-6 | SP-9 | mediano |
+Construye composer-2.5. Verifica y rescata grok-4.7. SP-0 fue el plan y no entra en ese reparto.
+
+| Id | Estado | Meta | Construcción | Verificación y rescate | Depende de | Paralelo con | Tamaño |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| SP-0 | hecho | Plan y tablero, sin código de la app | — | — | — | — | pequeño |
+| SP-1 | pendiente | Suite y build verdes, y pruebas que fijan el comportamiento actual | composer-2.5 | grok-4.7 | — | nadie | pequeño |
+| SP-2 | pendiente | Clasificar raíz, legado y sitio por el encabezado Host | composer-2.5 | grok-4.7 | SP-1 | nadie | pequeño |
+| SP-3 | pendiente | Tablas de sitio, cuenta y visibilidad; eventos actuales en el sitio legado | composer-2.5 | grok-4.7 | SP-2 | nadie | mediano |
+| SP-4 | pendiente | Registro, sesión y roles admin/miembro, aislados por sitio | composer-2.5 | grok-4.7 | SP-3 | SP-8 | grande |
+| SP-5 | pendiente | Nombre, textos, colores y módulos editables por el admin | composer-2.5 | grok-4.7 | SP-4 | SP-8 | mediano |
+| SP-6 | pendiente | Portada C2 y listado solo de lo marcado público | composer-2.5 | grok-4.7 | SP-5 | SP-7, SP-8 | grande |
+| SP-7 | pendiente | Plantilla `muestra` y clonación sin gente ni dinero | composer-2.5 | grok-4.7 | SP-5 | SP-6, SP-8 | pequeño |
+| SP-8 | pendiente | Proveedor `none` en sitios nuevos; PayPal solo en el legado | composer-2.5 | grok-4.7 | SP-3 | SP-4, SP-5, SP-6, SP-7 | grande |
+| SP-9 | pendiente | Recaudaciones anotadas por el grupo, fuera del libro PayPal | composer-2.5 | grok-4.7 | SP-6, SP-8 | SP-10 | mediano |
+| SP-10 | pendiente | Tutorial de la raíz por voz y texto, sin herramientas de cobro | composer-2.5 | grok-4.7 | SP-6 | SP-9 | mediano |
 
 El detalle de archivos, criterios y comandos está en [PLAN.md](PLAN.md).
 
@@ -57,4 +59,4 @@ Ninguno impide SP-1. Las decisiones D1–D9 están en [PLAN.md](PLAN.md), con re
 
 ## Siguiente paso exacto
 
-Meche asigna SP-1 a un constructor. Propiedad única: `apps/api/test/somospanas-baseline.test.ts`. Sin cambios en `apps/api/src`, `apps/web/src`, `packages/shared/src`, migraciones, Dockerfile ni Nginx. Node 24, Postgres 16 como en CI, `npm run check` en cero y la prueba nueva cubre los cinco hechos del criterio de SP-1 en el plan. Al cerrar, actualiza la fila SP-1 de esta tabla, la hora America/Guayaquil y los defectos si aparecen.
+Meche asigna SP-1 a composer-2.5. grok-4.7 verifica y, si hace falta, rescata. Propiedad única: `apps/api/test/somospanas-baseline.test.ts`. Sin cambios en `apps/api/src`, `apps/web/src`, `packages/shared/src`, migraciones, Dockerfile ni Nginx. Node 24, Postgres 16 como en CI, `npm run check` en cero, la prueba nueva cubre los cinco hechos del criterio de SP-1 y el archivo nuevo cumple el criterio de comentarios en español. Al cerrar, actualiza la fila SP-1 de esta tabla, la hora America/Guayaquil y los defectos si aparecen.

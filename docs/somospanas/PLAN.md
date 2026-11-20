@@ -12,6 +12,8 @@ Un solo código y un solo despliegue sirven la portada general en la raíz y un 
 
 Cada etapa SP-1…SP-10 es un pull request propio, pequeño, con `npm run check` verde. Este plan no autoriza a fusionarlas ni a desplegarlas. La aprobación de despliegue que exige cero migraciones no cubre SP-3 ni SP-9.
 
+Construye composer-2.5. Verifica y rescata grok-4.7. El director asigna la etapa; el constructor no se verifica a sí mismo. Un rescate sigue en grok-4.7 y conserva el id del defecto.
+
 Reglas de todas las etapas:
 
 - La persona hace el paso final: publicar, marcar público, anotar una recaudación, aprobar un cobro. El asistente prepara borradores y señala la pantalla.
@@ -21,6 +23,7 @@ Reglas de todas las etapas:
 - Cero secretos en Git, logs, pruebas o estos documentos. Cero llamadas a PayPal, Gemini, SMTP o WhatsApp para cumplir una etapa.
 - Las migraciones `0001`–`0012` no se editan. El arranque ya aplica los SQL nuevos con `apps/api/src/db/migrate.ts` y el candado de aviso `778899123`.
 - Datos históricos, el libro mayor y el evento de prueba del dueño se conservan. Un backfill solo escribe el sitio legado en las filas que aún no tienen sitio.
+- Código comentado en español con criterio, en el diff de la etapa. Cada archivo o módulo nuevo abre con una cabecera: qué hace y de qué depende. Cada función importante lleva un comentario corto: para qué sirve, qué recibe y qué devuelve. Cada decisión no obvia, y cada arreglo de un fallo, explica el porqué; el arreglo cita el id del defecto (D-n en `PROGRESO.md`). Lo obvio se queda sin comentario. Vale para TypeScript, SQL y pruebas nuevas. grok-4.7 rechaza la etapa si falta la cabecera, si una función importante no dice entrada y salida, si un arreglo no cita su defecto, o si los comentarios narran lo que el código ya dice.
 
 ## Lo que hay hoy
 
@@ -277,6 +280,7 @@ Criterios de aceptación:
 - `npm run check` termina en cero con Node 24. Las pruebas de integración corren, no se omiten.
 - La prueba nueva observa, en la app actual: el origen permitido es igualdad contra la lista; un origen desconocido recibe 403 en una mutación; la cookie de sesión es HttpOnly, sin `Domain`; `GET /api/events` sin sesión devuelve una lista vacía; crear una orden sigue el camino del adaptador inyectado; un evento público de directorio no existe (no hay `GET /api/portal/events`).
 - El diff de `apps/api/src`, `apps/web/src` y `packages/shared/src` queda vacío.
+- Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio.
 
 Verificación: `npm run check` y `npx vitest run apps/api/test/somospanas-baseline.test.ts`.
 
@@ -285,6 +289,8 @@ Dependencias: ninguna.
 Paralelo: con nadie. Abre SP-2.
 
 Tamaño: pequeño.
+
+Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
 
 ### SP-2. Clasificar el Host
 
@@ -299,6 +305,7 @@ Criterios de aceptación:
 - `Host: grupo.somospanas.com` con `X-Forwarded-Host: fiestapay.somospanas.com` se clasifica como `grupo` y, al no existir todavía, responde 404.
 - Una mutación con `Origin` de otro host recibe 403.
 - El webhook de PayPal sigue aceptando el cuerpo firmado por la prueba, sin origen de navegador.
+- Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio.
 
 Verificación: `npm run check` y `npx vitest run apps/api/test/host.test.ts apps/api/test/unit.test.ts`.
 
@@ -307,6 +314,8 @@ Dependencias: SP-1.
 Paralelo: con nadie.
 
 Tamaño: pequeño.
+
+Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
 
 ### SP-3. Tablas de sitio, cuenta y visibilidad
 
@@ -321,6 +330,7 @@ Criterios de aceptación:
 - Los slugs previos siguen únicos. Las filas nuevas de visibilidad son `private` y `chargeable` true.
 - La suite de pagos y de financiamiento sigue verde.
 - `0001`–`0012` no cambian de bytes.
+- Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio. La cabecera de `0013_tenants.sql` entra en este criterio.
 
 Verificación: `npm run check` y `npx vitest run apps/api/test/tenants-migration.test.ts apps/api/test/payment-races.test.ts apps/api/test/funding.test.ts`.
 
@@ -329,6 +339,8 @@ Dependencias: SP-2.
 Paralelo: con nadie. Es la única migración hasta SP-9.
 
 Tamaño: mediano.
+
+Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
 
 ### SP-4. Cuentas y roles
 
@@ -343,6 +355,7 @@ Criterios de aceptación, siguiendo D3 mientras el dueño no diga otra cosa:
 - El admin del sitio A recibe 403 en la configuración y en los eventos privados del sitio B.
 - El host legado sigue aceptando la clave `X-Fiesta-Admin-Key`. La prueba de acceso privado actual permanece verde.
 - No se envía SMTP. El adaptador de correo, si se usa para un token de verificación, es el falso del harness.
+- Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio.
 
 Verificación: `npm run check` y `npx vitest run apps/api/test/accounts.test.ts apps/api/test/persistence-access.test.ts`.
 
@@ -351,6 +364,8 @@ Dependencias: SP-3.
 Paralelo: con SP-8. SP-4 es dueño de `App.tsx`, de cuentas y de `domain/access.ts` en lo que corresponda a membresías. No edita órdenes, `paypal/` ni `domain/payments.ts`.
 
 Tamaño: grande.
+
+Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
 
 ### SP-5. Configuración editable del sitio
 
@@ -365,6 +380,7 @@ Criterios de aceptación:
 - Apagar `asistente` esconde el orbe en ese sitio y el API de voz de ese host responde 404. El host legado no mira ese módulo: su voz sigue como hoy.
 - Apagar `recaudacion` esconde esa superficie. El módulo de cobro en línea sigue siendo el proveedor, no este booleano.
 - No hay subida de archivos.
+- Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio.
 
 Verificación: `npm run check` y `npx vitest run apps/api/test/tenant-settings.test.ts`.
 
@@ -373,6 +389,8 @@ Dependencias: SP-4.
 Paralelo: con SP-8. No con SP-4 ni con SP-6, porque los tres registran pantallas en `App.tsx`.
 
 Tamaño: mediano.
+
+Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
 
 ### SP-6. Portada C2 y listado público
 
@@ -388,6 +406,7 @@ Criterios de aceptación:
 - El host `fiestapay` sigue mostrando la portada y el demo de jueces.
 - Español e inglés.
 - El botón de crear espacio llama el contrato de SP-7. Si SP-7 aún no está fusionado, el botón muestra el estado de no disponible y la prueba web cubre ese estado con el contrato fijado abajo.
+- Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio.
 
 Contrato congelado para el botón, lo implementa SP-7:
 
@@ -407,6 +426,8 @@ Paralelo: con SP-7 y con SP-8, con la propiedad de archivos de esas etapas. No c
 
 Tamaño: grande.
 
+Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
+
 ### SP-7. Plantilla y clonación
 
 Meta: crear un espacio copia la configuración de `muestra` y nada de su gente ni de su dinero.
@@ -420,6 +441,7 @@ Criterios de aceptación:
 - Slug reservado o mal formado recibe 400. Slug ocupado recibe 409.
 - El sitio nuevo tiene los colores, módulos y textos de `muestra`, el nombre pedido, cero eventos, cero órdenes y un solo admin.
 - La semilla no corre contra una base que el test no haya creado. En el test, el esquema es el aislado del harness.
+- Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio.
 
 Verificación: `npm run check` y `npx vitest run apps/api/test/clone-site.test.ts`.
 
@@ -428,6 +450,8 @@ Dependencias: SP-5. El slug es `muestra` salvo que D9 cambie antes de empezar.
 Paralelo: con SP-6 y con SP-8.
 
 Tamaño: pequeño.
+
+Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
 
 ### SP-8. Proveedor de pago intercambiable
 
@@ -443,6 +467,7 @@ Criterios de aceptación:
 - La interfaz del invitado en un sitio `none` no muestra el botón de PayPal.
 - `GET /api/demo/buyer` sigue limitado al host legado.
 - No hay red hacia PayPal en las pruebas nuevas: el proveedor `none` no tiene cliente HTTP.
+- Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio.
 
 Verificación: `npm run check` y `npx vitest run apps/api/test/payment-provider.test.ts apps/api/test/payment-races.test.ts apps/api/test/funding.test.ts apps/api/test/webhook-header.test.ts`.
 
@@ -451,6 +476,8 @@ Dependencias: SP-3.
 Paralelo: con SP-4, SP-5, SP-6 y SP-7, respetando la lista de archivos de arriba.
 
 Tamaño: grande.
+
+Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
 
 ### SP-9. Recaudaciones abiertas, sin procesador
 
@@ -466,6 +493,7 @@ Criterios de aceptación, con la recomendación de D5 mientras el dueño no la c
 - La respuesta y la pantalla dicen que la suma la anotó el grupo y que no es un cobro de un procesador.
 - Las dos tarjetas de ejemplo y sus barras fijas siguen en la portada, con la leyenda de ejemplo.
 - Un sitio con el módulo `recaudacion` apagado recibe 404 en estas rutas.
+- Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio. La cabecera de `0014_collections.sql` entra en este criterio.
 
 Verificación: `npm run check` y `npx vitest run apps/api/test/collections.test.ts apps/api/test/payment-races.test.ts`.
 
@@ -474,6 +502,8 @@ Dependencias: SP-6 y SP-8.
 Paralelo: con SP-10. No con otra migración.
 
 Tamaño: mediano.
+
+Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
 
 ### SP-10. Tutorial de la raíz por voz y por texto
 
@@ -488,6 +518,7 @@ Criterios de aceptación:
 - La voz de la raíz usa la audiencia `public`, el mismo presupuesto global y el mismo consentimiento. No adjunta herramientas de invitado ni de organizador.
 - El texto del tutorial cubre los cuatro pasos en español y en inglés. Si el proveedor de texto no está, el guion fijo se muestra igual.
 - Esta etapa no llama a Gemini: el token y el modelo se prueban con el falso que las pruebas de voz ya inyectan.
+- Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio.
 
 Verificación: `npm run check` y `npx vitest run apps/api/test/portal-guide.test.ts apps/api/test/screen-guide.test.ts apps/web/src/__tests__/fp-guide-1.test.tsx`.
 
@@ -496,6 +527,8 @@ Dependencias: SP-6.
 Paralelo: con SP-9.
 
 Tamaño: mediano.
+
+Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
 
 ## Orden
 
