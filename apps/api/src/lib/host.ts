@@ -5,9 +5,15 @@
  * `Host` con `$host`; cuando el vhost amplíe el despliegue, conviene que Nginx también fije
  * `X-Forwarded-Host` al mismo valor.
  */
+import type { Pool, PoolClient } from '../db/pool.js';
 import { isAllowedOrigin, type OriginCheckInput } from './origin.js';
 
 const BASE_DOMAIN = 'somospanas.com';
+
+/** Slug del sitio legado FiestaPay en la tabla `tenants` (SP-3). */
+export const LEGACY_TENANT_SLUG = 'fiestapay';
+
+type TenantLookup = Pick<Pool, 'query'> | Pick<PoolClient, 'query'>;
 
 /** Subdominios reservados: no son sitios de grupo (PLAN SP-2). */
 export const RESERVED_SITE_SLUGS = new Set([
@@ -195,4 +201,21 @@ export function isOriginAllowedForHost(
  */
 export function isPayPalWebhookHost(classification: HostClassification): boolean {
   return classification.kind === 'legacy';
+}
+
+/**
+ * Devuelve el uuid del sitio legado en `tenants` (SP-3).
+ * Entrada: cliente o pool con acceso a la base del request.
+ * Salida: id del tenant `fiestapay`; error si la migración 0013 aún no corrió.
+ */
+export async function legacyTenantId(db: TenantLookup): Promise<string> {
+  const { rows } = await db.query<{ id: string }>(
+    `SELECT id FROM tenants WHERE slug = $1 LIMIT 1`,
+    [LEGACY_TENANT_SLUG],
+  );
+  const row = rows[0];
+  if (!row) {
+    throw new Error(`Sitio legado ${LEGACY_TENANT_SLUG} no encontrado`);
+  }
+  return row.id;
 }

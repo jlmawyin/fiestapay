@@ -6,6 +6,7 @@ import { newAdminKey, newId, newSlug, sha256 } from '../lib/ids.js';
 import { assertAdminKey, digestMatches, rememberUnlock, revokeUnlocks } from './access.js';
 import { audit } from './audit.js';
 import { decideFundingIfDue, fundingBlocksNewCharge, fundingForNewEvent, fundingNow, nextFundingTerms, type FundingGate } from './funding.js';
+import { legacyTenantId } from '../lib/host.js';
 import { isPastRetention, tombstoneEvent } from './retention.js';
 import { EVENT_COLUMNS, eventTotals, loadFiestaEvent, lockEvent, toFiestaEvent, type EventRow, type FiestaEventWithDemo, type Queryable } from './read.js';
 
@@ -53,16 +54,18 @@ export async function insertEvent(
     try {
       const funding = fundingForNewEvent(input, fundingNow());
       const presentation = presentationOf(input);
+      const tenantId = await legacyTenantId(db);
       const { rows } = await db.query<EventRow>(
-        `INSERT INTO events (id, slug, organizer_session_id, generation, title, template, meal, description,
+        `INSERT INTO events (id, slug, tenant_id, organizer_session_id, generation, title, template, meal, description,
            starts_at, ends_at, location, includes, agenda, price_cents, capacity, goal_cents, minimum_cents,
            is_demo, admin_key_hash, access_code_hash, funding_deadline_at, funding_status,
            organizer_name, theme)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
          RETURNING ${EVENT_COLUMNS}`,
         [
           newId(),
           slug,
+          tenantId,
           sessionId,
           generation,
           input.title,
