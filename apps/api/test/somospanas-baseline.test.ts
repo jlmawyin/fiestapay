@@ -25,7 +25,11 @@ import {
 announceSkipWithoutDatabase('somospanas-baseline.test');
 const describeDb = DATABASE_URL ? describe : describe.skip;
 
-/** Recorre la lista configurada y comprueba que la función de origen solo acepta coincidencia exacta (normalizada). */
+/**
+ * Comprueba que `isAllowedOrigin` solo acepta orígenes en la lista (coincidencia exacta tras normalizar)
+ * y rechaza sufijos inventados.
+ * Recibe `allowed: string[]`. No devuelve valor; cualquier incumplimiento falla la prueba vía `expect`.
+ */
 function assertExactOriginList(allowed: string[]): void {
   for (const entry of allowed) {
     expect(isAllowedOrigin({ origin: entry, allowed })).toBe(true);
