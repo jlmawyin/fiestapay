@@ -6,7 +6,7 @@ Fecha de la lectura: 20 de noviembre de 2026. Fuente leída: `3129041` en `main`
 
 ## Meta
 
-Un solo código y un solo despliegue sirven la portada general en la raíz y un sitio por grupo en `<grupo>.somospanas.com`. Cada sitio tiene nombre, colores, textos y módulos editables por un administrador del sitio. Los primeros sitios reales nacen privados. La portada lista solo eventos y recaudaciones que su dueño marcó como públicos. El cobro de Ecuador queda detrás de una interfaz intercambiable y PayPal sale del camino de los sitios nuevos. El sitio que hoy corre en `fiestapay.somospanas.com` sigue atendiendo el recorrido de jueces hasta que el dueño decida el corte.
+Un solo código y un solo despliegue sirven la portada general en la raíz y un sitio por grupo en `<grupo>.somospanas.com`. Cada sitio tiene nombre, colores, textos y módulos editables por un administrador del sitio. Los primeros sitios reales nacen privados. La portada lista solo eventos y recaudaciones que su dueño marcó como públicos. El cobro de Ecuador queda detrás de una interfaz intercambiable y PayPal sale del camino de los sitios nuevos. El sitio que hoy corre en `fiestapay.somospanas.com` sigue como sitio legado mientras dure este plan.
 
 ## Cómo se construye
 
@@ -29,7 +29,7 @@ Reglas de todas las etapas:
 
 Monorepo npm (`apps/api`, `apps/web`, `packages/shared`), Node 24, TypeScript, React 18 + Vite, Fastify 5, PostgreSQL 16, Zod, Vitest. CI (`.github/workflows/ci.yml`) levanta Postgres 16 y corre `npm run check`: lint, tipos, pruebas y build. El API y la web se serializan en un contenedor (`Dockerfile`, `deploy/compose.yml`). Nginx atiende solo el nombre `fiestapay.somospanas.com` (`deploy/nginx.conf`) y reenvía `Host`. El certificado y el `server_name` son de ese único nombre. La base no publica puerto.
 
-La lectura de octubre en `docs/internal/ESTADO.md` describe la raíz `somospanas.com` como un WordPress distinto, en otro vhost. Aunque el DNS comodín ya apunte al VPS, este código y este Nginx no sirven la raíz ni `*.somospanas.com`.
+Desde el 20 de noviembre de 2026 la raíz `somospanas.com` y el comodín `*.somospanas.com` apuntan al VPS. Un vhost `default_server` de Nginx sirve un contenedor pequeño: «estamos construyendo la portada» en la raíz y «este subdominio puede ser tuyo» en los subdominios libres. El `deploy/nginx.conf` de este repo sigue nombrando solo `fiestapay.somospanas.com`. El corte de la raíz hacia esta app es un encargo aparte del dueño, fuera de SP-1–SP-10.
 
 Identidad. No hay cuentas. `sessions` guarda el sha256 de una cookie HttpOnly `fp_session`, sin atributo `Domain` (`apps/api/src/lib/session.ts`). El organizador de cada evento es esa sesión más una clave cuyo hash vive en `events.admin_key_hash`. La cookie del creador no autoriza el panel. Los eventos con `access_code_hash` exigen un código. Eso es un cerrojo del evento, no una bandera de “aparece en la portada”. `GET /api/events` devuelve solo los eventos de la sesión organizadora.
 
@@ -234,7 +234,7 @@ Clonar copia colores, módulos y textos de presentación como valores editables 
 
 Cada una trae una recomendación para que el director pueda avanzar. SP-1 no espera ninguna. Donde una etapa sí espera, está dicho.
 
-**D1. Qué pasa con la raíz y con el sitio de jueces.** La raíz pública, en la nota de octubre, es WordPress. El jurado usa `fiestapay.somospanas.com` hasta el 15 de diciembre de 2026. Recomendación: ese host sigue con el comportamiento actual durante todo este plan. La raíz nueva se prueba con el encabezado `Host` en local. El corte de Nginx, del certificado y de WordPress es un encargo del dueño, posterior, y no está en SP-1–SP-10. Bloquea solo el despliegue, que ya está fuera de alcance.
+**D1. Qué pasa con la raíz y con el sitio legado.** Desde el 20 de noviembre de 2026 la raíz y `*.somospanas.com` apuntan al VPS, y un `default_server` de Nginx sirve el contenedor de espera («estamos construyendo la portada» en la raíz, «este subdominio puede ser tuyo» en un subdominio libre). FiestaPay no se entregó al hackathon: no hay jurado ni un recorrido de jueces hasta el 15 de diciembre de 2026. `fiestapay.somospanas.com` sigue como sitio legado, con su comportamiento actual, mientras dure este plan. Recomendación: la raíz de esta app se prueba con el encabezado `Host` en local. El corte de la raíz hacia esta app es un encargo aparte del dueño, fuera de SP-1–SP-10. Bloquea solo el despliegue, que ya está fuera de alcance.
 
 **D2. Método de pago en Ecuador.** Recomendación: los sitios nuevos usan `none` y explican que el cobro en línea no está disponible. PayPal sandbox queda en el sitio legado. Este plan no integra otro procesador. Un cobro real empieza el día que el dueño nombre el método. Bloquea un encargo futuro, no estas etapas.
 
@@ -254,7 +254,7 @@ Cada una trae una recomendación para que el director pueda avanzar. SP-1 no esp
 
 ## Fuera de alcance
 
-Despliegue, Nginx del VPS, certificados, DNS, otros vhosts, WordPress, procesador ecuatoriano, PayPal live, custodia, Payouts, pagos divididos, WhatsApp Business API, borrado de datos de producción, app nativa, subida de archivos, directorio público de todos los grupos, y gastar el saldo de Gemini.
+Despliegue, Nginx del VPS, certificados, DNS, otros vhosts, el contenedor de espera de la raíz y de los subdominios libres, procesador ecuatoriano, PayPal live, custodia, Payouts, pagos divididos, WhatsApp Business API, borrado de datos de producción, app nativa, subida de archivos, directorio público de todos los grupos, y gastar el saldo de Gemini.
 
 ## Etapas
 
@@ -403,7 +403,7 @@ Criterios de aceptación:
 - Con `Host` de raíz se ve la estructura de C2: barra, hero, compositor de subdominio, cuatro pasos, dos eventos de ejemplo y dos recaudaciones de ejemplo. Los textos de ejemplo de este plan están visibles y llevan badge de ejemplo. Las barras de ejemplo no leen la base.
 - Un evento `private` de un sitio real no sale en el listado. Al marcarlo `public`, sale título, fecha, lugar y nombre del sitio, sin invitados ni pagos de personas.
 - Un evento con código de acceso no puede pasar a `public`.
-- El host `fiestapay` sigue mostrando la portada y el demo de jueces.
+- El host `fiestapay` sigue mostrando la portada y el demo que ya tiene.
 - Español e inglés.
 - El botón de crear espacio llama el contrato de SP-7. Si SP-7 aún no está fusionado, el botón muestra el estado de no disponible y la prueba web cubre ese estado con el contrato fijado abajo.
 - Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio.
@@ -514,7 +514,7 @@ Archivos y áreas: `packages/shared/src/ui-guide.ts` (listas separadas por clase
 Criterios de aceptación:
 
 - En la raíz, la herramienta de pantalla solo acepta ids de la portada: tutorial, crear espacio, eventos públicos, donaciones, registro y sesión. Un id de PayPal o de `/demo` se rechaza.
-- En el host legado, la guía de jueces actual sigue pasando sus pruebas.
+- En el host legado, la guía que ya existe sigue pasando sus pruebas.
 - La voz de la raíz usa la audiencia `public`, el mismo presupuesto global y el mismo consentimiento. No adjunta herramientas de invitado ni de organizador.
 - El texto del tutorial cubre los cuatro pasos en español y en inglés. Si el proveedor de texto no está, el guion fijo se muestra igual.
 - Esta etapa no llama a Gemini: el token y el modelo se prueban con el falso que las pruebas de voz ya inyectan.
