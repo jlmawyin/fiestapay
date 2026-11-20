@@ -1,6 +1,6 @@
 /**
  * Valida los JSON de contenido/ contra esquemas/*.schema.json con Ajv.
- * Depende de: ajv, ajv-formats, Node fs/path.
+ * Depende de: ajv, Node fs/path.
  * Exporta validarTodoContenido y formatearErrorValidacion para pruebas y CLI.
  */
 
@@ -8,7 +8,6 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const RAIZ_REPO = join(__dirname, '..', '..');
@@ -34,8 +33,6 @@ function crearValidador() {
     strict: false,
     validateSchema: false,
   });
-  addFormats(ajv);
-
   const nombres = readdirSync(DIR_ESQUEMAS).filter((f) => f.endsWith('.schema.json'));
   for (const nombre of nombres) {
     const raw = readFileSync(join(DIR_ESQUEMAS, nombre), 'utf8');

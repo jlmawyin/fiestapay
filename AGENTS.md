@@ -52,7 +52,7 @@ Método completo: [docs/somospanas/METODO.md](docs/somospanas/METODO.md). Cada c
 | Texto de la portada (hero, barra, ejemplos C2) | `contenido/portada.json` | `scripts/somospanas/portada.test.ts` |
 | Pasos del tutorial | `contenido/tutorial.json` | `scripts/somospanas/tutorial.test.ts` |
 | Tipos de evento (catálogo / formulario) | `contenido/tipos-evento.json` + `esquemas/evento.schema.json` | `scripts/somospanas/tipos-evento.test.ts` |
-| Colores, tipografía y espaciados | `estilos/tokens.css` | `scripts/somospanas/tokens.test.ts` (variables; revisión visual 390×844 y 1440×960 con `npm run dev` en local) |
+| Colores, tipografía y espaciados | `estilos/tokens.css` | `scripts/somospanas/tokens.test.ts` (tokens + estilos computados 390×844 y 1440×960 vía Playwright; la portada C2 en navegador llega en **SP-6**) |
 | Orden de secciones en la portada | `contenido/paginas.json` | `scripts/somospanas/portada.test.ts` |
 | Preguntas frecuentes | `contenido/preguntas.json` | validación en `npm run verificar` |
 | Configuración de sitio (futuro admin) | `esquemas/sitio.schema.json` | validación de esquema en `npm run verificar` |

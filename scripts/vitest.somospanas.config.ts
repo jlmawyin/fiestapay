@@ -10,5 +10,7 @@ export default defineConfig({
     name: 'somospanas-mapa',
     include: ['scripts/somospanas/**/*.test.ts'],
     restoreMocks: true,
+    testTimeout: 60_000,
+    hookTimeout: 60_000,
   },
 });

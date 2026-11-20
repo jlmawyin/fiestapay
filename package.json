@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "ajv": "^8.20.0",
-    "ajv-formats": "^3.0.1",
+    "playwright": "^1.56.0",
     "@eslint/js": "^10.0.0",
     "@playwright/test": "^1.56.0",
     "@types/node": "^24.0.0",

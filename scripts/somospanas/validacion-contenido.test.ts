@@ -4,7 +4,6 @@
  */
 
 import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -24,7 +23,6 @@ describe('validación de contenido contra esquemas', () => {
 
   it('rechaza un hero sin idioma inglés con mensaje que nombra campo y archivo', () => {
     const ajv = new Ajv({ allErrors: true, strict: false, validateSchema: false });
-    addFormats(ajv);
     const dir = join(RAIZ, 'esquemas');
     for (const nombre of ['texto-bilingue.schema.json', 'portada.schema.json']) {
       const schema = JSON.parse(readFileSync(join(dir, nombre), 'utf8'));

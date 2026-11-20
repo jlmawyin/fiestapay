@@ -56,9 +56,13 @@
   --sp-shadow-md: 0 4px 6px -1px rgba(18, 38, 58, 0.08), 0 2px 4px -2px rgba(18, 38, 58, 0.05);
   --sp-shadow-lg: 0 10px 15px -3px rgba(18, 38, 58, 0.1), 0 4px 6px -4px rgba(18, 38, 58, 0.05);
 
-  /* Anchos de referencia para pruebas visuales (390×844 móvil, 1440×960 escritorio) */
-  --sp-viewport-mobile: 390px;
-  --sp-viewport-desktop: 1440px;
+  /* Referencias de viewport para pruebas (390×844 móvil, 1440×960 escritorio) */
+  --sp-viewport-mobile-width: 390px;
+  --sp-viewport-mobile-height: 844px;
+  --sp-viewport-desktop-width: 1440px;
+  --sp-viewport-desktop-height: 960px;
+  --sp-viewport-mobile: var(--sp-viewport-mobile-width);
+  --sp-viewport-desktop: var(--sp-viewport-desktop-width);
 }
 
 /* Demostración mínima de aplicación de tokens (usada por pruebas de render) */

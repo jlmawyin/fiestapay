@@ -11,6 +11,13 @@ import { mainValidarContenido } from './lib/validar-contenido.mjs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const RAIZ = join(__dirname, '..');
 
+/**
+ * Ejecuta un subcomando y termina el proceso si falla (D-2).
+ * @param {string} comando - Binario a invocar (p. ej. `npx`, `npm`).
+ * @param {string[]} args - Argumentos del proceso hijo.
+ * @param {string} etiqueta - Nombre legible para el mensaje de error en stderr.
+ * @returns {void} No devuelve valor; sale con `process.exit` si el código ≠ 0.
+ */
 function ejecutar(comando, args, etiqueta) {
   const resultado = spawnSync(comando, args, {
     cwd: RAIZ,

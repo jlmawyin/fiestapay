@@ -6,14 +6,16 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
 import { describe, expect, it } from 'vitest';
 
 const RAIZ = join(import.meta.dirname, '..', '..');
 
+/**
+ * Devuelve la función de validación Ajv para un ítem de tipo de evento (D-2).
+ * @returns {import('ajv').ValidateFunction | undefined} Validador compilado de `evento.schema.json`.
+ */
 function validadorEvento() {
   const ajv = new Ajv({ allErrors: true, strict: false, validateSchema: false });
-  addFormats(ajv);
   const texto = JSON.parse(
     readFileSync(join(RAIZ, 'esquemas', 'texto-bilingue.schema.json'), 'utf8'),
   );
