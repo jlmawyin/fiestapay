@@ -1,4 +1,4 @@
-import type { EventInput, FundingStatus } from '@fiestapay/shared';
+import type { EventInput, FundingStatus, PaymentProviderId } from '@fiestapay/shared';
 import { withTransaction, sumToCents, type Pool, type PoolClient } from '../db/pool.js';
 import { badRequest, conflict } from '../errors.js';
 import { newId } from '../lib/ids.js';
@@ -37,8 +37,17 @@ export function assertDeadlineOpen(deadline: Date, startsAt: Date, now: Date): v
   if (deadline.getTime() > startsAt.getTime()) throw badRequest('La fecha limite no puede ser posterior al inicio');
 }
 
+export interface FundingForNewEventOptions {
+  /** SP-8 (D2): sitios `none` no arman financiamiento con reembolsos automáticos. */
+  paymentProvider?: PaymentProviderId;
+}
+
 /** New events only. A minimum with no explicit deadline is armed at startsAt. */
-export function fundingForNewEvent(input: EventInput, now: Date): { status: 'inactive' | 'open'; deadline: Date | null } {
+export function fundingForNewEvent(
+  input: EventInput,
+  now: Date,
+  opts: FundingForNewEventOptions = {},
+): { status: 'inactive' | 'open'; deadline: Date | null } {
   const startsAt = new Date(input.startsAt);
   if (input.minimumCents === null) {
     if (typeof input.fundingDeadlineAt === 'string') throw badRequest('Sin minimo no hay fecha limite de financiamiento');
@@ -46,6 +55,10 @@ export function fundingForNewEvent(input: EventInput, now: Date): { status: 'ina
   }
   const deadline = input.fundingDeadlineAt ? new Date(input.fundingDeadlineAt) : startsAt;
   assertDeadlineOpen(deadline, startsAt, now);
+  // Un mínimo con reembolsos PayPal exige procesador; los sitios nuevos quedan inactivos (D2).
+  if (opts.paymentProvider === 'none') {
+    return { status: 'inactive', deadline };
+  }
   return { status: 'open', deadline };
 }
 

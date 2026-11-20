@@ -50,6 +50,7 @@ Método completo: [docs/somospanas/METODO.md](docs/somospanas/METODO.md). Cada c
 | Quiero cambiar… | Archivo | Prueba |
 | --- | --- | --- |
 | Sitios, cuentas, visibilidad y tenant legado en la base | `apps/api/src/db/migrations/0013_tenants.sql` + alta en `apps/api/src/domain/events.ts` | `apps/api/test/tenants-migration.test.ts` |
+| Proveedor de pago por sitio (`none` vs `paypal_sandbox` en legado) | `packages/shared/src/payments.ts`, `apps/api/src/payments/provider.ts`, dominio/rutas en `orders`/`funding`/`payments`, `PayPalSection.tsx` | `apps/api/test/payment-provider.test.ts`, `apps/web/src/__tests__/payment-provider-none.test.tsx`, `payment-races`, `funding`, `webhook-header` |
 | Clasificación raíz / legado / sitio por `Host` | `apps/api/src/lib/host.ts` + hook en `apps/api/src/app.ts` | `apps/api/test/host.test.ts` |
 | Texto de la portada (hero, barra, ejemplos C2) | `contenido/portada.json` | `scripts/somospanas/portada.test.ts` |
 | Pasos del tutorial | `contenido/tutorial.json` | `scripts/somospanas/tutorial.test.ts` |

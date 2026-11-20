@@ -1,4 +1,5 @@
 import type { ThemeKey } from './presentation.js';
+import type { PaymentProviderId } from './payments.js';
 
 export type { ThemeKey, ThemeDefinition, TemplateInviteCopy, ContrastPair, MealKind } from './presentation.js';
 export {
@@ -27,6 +28,7 @@ export {
   themeContrastPairs,
 } from './presentation.js';
 export * from './i18n.js';
+export * from './payments.js';
 export * from './server-errors.js';
 
 export type TemplateKind = 'comida' | 'casa' | 'viaje' | 'evento';
@@ -152,8 +154,14 @@ export interface OrderResult { orderId: string; status: string; approveUrl?: str
 /** The only runtime chat provider. */
 export type LlmProvider = 'openai' | 'gemini';
 export interface Capabilities {
-  paypal: boolean; voice: boolean; paypalClientId: string | null; sandbox: true;
-  chat?: boolean; llmProvider?: LlmProvider;
+  paypal: boolean;
+  voice: boolean;
+  paypalClientId: string | null;
+  sandbox: true;
+  /** Procesador del sitio según `Host` o tenant; la web oculta PayPal cuando es `none`. */
+  paymentProvider?: PaymentProviderId;
+  chat?: boolean;
+  llmProvider?: LlmProvider;
   /** Voice engine named in the consent notice before any token is requested. Absent = assemblyai. */
   voiceProvider?: VoiceProvider;
   /** True only when the server has SMTP configured. Never implies a message was accepted or delivered. */

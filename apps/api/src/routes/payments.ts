@@ -1,7 +1,7 @@
 import type { PayPalNotificationItem } from '@fiestapay/shared';
 import type { Guest, OrderResult } from '@fiestapay/shared';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { badRequest, unavailable } from '../errors.js';
+import { badRequest, notFound, unavailable } from '../errors.js';
 import { presentedAdminKey } from '../domain/access.js';
 import { audit, PAYPAL_NOTIFICATION_PREFIX } from '../domain/audit.js';
 import {
@@ -10,8 +10,14 @@ import {
   markOrderApproved,
   markOrderDeclined,
   readOwnOrder,
-  requirePayPal,
 } from '../domain/orders.js';
+import {
+  buildPaymentProvider,
+  paymentProviderIdForEventId,
+  paymentProviderIdForEventSlug,
+  paypalAdapterOf,
+  requireOnlinePayment,
+} from '../payments/provider.js';
 import { convergeCapture, convergeRefund, isApplied, type CaptureOutcome } from '../domain/payments.js';
 import { findOrderByAnyId } from '../domain/read.js';
 import { assertNoClientMoneyState, orderIdParamSchema, orderSchema, parseOr400, slugParamSchema } from '../lib/schemas.js';
@@ -90,8 +96,9 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
       assertNoClientMoneyState(req.body, ['confirmed']);
       const { quoteId } = parseOr400(orderSchema, req.body);
       const session = await requireSession(pool, config, req);
-      const paypal = requirePayPal(config, deps.paypal);
-      return createOrderForSession(pool, paypal, session.id, slug, quoteId, presentedAdminKey(req));
+      const tenantProviderId = await paymentProviderIdForEventSlug(pool, slug);
+      const payment = requireOnlinePayment(config, deps.paypal, tenantProviderId);
+      return createOrderForSession(pool, payment, session.id, slug, quoteId, presentedAdminKey(req));
     },
   );
 
@@ -101,8 +108,11 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
     async (req): Promise<{ status: string; guest: Guest }> => {
       const { orderId } = parseOr400(orderIdParamSchema, req.params);
       const session = await requireSession(pool, config, req);
-      const paypal = requirePayPal(config, deps.paypal);
-      return captureOwnOrder(pool, paypal, session.id, orderId, presentedAdminKey(req));
+      const orderHead = await findOrderByAnyId(pool, orderId);
+      if (!orderHead) throw notFound('Orden no encontrada');
+      const tenantProviderId = await paymentProviderIdForEventId(pool, orderHead.event_id);
+      const payment = requireOnlinePayment(config, deps.paypal, tenantProviderId);
+      return captureOwnOrder(pool, payment, session.id, orderId, presentedAdminKey(req));
     },
   );
 
@@ -114,8 +124,17 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
     async (req): Promise<{ status: string; guest: Guest }> => {
       const { orderId } = parseOr400(orderIdParamSchema, req.params);
       const session = await requireSession(pool, config, req);
-      const paypal = config.paypal && deps.paypal ? requirePayPal(config, deps.paypal) : null;
-      return readOwnOrder(pool, paypal, session.id, orderId, presentedAdminKey(req));
+      let payment: ReturnType<typeof requireOnlinePayment> | null = null;
+      if (config.paypal && deps.paypal) {
+        const orderHead = await findOrderByAnyId(pool, orderId);
+        if (orderHead) {
+          const tenantProviderId = await paymentProviderIdForEventId(pool, orderHead.event_id);
+          if (tenantProviderId === 'paypal_sandbox') {
+            payment = requireOnlinePayment(config, deps.paypal, tenantProviderId);
+          }
+        }
+      }
+      return readOwnOrder(pool, payment, session.id, orderId, presentedAdminKey(req));
     },
   );
 
@@ -164,7 +183,7 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
       const relatedOrderId =
         asString(body.resource?.supplementary_data?.related_ids?.order_id) ?? asString(body.resource?.custom_id);
       const merchantId = config.paypal.merchantId;
-      const paypal = deps.paypal;
+      const paypal = paypalAdapterOf(buildPaymentProvider('paypal_sandbox', deps.paypal));
 
       /**
        * Applies a capture notification by re-reading the authoritative order from PayPal, never

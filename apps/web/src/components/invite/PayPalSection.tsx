@@ -59,7 +59,10 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
   const copyRef = useRef(m);
   copyRef.current = m;
 
-  const paypalAvailable = Boolean(capabilities?.paypal && capabilities?.paypalClientId);
+  const onlinePaymentDisabled = capabilities?.paymentProvider === 'none';
+  const paypalAvailable = Boolean(
+    !onlinePaymentDisabled && capabilities?.paypal && capabilities?.paypalClientId,
+  );
   const mountedRef = useRef(true);
   const orderIdRef = useRef(order.orderId);
   const onCaptureSuccessRef = useRef(onCaptureSuccess);
@@ -423,12 +426,19 @@ export const PayPalSection: React.FC<PayPalSectionProps> = ({
           }}
         >
           <p style={{ fontWeight: 600, color: 'var(--color-ink)', marginBottom: '0.35rem' }}>
-            {m.noProviderTitle}
+            {onlinePaymentDisabled ? m.noOnlinePaymentTitle : m.noProviderTitle}
           </p>
           <p>
-            {m.noProviderBody}<code>PAYPAL_CLIENT_ID</code>.
+            {onlinePaymentDisabled ? (
+              m.noOnlinePaymentBody
+            ) : (
+              <>
+                {m.noProviderBody}
+                <code>PAYPAL_CLIENT_ID</code>.
+              </>
+            )}
           </p>
-          {order.approveUrl && (
+          {!onlinePaymentDisabled && order.approveUrl && (
             <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               {externalLink(m.externalApprovalLink, 'btn btn-secondary', false, true, true)}
               <button
