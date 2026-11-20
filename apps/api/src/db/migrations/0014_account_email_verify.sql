@@ -15,3 +15,9 @@ CREATE TABLE account_email_tokens (
 );
 
 CREATE INDEX account_email_tokens_user_idx ON account_email_tokens (user_id, expires_at);
+
+-- SP4-D-1: ampliar scopes de ventana sin editar 0006; login y registro de cuentas usan buckets propios.
+ALTER TABLE email_attempt_windows DROP CONSTRAINT email_attempt_windows_scope_check;
+ALTER TABLE email_attempt_windows
+  ADD CONSTRAINT email_attempt_windows_scope_check
+  CHECK (scope IN ('ip', 'event', 'account_login_ip', 'account_login_email', 'account_register_ip', 'account_register_email'));

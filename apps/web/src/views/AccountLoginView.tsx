@@ -26,6 +26,7 @@ export const AccountLoginView: React.FC<AccountLoginViewProps> = ({ onNavigateRe
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  /** Pide sesión nueva en el servidor; el cuerpo solo lleva correo y contraseña. */
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setBusy(true);

@@ -68,8 +68,8 @@ declare module 'fastify' {
 }
 
 /**
- * SP-4: subdominio con fila en `tenants` atiende `/api/*` (cuentas y configuración del sitio).
- * Sin fila, sigue 404 como en SP-2.
+ * SP4-D-3: en host `site` solo entran `/api/site/*` (y el health); el API de invitaciones queda en raíz/legado.
+ * Sin fila en `tenants`, el subdominio sigue respondiendo 404.
  */
 async function isRequestRoutable(
   method: string,
@@ -79,9 +79,10 @@ async function isRequestRoutable(
 ): Promise<boolean> {
   if (isHealthProbeExempt(method, pathOnly)) return true;
   if (isHostRoutable(host)) return true;
-  if (host.kind === 'site' && host.slug && (pathOnly === '/api' || pathOnly.startsWith('/api/'))) {
+  if (host.kind === 'site' && host.slug) {
     const tenantId = await tenantIdForSlug(db, host.slug);
-    return tenantId !== null;
+    if (!tenantId) return false;
+    return pathOnly === '/api/site' || pathOnly.startsWith('/api/site/');
   }
   return false;
 }

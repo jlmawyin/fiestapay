@@ -8,7 +8,13 @@ Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, 
 
 **Archivos:** `apps/api/src/db/migrations/0014_account_email_verify.sql`, `apps/api/src/domain/accounts.ts`, `apps/api/src/routes/accounts.ts`, `apps/api/src/domain/access.ts` (membresías), `apps/api/src/app.ts`, `apps/web/src/views/AccountRegisterView.tsx`, `AccountLoginView.tsx`, `AccountVerifyView.tsx`, `apps/web/src/App.tsx`, `contenido/cuentas.json`, `apps/api/test/accounts.test.ts`, `apps/web/src/__tests__/accounts-form.test.tsx`, `AGENTS.md`, `CHANGELOG.md`.
 
-**Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/accounts.test.ts apps/api/test/persistence-access.test.ts` (Postgres 16 como CI).
+**Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/accounts.test.ts apps/api/test/persistence-access.test.ts` (Postgres 16; intento 2 corrige D-1–D-6 del verificador).
+
+### 2026-11-20 — SP-4 · Correcciones verificador (intento 2)
+
+**Pedido:** SP4-D-1 scopes en `email_attempt_windows`; D-2 sin enumeración; D-3 solo `/api/site/*` en host sitio; D-4 rotación de sesión; D-5 límites/cupo compartido; pruebas de 429, PUT/member y 404 en sitio.
+
+**Archivos:** `0014_account_email_verify.sql`, `domain/accounts.ts`, `app.ts`, `accounts.test.ts`, vistas `Account*.tsx`, `CHANGELOG.md`.
 
 ## 2026-11-20 — SP-3 · Tablas de sitio, cuenta y visibilidad
 

@@ -31,11 +31,11 @@ const LOGIN_FAILURE = 'No autorizado';
 const LOGIN_LIMIT = 'Demasiados intentos de correo. Espera antes de volver a solicitarlo.';
 const EMAIL_NOT_CONFIGURED = 'El correo de recuperacion no esta configurado';
 const VERIFY_INVALID = 'El enlace no es valido. Solicita uno nuevo.';
-const GENERIC_VERIFY_SENT =
+export const GENERIC_VERIFY_SENT =
   'Si el correo esta registrado y aun no se verifico, enviamos un enlace. Revisa tu bandeja.';
 
-/** Reservas diarias de correo de cuenta: distinto del candado de recuperación de eventos. */
-const ACCOUNT_EMAIL_BUDGET_LOCK = 778899127;
+/** Mismo candado que recuperación de organizador (SP4-D-5; recovery.ts). */
+const EMAIL_BUDGET_LOCK = 778899126;
 
 export interface AccountPublicUser {
   id: string;
@@ -136,6 +136,12 @@ export function verifyPassword(password: string, stored: string): boolean {
   return derived.length === expected.length && timingSafeEqual(derived, expected);
 }
 
+/**
+ * Hash almacenado ficticio para ejecutar scrypt en login sin fila de usuario (SP4-D-2).
+ * No corresponde a ningún correo real.
+ */
+const TIMING_GUARD_PASSWORD_HASH = hashPassword('__fiestapay_login_timing_guard_v1__');
+
 function newVerifyToken(): string {
   return randomBytes(32).toString('base64url');
 }
@@ -155,6 +161,11 @@ function accountVerifyEmail(origin: string, to: string, token: string) {
   };
 }
 
+/**
+ * Incrementa el contador de intentos en una ventana temporal por scope+bucket hasheado.
+ * Entrada: cliente en transacción, nombre de scope permitido por 0014, bucket y segundos de ventana.
+ * Salida: número de golpes acumulados en la ventana actual.
+ */
 async function bumpWindow(db: PoolClient, scope: string, bucket: Buffer, windowSeconds: number): Promise<number> {
   const { rows } = await db.query<{ hits: number }>(
     `INSERT INTO email_attempt_windows AS w (scope, bucket, window_start, hits)
@@ -174,8 +185,13 @@ async function bumpWindow(db: PoolClient, scope: string, bucket: Buffer, windowS
   return rows[0]?.hits ?? 1;
 }
 
+/**
+ * Reserva una unidad del cupo diario de correo (compartido con recuperación).
+ * Entrada: cliente en transacción y tope diario configurado.
+ * Salida: true si había cupo; la reserva no se devuelve si el envío falla (SP4-D-5).
+ */
 async function reserveAccountEmailDaily(db: PoolClient, cap: number): Promise<boolean> {
-  await db.query('SELECT pg_advisory_xact_lock($1)', [ACCOUNT_EMAIL_BUDGET_LOCK]);
+  await db.query('SELECT pg_advisory_xact_lock($1)', [EMAIL_BUDGET_LOCK]);
   const { rows } = await db.query<{ reserved: number }>(
     `SELECT reserved FROM email_daily_budget
       WHERE day = (now() AT TIME ZONE 'America/Guayaquil')::date
@@ -197,11 +213,21 @@ async function reserveAccountEmailDaily(db: PoolClient, cap: number): Promise<bo
   return true;
 }
 
-const LOGIN_IP_LIMIT = 20;
+export const LOGIN_IP_LIMIT = 20;
 const LOGIN_IP_WINDOW_SECONDS = 3600;
-const LOGIN_EMAIL_LIMIT = 10;
+export const LOGIN_EMAIL_LIMIT = 10;
 const LOGIN_EMAIL_WINDOW_SECONDS = 3600;
 
+const REGISTER_IP_LIMIT = 20;
+const REGISTER_IP_WINDOW_SECONDS = 3600;
+const REGISTER_EMAIL_LIMIT = 10;
+const REGISTER_EMAIL_WINDOW_SECONDS = 3600;
+
+/**
+ * Cuenta un intento de login por IP y por correo (SP4-D-1); no toca el cupo diario de envíos.
+ * Entrada: IP del cliente y HMAC del correo normalizado.
+ * Salida: true si aún cabe en ambas ventanas.
+ */
 async function chargeLoginAttempt(db: PoolClient, ip: string, emailHash: Buffer): Promise<boolean> {
   const ipHits = await bumpWindow(db, 'account_login_ip', sha256(`login-ip:${ip}`), LOGIN_IP_WINDOW_SECONDS);
   const emailHits = await bumpWindow(
@@ -211,6 +237,22 @@ async function chargeLoginAttempt(db: PoolClient, ip: string, emailHash: Buffer)
     LOGIN_EMAIL_WINDOW_SECONDS,
   );
   return ipHits <= LOGIN_IP_LIMIT && emailHits <= LOGIN_EMAIL_LIMIT;
+}
+
+/**
+ * Limita solicitudes de registro/reenvío por IP y correo antes de reservar envío (SP4-D-5).
+ * Entrada: IP y HMAC del correo.
+ * Salida: true si la ventana aún admite el intento.
+ */
+async function chargeRegisterAttempt(db: PoolClient, ip: string, emailHash: Buffer): Promise<boolean> {
+  const ipHits = await bumpWindow(db, 'account_register_ip', sha256(`register-ip:${ip}`), REGISTER_IP_WINDOW_SECONDS);
+  const emailHits = await bumpWindow(
+    db,
+    'account_register_email',
+    sha256(`register-email:${emailHash.toString('base64url')}`),
+    REGISTER_EMAIL_WINDOW_SECONDS,
+  );
+  return ipHits <= REGISTER_IP_LIMIT && emailHits <= REGISTER_EMAIL_LIMIT;
 }
 
 interface UserRow {
@@ -262,14 +304,17 @@ export async function registerAccount(
 
   const emailHash = hmacEmailHash(email, hmacKey);
   const outcome = await withTransaction(pool, async (client) => {
-    const allowed = await reserveAccountEmailDaily(client, dailyCap);
-    if (!allowed) return { kind: 'limited' as const };
-
     const existing = await loadUserByEmailHash(client, emailHash);
+    // SP4-D-2: misma respuesta pública; sin envío ni cupo si ya está verificado.
+    if (existing?.email_verified_at) return { kind: 'verified_silent' as const };
+
+    const windowOk = await chargeRegisterAttempt(client, ip, emailHash);
+    if (!windowOk) return { kind: 'limited' as const };
+
+    const reserved = await reserveAccountEmailDaily(client, dailyCap);
+    if (!reserved) return { kind: 'limited' as const };
+
     if (existing) {
-      if (existing.email_verified_at) {
-        return { kind: 'exists' as const };
-      }
       await client.query('DELETE FROM account_email_tokens WHERE user_id = $1', [existing.id]);
       const token = newVerifyToken();
       const expires = new Date(Date.now() + 900_000);
@@ -278,7 +323,7 @@ export async function registerAccount(
         `INSERT INTO account_email_tokens (id, user_id, token_hash, expires_at) VALUES ($1,$2,$3,$4)`,
         [tokenId, existing.id, sha256(token), expires.toISOString()],
       );
-      return { kind: 'resend' as const, to: existing.email, token, tokenId };
+      return { kind: 'send' as const, to: existing.email, token };
     }
 
     const userId = newId();
@@ -294,12 +339,11 @@ export async function registerAccount(
       `INSERT INTO account_email_tokens (id, user_id, token_hash, expires_at) VALUES ($1,$2,$3,$4)`,
       [tokenId, userId, sha256(token), expires.toISOString()],
     );
-    void ip;
-    return { kind: 'created' as const, to: email, token, tokenId };
+    return { kind: 'send' as const, to: email, token };
   });
 
   if (outcome.kind === 'limited') throw new HttpError(429, LOGIN_LIMIT);
-  if (outcome.kind === 'exists') throw new HttpError(409, 'Datos invalidos');
+  if (outcome.kind === 'verified_silent') return { status: 'pending', message: GENERIC_VERIFY_SENT };
 
   let sendResult: EmailSendResult;
   try {
@@ -340,12 +384,19 @@ export async function loginAccount(
   if (!allowed) throw new HttpError(429, LOGIN_LIMIT);
 
   const user = await loadUserByEmailHash(pool, emailHash);
-  if (!user || !user.email_verified_at || !verifyPassword(password, user.password_hash)) {
+  // SP4-D-2: siempre costura scrypt; el fallo es uniforme si no hay cuenta verificada o la clave no coincide.
+  const storedHash = user?.password_hash ?? TIMING_GUARD_PASSWORD_HASH;
+  const passwordOk = verifyPassword(password, storedHash);
+  if (!user || !user.email_verified_at || !passwordOk) {
     throw unauthorized(LOGIN_FAILURE);
   }
 
-  const session =
-    (await readSession(pool, config, req)) ?? (await createSession(pool, config, reply));
+  // SP4-D-4: sesión nueva al entrar; la cookie anónima previa deja de estar enlazada.
+  const prior = await readSession(pool, config, req);
+  const session = await createSession(pool, config, reply);
+  if (prior) {
+    await pool.query('UPDATE sessions SET user_id = NULL WHERE id = $1', [prior.id]);
+  }
   await linkSessionUser(pool, session.id, user.id);
   return { user: toPublicUser(user) };
 }

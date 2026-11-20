@@ -36,6 +36,7 @@ export const AccountVerifyView: React.FC<{ onVerified: () => void }> = ({ onVeri
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`);
   }, [token]);
 
+  /** Canjea el token del fragmento por POST y limpia el hash de la barra de direcciones. */
   const confirm = async () => {
     if (!token) {
       setMessage(pick(copy.sinToken, lang));

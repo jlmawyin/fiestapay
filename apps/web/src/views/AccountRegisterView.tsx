@@ -26,6 +26,7 @@ export const AccountRegisterView: React.FC<AccountRegisterViewProps> = ({ onNavi
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  /** Envía el alta a la raíz; nunca muestra la contraseña en pantalla ni en el mensaje de estado. */
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setBusy(true);
