@@ -11,7 +11,13 @@ import type { EmailAdapter } from './email/types.js';
 import type { Pool } from './db/pool.js';
 import { HttpError } from './errors.js';
 import { requestLocale } from './lib/locale.js';
-import { isAllowedOrigin } from './lib/origin.js';
+import {
+  classifyHost,
+  isHostRoutable,
+  isOriginAllowedForHost,
+  isPayPalWebhookHost,
+  type HostClassification,
+} from './lib/host.js';
 import { requestLogger } from './lib/redact.js';
 import { PayPalSandboxClient } from './paypal/client.js';
 import type { PayPalAdapter } from './paypal/types.js';
@@ -51,6 +57,12 @@ export interface BuildAppOptions {
 }
 
 const WEBHOOK_PATH = '/api/paypal/webhook';
+
+declare module 'fastify' {
+  interface FastifyRequest {
+    hostClassification?: HostClassification;
+  }
+}
 
 /** HTTP status for a thrown error: ours, Fastify's (validation, rate limit) or 500. */
 function statusOf(err: unknown): number {
@@ -112,14 +124,31 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
    * because it is server-to-server and authenticated by its signature instead.
    */
   app.addHook('onRequest', async (req, reply) => {
+    // Solo `Host`: no confiar en X-Forwarded-Host con trustProxy (ver cabecera en host.ts).
+    const hostClassification = classifyHost(req.headers.host, { env: config.env });
+    req.hostClassification = hostClassification;
+
     reply.header('Referrer-Policy', 'no-referrer');
     const pathOnly = req.url.split('?')[0] ?? req.url;
     if (pathOnly === '/api' || pathOnly.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
+
+    if (!isHostRoutable(hostClassification)) {
+      reply.code(404).send({ error: 'Ruta no encontrada' });
+      return reply;
+    }
+
+    if (pathOnly === WEBHOOK_PATH && !isPayPalWebhookHost(hostClassification)) {
+      reply.code(404).send({ error: 'Ruta no encontrada' });
+      return reply;
+    }
+
     const method = req.method.toUpperCase();
     if (method === 'GET' || method === 'HEAD') return;
     const path = req.url.split('?')[0] ?? req.url;
     if (path === WEBHOOK_PATH) return;
-    if (!isAllowedOrigin({ origin: req.headers.origin, referer: req.headers.referer, allowed: config.allowedOrigins })) {
+    if (
+      !isOriginAllowedForHost(hostClassification, { origin: req.headers.origin, referer: req.headers.referer }, config.allowedOrigins)
+    ) {
       reply.code(403).send({ error: 'Origen no permitido' });
       return reply; // stops the request lifecycle
     }
