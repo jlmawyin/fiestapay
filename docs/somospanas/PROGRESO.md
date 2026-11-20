@@ -4,7 +4,7 @@
 
 **Director:** Meche
 
-**Última actualización:** 20 de noviembre de 2026, 13:05 America/Guayaquil
+**Última actualización:** 20 de noviembre de 2026, 13:45 America/Guayaquil
 
 **Uso:** desconocido
 
@@ -23,23 +23,25 @@ SP-0 no modificó código de la aplicación.
 
 ## Etapas
 
-Construye composer-2.5. Verifica y rescata grok-4.7. SP-0 fue el plan y no entra en ese reparto.
+Construye composer-2.5. Verifica y rescata grok-4.7. SP-0 fue el plan y no entra en ese reparto. El nivel 4 no se fusiona sin la revisión de Jorge y de grok-4.7. El método está en [METODO.md](METODO.md).
 
-| Id | Estado | Meta | Construcción | Verificación y rescate | Depende de | Paralelo con | Tamaño |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| SP-0 | hecho | Plan y tablero, sin código de la app | — | — | — | — | pequeño |
-| SP-1 | pendiente | Suite y build verdes, y pruebas que fijan el comportamiento actual | composer-2.5 | grok-4.7 | — | nadie | pequeño |
-| SP-2 | pendiente | Clasificar raíz, legado y sitio por el encabezado Host | composer-2.5 | grok-4.7 | SP-1 | nadie | pequeño |
-| SP-3 | pendiente | Tablas de sitio, cuenta y visibilidad; eventos actuales en el sitio legado | composer-2.5 | grok-4.7 | SP-2 | nadie | mediano |
-| SP-4 | pendiente | Registro, sesión y roles admin/miembro, aislados por sitio | composer-2.5 | grok-4.7 | SP-3 | SP-8 | grande |
-| SP-5 | pendiente | Nombre, textos, colores y módulos editables por el admin | composer-2.5 | grok-4.7 | SP-4 | SP-8 | mediano |
-| SP-6 | pendiente | Portada C2 y listado solo de lo marcado público | composer-2.5 | grok-4.7 | SP-5 | SP-7, SP-8 | grande |
-| SP-7 | pendiente | Plantilla `muestra` y clonación sin gente ni dinero | composer-2.5 | grok-4.7 | SP-5 | SP-6, SP-8 | pequeño |
-| SP-8 | pendiente | Proveedor `none` en sitios nuevos; PayPal solo en el legado | composer-2.5 | grok-4.7 | SP-3 | SP-4, SP-5, SP-6, SP-7 | grande |
-| SP-9 | pendiente | Recaudaciones anotadas por el grupo, fuera del libro PayPal | composer-2.5 | grok-4.7 | SP-6, SP-8 | SP-10 | mediano |
-| SP-10 | pendiente | Tutorial de la raíz por voz y texto, sin herramientas de cobro | composer-2.5 | grok-4.7 | SP-6 | SP-9 | mediano |
+| Id | Estado | Nivel | Meta | Construcción | Verificación y rescate | Depende de | Paralelo con | Tamaño |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| SP-0 | hecho | — | Plan y tablero, sin código de la app | — | — | — | — | pequeño |
+| SP-1 | pendiente | 4 | Suite y build verdes, y pruebas que fijan el comportamiento actual | composer-2.5 | grok-4.7 | — | SP-1b | pequeño |
+| SP-1b | pendiente | 2 | El mapa: AGENTS.md, CHANGELOG, bloques, un comando de verificación y la vista previa | composer-2.5 | grok-4.7 | — | SP-1 | mediano |
+| SP-2 | pendiente | 4 | Clasificar raíz, legado y sitio por el encabezado Host | composer-2.5 | grok-4.7 | SP-1, SP-1b | nadie | pequeño |
+| SP-3 | pendiente | 4 | Tablas de sitio, cuenta y visibilidad; eventos actuales en el sitio legado | composer-2.5 | grok-4.7 | SP-2 | nadie | mediano |
+| SP-4 | pendiente | 4 | Registro, sesión y roles admin/miembro, aislados por sitio | composer-2.5 | grok-4.7 | SP-3 | SP-8 | grande |
+| SP-5 | pendiente | 4 | Configuración por sitio en la base, textos globales leídos de contenido/ | composer-2.5 | grok-4.7 | SP-4 | SP-8 | mediano |
+| SP-6 | pendiente | 4 | Portada C2 leída de contenido/ y listado solo de lo marcado público | composer-2.5 | grok-4.7 | SP-5 | SP-7, SP-8 | grande |
+| SP-7 | pendiente | 4 | Plantilla `muestra` y clonación sin gente ni dinero | composer-2.5 | grok-4.7 | SP-5 | SP-6, SP-8 | pequeño |
+| SP-8 | pendiente | 4 | Proveedor `none` en sitios nuevos; PayPal solo en el legado | composer-2.5 | grok-4.7 | SP-3 | SP-4, SP-5, SP-6, SP-7 | grande |
+| SP-9 | pendiente | 4 | Recaudaciones anotadas por el grupo, fuera del libro PayPal | composer-2.5 | grok-4.7 | SP-6, SP-8 | SP-10 | mediano |
+| SP-10 | pendiente | 4 | Tutorial de la raíz por voz y texto, leído del mismo contenido/ que la web | composer-2.5 | grok-4.7 | SP-6 | SP-9 | mediano |
+| SP-11 | pendiente | 1 | Examen: un agente nuevo agrega el tipo «Cumpleaños» en un intento | composer-2.5 | grok-4.7 | SP-9, SP-10 | nadie | pequeño |
 
-El detalle de archivos, criterios y comandos está en [PLAN.md](PLAN.md).
+El detalle de archivos, criterios y comandos está en [PLAN.md](PLAN.md). El método completo está en [METODO.md](METODO.md).
 
 ## Defectos
 
@@ -51,7 +53,7 @@ El detalle de archivos, criterios y comandos está en [PLAN.md](PLAN.md).
 
 Ninguno impide SP-1. Las decisiones D1–D9 están en [PLAN.md](PLAN.md), con recomendación.
 
-- D1 bloquea el corte de producción de la raíz y de `fiestapay.somospanas.com`. Ese corte no forma parte de SP-1–SP-10.
+- D1 bloquea el corte de producción de la raíz y de `fiestapay.somospanas.com`. Ese corte no forma parte de SP-1–SP-11.
 - D2 bloquea un cobro real en Ecuador. SP-8 avanza con el proveedor `none` y deja PayPal en el sitio legado.
 - D3, si el dueño rechaza correo y contraseña, bloquea SP-4. Hasta entonces SP-4 sigue la recomendación.
 - D5, si el dueño no quiere anotaciones manuales, cambia el alcance de SP-9 antes de escribir `0014_collections.sql`.
@@ -59,4 +61,4 @@ Ninguno impide SP-1. Las decisiones D1–D9 están en [PLAN.md](PLAN.md), con re
 
 ## Siguiente paso exacto
 
-Meche asigna SP-1 a composer-2.5. grok-4.7 verifica y, si hace falta, rescata. Propiedad única: `apps/api/test/somospanas-baseline.test.ts`. Sin cambios en `apps/api/src`, `apps/web/src`, `packages/shared/src`, migraciones, Dockerfile ni Nginx. Node 24, Postgres 16 como en CI, `npm run check` en cero, la prueba nueva cubre los cinco hechos del criterio de SP-1 y el archivo nuevo cumple el criterio de comentarios en español. Al cerrar, actualiza la fila SP-1 de esta tabla, la hora America/Guayaquil y los defectos si aparecen.
+Meche asigna en paralelo SP-1 y SP-1b a composer-2.5. grok-4.7 verifica y, si hace falta, rescata. SP-1 es nivel 4: Jorge y grok-4.7 revisan antes de fusionar. Propiedad de SP-1: `apps/api/test/somospanas-baseline.test.ts`, sin cambios en `apps/api/src`, `apps/web/src`, `packages/shared/src`, migraciones, Dockerfile ni Nginx. Propiedad de SP-1b: la tabla nueva de `AGENTS.md` (sin borrar las reglas que ya tiene), `CHANGELOG.md`, `bloques/LEEME.md`, `contenido/`, `esquemas/`, `estilos/tokens.css` y `npm run verificar`. Node 24, Postgres 16 como en CI. SP-1 cierra con `npm run check` en cero. SP-1b cierra con `npm run verificar` en cero y la prueba visual en 390×844 y 1440×960. Al cerrar, actualiza la fila de esta tabla, la hora America/Guayaquil y los defectos si aparecen.

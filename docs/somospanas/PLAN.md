@@ -10,7 +10,7 @@ Un solo código y un solo despliegue sirven la portada general en la raíz y un 
 
 ## Cómo se construye
 
-Cada etapa SP-1…SP-10 es un pull request propio, pequeño, con `npm run check` verde. Este plan no autoriza a fusionarlas ni a desplegarlas. La aprobación de despliegue que exige cero migraciones no cubre SP-3 ni SP-9.
+Cada etapa SP-1…SP-11, incluida SP-1b, es un pull request propio, pequeño, con la verificación de esa etapa en verde. Este plan no autoriza a fusionarlas ni a desplegarlas. La aprobación de despliegue que exige cero migraciones no cubre SP-3 ni SP-9.
 
 Construye composer-2.5. Verifica y rescata grok-4.7. El director asigna la etapa; el constructor no se verifica a sí mismo. Un rescate sigue en grok-4.7 y conserva el id del defecto.
 
@@ -24,12 +24,14 @@ Reglas de todas las etapas:
 - Las migraciones `0001`–`0012` no se editan. El arranque ya aplica los SQL nuevos con `apps/api/src/db/migrate.ts` y el candado de aviso `778899123`.
 - Datos históricos, el libro mayor y el evento de prueba del dueño se conservan. Un backfill solo escribe el sitio legado en las filas que aún no tienen sitio.
 - Código comentado en español con criterio, en el diff de la etapa. Cada archivo o módulo nuevo abre con una cabecera: qué hace y de qué depende. Cada función importante lleva un comentario corto: para qué sirve, qué recibe y qué devuelve. Cada decisión no obvia, y cada arreglo de un fallo, explica el porqué; el arreglo cita el id del defecto (D-n en `PROGRESO.md`). Lo obvio se queda sin comentario. Vale para TypeScript, SQL y pruebas nuevas. grok-4.7 rechaza la etapa si falta la cabecera, si una función importante no dice entrada y salida, si un arreglo no cita su defecto, o si los comentarios narran lo que el código ya dice.
+- Desde SP-1b, cada etapa deja `AGENTS.md` y `CHANGELOG.md` al día. El método completo está en [METODO.md](METODO.md).
+- Cada etapa declara su nivel. Los niveles 1, 2 y 3 avanzan con composer-2.5 y la verificación de grok-4.7. El nivel 4 (subdominios, validación, límites, datos personales, pagos) no se fusiona sin la revisión de Jorge y de grok-4.7.
 
 ## Lo que hay hoy
 
 Monorepo npm (`apps/api`, `apps/web`, `packages/shared`), Node 24, TypeScript, React 18 + Vite, Fastify 5, PostgreSQL 16, Zod, Vitest. CI (`.github/workflows/ci.yml`) levanta Postgres 16 y corre `npm run check`: lint, tipos, pruebas y build. El API y la web se serializan en un contenedor (`Dockerfile`, `deploy/compose.yml`). Nginx atiende solo el nombre `fiestapay.somospanas.com` (`deploy/nginx.conf`) y reenvía `Host`. El certificado y el `server_name` son de ese único nombre. La base no publica puerto.
 
-Desde el 20 de noviembre de 2026 la raíz `somospanas.com` y el comodín `*.somospanas.com` apuntan al VPS. Un vhost `default_server` de Nginx sirve un contenedor pequeño: «estamos construyendo la portada» en la raíz y «este subdominio puede ser tuyo» en los subdominios libres. El `deploy/nginx.conf` de este repo sigue nombrando solo `fiestapay.somospanas.com`. El corte de la raíz hacia esta app es un encargo aparte del dueño, fuera de SP-1–SP-10.
+Desde el 20 de noviembre de 2026 la raíz `somospanas.com` y el comodín `*.somospanas.com` apuntan al VPS. Un vhost `default_server` de Nginx sirve un contenedor pequeño: «estamos construyendo la portada» en la raíz y «este subdominio puede ser tuyo» en los subdominios libres. El `deploy/nginx.conf` de este repo sigue nombrando solo `fiestapay.somospanas.com`. El corte de la raíz hacia esta app es un encargo aparte del dueño, fuera de SP-1–SP-11.
 
 Identidad. No hay cuentas. `sessions` guarda el sha256 de una cookie HttpOnly `fp_session`, sin atributo `Domain` (`apps/api/src/lib/session.ts`). El organizador de cada evento es esa sesión más una clave cuyo hash vive en `events.admin_key_hash`. La cookie del creador no autoriza el panel. Los eventos con `access_code_hash` exigen un código. Eso es un cerrojo del evento, no una bandera de “aparece en la portada”. `GET /api/events` devuelve solo los eventos de la sesión organizadora.
 
@@ -106,9 +108,22 @@ Migración `0014_collections.sql` (SP-9), también aditiva, descrita en Recaudac
 
 ### Configuración por sitio
 
-El administrador edita, desde su subdominio, nombre visible, frase corta, texto de presentación, los siete colores y los cuatro módulos. Los colores se validan como hex y se comprueban con el contraste que ya calcula `packages/shared` antes de guardarse. La página del sitio pisa las variables de `index.css` solo para esa respuesta. Un módulo apagado esconde su superficie y el API responde 404 a sus rutas.
+El administrador edita, desde su subdominio, nombre visible, frase corta, texto de presentación, los siete colores y los cuatro módulos. Los colores se validan como hex y se comprueban con el contraste que ya calcula `packages/shared` antes de guardarse. La página del sitio pisa las variables de `estilos/tokens.css` solo para esa respuesta. Un módulo apagado esconde su superficie y el API responde 404 a sus rutas.
 
 SP-5 no sube archivos. El sitio se reconoce por el nombre y el color. Un logo archivo queda fuera hasta que el dueño lo pida (decisión D4).
+
+### Contenido global y configuración por sitio
+
+Lo global vive en archivos. Lo de cada sitio vive en la base y se valida con los mismos esquemas. El texto íntegro del método está en [METODO.md](METODO.md).
+
+| Qué | Dónde |
+| --- | --- |
+| Portada, tutorial, tipos de evento, orden de secciones, preguntas | `contenido/*.json` |
+| Esquemas de ese contenido y de la configuración de sitio | `esquemas/*.schema.json` |
+| Colores, tipografía y espaciados | `estilos/tokens.css` |
+| Nombre, textos propios, colores propios y módulos de un sitio | tablas de SP-3, validadas con esos esquemas |
+
+Un error de validación dice el campo, qué se esperaba y el archivo. `datos/` queda reservado para el archivo por evento del horizonte del método. Estas etapas no lo usan como configuración del sitio, y no construyen el chat en el que un dueño de evento pide cambios. SP-5, SP-6 y SP-10 leen los textos de `contenido/`. La voz de la raíz lee el mismo archivo que la web.
 
 ### Roles
 
@@ -166,7 +181,7 @@ Consecuencias:
 - La web esconde el botón de PayPal cuando el proveedor es `none` y dice que el cobro en línea todavía no está disponible.
 - Ninguna etapa de este plan agrega un procesador ecuatoriano, cambia `CAPTURE` por `AUTHORIZE`, ni habla de custodia o de Payouts.
 
-Elegir el método real (decisión D2) abre un encargo futuro, fuera de SP-1–SP-10.
+Elegir el método real (decisión D2) abre un encargo futuro, fuera de SP-1–SP-11.
 
 ### Portada raíz
 
@@ -218,7 +233,7 @@ Clonar copia colores, módulos y textos de presentación como valores editables 
 
 ## Riesgos
 
-1. La raíz de producción es otro sitio. Publicar este Fastify en `somospanas.com` sustituye ese vhost. SP-1–SP-10 no lo hacen.
+1. La raíz de producción es otro sitio. Publicar este Fastify en `somospanas.com` sustituye ese vhost. SP-1–SP-11 no lo hacen.
 2. DNS comodín no entrega TLS ni `server_name`. El certificado actual nombra solo `fiestapay.somospanas.com`.
 3. Una cookie `Domain=.somospanas.com` mezclaría sesiones de grupos distintos. El plan la prohíbe.
 4. Aceptar cualquier `*.somospanas.com` como origen, sin fila en `tenants`, abriría mutaciones con un `Host` inventado. El alta del sitio es una fila, no un sufijo.
@@ -234,7 +249,7 @@ Clonar copia colores, módulos y textos de presentación como valores editables 
 
 Cada una trae una recomendación para que el director pueda avanzar. SP-1 no espera ninguna. Donde una etapa sí espera, está dicho.
 
-**D1. Qué pasa con la raíz y con el sitio legado.** Desde el 20 de noviembre de 2026 la raíz y `*.somospanas.com` apuntan al VPS, y un `default_server` de Nginx sirve el contenedor de espera («estamos construyendo la portada» en la raíz, «este subdominio puede ser tuyo» en un subdominio libre). FiestaPay no se entregó al hackathon: no hay jurado ni un recorrido de jueces hasta el 15 de diciembre de 2026. `fiestapay.somospanas.com` sigue como sitio legado, con su comportamiento actual, mientras dure este plan. Recomendación: la raíz de esta app se prueba con el encabezado `Host` en local. El corte de la raíz hacia esta app es un encargo aparte del dueño, fuera de SP-1–SP-10. Bloquea solo el despliegue, que ya está fuera de alcance.
+**D1. Qué pasa con la raíz y con el sitio legado.** Desde el 20 de noviembre de 2026 la raíz y `*.somospanas.com` apuntan al VPS, y un `default_server` de Nginx sirve el contenedor de espera («estamos construyendo la portada» en la raíz, «este subdominio puede ser tuyo» en un subdominio libre). FiestaPay no se entregó al hackathon: no hay jurado ni un recorrido de jueces hasta el 15 de diciembre de 2026. `fiestapay.somospanas.com` sigue como sitio legado, con su comportamiento actual, mientras dure este plan. Recomendación: la raíz de esta app se prueba con el encabezado `Host` en local. El corte de la raíz hacia esta app es un encargo aparte del dueño, fuera de SP-1–SP-11. Bloquea solo el despliegue, que ya está fuera de alcance.
 
 **D2. Método de pago en Ecuador.** Recomendación: los sitios nuevos usan `none` y explican que el cobro en línea no está disponible. PayPal sandbox queda en el sitio legado. Este plan no integra otro procesador. Un cobro real empieza el día que el dueño nombre el método. Bloquea un encargo futuro, no estas etapas.
 
@@ -254,7 +269,7 @@ Cada una trae una recomendación para que el director pueda avanzar. SP-1 no esp
 
 ## Fuera de alcance
 
-Despliegue, Nginx del VPS, certificados, DNS, otros vhosts, el contenedor de espera de la raíz y de los subdominios libres, procesador ecuatoriano, PayPal live, custodia, Payouts, pagos divididos, WhatsApp Business API, borrado de datos de producción, app nativa, subida de archivos, directorio público de todos los grupos, y gastar el saldo de Gemini.
+Despliegue, Nginx del VPS, certificados, DNS, otros vhosts, el contenedor de espera de la raíz y de los subdominios libres, procesador ecuatoriano, PayPal live, custodia, Payouts, pagos divididos, WhatsApp Business API, borrado de datos de producción, app nativa, subida de archivos, directorio público de todos los grupos, gastar el saldo de Gemini, y el chat en el que un dueño de evento pide cambios sobre su archivo.
 
 ## Etapas
 
@@ -267,7 +282,7 @@ npm ci
 npm run check
 ```
 
-`npm run check` es lint, tipos, Vitest y build. Una etapa que toque un archivo nombra además el archivo de prueba focal.
+`npm run check` es lint, tipos, Vitest y build. Desde SP-1b, el comando único es `npm run verificar`: valida `contenido/` contra `esquemas/` y corre `npm run check`. La vista previa local sigue siendo `npm run dev`. Una etapa que toque un archivo nombra además el archivo de prueba focal.
 
 ### SP-1. Red de seguridad
 
@@ -286,11 +301,42 @@ Verificación: `npm run check` y `npx vitest run apps/api/test/somospanas-baseli
 
 Dependencias: ninguna.
 
-Paralelo: con nadie. Abre SP-2.
+Paralelo: con SP-1b.
 
 Tamaño: pequeño.
 
 Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
+
+Nivel: 4. Jorge y grok-4.7 revisan antes de fusionar.
+
+### SP-1b. El mapa
+
+Meta: un agente nuevo encuentra dónde cambiar un texto, un color o un tipo de evento, lo comprueba con un comando y lo ve en local con otro.
+
+Archivos y áreas: la tabla nueva en `AGENTS.md` (se conservan las reglas de producto que ese archivo ya tiene), `CHANGELOG.md`, `bloques/LEEME.md`, `contenido/portada.json`, `contenido/tutorial.json`, `contenido/tipos-evento.json`, `contenido/paginas.json`, `contenido/preguntas.json`, `esquemas/*.schema.json` (incluido `esquemas/evento.schema.json` y el esquema de la configuración de sitio), `estilos/tokens.css`, y el script `npm run verificar`. Cero migraciones y cero cambios de pagos.
+
+Criterios de aceptación:
+
+- `AGENTS.md` tiene la tabla «Quiero cambiar… → archivo → prueba» con al menos: texto de la portada → `contenido/portada.json` → prueba de portada; pasos del tutorial → `contenido/tutorial.json` → prueba del tutorial; tipos de evento → `contenido/tipos-evento.json` + `esquemas/evento.schema.json` → prueba del formulario; colores y tipografía → `estilos/tokens.css` → prueba visual en 390×844 y 1440×960; orden de secciones → `contenido/paginas.json` → prueba de portada.
+- `CHANGELOG.md` anota fecha, pedido, archivos y pruebas. La primera entrada es esta etapa.
+- `bloques/LEEME.md` cataloga cada bloque con propósito, datos que recibe y un ejemplo.
+- `npm run verificar` valida los JSON contra sus esquemas y corre las pruebas. Un JSON inválido falla nombrando campo, qué se esperaba y archivo.
+- `npm run dev` es la vista previa local, y `AGENTS.md` lo dice.
+- `estilos/tokens.css` es el único lugar de colores, tipografía y espaciados. La prueba visual los mira a 390×844 y a 1440×960.
+- Los JSON iniciales traen el texto de la portada C2 ya escrito en este plan, en español y en inglés.
+- Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio.
+
+Verificación: `npm run verificar`, y la prueba visual en 390×844 y 1440×960.
+
+Dependencias: ninguna.
+
+Paralelo: con SP-1. SP-2 espera a las dos.
+
+Tamaño: mediano.
+
+Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
+
+Nivel: 2. La prueba visual de tokens es el criterio de diseño que esta etapa deja listo.
 
 ### SP-2. Clasificar el Host
 
@@ -305,17 +351,20 @@ Criterios de aceptación:
 - `Host: grupo.somospanas.com` con `X-Forwarded-Host: fiestapay.somospanas.com` se clasifica como `grupo` y, al no existir todavía, responde 404.
 - Una mutación con `Origin` de otro host recibe 403.
 - El webhook de PayPal sigue aceptando el cuerpo firmado por la prueba, sin origen de navegador.
+- AGENTS.md y CHANGELOG.md quedan al día: la tabla «Quiero cambiar… → archivo → prueba» nombra lo que esta etapa tocó, y CHANGELOG.md anota fecha, pedido, archivos y pruebas.
 - Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio.
 
-Verificación: `npm run check` y `npx vitest run apps/api/test/host.test.ts apps/api/test/unit.test.ts`.
+Verificación: `npm run verificar` y `npx vitest run apps/api/test/host.test.ts apps/api/test/unit.test.ts`.
 
-Dependencias: SP-1.
+Dependencias: SP-1 y SP-1b.
 
 Paralelo: con nadie.
 
 Tamaño: pequeño.
 
 Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
+
+Nivel: 4. Jorge y grok-4.7 revisan antes de fusionar.
 
 ### SP-3. Tablas de sitio, cuenta y visibilidad
 
@@ -330,9 +379,10 @@ Criterios de aceptación:
 - Los slugs previos siguen únicos. Las filas nuevas de visibilidad son `private` y `chargeable` true.
 - La suite de pagos y de financiamiento sigue verde.
 - `0001`–`0012` no cambian de bytes.
+- AGENTS.md y CHANGELOG.md quedan al día: la tabla «Quiero cambiar… → archivo → prueba» nombra lo que esta etapa tocó, y CHANGELOG.md anota fecha, pedido, archivos y pruebas.
 - Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio. La cabecera de `0013_tenants.sql` entra en este criterio.
 
-Verificación: `npm run check` y `npx vitest run apps/api/test/tenants-migration.test.ts apps/api/test/payment-races.test.ts apps/api/test/funding.test.ts`.
+Verificación: `npm run verificar` y `npx vitest run apps/api/test/tenants-migration.test.ts apps/api/test/payment-races.test.ts apps/api/test/funding.test.ts`.
 
 Dependencias: SP-2.
 
@@ -341,6 +391,8 @@ Paralelo: con nadie. Es la única migración hasta SP-9.
 Tamaño: mediano.
 
 Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
+
+Nivel: 4. Jorge y grok-4.7 revisan antes de fusionar.
 
 ### SP-4. Cuentas y roles
 
@@ -355,9 +407,10 @@ Criterios de aceptación, siguiendo D3 mientras el dueño no diga otra cosa:
 - El admin del sitio A recibe 403 en la configuración y en los eventos privados del sitio B.
 - El host legado sigue aceptando la clave `X-Fiesta-Admin-Key`. La prueba de acceso privado actual permanece verde.
 - No se envía SMTP. El adaptador de correo, si se usa para un token de verificación, es el falso del harness.
+- AGENTS.md y CHANGELOG.md quedan al día: la tabla «Quiero cambiar… → archivo → prueba» nombra lo que esta etapa tocó, y CHANGELOG.md anota fecha, pedido, archivos y pruebas.
 - Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio.
 
-Verificación: `npm run check` y `npx vitest run apps/api/test/accounts.test.ts apps/api/test/persistence-access.test.ts`.
+Verificación: `npm run verificar` y `npx vitest run apps/api/test/accounts.test.ts apps/api/test/persistence-access.test.ts`.
 
 Dependencias: SP-3.
 
@@ -366,6 +419,8 @@ Paralelo: con SP-8. SP-4 es dueño de `App.tsx`, de cuentas y de `domain/access.
 Tamaño: grande.
 
 Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
+
+Nivel: 4. Jorge y grok-4.7 revisan antes de fusionar.
 
 ### SP-5. Configuración editable del sitio
 
@@ -380,9 +435,11 @@ Criterios de aceptación:
 - Apagar `asistente` esconde el orbe en ese sitio y el API de voz de ese host responde 404. El host legado no mira ese módulo: su voz sigue como hoy.
 - Apagar `recaudacion` esconde esa superficie. El módulo de cobro en línea sigue siendo el proveedor, no este booleano.
 - No hay subida de archivos.
+- Los textos globales salen de `contenido/`. La pantalla no los copia en el componente. Lo que el admin guarda en la base pasa el esquema de sitio. Si falla, la respuesta dice el campo, qué se esperaba y el archivo del esquema. Los colores por defecto siguen en `estilos/tokens.css`; el valor del sitio solo pisa ese token.
+- AGENTS.md y CHANGELOG.md quedan al día: la tabla «Quiero cambiar… → archivo → prueba» nombra lo que esta etapa tocó, y CHANGELOG.md anota fecha, pedido, archivos y pruebas.
 - Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio.
 
-Verificación: `npm run check` y `npx vitest run apps/api/test/tenant-settings.test.ts`.
+Verificación: `npm run verificar` y `npx vitest run apps/api/test/tenant-settings.test.ts`.
 
 Dependencias: SP-4.
 
@@ -392,11 +449,13 @@ Tamaño: mediano.
 
 Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
 
+Nivel: 4. Jorge y grok-4.7 revisan antes de fusionar.
+
 ### SP-6. Portada C2 y listado público
 
 Meta: la raíz muestra la portada de la variante C2, y solo los eventos marcados públicos aparecen en ella.
 
-Archivos y áreas: vista nueva de portada, `apps/web/src/App.tsx` en el host raíz, `GET /api/portal/events`, el campo de visibilidad al publicar, catálogos i18n nuevos. `LandingView.tsx` queda para el legado. Pruebas `apps/api/test/portal-listing.test.ts` y `apps/web/src/__tests__/portal-landing.test.tsx`.
+Archivos y áreas: vista nueva de portada que lee `contenido/portada.json`, `contenido/paginas.json` y `contenido/preguntas.json`, `apps/web/src/App.tsx` en el host raíz, `GET /api/portal/events`, el campo de visibilidad al publicar. `LandingView.tsx` queda para el legado. Pruebas `apps/api/test/portal-listing.test.ts` y `apps/web/src/__tests__/portal-landing.test.tsx`.
 
 Criterios de aceptación:
 
@@ -406,6 +465,8 @@ Criterios de aceptación:
 - El host `fiestapay` sigue mostrando la portada y el demo que ya tiene.
 - Español e inglés.
 - El botón de crear espacio llama el contrato de SP-7. Si SP-7 aún no está fusionado, el botón muestra el estado de no disponible y la prueba web cubre ese estado con el contrato fijado abajo.
+- Los textos de la portada, el orden de las secciones y las preguntas salen de `contenido/portada.json`, `contenido/paginas.json` y `contenido/preguntas.json`. Cambiar el JSON cambia la pantalla sin editar el componente.
+- AGENTS.md y CHANGELOG.md quedan al día: la tabla «Quiero cambiar… → archivo → prueba» nombra lo que esta etapa tocó, y CHANGELOG.md anota fecha, pedido, archivos y pruebas.
 - Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio.
 
 Contrato congelado para el botón, lo implementa SP-7:
@@ -418,7 +479,7 @@ Host: somospanas.com
 201 { "site": { "slug": "tu-grupo", "url": "https://tu-grupo.somospanas.com" }, "handoff": { "code": "<una vez>", "expiresAt": "<iso>" } }
 ```
 
-Verificación: `npm run check`, `npx vitest run apps/api/test/portal-listing.test.ts apps/web/src/__tests__/portal-landing.test.tsx`, y una pasada manual de la portada en viewport de escritorio y de 390 px de ancho: barra usable, compositor que no se sale, tarjetas en columna en el ancho corto.
+Verificación: `npm run verificar`, `npx vitest run apps/api/test/portal-listing.test.ts apps/web/src/__tests__/portal-landing.test.tsx`, y una pasada de la portada en 390×844 y en 1440×960: colores, tipografía y espaciados salen de `estilos/tokens.css`; en el ancho corto la barra sigue usable, el compositor no se sale y las tarjetas quedan en columna.
 
 Dependencias: SP-5 para el admin que marca público. El listado puede probarse con un admin de harness creado en SP-4.
 
@@ -427,6 +488,8 @@ Paralelo: con SP-7 y con SP-8, con la propiedad de archivos de esas etapas. No c
 Tamaño: grande.
 
 Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
+
+Nivel: 4. Jorge y grok-4.7 revisan antes de fusionar.
 
 ### SP-7. Plantilla y clonación
 
@@ -441,9 +504,10 @@ Criterios de aceptación:
 - Slug reservado o mal formado recibe 400. Slug ocupado recibe 409.
 - El sitio nuevo tiene los colores, módulos y textos de `muestra`, el nombre pedido, cero eventos, cero órdenes y un solo admin.
 - La semilla no corre contra una base que el test no haya creado. En el test, el esquema es el aislado del harness.
+- AGENTS.md y CHANGELOG.md quedan al día: la tabla «Quiero cambiar… → archivo → prueba» nombra lo que esta etapa tocó, y CHANGELOG.md anota fecha, pedido, archivos y pruebas.
 - Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio.
 
-Verificación: `npm run check` y `npx vitest run apps/api/test/clone-site.test.ts`.
+Verificación: `npm run verificar` y `npx vitest run apps/api/test/clone-site.test.ts`.
 
 Dependencias: SP-5. El slug es `muestra` salvo que D9 cambie antes de empezar.
 
@@ -452,6 +516,8 @@ Paralelo: con SP-6 y con SP-8.
 Tamaño: pequeño.
 
 Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
+
+Nivel: 4. Jorge y grok-4.7 revisan antes de fusionar.
 
 ### SP-8. Proveedor de pago intercambiable
 
@@ -467,9 +533,10 @@ Criterios de aceptación:
 - La interfaz del invitado en un sitio `none` no muestra el botón de PayPal.
 - `GET /api/demo/buyer` sigue limitado al host legado.
 - No hay red hacia PayPal en las pruebas nuevas: el proveedor `none` no tiene cliente HTTP.
+- AGENTS.md y CHANGELOG.md quedan al día: la tabla «Quiero cambiar… → archivo → prueba» nombra lo que esta etapa tocó, y CHANGELOG.md anota fecha, pedido, archivos y pruebas.
 - Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio.
 
-Verificación: `npm run check` y `npx vitest run apps/api/test/payment-provider.test.ts apps/api/test/payment-races.test.ts apps/api/test/funding.test.ts apps/api/test/webhook-header.test.ts`.
+Verificación: `npm run verificar` y `npx vitest run apps/api/test/payment-provider.test.ts apps/api/test/payment-races.test.ts apps/api/test/funding.test.ts apps/api/test/webhook-header.test.ts`.
 
 Dependencias: SP-3.
 
@@ -478,6 +545,8 @@ Paralelo: con SP-4, SP-5, SP-6 y SP-7, respetando la lista de archivos de arriba
 Tamaño: grande.
 
 Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
+
+Nivel: 4. Jorge y grok-4.7 revisan antes de fusionar.
 
 ### SP-9. Recaudaciones abiertas, sin procesador
 
@@ -493,9 +562,10 @@ Criterios de aceptación, con la recomendación de D5 mientras el dueño no la c
 - La respuesta y la pantalla dicen que la suma la anotó el grupo y que no es un cobro de un procesador.
 - Las dos tarjetas de ejemplo y sus barras fijas siguen en la portada, con la leyenda de ejemplo.
 - Un sitio con el módulo `recaudacion` apagado recibe 404 en estas rutas.
+- AGENTS.md y CHANGELOG.md quedan al día: la tabla «Quiero cambiar… → archivo → prueba» nombra lo que esta etapa tocó, y CHANGELOG.md anota fecha, pedido, archivos y pruebas.
 - Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio. La cabecera de `0014_collections.sql` entra en este criterio.
 
-Verificación: `npm run check` y `npx vitest run apps/api/test/collections.test.ts apps/api/test/payment-races.test.ts`.
+Verificación: `npm run verificar` y `npx vitest run apps/api/test/collections.test.ts apps/api/test/payment-races.test.ts`.
 
 Dependencias: SP-6 y SP-8.
 
@@ -505,11 +575,13 @@ Tamaño: mediano.
 
 Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
 
+Nivel: 4. Jorge y grok-4.7 revisan antes de fusionar.
+
 ### SP-10. Tutorial de la raíz por voz y por texto
 
 Meta: en la portada, el asistente explica los cuatro pasos por texto y, con consentimiento, por voz, sin herramientas de cobro.
 
-Archivos y áreas: `packages/shared/src/ui-guide.ts` (listas separadas por clase de host; la lista del legado no pierde ids), `apps/api/src/routes/voice.ts` y el chat público de la raíz, `TutorialView` o una vista hermana solo para la raíz, pruebas de guía y de voz existentes más `apps/api/test/portal-guide.test.ts`.
+Archivos y áreas: `contenido/tutorial.json` como única fuente del texto, `packages/shared/src/ui-guide.ts` (listas separadas por clase de host; la lista del legado no pierde ids), `apps/api/src/routes/voice.ts` y el chat público de la raíz, `TutorialView` o una vista hermana solo para la raíz, pruebas de guía y de voz existentes más `apps/api/test/portal-guide.test.ts`.
 
 Criterios de aceptación:
 
@@ -518,9 +590,11 @@ Criterios de aceptación:
 - La voz de la raíz usa la audiencia `public`, el mismo presupuesto global y el mismo consentimiento. No adjunta herramientas de invitado ni de organizador.
 - El texto del tutorial cubre los cuatro pasos en español y en inglés. Si el proveedor de texto no está, el guion fijo se muestra igual.
 - Esta etapa no llama a Gemini: el token y el modelo se prueban con el falso que las pruebas de voz ya inyectan.
+- El texto que muestra la web y el que usa la voz de la raíz salen del mismo `contenido/tutorial.json`.
+- AGENTS.md y CHANGELOG.md quedan al día: la tabla «Quiero cambiar… → archivo → prueba» nombra lo que esta etapa tocó, y CHANGELOG.md anota fecha, pedido, archivos y pruebas.
 - Código comentado en español con criterio: cabecera del archivo nuevo (qué hace y de qué depende), comentario corto en cada función importante (para qué, qué recibe y qué devuelve) y el porqué en cada decisión no obvia o arreglo de fallo, con su id de defecto. Nada de comentar lo obvio.
 
-Verificación: `npm run check` y `npx vitest run apps/api/test/portal-guide.test.ts apps/api/test/screen-guide.test.ts apps/web/src/__tests__/fp-guide-1.test.tsx`.
+Verificación: `npm run verificar` y `npx vitest run apps/api/test/portal-guide.test.ts apps/api/test/screen-guide.test.ts apps/web/src/__tests__/fp-guide-1.test.tsx`.
 
 Dependencias: SP-6.
 
@@ -530,14 +604,45 @@ Tamaño: mediano.
 
 Equipo: construye composer-2.5. Verifica y rescata grok-4.7.
 
+Nivel: 4. Jorge y grok-4.7 revisan antes de fusionar.
+
+### SP-11. Examen de cierre
+
+Meta: un agente que nunca vio el proyecto agrega el tipo de evento «Cumpleaños» con una pregunta frecuente, leyendo solo `AGENTS.md` y los archivos que esa tabla indica.
+
+Archivos y áreas: solo los que `AGENTS.md` nombre para tipos de evento y preguntas, más `CHANGELOG.md`. El examen no abre el resto del repositorio para decidir dónde editar.
+
+Criterios de aceptación:
+
+- Lo ejecuta una sesión nueva de composer-2.5, sin el historial de las etapas anteriores. Un solo intento.
+- El diff queda en los archivos que el mapa indica, y en `CHANGELOG.md`.
+- `npm run verificar` termina en cero.
+- `CHANGELOG.md` anota fecha, pedido, archivos y pruebas.
+- `AGENTS.md` sigue diciendo el lugar correcto. Si el mapa ya bastaba, no hace falta una fila nueva.
+- Código comentado en español con criterio, si el intento toca código. Un cambio de JSON no comenta lo obvio.
+
+Verificación: `npm run verificar`. grok-4.7 comprueba que fue un intento y que el diff no sale del mapa.
+
+Dependencias: SP-9 y SP-10.
+
+Paralelo: con nadie.
+
+Tamaño: pequeño.
+
+Equipo: una sesión nueva de composer-2.5. Verifica grok-4.7.
+
+Nivel: 1.
+
 ## Orden
 
 ```text
-SP-1 → SP-2 → SP-3 → SP-4 → SP-5 → SP-6
-                  ↘ SP-8 (en paralelo desde SP-3)
-                              SP-7 en paralelo con SP-6, después de SP-5
-                              SP-9 después de SP-6 y SP-8
-                              SP-10 en paralelo con SP-9, después de SP-6
+SP-1  ↘
+        SP-2 → SP-3 → SP-4 → SP-5 → SP-6
+SP-1b ↗                 ↘ SP-8 (en paralelo desde SP-3)
+                                     SP-7 en paralelo con SP-6, después de SP-5
+                                     SP-9 después de SP-6 y SP-8
+                                     SP-10 en paralelo con SP-9, después de SP-6
+                                     SP-11 después de SP-9 y SP-10
 ```
 
 SP-4, SP-5 y SP-6 van en serie porque los tres escriben `apps/web/src/App.tsx`.
