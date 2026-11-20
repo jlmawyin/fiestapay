@@ -13,6 +13,7 @@ import { HttpError } from './errors.js';
 import { requestLocale } from './lib/locale.js';
 import {
   classifyHost,
+  isHealthProbeExempt,
   isHostRoutable,
   isOriginAllowedForHost,
   isPayPalWebhookHost,
@@ -130,9 +131,11 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
     reply.header('Referrer-Policy', 'no-referrer');
     const pathOnly = req.url.split('?')[0] ?? req.url;
+    const method = req.method.toUpperCase();
     if (pathOnly === '/api' || pathOnly.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
 
-    if (!isHostRoutable(hostClassification)) {
+    // D-1: el healthcheck interno usa 127.0.0.1/local sin tratar esos Host como legado en producción.
+    if (!isHealthProbeExempt(method, pathOnly) && !isHostRoutable(hostClassification)) {
       reply.code(404).send({ error: 'Ruta no encontrada' });
       return reply;
     }
@@ -142,7 +145,6 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       return reply;
     }
 
-    const method = req.method.toUpperCase();
     if (method === 'GET' || method === 'HEAD') return;
     const path = req.url.split('?')[0] ?? req.url;
     if (path === WEBHOOK_PATH) return;

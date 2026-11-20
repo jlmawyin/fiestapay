@@ -2,7 +2,7 @@
  * SP-2: clasificación por `Host`, enrutamiento temprano y origen acoplado al host.
  * Pruebas unitarias sin Postgres y de inyección con `buildApp` (webhook y mutaciones).
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
 import type { Pool } from '../src/db/pool.js';
@@ -63,6 +63,11 @@ describe('classifyHost', () => {
 
   it('en producción, host ausente es inválido', () => {
     expect(classifyHost(undefined, { env: 'production' }).kind).toBe('invalid');
+  });
+
+  it('en producción, localhost y 127.0.0.1 no son legado (D-1)', () => {
+    expect(classifyHost('127.0.0.1:3000', { env: 'production' }).kind).toBe('invalid');
+    expect(classifyHost('localhost', { env: 'production' }).kind).toBe('invalid');
   });
 });
 
@@ -161,5 +166,76 @@ describe('hook en buildApp', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ ok: true });
+  });
+
+  // D-1: el sondeo del contenedor usa Host local en producción sin abrir el legado a esos nombres.
+  describe('producción — exención /api/health (D-1)', () => {
+    const prodConfig = () =>
+      testConfig({
+        NODE_ENV: 'production',
+        PUBLIC_ORIGIN: 'https://fiestapay.somospanas.com',
+        ALLOWED_ORIGINS: 'https://fiestapay.somospanas.com',
+      });
+
+    const internalHosts = ['127.0.0.1:3000', 'localhost', 'fiestapay-api:3000'] as const;
+
+    beforeEach(async () => {
+      app = await buildApp({ pool: recordingPool(), config: prodConfig(), logger: false });
+    });
+
+    for (const host of internalHosts) {
+      it(`GET /api/health con Host ${host} responde 200`, async () => {
+        const res = await app!.inject({
+          method: 'GET',
+          url: '/api/health',
+          headers: { host },
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json()).toEqual({ ok: true });
+      });
+
+      it(`GET /api/events con Host ${host} responde 404`, async () => {
+        const res = await app!.inject({
+          method: 'GET',
+          url: '/api/events',
+          headers: { host },
+        });
+        expect(res.statusCode).toBe(404);
+      });
+    }
+
+    it('HEAD /api/health con Host 127.0.0.1:3000 responde sin 404', async () => {
+      const res = await app!.inject({
+        method: 'HEAD',
+        url: '/api/health',
+        headers: { host: '127.0.0.1:3000' },
+      });
+      expect(res.statusCode).toBe(200);
+    });
+
+    it('legado sigue enrutable: GET /api/health y GET /api/events', async () => {
+      const health = await app!.inject({
+        method: 'GET',
+        url: '/api/health',
+        headers: { host: 'fiestapay.somospanas.com' },
+      });
+      expect(health.statusCode).toBe(200);
+
+      const events = await app!.inject({
+        method: 'GET',
+        url: '/api/events',
+        headers: { host: 'fiestapay.somospanas.com' },
+      });
+      expect(events.statusCode).toBe(200);
+    });
+
+    it('raíz sigue enrutable: GET /api/health en somospanas.com', async () => {
+      const res = await app!.inject({
+        method: 'GET',
+        url: '/api/health',
+        headers: { host: 'somospanas.com' },
+      });
+      expect(res.statusCode).toBe(200);
+    });
   });
 });

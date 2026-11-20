@@ -87,10 +87,24 @@ function isLocalLegacyHost(hostname: string): boolean {
   return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
 }
 
+export const HEALTH_PROBE_PATH = '/api/health';
+
 /**
- * Clasifica el host en raíz, legado FiestaPay, sitio de grupo o inválido.
- * En desarrollo y pruebas, host ausente o local equivale al legado para no romper el harness.
- * En producción, host ausente es inválido.
+ * D-1: salta el corte por host para el sondeo operativo del contenedor (`deploy/compose.yml`).
+ * Recibe método HTTP y ruta sin query; devuelve true solo en GET/HEAD de `/api/health`.
+ */
+export function isHealthProbeExempt(method: string, pathOnly: string): boolean {
+  const upper = method.toUpperCase();
+  if (upper !== 'GET' && upper !== 'HEAD') return false;
+  return pathOnly === HEALTH_PROBE_PATH;
+}
+
+/**
+ * Clasifica el host en raíz, legado FiestaPay, sitio de grupo o inválido (D-2).
+ * Recibe el valor crudo de la cabecera `Host` (puede traer puerto) y el entorno de la app.
+ * Devuelve `HostClassification` con `kind`, `hostname` normalizado y `slug` si aplica.
+ * En desarrollo y pruebas, host ausente o local equivale al legado para no romper el harness;
+ * en producción, localhost/127.0.0.1 no son legado (evita abrir el legado a cualquier Host local).
  */
 export function classifyHost(rawHost: string | undefined, options: ClassifyHostOptions): HostClassification {
   const normalized = normalizeHostHeader(rawHost);
@@ -129,8 +143,10 @@ export function classifyHost(rawHost: string | undefined, options: ClassifyHostO
 }
 
 /**
- * Indica si esta etapa debe enrutar peticiones al API en este host.
- * Los sitios de grupo aún no tienen fila en base: responden 404 (SP-3 abrirá los existentes).
+ * Decide si las rutas normales del API deben atenderse en este host (D-2).
+ * Recibe la clasificación ya calculada; devuelve true solo para raíz y legado en SP-2.
+ * Los sitios de grupo devuelven false hasta SP-3; los inválidos siempre false.
+ * No aplica al sondeo de salud: ver `isHealthProbeExempt` (D-1).
  */
 export function isHostRoutable(classification: HostClassification): boolean {
   if (classification.kind === 'invalid') return false;
@@ -139,8 +155,10 @@ export function isHostRoutable(classification: HostClassification): boolean {
 }
 
 /**
- * Lista de orígenes permitidos para mutaciones según el host clasificado.
- * El legado conserva la lista exacta del servidor (ALLOWED_ORIGINS + PUBLIC_ORIGIN + dev).
+ * Arma la lista exacta de orígenes del navegador permitidos en mutaciones para ese host (D-2).
+ * Recibe la clasificación del request y la lista legada de configuración (`allowedOrigins`).
+ * Devuelve un arreglo de URLs de origen: en legado repite la lista del servidor; en raíz/sitio
+ * solo el origen HTTPS del propio host público.
  */
 export function allowedOriginsForHost(
   classification: HostClassification,
@@ -170,7 +188,11 @@ export function isOriginAllowedForHost(
   return isAllowedOrigin({ ...input, allowed });
 }
 
-/** Webhook PayPal solo en el host legado; firma servidor-a-servidor, sin Origin de navegador. */
+/**
+ * Indica si este host puede registrar el webhook firmado de PayPal (D-2).
+ * Recibe la clasificación del request; devuelve true solo cuando `kind === 'legacy'`.
+ * Firma servidor-a-servidor, sin Origin de navegador; en raíz o sitio responde 404 en esa ruta.
+ */
 export function isPayPalWebhookHost(classification: HostClassification): boolean {
   return classification.kind === 'legacy';
 }
