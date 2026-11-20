@@ -200,6 +200,10 @@ export const SERVER_ERROR_EN: Readonly<Record<string, string>> = {
     'You already have an active voice session. Wait for it to end or press Stop.',
   'Has iniciado demasiadas sesiones de voz. Espera un minuto antes de intentarlo otra vez.':
     'You started too many voice sessions. Wait a minute before trying again.',
+  'Campo "displayName": se esperaba minLength 1 (esquema esquemas/sitio.schema.json)':
+    'Field "displayName": expected minLength 1 (schema esquemas/sitio.schema.json).',
+  'Se requiere consentimiento': 'Consent is required.',
+  'Datos inválidos (esquema esquemas/sitio.schema.json)': 'Invalid data (schema esquemas/sitio.schema.json).',
   'Se alcanzó el límite diario de voz; continúa por texto.': 'The daily voice limit was reached. Continue by text.',
   'Sesión de voz no encontrada': 'We could not find that voice session.',
   'No se pudo iniciar la voz. Continúa por texto': 'Voice could not start. Continue by text.',
@@ -251,6 +255,16 @@ export interface ServerErrorPattern {
 }
 
 export const SERVER_ERROR_PATTERNS_EN: readonly ServerErrorPattern[] = [
+  {
+    pattern:
+      /^Color "([^"]+)" sobre "([^"]+)" no alcanza contraste (\d+(?:\.\d+)?):1 \(tiene (\d+(?:\.\d+)?):1; esquema (.+)\)$/,
+    to: (match) =>
+      `Color "${match[1]}" on "${match[2]}" does not meet contrast ${match[3]}:1 (got ${match[4]}:1; schema ${match[5]}).`,
+  },
+  {
+    pattern: /^Campo "([^"]*)": se esperaba (.+) \(esquema (.+)\)$/,
+    to: (match) => `Field "${match[1]}": expected ${match[2]} (schema ${match[3]}).`,
+  },
   {
     // Seat counts change per request; the field path may be prefixed by parseOr400.
     pattern: /^(?:[\w.]+: )?Cupo insuficiente: quedan (\d+) plazas y pediste (\d+)$/,

@@ -21,6 +21,7 @@ const MAPA_CONTENIDO_ESQUEMA = {
   'tipos-evento.json': 'tipos-evento.schema.json',
   'paginas.json': 'paginas.schema.json',
   'preguntas.json': 'preguntas.schema.json',
+  'sitio.json': 'sitio-ui.schema.json',
 };
 
 /**

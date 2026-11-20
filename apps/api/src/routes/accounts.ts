@@ -14,11 +14,7 @@ import {
   requireVerifiedUser,
   verifyAccountEmail,
 } from '../domain/accounts.js';
-import {
-  readPrivateEventForSiteAdmin,
-  readTenantSettingsForAdmin,
-  updateTenantSettingsDisplayName,
-} from '../domain/access.js';
+import { readPrivateEventForSiteAdmin } from '../domain/access.js';
 import type { RouteDeps } from './deps.js';
 
 function clientIp(req: FastifyRequest): string {
@@ -87,22 +83,6 @@ export async function registerAccountRoutes(app: FastifyInstance, deps: RouteDep
   app.post('/accounts/logout', async (req) => logoutAccount(pool, config, req));
 
   app.get('/accounts/me', async (req) => currentAccount(pool, config, req));
-
-  app.get('/site/settings', async (req, reply) => {
-    const hostSlug = assertSiteHost(req);
-    const { user } = await requireVerifiedUser(pool, config, req, reply);
-    return readTenantSettingsForAdmin(pool, hostSlug, user.id);
-  });
-
-  app.put('/site/settings', async (req, reply) => {
-    const hostSlug = assertSiteHost(req);
-    const { user } = await requireVerifiedUser(pool, config, req, reply);
-    const body = req.body;
-    if (!body || typeof body !== 'object' || !('displayName' in body)) throw notFound('Ruta no encontrada');
-    const displayName = (body as { displayName?: unknown }).displayName;
-    if (typeof displayName !== 'string') throw badRequest('Datos invalidos');
-    return updateTenantSettingsDisplayName(pool, hostSlug, user.id, displayName);
-  });
 
   app.get('/site/events/:slug', async (req, reply) => {
     const hostSlug = assertSiteHost(req);

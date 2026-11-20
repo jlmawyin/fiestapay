@@ -444,6 +444,7 @@ export const api = {
     audience?: VoiceAudience;
     provider?: VoiceProvider;
   }> {
+    // SP5-D-5: la voz en subdominio llega en SP-10; el cliente legado sigue en `/api/voice/public/token`.
     return request('/api/voice/public/token', {
       method: 'POST',
       body: JSON.stringify({ consent: true, context }),

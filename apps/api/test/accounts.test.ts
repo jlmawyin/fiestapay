@@ -321,11 +321,26 @@ describe('cuentas Somos Panas (SP-4)', () => {
     });
     expect(blockedGet.statusCode).toBe(403);
 
+    const settingsPayload = {
+      displayName: 'Intruso',
+      tagline: '',
+      about: '',
+      colores: {
+        cloudwhite: '#F7FAFC',
+        ink: '#12263A',
+        inkMuted: '#4A5D73',
+        blue: '#125FE6',
+        teal: '#0B8075',
+        yellow: '#FFC85A',
+        coral: '#E85D4A',
+      },
+      modulos: { reuniones: true, eventos: true, recaudacion: true, asistente: true },
+    };
     const blockedPut = await injectJson(app, 'PUT', '/api/site/settings', {
       host: `${slugB}.somospanas.com`,
       origin: `https://${slugB}.somospanas.com`,
       cookie,
-      payload: { displayName: 'Intruso' },
+      payload: settingsPayload,
     });
     expect(blockedPut.statusCode).toBe(403);
 
@@ -344,7 +359,7 @@ describe('cuentas Somos Panas (SP-4)', () => {
       host: `${slugA}.somospanas.com`,
       origin: `https://${slugA}.somospanas.com`,
       cookie: memberCookie,
-      payload: { displayName: 'Miembro' },
+      payload: { ...settingsPayload, displayName: 'Miembro' },
     });
     expect(memberPut.statusCode).toBe(403);
 

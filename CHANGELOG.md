@@ -2,6 +2,30 @@
 
 Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, pedido, archivos tocados y pruebas ejecutadas.
 
+## 2026-11-20 — SP-5 · Configuración editable del sitio
+
+**Pedido:** ENCARGO SP-5 — el admin del subdominio guarda nombre, textos, colores y módulos validados con Ajv y contraste en servidor; lectura pública en `/api/site/profile`; voz pública del sitio en `/api/site/voice/public/token` responde 404 con `asistente` apagado; legado ignora el módulo; pantalla de ajustes y tema CSS por sitio en la web.
+
+**Archivos:** `apps/api/src/domain/tenant-settings.ts`, `apps/api/src/routes/settings.ts`, `apps/api/src/routes/accounts.ts`, `apps/api/src/domain/access.ts`, `apps/api/src/app.ts`, `apps/web/src/App.tsx`, `apps/web/src/views/SiteHomeView.tsx`, `apps/web/src/views/SiteSettingsView.tsx`, `apps/web/src/lib/site-*.ts`, `contenido/sitio.json`, `esquemas/sitio-ui.schema.json`, `scripts/lib/validar-contenido.mjs`, `apps/api/test/tenant-settings.test.ts`, `apps/api/test/accounts.test.ts`, `apps/web/src/__tests__/site-settings-view.test.tsx`, `AGENTS.md`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/tenant-settings.test.ts` (Postgres 16 como CI).
+
+### 2026-11-20 — SP-5 · Correcciones verificador (intento 2)
+
+**Pedido:** SP5-D-1 tokens `--sp-color-*` visibles en sitio; SP5-D-2 comentarios entrada/salida; SP5-D-3 `displayName` solo espacios; SP5-D-4 `additionalProperties` en errores Ajv; SP5-D-5 voz sitio 404 hasta SP-10 sin orbe FiestaPay; SP5-D-6 textos en `contenido/sitio.json`; SP5-D-7 pruebas orbe/recaudación; contraste ink sobre yellow.
+
+**Archivos:** `tenant-settings.ts`, `settings.ts`, `site-theme.ts`, `SiteHomeView.tsx`, `SiteSettingsView.tsx`, `App.tsx`, `client.ts`, `contenido/sitio.json`, pruebas web/api, `CHANGELOG.md`, `AGENTS.md`.
+
+**Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/tenant-settings.test.ts apps/api/test/accounts.test.ts` (Postgres 16 como CI).
+
+### 2026-11-20 — SP-5 · Correcciones verificador (intento 3)
+
+**Pedido:** SP5-D-7 — `LEGACY_ORB_MODES` y `shouldRenderLegacyOrb` con pruebas que fallan al quitar la guarda de host sitio o al incluir `site-home`; perfil de prueba con `asistente: true`.
+
+**Archivos:** `apps/web/src/lib/legacy-orb.ts`, `App.tsx`, `apps/web/src/__tests__/app-site-orb.test.tsx`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/tenant-settings.test.ts apps/api/test/accounts.test.ts apps/web/src/__tests__/app-site-orb.test.tsx` (Postgres 16 como CI).
+
 ## 2026-11-20 — SP-8 · Proveedor de pago intercambiable
 
 **Pedido:** ENCARGO SP-8 — sitios nuevos con `none` (503 al crear orden, sin filas en `orders`, sin `funding_status` open); legado PayPal sandbox intacto; interfaz sin botón PayPal en `none`; `GET /api/demo/buyer` solo en host legado.
@@ -68,4 +92,4 @@ Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, 
 
 **Archivos:** `estilos/tokens.css` (alturas de viewport), `scripts/somospanas/tokens.test.ts`, `scripts/somospanas/fixtures/tokens-muestra.html`, `scripts/verificar.mjs`, `scripts/somospanas/tipos-evento.test.ts`, `scripts/lib/validar-contenido.mjs`, `AGENTS.md`, `.github/workflows/ci.yml` (`playwright install` + `npm run verificar`), `package.json` (dependencia `playwright`, sin `ajv-formats`).
 
-**Pruebas:** `npm run verificar`, `npm run check` (Postgres 16).
+**Pruebas:** `npm run verificar`.
