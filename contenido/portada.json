@@ -1,0 +1,108 @@
+{
+  "barra": {
+    "marca": { "es": "somos panas", "en": "somos panas" },
+    "enlaces": [
+      { "id": "como-funciona", "es": "Cómo funciona", "en": "How it works" },
+      { "id": "eventos-publicos", "es": "Eventos públicos", "en": "Public events" },
+      { "id": "donaciones", "es": "Donaciones", "en": "Donations" },
+      { "id": "tutorial", "es": "Tutorial guiado", "en": "Guided tutorial" },
+      { "id": "iniciar-sesion", "es": "Iniciar sesión", "en": "Sign in" }
+    ],
+    "botonCrearEspacio": { "es": "Crear espacio", "en": "Create space" }
+  },
+  "hero": {
+    "ojo": { "es": "SOMOSPANAS.COM", "en": "SOMOSPANAS.COM" },
+    "titulo": {
+      "es": "Un espacio para cada grupo de panas",
+      "en": "A space for every group of friends"
+    },
+    "texto": {
+      "es": "Organiza reuniones, invita amigos y junta fondos con las cuentas claras. El tutorial te guía por voz o por texto. Desde aquí ves los eventos que su dueño marcó públicos y las recaudaciones abiertas.",
+      "en": "Organize meetups, invite friends, and pool funds with clear accounts. The tutorial guides you by voice or text. From here you see events marked public by their owner and open fundraisers."
+    },
+    "botonTutorial": {
+      "es": "Ver tutorial guiado (voz y texto)",
+      "en": "Watch guided tutorial (voice and text)"
+    },
+    "botonCrearEspacio": {
+      "es": "Crear un nuevo espacio",
+      "en": "Create a new space"
+    },
+    "enlaceRegistro": { "es": "Registrarse", "en": "Sign up" },
+    "enlaceIniciarSesion": { "es": "Iniciar sesión", "en": "Sign in" },
+    "notaSubdominio": {
+      "es": "El espacio se crea desde la raíz, en un subdominio de somospanas.com.",
+      "en": "The space is created from the root site, on a somospanas.com subdomain."
+    }
+  },
+  "fotoAmbiente": {
+    "pie": {
+      "es": "Las fotos de la portada son de muestra.",
+      "en": "Homepage photos are sample illustrations."
+    }
+  },
+  "compositorSubdominio": {
+    "prefijo": "https://",
+    "campoPlaceholder": { "es": "tu-grupo", "en": "your-group" },
+    "sufijo": ".somospanas.com",
+    "boton": { "es": "Crear un nuevo espacio", "en": "Create a new space" }
+  },
+  "eventosPublicos": {
+    "aviso": {
+      "es": "Solo entran los eventos que su dueño marcó públicos. Las dos tarjetas siguientes son de muestra.",
+      "en": "Only events marked public by their owner are listed. The two cards below are samples."
+    },
+    "ejemplos": [
+      {
+        "id": "ejemplo-terraza",
+        "titulo": { "es": "Los jueves en la terraza", "en": "Thursdays on the terrace" },
+        "badgeEjemplo": { "es": "Ejemplo", "en": "Sample" },
+        "badgeEvento": { "es": "Evento público", "en": "Public event" }
+      },
+      {
+        "id": "ejemplo-casa",
+        "titulo": { "es": "Noche de panas en casa", "en": "Friends' night at home" },
+        "badgeEjemplo": { "es": "Ejemplo", "en": "Sample" },
+        "badgeEvento": { "es": "Evento público", "en": "Public event" }
+      }
+    ]
+  },
+  "donaciones": {
+    "tituloSeccion": {
+      "es": "Donaciones y recaudaciones abiertas",
+      "en": "Donations and open fundraisers"
+    },
+    "aviso": {
+      "es": "Las barras de las tarjetas de muestra no son un avance real ni una cifra.",
+      "en": "Sample card progress bars are not real progress or amounts."
+    },
+    "ejemplos": [
+      {
+        "id": "ejemplo-olla",
+        "titulo": { "es": "Olla común después del partido", "en": "Potluck after the match" },
+        "leyendaBarra": {
+          "es": "Barra de ejemplo · sin cifra real",
+          "en": "Sample bar · no real amount"
+        }
+      },
+      {
+        "id": "ejemplo-viaje",
+        "titulo": { "es": "Fondo para el viaje del grupo", "en": "Group trip fund" },
+        "leyendaBarra": {
+          "es": "Barra de ejemplo · sin cifra real",
+          "en": "Sample bar · no real amount"
+        }
+      }
+    ],
+    "leyendaReal": {
+      "es": "La suma la anotó el grupo; no es un cobro verificado por un procesador.",
+      "en": "The total was noted by the group; it is not a processor-verified charge."
+    }
+  },
+  "pie": {
+    "fraseFotos": {
+      "es": "Las fotos de la portada son de muestra.",
+      "en": "Homepage photos are sample illustrations."
+    }
+  }
+}
