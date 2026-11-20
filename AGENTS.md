@@ -49,6 +49,7 @@ Método completo: [docs/somospanas/METODO.md](docs/somospanas/METODO.md). Cada c
 
 | Quiero cambiar… | Archivo | Prueba |
 | --- | --- | --- |
+| Clasificación raíz / legado / sitio por `Host` | `apps/api/src/lib/host.ts` + hook en `apps/api/src/app.ts` | `apps/api/test/host.test.ts` |
 | Texto de la portada (hero, barra, ejemplos C2) | `contenido/portada.json` | `scripts/somospanas/portada.test.ts` |
 | Pasos del tutorial | `contenido/tutorial.json` | `scripts/somospanas/tutorial.test.ts` |
 | Tipos de evento (catálogo / formulario) | `contenido/tipos-evento.json` + `esquemas/evento.schema.json` | `scripts/somospanas/tipos-evento.test.ts` |
