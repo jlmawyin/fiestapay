@@ -444,7 +444,10 @@ export const api = {
     audience?: VoiceAudience;
     provider?: VoiceProvider;
   }> {
-    return request('/api/voice/public/token', {
+    const site = typeof window !== 'undefined' && window.location.hostname.endsWith('.somospanas.com')
+      && !['somospanas.com', 'www.somospanas.com', 'fiestapay.somospanas.com'].includes(window.location.hostname.toLowerCase());
+    const path = site ? '/api/site/voice/public/token' : '/api/voice/public/token';
+    return request(path, {
       method: 'POST',
       body: JSON.stringify({ consent: true, context }),
     });

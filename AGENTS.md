@@ -52,13 +52,15 @@ Método completo: [docs/somospanas/METODO.md](docs/somospanas/METODO.md). Cada c
 | Sitios, cuentas, visibilidad y tenant legado en la base | `apps/api/src/db/migrations/0013_tenants.sql` + alta en `apps/api/src/domain/events.ts` | `apps/api/test/tenants-migration.test.ts` |
 | Clasificación raíz / legado / sitio por `Host` (`legacyTenantId`) | `apps/api/src/lib/host.ts` + hook en `apps/api/src/app.ts` | `apps/api/test/host.test.ts` |
 | Registro, sesión, verificación de correo y roles por sitio | `apps/api/src/domain/accounts.ts`, `apps/api/src/routes/accounts.ts`, membresías en `apps/api/src/domain/access.ts`, vistas en `apps/web/src/views/Account*.tsx`, textos en `contenido/cuentas.json` | `apps/api/test/accounts.test.ts`, `apps/web/src/__tests__/accounts-form.test.tsx` |
+| Configuración del sitio (nombre, colores, módulos) | `apps/api/src/domain/tenant-settings.ts`, `apps/api/src/routes/settings.ts`, `esquemas/sitio.schema.json`, pantallas `apps/web/src/views/Site*.tsx`, textos en `contenido/sitio.json`, tokens base en `estilos/tokens.css` | `apps/api/test/tenant-settings.test.ts`, `apps/web/src/__tests__/site-settings-view.test.tsx` |
 | Texto de la portada (hero, barra, ejemplos C2) | `contenido/portada.json` | `scripts/somospanas/portada.test.ts` |
 | Pasos del tutorial | `contenido/tutorial.json` | `scripts/somospanas/tutorial.test.ts` |
 | Tipos de evento (catálogo / formulario) | `contenido/tipos-evento.json` + `esquemas/evento.schema.json` | `scripts/somospanas/tipos-evento.test.ts` |
 | Colores, tipografía y espaciados | `estilos/tokens.css` | `scripts/somospanas/tokens.test.ts` (tokens + estilos computados 390×844 y 1440×960 vía Playwright; la portada C2 en navegador llega en **SP-6**) |
 | Orden de secciones en la portada | `contenido/paginas.json` | `scripts/somospanas/portada.test.ts` |
 | Preguntas frecuentes | `contenido/preguntas.json` | validación en `npm run verificar` |
-| Configuración de sitio (futuro admin) | `esquemas/sitio.schema.json` | validación de esquema en `npm run verificar` |
+| Validación del JSON guardado por el admin del sitio | `esquemas/sitio.schema.json` | `apps/api/test/tenant-settings.test.ts` y `npm run verificar` |
+| Textos de la pantalla de ajustes del sitio | `contenido/sitio.json` | `apps/web/src/__tests__/site-settings-view.test.tsx` |
 | Qué bloque usa cada sección | `bloques/LEEME.md` | — |
 
 Historial de pedidos: `CHANGELOG.md`.

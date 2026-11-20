@@ -2,6 +2,14 @@
 
 Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, pedido, archivos tocados y pruebas ejecutadas.
 
+## 2026-11-20 — SP-5 · Configuración editable del sitio
+
+**Pedido:** ENCARGO SP-5 — el admin del subdominio guarda nombre, textos, colores y módulos validados con Ajv y contraste en servidor; lectura pública en `/api/site/profile`; voz pública del sitio en `/api/site/voice/public/token` responde 404 con `asistente` apagado; legado ignora el módulo; pantalla de ajustes y tema CSS por sitio en la web.
+
+**Archivos:** `apps/api/src/domain/tenant-settings.ts`, `apps/api/src/routes/settings.ts`, `apps/api/src/routes/accounts.ts`, `apps/api/src/domain/access.ts`, `apps/api/src/app.ts`, `apps/web/src/App.tsx`, `apps/web/src/views/SiteHomeView.tsx`, `apps/web/src/views/SiteSettingsView.tsx`, `apps/web/src/lib/site-*.ts`, `contenido/sitio.json`, `esquemas/sitio-ui.schema.json`, `scripts/lib/validar-contenido.mjs`, `apps/api/test/tenant-settings.test.ts`, `apps/api/test/accounts.test.ts`, `apps/web/src/__tests__/site-settings-view.test.tsx`, `AGENTS.md`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/tenant-settings.test.ts` (Postgres 16 como CI).
+
 ## 2026-11-20 — SP-4 · Cuentas y roles
 
 **Pedido:** ENCARGO SP-4 — registro e inicio de sesión en la raíz (scrypt, HMAC de correo, verificación por token), cookie HttpOnly sin `Domain`, aislamiento admin entre sitios, legado con `X-Fiesta-Admin-Key` intacto; migración `0014_account_email_verify.sql`; trigger `events_fill_legacy_tenant_id` sin retirar (inserts de prueba aún omiten `tenant_id`).

@@ -5,7 +5,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { FastifyRequest } from 'fastify';
 import type { Pool, PoolClient } from '../db/pool.js';
-import { badRequest, forbidden, gone, notFound } from '../errors.js';
+import { forbidden, gone, notFound } from '../errors.js';
 import { sha256 } from '../lib/ids.js';
 import type { EventRow, Queryable } from './read.js';
 
@@ -125,59 +125,6 @@ export async function membershipRoleForUser(
 export async function assertTenantAdmin(db: Queryable, tenantId: string, userId: string): Promise<void> {
   const role = await membershipRoleForUser(db, tenantId, userId);
   if (role !== 'admin') throw forbidden('No autorizado');
-}
-
-interface TenantSettingsRow {
-  tenant_id: string;
-  display_name: string;
-  tagline: string;
-}
-
-/**
- * Lee la configuración visible del sitio actual (solo admins del mismo tenant).
- * Entrada: slug del host y usuario verificado.
- * Salida: campos de `tenant_settings`.
- */
-export async function readTenantSettingsForAdmin(
-  db: Queryable,
-  hostSlug: string,
-  userId: string,
-): Promise<TenantSettingsRow> {
-  const tenantId = await tenantIdForSlug(db, hostSlug);
-  if (!tenantId) throw notFound('Ruta no encontrada');
-  await assertTenantAdmin(db, tenantId, userId);
-  const { rows } = await db.query<TenantSettingsRow>(
-    `SELECT tenant_id, display_name, tagline FROM tenant_settings WHERE tenant_id = $1`,
-    [tenantId],
-  );
-  const row = rows[0];
-  if (!row) throw notFound('Ruta no encontrada');
-  return row;
-}
-
-/**
- * Actualiza un campo editable de configuración en el propio sitio (admin).
- * Entrada: slug del host, usuario y nuevo nombre visible.
- * Salida: fila actualizada.
- */
-export async function updateTenantSettingsDisplayName(
-  db: Queryable,
-  hostSlug: string,
-  userId: string,
-  displayName: string,
-): Promise<TenantSettingsRow> {
-  const tenantId = await tenantIdForSlug(db, hostSlug);
-  if (!tenantId) throw notFound('Ruta no encontrada');
-  await assertTenantAdmin(db, tenantId, userId);
-  const trimmed = displayName.trim();
-  if (trimmed.length < 1 || trimmed.length > 120) throw badRequest('Datos invalidos');
-  const { rows } = await db.query<TenantSettingsRow>(
-    `UPDATE tenant_settings SET display_name = $2, updated_at = now()
-       WHERE tenant_id = $1
-       RETURNING tenant_id, display_name, tagline`,
-    [tenantId, trimmed],
-  );
-  return rows[0]!;
 }
 
 /**
