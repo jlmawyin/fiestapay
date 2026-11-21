@@ -2,6 +2,38 @@
 
 Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, pedido, archivos tocados y pruebas ejecutadas.
 
+## 2026-11-20 — SP-7 · Plantilla y clonación
+
+**Pedido:** ENCARGO SP-7 — plantilla idempotente `muestra`, `POST /api/sites` en la raíz (sesión verificada, límite por usuario/IP), clonación de colores/módulos/textos sin gente ni dinero; handoff de un solo uso en el subdominio; eventos privados de sitios no legados ocultan cuerpo en raíz/legado salvo admin del sitio; subdominio `muestra` enrutable si existe fila (sigue reservado al crear).
+
+**Archivos (intento 1):** `apps/api/src/domain/sites.ts`, `apps/api/src/routes/sites.ts`, `apps/api/src/domain/access.ts`, `apps/api/src/routes/core.ts`, `apps/api/src/app.ts`, `apps/api/src/lib/host.ts`, `apps/api/src/db/migrations/0015_site_create_limits.sql`, `apps/api/test/clone-site.test.ts`, `apps/api/test/payment-provider.test.ts`, `packages/shared/src/server-errors.ts`, `AGENTS.md`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/clone-site.test.ts apps/api/test/accounts.test.ts` (Postgres 16 como CI).
+
+### 2026-11-20 — SP-7 · Corrección verificador SP7-D-1 (intento 2)
+
+**Pedido:** SP7-D-1 — cerrojo de eventos private de grupo centralizado en `findEventBySlug`/`getEventBySlug` con `EventPortalGate` en join, rsvp, quote, orders, dashboard, chat, moderación, recuperación, voz, recordatorios y organizador; R-1 comentario/caso cookie sin Domain; R-2 `muestra` con `discoverable=false`; R-4 TODO `fundingForNewEvent` en altas futuras de eventos por sitio.
+
+**Archivos:** `apps/api/src/domain/read.ts`, `apps/api/src/domain/access.ts`, `apps/api/src/domain/events.ts`, `apps/api/src/domain/rsvp.ts`, `apps/api/src/domain/quotes.ts`, `apps/api/src/domain/orders.ts`, `apps/api/src/domain/dashboard.ts`, `apps/api/src/domain/moderation.ts`, `apps/api/src/domain/recovery.ts`, `apps/api/src/ai/chat.ts`, `apps/api/src/routes/core.ts`, `apps/api/src/routes/payments.ts`, `apps/api/src/routes/chat.ts`, `apps/api/src/routes/moderation.ts`, `apps/api/src/routes/recovery.ts`, `apps/api/src/routes/voice.ts`, `apps/api/src/routes/reminders.ts`, `apps/api/src/routes/organizer-assistant.ts`, `apps/api/src/domain/sites.ts`, `apps/api/test/clone-site.test.ts`, `apps/api/test/api.test.ts`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/clone-site.test.ts apps/api/test/accounts.test.ts apps/api/test/payment-provider.test.ts` (Postgres 16 como CI).
+
+### 2026-11-21 — SP-7 · Corrección verificador SP7-D-2 (intento 3)
+
+**Pedido:** SP7-D-2 anti-enumeración en recuperación; `listOwnedEvents` con cerrojo en raíz/legado; R-3 y comentarios (sites, read, insertEvent).
+
+**Archivos:** `apps/api/src/domain/access.ts`, `apps/api/src/domain/recovery.ts`, `apps/api/src/domain/events.ts`, `apps/api/src/domain/read.ts`, `apps/api/src/domain/sites.ts`, `apps/api/src/routes/core.ts`, `apps/api/test/recovery.test.ts`, `apps/api/test/clone-site.test.ts`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/clone-site.test.ts apps/api/test/accounts.test.ts apps/api/test/payment-provider.test.ts apps/api/test/recovery.test.ts` (Postgres 16 como CI).
+
+### 2026-11-21 — SP-7 · Rescate SP7-D-3
+
+**Pedido:** SP7-D-3 — `setRecoveryContact` recibía el cerrojo como `_gate` y no lo usaba. Con SMTP encendido y correo válido, un evento private de un tenant group en raíz o legado llegaba a `assertAdminKey` (403, o 200 con la clave: fila, correo y `charge`) en vez del 404 «Evento no encontrado» de un slug inexistente. Tras validar SMTP y el correo, si `groupPrivateEventHiddenOnPortal` es verdadero se lanza ese 404 antes de `lockBySlug`, sin charge, sin filas y sin correo. El admin del propio sitio sigue. Revisión de `_gate` y de parámetros `gate` en dominios por slug: el único ignorado era este.
+
+**Archivos:** `apps/api/src/domain/recovery.ts`, `apps/api/src/domain/access.ts` (comentario de la función booleana), `apps/api/test/recovery.test.ts`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run verificar`; `npx vitest run apps/api/test/clone-site.test.ts apps/api/test/accounts.test.ts apps/api/test/payment-provider.test.ts apps/api/test/recovery.test.ts` (Postgres 16, `DATABASE_URL` como CI).
+
 ## 2026-11-20 — SP-5 · Configuración editable del sitio
 
 **Pedido:** ENCARGO SP-5 — el admin del subdominio guarda nombre, textos, colores y módulos validados con Ajv y contraste en servidor; lectura pública en `/api/site/profile`; voz pública del sitio en `/api/site/voice/public/token` responde 404 con `asistente` apagado; legado ignora el módulo; pantalla de ajustes y tema CSS por sitio en la web.

@@ -2,14 +2,14 @@ import type { ReminderDraftResult } from '@fiestapay/shared';
 import type { FastifyInstance } from 'fastify';
 import { draftReminders, type ReminderGuest } from '../ai/reminder-draft.js';
 import { publicEventPath } from '../ai/assistant-policy.js';
-import { assertAdminKey, presentedAdminKey } from '../domain/access.js';
+import { assertAdminKey, presentedAdminKey, resolveEventPortalGate } from '../domain/access.js';
 import { loadGuestBalances } from '../domain/dashboard.js';
 import { assertActive } from '../domain/events.js';
 import { getEventBySlug } from '../domain/read.js';
 import { concealExpired } from '../domain/retention.js';
 import { requestLocale } from '../lib/locale.js';
 import { parseOr400, reminderDraftSchema, slugParamSchema } from '../lib/schemas.js';
-import { ensureSession } from '../lib/session.js';
+import { ensureSession, readSession } from '../lib/session.js';
 import type { RouteDeps } from './deps.js';
 
 export async function registerReminderRoutes(app: FastifyInstance, deps: RouteDeps): Promise<void> {
@@ -26,7 +26,9 @@ export async function registerReminderRoutes(app: FastifyInstance, deps: RouteDe
     async (req, reply): Promise<ReminderDraftResult> => {
       const { slug } = parseOr400(slugParamSchema, req.params);
       const { tone } = parseOr400(reminderDraftSchema, req.body);
-      const event = await getEventBySlug(pool, slug);
+      const sessionForGate = await readSession(pool, config, req);
+      const gate = await resolveEventPortalGate(pool, req, sessionForGate?.id ?? null);
+      const event = await getEventBySlug(pool, slug, gate);
       assertAdminKey(event, presentedAdminKey(req));
       await concealExpired(pool, event);
       assertActive(event);

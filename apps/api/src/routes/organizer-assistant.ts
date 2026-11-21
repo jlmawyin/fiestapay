@@ -15,7 +15,7 @@ import {
   reserveVoiceLease,
   touchVoiceLease,
 } from '../ai/voice-lease.js';
-import { presentedAdminKey } from '../domain/access.js';
+import { presentedAdminKey, resolveEventPortalGate } from '../domain/access.js';
 import { getEventBySlug, lockEvent } from '../domain/read.js';
 import { concealExpired } from '../domain/retention.js';
 import { isPastRetention } from '../domain/retention.js';
@@ -92,11 +92,15 @@ function goneText(locale: Locale): string {
 
 async function authorizeOrganizer(
   pool: RouteDeps['pool'],
+  config: RouteDeps['config'],
+  req: Parameters<typeof resolveEventPortalGate>[1],
   slug: string,
   presentedKey: string | null,
   locale: Locale = 'es',
 ) {
-  const event = await getEventBySlug(pool, slug);
+  const session = await readSession(pool, config, req);
+  const gate = await resolveEventPortalGate(pool, req, session?.id ?? null);
+  const event = await getEventBySlug(pool, slug, gate);
   try {
     assertAdminKey(event, presentedKey);
   } catch (err) {
@@ -123,7 +127,7 @@ export async function registerOrganizerAssistantRoutes(app: FastifyInstance, dep
       const { message } = parseOr400(chatSchema, req.body);
       const presentedKey = presentedAdminKey(req);
       const locale = requestLocale(req);
-      await authorizeOrganizer(pool, slug, presentedKey, locale);
+      await authorizeOrganizer(pool, config, req, slug, presentedKey, locale);
       const session = await ensureSession(pool, config, req, reply);
       return chatWithOrganizer(pool, config, session.id, slug, message, presentedKey, {
         respond: deps.respond,
@@ -137,7 +141,7 @@ export async function registerOrganizerAssistantRoutes(app: FastifyInstance, dep
     const query = parseOr400(transcriptQuerySchema, req.query);
     const presentedKey = presentedAdminKey(req);
     const locale = requestLocale(req);
-    const event = await authorizeOrganizer(pool, slug, presentedKey, locale);
+    const event = await authorizeOrganizer(pool, config, req, slug, presentedKey, locale);
     const session = await readSession(pool, config, req);
     const page = await listOrganizerTranscript(pool, slug, session?.id ?? null, presentedKey, query.limit, query.before, locale);
     return { ...page, greeting: page.greeting || organizerGreeting(event, locale) };
@@ -151,7 +155,7 @@ export async function registerOrganizerAssistantRoutes(app: FastifyInstance, dep
       const { slug } = parseOr400(slugParamSchema, req.params);
       const presentedKey = presentedAdminKey(req);
       const locale = requestLocale(req);
-      const event = await authorizeOrganizer(pool, slug, presentedKey, locale);
+      const event = await authorizeOrganizer(pool, config, req, slug, presentedKey, locale);
       const session = await ensureSession(pool, config, req, reply);
       const voice = config.voice;
       if (!voice.enabled) throw unavailable(locale === 'en' ? 'Voice is not enabled' : 'La voz no está habilitada');
@@ -230,7 +234,7 @@ export async function registerOrganizerAssistantRoutes(app: FastifyInstance, dep
       );
       const presentedKey = presentedAdminKey(req);
       const locale = requestLocale(req);
-      const event = await authorizeOrganizer(pool, slug, presentedKey, locale);
+      const event = await authorizeOrganizer(pool, config, req, slug, presentedKey, locale);
       const session = await requireSession(pool, config, req);
       await requireVoiceLease(pool, {
         leaseId: body.leaseId,

@@ -11,7 +11,7 @@ import { openaiTextOf } from '../ai/openai.js';
 import { withTransaction, type Pool, type PoolClient } from '../db/pool.js';
 import { HttpError, conflict, notFound } from '../errors.js';
 import { newId } from '../lib/ids.js';
-import { assertAdminKey, assertPrivateAccess } from './access.js';
+import { assertAdminKey, assertPrivateAccess, type EventPortalGate } from './access.js';
 import { audit } from './audit.js';
 import {
   GUEST_COLUMNS,
@@ -64,8 +64,13 @@ interface ScopeRow {
   session_id?: string;
 }
 
-async function requireEvent(pool: Pool, slug: string, presentedKey: string | null): Promise<EventRow> {
-  const event = await findEventBySlug(pool, slug);
+async function requireEvent(
+  pool: Pool,
+  slug: string,
+  presentedKey: string | null,
+  gate?: EventPortalGate,
+): Promise<EventRow> {
+  const event = await findEventBySlug(pool, slug, gate);
   if (!event) throw notFound('Evento no encontrado');
   assertAdminKey(event, presentedKey);
   return event;
@@ -168,8 +173,9 @@ export async function listModerationGuests(
   pool: Pool,
   slug: string,
   presentedKey: string | null,
+  gate?: EventPortalGate,
 ): Promise<{ guests: ModerationGuest[] }> {
-  const event = await requireEvent(pool, slug, presentedKey);
+  const event = await requireEvent(pool, slug, presentedKey, gate);
   const { rows } = await pool.query<GuestRow>(
     `SELECT ${GUEST_COLUMNS} FROM guests WHERE event_id = $1 ORDER BY created_at ASC, id ASC`,
     [event.id],
@@ -184,8 +190,9 @@ export async function blockGuest(
   slug: string,
   guestId: string,
   presentedKey: string | null,
+  gate?: EventPortalGate,
 ): Promise<{ outcome: 'blocked'; guest: ModerationGuest; message: string }> {
-  const event = await requireEvent(pool, slug, presentedKey);
+  const event = await requireEvent(pool, slug, presentedKey, gate);
   return withTransaction(pool, async (client) => {
     await lockEvent(client, event.id);
     const guest = await lockGuestInEvent(client, event.id, guestId);
@@ -211,8 +218,9 @@ export async function unblockGuest(
   slug: string,
   guestId: string,
   presentedKey: string | null,
+  gate?: EventPortalGate,
 ): Promise<{ outcome: 'unblocked'; guest: ModerationGuest; message: string }> {
-  const event = await requireEvent(pool, slug, presentedKey);
+  const event = await requireEvent(pool, slug, presentedKey, gate);
   return withTransaction(pool, async (client) => {
     await lockEvent(client, event.id);
     const guest = await lockGuestInEvent(client, event.id, guestId);
@@ -245,8 +253,9 @@ export async function removeGuest(
   slug: string,
   guestId: string,
   presentedKey: string | null,
+  gate?: EventPortalGate,
 ): Promise<RemoveGuestResult> {
-  const event = await requireEvent(pool, slug, presentedKey);
+  const event = await requireEvent(pool, slug, presentedKey, gate);
   return withTransaction(pool, async (client) => {
     await lockEvent(client, event.id);
     const guest = await lockGuestInEvent(client, event.id, guestId);
@@ -326,8 +335,9 @@ export async function listConversations(
   pool: Pool,
   slug: string,
   presentedKey: string | null,
+  gate?: EventPortalGate,
 ): Promise<{ conversations: ModerationConversation[] }> {
-  const event = await requireEvent(pool, slug, presentedKey);
+  const event = await requireEvent(pool, slug, presentedKey, gate);
   const { rows } = await pool.query<{ public_id: string; guest_id: string | null; guest_name: string | null }>(
     `SELECT s.public_id, g.id AS guest_id, g.name AS guest_name
        FROM chat_scopes s
@@ -412,8 +422,9 @@ export async function listModerationMessages(
   conversationId: string,
   limit: number | undefined,
   before: string | undefined,
+  gate?: EventPortalGate,
 ): Promise<ModerationMessagePage> {
-  const event = await requireEvent(pool, slug, presentedKey);
+  const event = await requireEvent(pool, slug, presentedKey, gate);
   const scope = await pool.query<{ session_id: string }>(
     'SELECT session_id FROM chat_scopes WHERE public_id = $1 AND event_id = $2',
     [conversationId, event.id],
@@ -432,9 +443,10 @@ export async function listOwnTranscript(
   presentedKey: string | null,
   limit: number | undefined,
   before: string | undefined,
+  gate?: EventPortalGate,
 ): Promise<ChatTranscript> {
   if (!sessionId) return { messages: [] };
-  const event = await findEventBySlug(pool, slug);
+  const event = await findEventBySlug(pool, slug, gate);
   if (!event) throw notFound('Evento no encontrado');
   await assertPrivateAccess(pool, event, sessionId, presentedKey);
   const cap = pageLimit(limit);
@@ -447,8 +459,9 @@ export async function deleteChatMessage(
   slug: string,
   messageId: string,
   presentedKey: string | null,
+  gate?: EventPortalGate,
 ): Promise<{ ok: true; id: string; alreadyDeleted: boolean }> {
-  const event = await requireEvent(pool, slug, presentedKey);
+  const event = await requireEvent(pool, slug, presentedKey, gate);
   return withTransaction(pool, async (client) => {
     const found = await client.query<{ id: string; event_id: string; session_id: string; role: HistoryRole; deleted_at: Date | null }>(
       `SELECT id::text AS id, event_id, session_id, role, deleted_at
@@ -492,8 +505,9 @@ export async function blockConversation(
   slug: string,
   conversationId: string,
   presentedKey: string | null,
+  gate?: EventPortalGate,
 ): Promise<{ outcome: 'blocked'; conversationId: string; message: string }> {
-  const event = await requireEvent(pool, slug, presentedKey);
+  const event = await requireEvent(pool, slug, presentedKey, gate);
   return withTransaction(pool, async (client) => {
     await lockEvent(client, event.id);
     const scope = await client.query<{ session_id: string; blocked_at: Date | null }>(
@@ -529,8 +543,9 @@ export async function unblockConversation(
   slug: string,
   conversationId: string,
   presentedKey: string | null,
+  gate?: EventPortalGate,
 ): Promise<{ outcome: 'unblocked'; conversationId: string; message: string }> {
-  const event = await requireEvent(pool, slug, presentedKey);
+  const event = await requireEvent(pool, slug, presentedKey, gate);
   return withTransaction(pool, async (client) => {
     await lockEvent(client, event.id);
     const scope = await client.query<{ session_id: string }>(

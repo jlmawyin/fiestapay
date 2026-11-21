@@ -176,6 +176,13 @@ export const SERVER_ERROR_EN: Readonly<Record<string, string>> = {
     'The delivery did not confirm in time. If it does not arrive, request another link.',
   'No se pudo enviar el correo de verificacion': 'We could not send the verification email.',
 
+  // Somos Panas — alta de sitios (SP-7).
+  'Slug invalido o reservado': 'That subdomain is not valid or is reserved.',
+  'Ese subdominio ya esta en uso': 'That subdomain is already in use.',
+  'Codigo invalido o vencido': 'That code is not valid or has expired.',
+  'Demasiados intentos. Espera antes de volver a intentar.':
+    'Too many attempts. Wait before trying again.',
+
   // Assistant (text and voice) budgets and providers.
   'El asistente no esta configurado': 'The assistant is not configured.',
   'El asistente no respondio a tiempo; usa los formularios de la pagina':
