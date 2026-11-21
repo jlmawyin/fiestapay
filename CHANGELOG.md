@@ -2,6 +2,16 @@
 
 Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, pedido, archivos tocados y pruebas ejecutadas.
 
+## 2026-11-21 — Pausa y traspaso
+
+**Pedido:** Documentar pausa del programa Somos Panas (21-nov-2026) y traspaso para agentes que retomen desde el IDE sin contexto previo.
+
+**Archivos:** `docs/TRASPASO.md` (nuevo), `docs/somospanas/PROGRESO.md`, `AGENTS.md`, `CHANGELOG.md`.
+
+**Estado documentado:** fusionadas en `somospanas/plan` SP-1 (#43), SP-1b (#42), SP-2 (#44), SP-3 (#45), SP-4 (#47), SP-8 (#46), SP-5 (#48); PR abierto SP-7 (#49, `5abd771`, pendiente veredicto y squash); PR abierto SP-6 (#50, `3dc9cf3`, intento 2/3, bloqueo SP6-D-4); pendientes SP-9, SP-10, SP-11. Orden siguiente: verificar y fusionar #49 → SP6-D-4 e integración SP-7 en #50 → verificar y fusionar #50 → SP-9 ∥ SP-10 → SP-11.
+
+**Pruebas:** Solo documentación; sin cambios de aplicación. No se ejecutó `npm run verificar` (ninguna prueba del mapa valida estos archivos de traspaso).
+
 ## 2026-11-20 — SP-5 · Configuración editable del sitio
 
 **Pedido:** ENCARGO SP-5 — el admin del subdominio guarda nombre, textos, colores y módulos validados con Ajv y contraste en servidor; lectura pública en `/api/site/profile`; voz pública del sitio en `/api/site/voice/public/token` responde 404 con `asistente` apagado; legado ignora el módulo; pantalla de ajustes y tema CSS por sitio en la web.
