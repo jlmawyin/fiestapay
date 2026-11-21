@@ -10,7 +10,8 @@ import { migrate } from '../src/db/migrate.js';
 import { createPool, type Pool } from '../src/db/pool.js';
 import type { EmailAdapter, EmailSendResult, OutboundEmail } from '../src/email/types.js';
 import { hashPassword, hmacEmailHash, resolveEmailHmacKey } from '../src/domain/accounts.js';
-import { announceSkipWithoutDatabase, DATABASE_URL, testConfig } from './harness.js';
+import { announceSkipWithoutDatabase, body, Client, DATABASE_URL, testConfig } from './harness.js';
+import { legacyTenantId } from '../src/lib/host.js';
 import { FakePayPal } from './fake-paypal.js';
 
 announceSkipWithoutDatabase('portal-listing.test');
@@ -59,12 +60,17 @@ function sessionCookie(res: InjectOut & { cookies?: { name: string; value: strin
   return set?.value ? `fp_session=${set.value}` : undefined;
 }
 
-async function seedTenant(pool: Pool, slug: string, displayName: string): Promise<string> {
+async function seedTenant(
+  pool: Pool,
+  slug: string,
+  displayName: string,
+  kind: 'group' | 'template' = 'group',
+): Promise<string> {
   const id = randomUUID();
   await pool.query(
     `INSERT INTO tenants (id, slug, kind, discoverable, payment_provider)
-     VALUES ($1, $2, 'group', false, 'none')`,
-    [id, slug],
+     VALUES ($1, $2, $3, false, 'none')`,
+    [id, slug, kind],
   );
   await pool.query(
     `INSERT INTO tenant_settings (
@@ -180,6 +186,55 @@ describe('portal listing (SP-6)', () => {
     expect(row).not.toHaveProperty('guests');
     expect(row).not.toHaveProperty('email');
     expect(typeof row.url).toBe('string');
+    expect(row.listingKind).toBe('live');
+  });
+
+  it('excluye eventos public del tenant legado (SP6-D-5)', async () => {
+    const legacyId = await legacyTenantId(pool);
+    const legacySlug = `leg-${randomBytes(4).toString('hex')}`;
+    await seedEvent(pool, legacyId, legacySlug, 'public', { title: 'Fiesta legado publica' });
+    const groupId = await seedTenant(pool, `grp${randomBytes(3).toString('hex')}`, 'Grupo vivo');
+    const groupPub = `vivo-${randomBytes(4).toString('hex')}`;
+    await seedEvent(pool, groupId, groupPub, 'public', { title: 'Evento de grupo' });
+    const res = await injectJson(app, 'GET', '/api/portal/events', { host: ROOT_HOST, origin: ROOT_ORIGIN });
+    const slugs = res.json<{ events: { slug: string }[] }>().events.map((e) => e.slug);
+    expect(slugs).not.toContain(legacySlug);
+    expect(slugs).toContain(groupPub);
+  });
+
+  it('marca listingKind example para sitios plantilla (SP6-D-5)', async () => {
+    const templateId = await seedTenant(pool, `tpl${randomBytes(3).toString('hex')}`, 'Plantilla muestra', 'template');
+    const tplSlug = `tpl-ev-${randomBytes(4).toString('hex')}`;
+    await seedEvent(pool, templateId, tplSlug, 'public', { title: 'Evento plantilla' });
+    const res = await injectJson(app, 'GET', '/api/portal/events', { host: ROOT_HOST, origin: ROOT_ORIGIN });
+    const row = res.json<{ events: { slug: string; listingKind: string }[] }>().events.find((e) => e.slug === tplSlug);
+    expect(row?.listingKind).toBe('example');
+  });
+
+  it('PUT con accessCode en evento public responde 400, no 500 (SP6-D-6)', async () => {
+    const client = new Client(app);
+    const minted = body<{ event: { slug: string }; adminKey: string }>(await client.post('/api/demo'));
+    await pool.query(`UPDATE events SET visibility = 'public' WHERE slug = $1`, [minted.event.slug]);
+    client.authorize(minted.event.slug, minted.adminKey);
+    const current = body<{ event: Record<string, unknown> }>(await client.get(`/api/events/${minted.event.slug}`)).event;
+    const put = await client.put(`/api/events/${minted.event.slug}`, {
+      title: current.title,
+      template: current.template,
+      meal: current.meal,
+      description: current.description,
+      startsAt: current.startsAt,
+      endsAt: current.endsAt,
+      location: current.location,
+      includes: current.includes,
+      priceCents: current.priceCents,
+      capacity: current.capacity,
+      goalCents: current.goalCents,
+      minimumCents: current.minimumCents,
+      agenda: current.agenda ?? [],
+      accessCode: 'secreto-nuevo',
+    });
+    expect(put.statusCode).toBe(400);
+    expect(put.body).toMatch(/evento publico|codigo de acceso/i);
   });
 
   it('marcar público exige admin del sitio; miembro, anónimo y admin de otro sitio reciben 403', async () => {

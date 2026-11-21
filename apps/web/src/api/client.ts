@@ -59,6 +59,7 @@ export interface PortalListedEvent {
   siteSlug: string;
   siteName: string;
   url: string;
+  listingKind: 'live' | 'example';
 }
 
 /** Contrato congelado de `POST /api/sites` (SP-7); el botón de la portada lo consume cuando exista la ruta. */

@@ -7,6 +7,9 @@ import { assertTenantAdmin, tenantIdForSlug } from './access.js';
 import { isPastRetention } from './retention.js';
 import type { Queryable } from './read.js';
 
+/** `example` = sitio plantilla (muestra); `live` = grupo real (D-5). */
+export type PortalListingKind = 'live' | 'example';
+
 export interface PortalListedEvent {
   slug: string;
   title: string;
@@ -16,6 +19,7 @@ export interface PortalListedEvent {
   siteSlug: string;
   siteName: string;
   url: string;
+  listingKind: PortalListingKind;
 }
 
 /**
@@ -31,13 +35,15 @@ export async function listPortalPublicEvents(db: Queryable, now = new Date()): P
     location: string;
     site_slug: string;
     site_name: string;
+    tenant_kind: string;
   }>(
     `SELECT e.slug, e.title, e.starts_at, e.ends_at, COALESCE(e.location, '') AS location,
-            t.slug AS site_slug, ts.display_name AS site_name
+            t.slug AS site_slug, ts.display_name AS site_name, t.kind AS tenant_kind
        FROM events e
        INNER JOIN tenants t ON t.id = e.tenant_id
        INNER JOIN tenant_settings ts ON ts.tenant_id = t.id
       WHERE e.visibility = 'public'
+        AND t.kind <> 'legacy'
         AND e.purged_at IS NULL
         AND e.archived = false
         AND e.ends_at + interval '72 hours' > $1::timestamptz
@@ -57,6 +63,7 @@ export async function listPortalPublicEvents(db: Queryable, now = new Date()): P
       siteSlug: row.site_slug,
       siteName: row.site_name,
       url: `https://${row.site_slug}.somospanas.com/e/${encodeURIComponent(row.slug)}`,
+      listingKind: row.tenant_kind === 'template' ? ('example' as const) : ('live' as const),
     }));
 }
 

@@ -68,7 +68,9 @@
         "boton",
         "estadoNoDisponible",
         "estadoCreando",
-        "estadoListo"
+        "estadoListo",
+        "errorSlugInvalido",
+        "errorSlugReservado"
       ],
       "properties": {
         "prefijo": { "type": "string" },
@@ -79,7 +81,9 @@
         "boton": { "$ref": "texto-bilingue.schema.json" },
         "estadoNoDisponible": { "$ref": "texto-bilingue.schema.json" },
         "estadoCreando": { "$ref": "texto-bilingue.schema.json" },
-        "estadoListo": { "$ref": "texto-bilingue.schema.json" }
+        "estadoListo": { "$ref": "texto-bilingue.schema.json" },
+        "errorSlugInvalido": { "$ref": "texto-bilingue.schema.json" },
+        "errorSlugReservado": { "$ref": "texto-bilingue.schema.json" }
       }
     },
     "eventosPublicos": {

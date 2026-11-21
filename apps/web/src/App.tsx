@@ -182,6 +182,10 @@ export const App: React.FC = () => {
   // Parse path on initial load & popstate
   const handleLocationChange = useCallback(() => {
     const path = window.location.pathname;
+    if (IS_SOMOSPANAS_ROOT && (path === '/demo' || path === '/demo/' || path === '/tutorial' || path === '/tutorial/')) {
+      setCurrentView({ mode: 'home' });
+      return;
+    }
     if (path === '/demo' || path === '/demo/') {
       setCurrentView({ mode: 'demo', quick: new URLSearchParams(window.location.search).get('quick') === '1' });
       return;
@@ -520,7 +524,6 @@ export const App: React.FC = () => {
 
         {currentView.mode === 'home' && IS_SOMOSPANAS_ROOT ? (
           <PortalLandingView
-            onNavigateTutorial={() => navigate({ mode: 'tutorial' })}
             onNavigateRegister={() => navigate({ mode: 'register' })}
             onNavigateLogin={() => navigate({ mode: 'login' })}
           />
@@ -541,7 +544,7 @@ export const App: React.FC = () => {
           />
         ) : null}
 
-        {currentView.mode === 'demo' && (
+        {currentView.mode === 'demo' && IS_LEGACY_HOST && (
           <JudgePreviewView
             events={events}
             isLoading={isLoadingEvents}
@@ -598,7 +601,7 @@ export const App: React.FC = () => {
 
         {currentView.mode === 'recover' && <OrganizerRecoveryView available={capabilities?.email === true} />}
 
-        {currentView.mode === 'tutorial' && (
+        {currentView.mode === 'tutorial' && IS_LEGACY_HOST && (
           <TutorialView
             onNavigateDemo={() => navigate({ mode: 'demo' })}
             onNavigateCreate={() => navigate({ mode: 'create' })}

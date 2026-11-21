@@ -56,6 +56,14 @@
     "estadoListo": {
       "es": "Espacio creado. Abre el enlace para terminar la configuración.",
       "en": "Space created. Open the link to finish setup."
+    },
+    "errorSlugInvalido": {
+      "es": "Usa solo letras minúsculas, números y guiones (por ejemplo tu-grupo).",
+      "en": "Use only lowercase letters, numbers, and hyphens (for example your-group)."
+    },
+    "errorSlugReservado": {
+      "es": "Ese nombre está reservado. Elige otro subdominio.",
+      "en": "That name is reserved. Choose another subdomain."
     }
   },
   "eventosPublicos": {

@@ -27,6 +27,8 @@ export const SERVER_ERROR_EN: Readonly<Record<string, string>> = {
   'Codigo de acceso requerido': 'An access code is required.',
   'No se puede marcar público un evento con código de acceso. Quita el código antes de publicarlo en la portada.':
     'A public listing is not allowed while an access code is set. Remove the access code before marking the event public.',
+  'Un evento publico no puede tener codigo de acceso. Marcalo privado antes de anadir el codigo.':
+    'A public event cannot have an access code. Mark it private before adding a code.',
   'Este evento ya no esta disponible': 'This invitation is no longer available.',
   'Esta invitacion fue archivada por un reinicio de demo': 'This invitation was archived when the demo was reset.',
   'Esta invitacion fue archivada por un reinicio de demo; no se inician pagos nuevos':

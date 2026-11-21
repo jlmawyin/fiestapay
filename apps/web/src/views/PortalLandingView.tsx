@@ -10,17 +10,27 @@ import portada from '../../../../contenido/portada.json';
 import paginas from '../../../../contenido/paginas.json';
 import tutorial from '../../../../contenido/tutorial.json';
 import preguntas from '../../../../contenido/preguntas.json';
+import { normalizeSiteSlugInput, validateSiteSlug } from '@fiestapay/shared';
 import { useI18n } from '../i18n/I18nContext';
+import { LanguageSelector } from '../i18n/LanguageSelector';
 import { ApiError, api, type PortalListedEvent, type CreateSiteResult } from '../api/client';
 
 type LocaleKey = 'es' | 'en';
 type SectionId = (typeof paginas.portadaRaiz.secciones)[number]['id'];
 
 export interface PortalLandingViewProps {
-  onNavigateTutorial: () => void;
   onNavigateRegister: () => void;
   onNavigateLogin: () => void;
 }
+
+/** Anclas reales en el DOM (`portal-section-*`); no incluye ids de barra/pie como `tutorial`. */
+type ScrollSectionId =
+  | 'como-funciona'
+  | 'eventos-publicos'
+  | 'donaciones'
+  | 'compositor'
+  | 'hero'
+  | 'preguntas';
 
 function pick<T extends Record<LocaleKey, string>>(block: T, locale: LocaleKey): string {
   return block[locale] ?? block.es;
@@ -43,11 +53,7 @@ type CreateSpaceState = 'idle' | 'loading' | 'unavailable' | 'done';
 /**
  * Vista principal de la raíz: monta bloques según `paginas.json` sin copiar textos en el componente.
  */
-export const PortalLandingView: React.FC<PortalLandingViewProps> = ({
-  onNavigateTutorial,
-  onNavigateRegister,
-  onNavigateLogin,
-}) => {
+export const PortalLandingView: React.FC<PortalLandingViewProps> = ({ onNavigateRegister, onNavigateLogin }) => {
   const { locale } = useI18n();
   const lang = (locale === 'en' ? 'en' : 'es') as LocaleKey;
 
@@ -58,6 +64,7 @@ export const PortalLandingView: React.FC<PortalLandingViewProps> = ({
   const [createState, setCreateState] = useState<CreateSpaceState>('idle');
   const [createMessage, setCreateMessage] = useState<string | null>(null);
   const [createResult, setCreateResult] = useState<CreateSiteResult | null>(null);
+  const [slugError, setSlugError] = useState<string | null>(null);
 
   const loadEvents = useCallback(async () => {
     setEventsError(null);
@@ -74,7 +81,7 @@ export const PortalLandingView: React.FC<PortalLandingViewProps> = ({
     void loadEvents();
   }, [loadEvents]);
 
-  const scrollTo = useCallback((id: SectionId) => {
+  const scrollTo = useCallback((id: ScrollSectionId) => {
     try {
       document.getElementById(`portal-section-${id}`)?.scrollIntoView({ behavior: 'smooth' });
     } catch {
@@ -82,10 +89,39 @@ export const PortalLandingView: React.FC<PortalLandingViewProps> = ({
     }
   }, []);
 
+  /** SP6-D-2: los ids de barra/pie no siempre coinciden con secciones del DOM (p. ej. tutorial → pasos). */
+  const handleBarLink = useCallback(
+    (linkId: string) => {
+      if (linkId === 'iniciar-sesion') {
+        onNavigateLogin();
+        return;
+      }
+      if (linkId === 'tutorial' || linkId === 'como-funciona') {
+        scrollTo('como-funciona');
+        return;
+      }
+      if (linkId === 'eventos-publicos' || linkId === 'donaciones') {
+        scrollTo(linkId);
+        return;
+      }
+    },
+    [onNavigateLogin, scrollTo],
+  );
+
   const handleCreateSpace = useCallback(async () => {
-    const slug = slugDraft.trim().toLowerCase();
+    const slug = normalizeSiteSlugInput(slugDraft);
     const displayName = displayNameDraft.trim() || slug;
-    if (!slug) return;
+    const validation = validateSiteSlug(slug);
+    setSlugError(null);
+    if (validation === 'empty') return;
+    if (validation === 'invalid') {
+      setSlugError(pick(portada.compositorSubdominio.errorSlugInvalido, lang));
+      return;
+    }
+    if (validation === 'reserved') {
+      setSlugError(pick(portada.compositorSubdominio.errorSlugReservado, lang));
+      return;
+    }
     setCreateState('loading');
     setCreateMessage(null);
     try {
@@ -105,6 +141,8 @@ export const PortalLandingView: React.FC<PortalLandingViewProps> = ({
     }
   }, [displayNameDraft, lang, slugDraft]);
 
+  const sampleBadge = portada.eventosPublicos.ejemplos[0]?.badgeEjemplo ?? { es: 'Ejemplo', en: 'Sample' };
+
   const sectionOrder = paginas.portadaRaiz.secciones;
 
   const blocks = useMemo(() => {
@@ -116,10 +154,17 @@ export const PortalLandingView: React.FC<PortalLandingViewProps> = ({
             {portada.barra.enlaces.map((enlace) => (
               <a
                 key={enlace.id}
-                href={`#portal-section-${enlace.id}`}
+                href={
+                  enlace.id === 'iniciar-sesion'
+                    ? '#portal-login'
+                    : enlace.id === 'tutorial'
+                      ? '#portal-section-como-funciona'
+                      : `#portal-section-${enlace.id}`
+                }
+                data-testid={`portal-bar-link-${enlace.id}`}
                 onClick={(event) => {
                   event.preventDefault();
-                  scrollTo(enlace.id as SectionId);
+                  handleBarLink(enlace.id);
                 }}
               >
                 {pick(enlace, lang)}
@@ -128,6 +173,9 @@ export const PortalLandingView: React.FC<PortalLandingViewProps> = ({
             <button type="button" className="portal-btn" onClick={() => scrollTo('compositor')}>
               {pick(portada.barra.botonCrearEspacio, lang)}
             </button>
+            <div className="portal-bar-lang" data-testid="portal-language-selector">
+              <LanguageSelector />
+            </div>
           </nav>
         </header>
       ),
@@ -137,7 +185,12 @@ export const PortalLandingView: React.FC<PortalLandingViewProps> = ({
           <h1>{pick(portada.hero.titulo, lang)}</h1>
           <p className="portal-hero-text">{pick(portada.hero.texto, lang)}</p>
           <div className="portal-hero-actions">
-            <button type="button" className="portal-btn portal-btn-secondary" onClick={onNavigateTutorial}>
+            <button
+              type="button"
+              className="portal-btn portal-btn-secondary"
+              data-testid="portal-hero-tutorial"
+              onClick={() => scrollTo('como-funciona')}
+            >
               {pick(portada.hero.botonTutorial, lang)}
             </button>
             <button type="button" className="portal-btn" onClick={() => scrollTo('compositor')}>
@@ -193,6 +246,11 @@ export const PortalLandingView: React.FC<PortalLandingViewProps> = ({
                 autoComplete="organization"
               />
             </div>
+            {slugError ? (
+              <p className="portal-status-warn" data-testid="portal-slug-error" role="alert">
+                {slugError}
+              </p>
+            ) : null}
             <button
               type="button"
               className="portal-btn"
@@ -260,6 +318,11 @@ export const PortalLandingView: React.FC<PortalLandingViewProps> = ({
             ))}
             {listedEvents.map((event) => (
               <article key={event.slug} className="portal-card" data-testid={`portal-listed-event-${event.slug}`}>
+                {event.listingKind === 'example' ? (
+                  <span className="portal-badge" data-testid={`portal-listed-badge-example-${event.slug}`}>
+                    {pick(sampleBadge, lang)}
+                  </span>
+                ) : null}
                 <span className="portal-badge portal-badge-public">
                   {lang === 'en' ? 'Public event' : 'Evento público'}
                 </span>
@@ -310,10 +373,25 @@ export const PortalLandingView: React.FC<PortalLandingViewProps> = ({
       ),
       pie: (
         <footer className="portal-section portal-wrap" id="portal-section-pie" data-testid="portal-footer">
+          <p className="portal-brand">{pick(portada.barra.marca, lang)}</p>
           <p className="portal-muted">{pick(portada.pie.fraseFotos, lang)}</p>
           <nav className="portal-nav">
             {portada.barra.enlaces.map((enlace) => (
-              <a key={enlace.id} href={`#portal-section-${enlace.id}`}>
+              <a
+                key={enlace.id}
+                href={
+                  enlace.id === 'iniciar-sesion'
+                    ? '#portal-login'
+                    : enlace.id === 'tutorial'
+                      ? '#portal-section-como-funciona'
+                      : `#portal-section-${enlace.id}`
+                }
+                data-testid={`portal-footer-link-${enlace.id}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  handleBarLink(enlace.id);
+                }}
+              >
                 {pick(enlace, lang)}
               </a>
             ))}
@@ -331,11 +409,13 @@ export const PortalLandingView: React.FC<PortalLandingViewProps> = ({
     handleCreateSpace,
     lang,
     listedEvents,
+  handleBarLink,
     onNavigateLogin,
     onNavigateRegister,
-    onNavigateTutorial,
+    sampleBadge,
     scrollTo,
     slugDraft,
+    slugError,
   ]);
 
   return (

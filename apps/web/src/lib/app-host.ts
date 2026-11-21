@@ -18,14 +18,16 @@ export interface AppHostContext {
 
 const OVERRIDE_KEY = 'fp_sp_host_override';
 
+function hostOverrideAllowed(): boolean {
+  const meta = import.meta as ImportMeta & { env?: { DEV?: boolean; MODE?: string } };
+  return meta.env?.DEV === true || meta.env?.MODE === 'test';
+}
+
 /**
- * Lee un override de host solo en desarrollo o pruebas (Playwright) vía sessionStorage.
- * Entrada: ninguna. Salida: kind forzado o null.
- */
-/**
- * Solo en local (127.0.0.1/localhost) permite forzar la clase de host para Playwright.
+ * En dev o pruebas, permite forzar la clase de host desde sessionStorage (Playwright en localhost).
  */
 function readHostOverride(hostname: string): BrowserHostKind | null {
+  if (!hostOverrideAllowed()) return null;
   const normalized = hostname.toLowerCase();
   if (normalized !== '127.0.0.1' && normalized !== 'localhost') return null;
   try {

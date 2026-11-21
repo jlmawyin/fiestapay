@@ -121,7 +121,7 @@
 }
 
 .portal-muted {
-  color: var(--sp-color-ink-light);
+  color: var(--sp-color-ink-muted);
   font-size: 0.875rem;
 }
 
@@ -237,12 +237,12 @@
   padding: 0.15rem 0.5rem;
   margin-right: var(--sp-space-xs);
   background: var(--sp-color-yellow-tint);
-  color: var(--sp-color-yellow-dark);
+  color: var(--sp-color-ink);
 }
 
 .portal-badge-public {
   background: var(--sp-color-teal-tint);
-  color: var(--sp-color-teal);
+  color: var(--sp-color-teal-hover);
 }
 
 .portal-progress {
@@ -275,6 +275,13 @@
 }
 
 .portal-status-warn {
-  color: var(--sp-color-coral);
+  color: var(--sp-color-ink);
+  background: var(--sp-color-coral-tint);
+  border-radius: var(--sp-radius-sm);
+  padding: var(--sp-space-sm);
   font-size: 0.875rem;
+}
+
+.portal-bar-lang {
+  flex-shrink: 0;
 }
