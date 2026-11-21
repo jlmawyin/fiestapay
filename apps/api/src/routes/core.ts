@@ -110,7 +110,8 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
   app.get('/events', async (req): Promise<{ events: FiestaEventWithDemo[] }> => {
     const session = await readSession(pool, config, req);
     if (!session) return { events: [] };
-    return { events: await listOwnedEvents(pool, session.id) };
+    const gate = await resolveEventPortalGate(pool, req, session.id);
+    return { events: await listOwnedEvents(pool, session.id, gate) };
   });
 
   app.post(

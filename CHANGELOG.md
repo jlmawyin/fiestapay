@@ -18,6 +18,14 @@ Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, 
 
 **Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/clone-site.test.ts apps/api/test/accounts.test.ts apps/api/test/payment-provider.test.ts` (Postgres 16 como CI).
 
+### 2026-11-21 — SP-7 · Corrección verificador SP7-D-2 (intento 3)
+
+**Pedido:** SP7-D-2 anti-enumeración en recuperación; `listOwnedEvents` con cerrojo en raíz/legado; R-3 y comentarios (sites, read, insertEvent).
+
+**Archivos:** `apps/api/src/domain/access.ts`, `apps/api/src/domain/recovery.ts`, `apps/api/src/domain/events.ts`, `apps/api/src/domain/read.ts`, `apps/api/src/domain/sites.ts`, `apps/api/src/routes/core.ts`, `apps/api/test/recovery.test.ts`, `apps/api/test/clone-site.test.ts`, `apps/api/test/api.test.ts`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/clone-site.test.ts apps/api/test/accounts.test.ts apps/api/test/payment-provider.test.ts apps/api/test/recovery.test.ts` (Postgres 16 como CI).
+
 ## 2026-11-20 — SP-5 · Configuración editable del sitio
 
 **Pedido:** ENCARGO SP-5 — el admin del subdominio guarda nombre, textos, colores y módulos validados con Ajv y contraste en servidor; lectura pública en `/api/site/profile`; voz pública del sitio en `/api/site/voice/public/token` responde 404 con `asistente` apagado; legado ignora el módulo; pantalla de ajustes y tema CSS por sitio en la web.

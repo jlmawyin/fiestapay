@@ -534,6 +534,61 @@ describe('plantilla y clonación (SP-7)', () => {
     expect(chatAfter.rows[0]!.c).toBe(chatBefore.rows[0]!.c);
   });
 
+  it('SP7-D-1: GET /api/events en raiz no lista el private de grupo del organizador', async () => {
+    const startsAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+    const endsAt = new Date(startsAt.getTime() + 4 * 60 * 60 * 1000);
+    const created = await injectJson(app, 'POST', '/api/events', {
+      host: ROOT_HOST,
+      origin: ROOT_ORIGIN,
+      payload: {
+        title: 'Legado visible',
+        template: 'casa',
+        meal: 'cena',
+        description: 'd',
+        startsAt: startsAt.toISOString(),
+        endsAt: endsAt.toISOString(),
+        location: 'Casa',
+        includes: [],
+        agenda: [],
+        priceCents: 2500,
+        capacity: 8,
+        goalCents: null,
+        minimumCents: null,
+      },
+    });
+    expect(created.statusCode).toBe(200);
+    const cookie = sessionCookie(created);
+    const legacySlug = created.json<{ event: { slug: string } }>().event.slug;
+    const sessionId = (
+      await pool.query<{ organizer_session_id: string }>(`SELECT organizer_session_id FROM events WHERE slug = $1`, [
+        legacySlug,
+      ])
+    ).rows[0]!.organizer_session_id;
+    const groupTenant = randomUUID();
+    const groupSlug = `lst-${randomBytes(4).toString('hex')}`;
+    await pool.query(
+      `INSERT INTO tenants (id, slug, kind, discoverable, payment_provider) VALUES ($1,$2,'group',false,'none')`,
+      [groupTenant, groupSlug],
+    );
+    const hiddenSlug = `priv-list-${randomBytes(4).toString('hex')}`;
+    await pool.query(
+      `INSERT INTO events (
+         id, slug, tenant_id, organizer_session_id, generation, title, template, meal, description,
+         starts_at, ends_at, location, includes, agenda, price_cents, capacity, goal_cents, minimum_cents,
+         visibility, funding_status, admin_key_hash
+       ) VALUES (
+         $1,$2,$3,$4,0,'Oculto','casa','cena','', now() + interval '2 days', now() + interval '3 days',
+         'Sala','[]','[]',2500,8,10000,5000,'private','inactive',$5
+       )`,
+      [randomUUID(), hiddenSlug, groupTenant, sessionId, sha256('list-org')],
+    );
+    const list = await injectJson(app, 'GET', '/api/events', { host: ROOT_HOST, origin: ROOT_ORIGIN, cookie });
+    expect(list.statusCode).toBe(200);
+    const slugs = list.json<{ events: { slug: string }[] }>().events.map((e) => e.slug);
+    expect(slugs).toContain(legacySlug);
+    expect(slugs).not.toContain(hiddenSlug);
+  });
+
   it('SP7-D-1: legado private sigue admitiendo join en raiz y en host fiestapay', async () => {
     const legacy = await legacyTenantId(pool);
     const eventSlug = `leg-join-${randomBytes(4).toString('hex')}`;

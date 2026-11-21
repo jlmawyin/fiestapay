@@ -7,6 +7,7 @@ import {
   assertAdminKey,
   assertGroupPrivateEventOnPortalHost,
   digestMatches,
+  groupPrivateEventHiddenOnPortal,
   rememberUnlock,
   revokeUnlocks,
   type EventPortalGate,
@@ -72,8 +73,8 @@ export async function insertEvent(
       const presentation = presentationOf(input);
       const tenantId = await legacyTenantId(db);
       const paymentProvider = await paymentProviderIdForTenant(db, tenantId);
-      // TODO(SP-futuro): al crear eventos en sitios de grupo, usar paymentProvider del tenant en
-      // fundingForNewEvent (nunca abrir financiamiento con proveedor `none`; ver SP-8).
+      // TODO(SP-futuro): insertEvent sigue fijando tenantId al legado; al crear eventos en hosts
+      // de grupo habrá que resolver el tenant del sitio y pasar su paymentProvider a fundingForNewEvent.
       const funding = fundingForNewEvent(input, fundingNow(), paymentProvider);
       const { rows } = await db.query<EventRow>(
         `INSERT INTO events (id, slug, tenant_id, organizer_session_id, generation, title, template, meal, description,
@@ -302,7 +303,11 @@ export async function resetDemo(pool: Pool, sessionId: string, locale: Locale = 
   });
 }
 
-export async function listOwnedEvents(pool: Pool, sessionId: string): Promise<FiestaEventWithDemo[]> {
+export async function listOwnedEvents(
+  pool: Pool,
+  sessionId: string,
+  gate?: EventPortalGate,
+): Promise<FiestaEventWithDemo[]> {
   const { rows } = await pool.query<EventRow>(
     `SELECT ${EVENT_COLUMNS} FROM events
       WHERE organizer_session_id = $1 AND purged_at IS NULL
@@ -310,7 +315,15 @@ export async function listOwnedEvents(pool: Pool, sessionId: string): Promise<Fi
     [sessionId],
   );
   const events: FiestaEventWithDemo[] = [];
-  for (const row of rows) events.push(await loadFiestaEvent(pool, row));
+  for (const row of rows) {
+    if (
+      gate &&
+      (await groupPrivateEventHiddenOnPortal(pool, row.slug, gate.hostKind, gate.accountUserId))
+    ) {
+      continue;
+    }
+    events.push(await loadFiestaEvent(pool, row));
+  }
   return events;
 }
 

@@ -104,7 +104,7 @@ async function bumpWindow(db: PoolClient, scope: string, bucket: Buffer, windowS
 }
 
 /**
- * Límite por IP y por usuario antes de insertar tenant (SP7-D-1).
+ * Límite por IP y por usuario antes de insertar tenant.
  * Entrada: IP del cliente e id de usuario verificado.
  * Salida: true si ambas ventanas admiten el intento.
  */

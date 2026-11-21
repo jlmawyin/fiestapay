@@ -99,10 +99,8 @@ export async function findEventById(db: Queryable, eventId: string): Promise<Eve
 }
 
 /**
- * Punto único de carga por slug en rutas HTTP (SP7-D-1): si el caller pasa `gate`, se ocultan en
- * raíz/legado los eventos private de sitios que no son FiestaPay salvo admin de ese sitio (404).
- * Carga un evento por slug y aplica el cerrojo SP7-D-1 cuando el caller pasa `gate` (rutas HTTP).
- * Entrada: slug global y contexto de host/sesión. Salida: fila o null si no hay evento.
+ * Carga por slug con cerrojo SP7-D-1 opcional (`gate`): en raíz/legado oculta eventos private de
+ * grupo que no sean del tenant legado (404 salvo admin del sitio). Entrada: slug y contexto HTTP.
  */
 export async function findEventBySlug(
   db: Queryable,

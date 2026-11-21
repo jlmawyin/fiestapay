@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { CreatedEvent, RecoveryContactUpdate, RecoveryRequestResult, RecoveryStatus } from '@fiestapay/shared';
 import type { FastifyInstance } from 'fastify';
@@ -14,6 +14,40 @@ const describeDb = DATABASE_URL ? describe : describe.skip;
 
 const MAILBOX = 'fiesta-test@example.test';
 const PASS = 'smtp-test-pass';
+const ROOT_HOST = 'somospanas.com';
+const ROOT_ORIGIN = 'https://somospanas.com';
+const LEGACY_HOST = 'fiestapay.somospanas.com';
+
+async function seedGroupPrivateEvent(pool: Pool): Promise<string> {
+  const groupTenant = randomUUID();
+  const groupSlug = `grp-${randomBytes(4).toString('hex')}`;
+  await pool.query(
+    `INSERT INTO tenants (id, slug, kind, discoverable, payment_provider) VALUES ($1,$2,'group',false,'none')`,
+    [groupTenant, groupSlug],
+  );
+  await pool.query(
+    `INSERT INTO tenant_settings (
+       tenant_id, display_name, tagline, about,
+       color_cloudwhite, color_ink, color_ink_muted, color_blue, color_teal, color_yellow, color_coral
+     ) VALUES ($1,'G','','','#F7FAFC','#12263A','#4A5D73','#125FE6','#0B8075','#FFC85A','#E85D4A')`,
+    [groupTenant],
+  );
+  const eventSlug = `priv-rec-${randomBytes(4).toString('hex')}`;
+  const sessionId = randomUUID();
+  await pool.query(`INSERT INTO sessions (id, token_hash) VALUES ($1, $2)`, [sessionId, randomBytes(32)]);
+  await pool.query(
+    `INSERT INTO events (
+       id, slug, tenant_id, organizer_session_id, generation, title, template, meal, description,
+       starts_at, ends_at, location, includes, agenda, price_cents, capacity, goal_cents, minimum_cents,
+       visibility, funding_status, admin_key_hash
+     ) VALUES (
+       $1,$2,$3,$4,0,'Privado recuperacion','casa','cena','', now() + interval '2 days', now() + interval '3 days',
+       'Sala','[]','[]',2500,8,10000,5000,'private','inactive',$5
+     )`,
+    [randomUUID(), eventSlug, groupTenant, sessionId, sha256('clave-org-rec')],
+  );
+  return eventSlug;
+}
 
 function mailEnv(overrides: Record<string, string | undefined> = {}): Record<string, string | undefined> {
   return {
@@ -399,6 +433,79 @@ describeDb('recuperacion opcional del organizador', () => {
       expect((await request('otro-evento', MAILBOX, '203.0.113.23', eventApp)).statusCode).toBe(200);
     } finally {
       await eventApp.close();
+    }
+  });
+
+  it('SP7-D-2: recuperacion no distingue private de grupo de slug inexistente (raiz y legado)', async () => {
+    const missing = 'no-existe-recovery-slug';
+    const hidden = await seedGroupPrivateEvent(pool);
+    const hosts = [
+      { host: ROOT_HOST, origin: ROOT_ORIGIN },
+      { host: LEGACY_HOST, origin: ORIGIN },
+    ] as const;
+
+    for (const { host, origin } of hosts) {
+      const putBadHidden = await app.inject({
+        method: 'PUT',
+        url: `/api/events/${hidden}/recovery/contact`,
+        headers: { host, origin },
+        payload: { email: 'no-es-correo' },
+      });
+      const putBadMissing = await app.inject({
+        method: 'PUT',
+        url: `/api/events/${missing}/recovery/contact`,
+        headers: { host, origin },
+        payload: { email: 'no-es-correo' },
+      });
+      expect(putBadHidden.statusCode, host).toBe(400);
+      expect(putBadHidden.statusCode).toBe(putBadMissing.statusCode);
+      expect(putBadHidden.body).toBe(putBadMissing.body);
+
+      const putOffHidden = await off.inject({
+        method: 'PUT',
+        url: `/api/events/${hidden}/recovery/contact`,
+        headers: { host, origin },
+        payload: { email: MAILBOX },
+      });
+      const putOffMissing = await off.inject({
+        method: 'PUT',
+        url: `/api/events/${missing}/recovery/contact`,
+        headers: { host, origin },
+        payload: { email: MAILBOX },
+      });
+      expect(putOffHidden.statusCode, host).toBe(503);
+      expect(putOffHidden.body).toBe(putOffMissing.body);
+
+      const tokensBefore = await pool.query<{ n: number }>('SELECT COUNT(*)::int AS n FROM recovery_tokens');
+      const sentBefore = fake.sent.length;
+      const windowsBefore = await pool.query<{ n: number }>('SELECT COUNT(*)::int AS n FROM email_attempt_windows');
+      const reqHidden = await app.inject({
+        method: 'POST',
+        url: '/api/recovery/request',
+        headers: { host, origin },
+        remoteAddress: '203.0.113.55',
+        payload: { slug: hidden, email: MAILBOX },
+      });
+      const reqMissing = await app.inject({
+        method: 'POST',
+        url: '/api/recovery/request',
+        headers: { host, origin },
+        remoteAddress: '203.0.113.55',
+        payload: { slug: missing, email: MAILBOX },
+      });
+      expect(reqHidden.statusCode, host).toBe(200);
+      expect(reqHidden.body).toBe(reqMissing.body);
+      expect(body<RecoveryRequestResult>(reqHidden as never)).toEqual({ status: 'accepted' });
+      expect(fake.sent.length).toBe(sentBefore);
+      const tokensAfter = await pool.query<{ n: number }>('SELECT COUNT(*)::int AS n FROM recovery_tokens');
+      expect(tokensAfter.rows[0]!.n).toBe(tokensBefore.rows[0]!.n);
+      const windowsAfter = await pool.query<{ n: number }>('SELECT COUNT(*)::int AS n FROM email_attempt_windows');
+      expect(windowsAfter.rows[0]!.n).toBeGreaterThanOrEqual(windowsBefore.rows[0]!.n);
+      const rowForHidden = await pool.query(
+        `SELECT 1 FROM recovery_tokens t JOIN events e ON e.id = t.event_id WHERE e.slug = $1`,
+        [hidden],
+      );
+      expect(rowForHidden.rowCount).toBe(0);
     }
   });
 });

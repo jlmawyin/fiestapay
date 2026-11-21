@@ -178,13 +178,16 @@ export async function resolveEventPortalGate(
  * Entrada: slug del evento, clase de host y usuario de cuenta si la sesión está enlazada.
  * Salida: void o HttpError 404 como evento inexistente.
  */
-export async function assertGroupPrivateEventOnPortalHost(
+/**
+ * SP7-D-1 / SP7-D-2: true si en raíz/legado el evento private de grupo quedaría oculto (sin lanzar).
+ */
+export async function groupPrivateEventHiddenOnPortal(
   db: Queryable,
   eventSlug: string,
   hostKind: HostKind | undefined,
   accountUserId: string | null,
-): Promise<void> {
-  if (hostKind !== 'root' && hostKind !== 'legacy') return;
+): Promise<boolean> {
+  if (hostKind !== 'root' && hostKind !== 'legacy') return false;
   const { rows } = await db.query<{ tenant_kind: string; tenant_id: string; visibility: 'private' | 'public' }>(
     `SELECT t.kind AS tenant_kind, e.tenant_id, e.visibility
        FROM events e
@@ -193,11 +196,22 @@ export async function assertGroupPrivateEventOnPortalHost(
     [eventSlug],
   );
   const row = rows[0];
-  if (!row || row.tenant_kind === 'legacy') return;
-  if (row.visibility !== 'private') return;
-  if (!accountUserId) throw notFound('Evento no encontrado');
+  if (!row || row.tenant_kind === 'legacy') return false;
+  if (row.visibility !== 'private') return false;
+  if (!accountUserId) return true;
   const role = await membershipRoleForUser(db, row.tenant_id, accountUserId);
-  if (role !== 'admin') throw notFound('Evento no encontrado');
+  return role !== 'admin';
+}
+
+export async function assertGroupPrivateEventOnPortalHost(
+  db: Queryable,
+  eventSlug: string,
+  hostKind: HostKind | undefined,
+  accountUserId: string | null,
+): Promise<void> {
+  if (await groupPrivateEventHiddenOnPortal(db, eventSlug, hostKind, accountUserId)) {
+    throw notFound('Evento no encontrado');
+  }
 }
 
 export async function readPrivateEventForSiteAdmin(
