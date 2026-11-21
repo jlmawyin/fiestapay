@@ -197,13 +197,16 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
   describe('asistencia y cupo atomico', () => {
     async function eventWithCapacity(capacity: number): Promise<{ client: Client; event: FiestaEvent }> {
       const client = new Client(app);
+      const startsAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+      startsAt.setUTCMinutes(0, 0, 0);
+      const endsAt = new Date(startsAt.getTime() + 4 * 60 * 60 * 1000);
       const res = await client.post('/api/events', {
         title: 'Charla con cupo',
         template: 'evento',
         meal: 'cena',
         description: 'Cupo limitado',
-        startsAt: '2026-11-20T23:00:00.000Z',
-        endsAt: '2026-11-21T03:00:00.000Z',
+        startsAt: startsAt.toISOString(),
+        endsAt: endsAt.toISOString(),
         location: 'Auditorio demo',
         includes: ['Entrada'],
         priceCents: 2500,

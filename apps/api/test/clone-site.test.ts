@@ -13,7 +13,7 @@ import { ensureMuestraTemplate, MUESTRA_SLUG, SITE_CREATE_USER_LIMIT } from '../
 import { fundingForNewEvent } from '../src/domain/funding.js';
 import { legacyTenantId } from '../src/lib/host.js';
 import { sha256 } from '../src/lib/ids.js';
-import { announceSkipWithoutDatabase, DATABASE_URL, MERCHANT, testConfig } from './harness.js';
+import { announceSkipWithoutDatabase, DATABASE_URL, MERCHANT, ORIGIN, testConfig } from './harness.js';
 import { FakePayPal } from './fake-paypal.js';
 
 announceSkipWithoutDatabase('clone-site.test');
@@ -217,6 +217,16 @@ describe('plantilla y clonación (SP-7)', () => {
     const { handoff, site } = created.json<{ handoff: { code: string }; site: { slug: string } }>();
     const host = `${site.slug}.somospanas.com`;
     const origin = `https://${host}`;
+
+    // R-1 (SP-4): la cookie HttpOnly no lleva Domain; el navegador no la reenvía al subdominio.
+    // La sesión no está atada al host: un cliente que copie manualmente la cookie del creador sí
+    // podría entrar (tiene membresía admin), pero eso no es el flujo normal del handoff.
+    const creatorForced = await injectJson(app, 'GET', '/api/site/settings', {
+      host,
+      origin,
+      cookie: rootCookie,
+    });
+    expect(creatorForced.statusCode).toBe(200);
 
     const stranger = `otro-${randomBytes(4).toString('hex')}@example.test`;
     const strangerCookie = await verifiedRootSession(app, fake, stranger);
@@ -448,6 +458,109 @@ describe('plantilla y clonación (SP-7)', () => {
       eventSlug,
     ]);
     expect(row.rows[0]!.funding_status).toBe('inactive');
+  });
+
+  it('SP7-D-1: anónimo recibe 404 en todas las rutas por slug y no inserta invitados ni chat', async () => {
+    const groupTenant = randomUUID();
+    const groupSlug = `grp-${randomBytes(4).toString('hex')}`;
+    await pool.query(
+      `INSERT INTO tenants (id, slug, kind, discoverable, payment_provider) VALUES ($1,$2,'group',false,'none')`,
+      [groupTenant, groupSlug],
+    );
+    await pool.query(
+      `INSERT INTO tenant_settings (
+         tenant_id, display_name, tagline, about,
+         color_cloudwhite, color_ink, color_ink_muted, color_blue, color_teal, color_yellow, color_coral
+       ) VALUES ($1,'G','','','#F7FAFC','#12263A','#4A5D73','#125FE6','#0B8075','#FFC85A','#E85D4A')`,
+      [groupTenant],
+    );
+    const eventSlug = `priv-rutas-${randomBytes(4).toString('hex')}`;
+    const sessionId = randomUUID();
+    const adminKey = sha256('clave-organizer-sp7d1');
+    await pool.query(`INSERT INTO sessions (id, token_hash) VALUES ($1, $2)`, [sessionId, randomBytes(32)]);
+    await pool.query(
+      `INSERT INTO events (
+         id, slug, tenant_id, organizer_session_id, generation, title, template, meal, description,
+         starts_at, ends_at, location, includes, agenda, price_cents, capacity, goal_cents, minimum_cents,
+         visibility, funding_status, admin_key_hash
+       ) VALUES (
+         $1,$2,$3,$4,0,'Privado SP7-D-1','casa','cena','', now() + interval '2 days', now() + interval '3 days',
+         'Sala','[]','[]',2500,8,10000,5000,'private','inactive',$5
+       )`,
+      [randomUUID(), eventSlug, groupTenant, sessionId, adminKey],
+    );
+
+    const guestsBefore = await pool.query<{ c: string }>('SELECT COUNT(*)::text AS c FROM guests');
+    const chatBefore = await pool.query<{ c: string }>('SELECT COUNT(*)::text AS c FROM chat_messages');
+
+    const base = { host: ROOT_HOST, origin: ROOT_ORIGIN };
+    const join = await injectJson(app, 'POST', `/api/events/${eventSlug}/join`, {
+      ...base,
+      payload: { name: 'Anon' },
+    });
+    expect(join.statusCode).toBe(404);
+
+    const rsvp = await injectJson(app, 'POST', `/api/events/${eventSlug}/rsvp`, {
+      ...base,
+      cookie: sessionCookie(join) ?? `fp_session=${randomBytes(16).toString('hex')}`,
+      payload: { status: 'yes', companions: 0 },
+    });
+    expect(rsvp.statusCode).toBe(404);
+
+    const quote = await injectJson(app, 'POST', `/api/events/${eventSlug}/quote`, {
+      ...base,
+      cookie: sessionCookie(join),
+    });
+    expect(quote.statusCode).toBe(404);
+
+    const dashboard = await injectJson(app, 'GET', `/api/events/${eventSlug}/dashboard`, base);
+    expect(dashboard.statusCode).toBe(404);
+
+    const chat = await injectJson(app, 'POST', `/api/events/${eventSlug}/chat`, {
+      ...base,
+      payload: { message: 'hola' },
+    });
+    expect(chat.statusCode).toBe(404);
+
+    const recovery = await injectJson(app, 'GET', `/api/events/${eventSlug}/recovery`, base);
+    expect(recovery.statusCode).toBe(404);
+
+    const moderation = await injectJson(app, 'GET', `/api/events/${eventSlug}/moderation/guests`, base);
+    expect(moderation.statusCode).toBe(404);
+
+    const guestsAfter = await pool.query<{ c: string }>('SELECT COUNT(*)::text AS c FROM guests');
+    const chatAfter = await pool.query<{ c: string }>('SELECT COUNT(*)::text AS c FROM chat_messages');
+    expect(guestsAfter.rows[0]!.c).toBe(guestsBefore.rows[0]!.c);
+    expect(chatAfter.rows[0]!.c).toBe(chatBefore.rows[0]!.c);
+  });
+
+  it('SP7-D-1: legado private sigue admitiendo join en raiz y en host fiestapay', async () => {
+    const legacy = await legacyTenantId(pool);
+    const eventSlug = `leg-join-${randomBytes(4).toString('hex')}`;
+    const sessionId = randomUUID();
+    await pool.query(`INSERT INTO sessions (id, token_hash) VALUES ($1, $2)`, [sessionId, randomBytes(32)]);
+    await pool.query(
+      `INSERT INTO events (
+         id, slug, tenant_id, organizer_session_id, generation, title, template, meal, description,
+         starts_at, ends_at, location, includes, agenda, price_cents, capacity, goal_cents, minimum_cents,
+         visibility, funding_status, admin_key_hash
+       ) VALUES (
+         $1,$2,$3,$4,0,'Legado join','casa','cena','', now() + interval '2 days', now() + interval '3 days',
+         'Casa','[]','[]',2500,8,10000,5000,'private','inactive',$5
+       )`,
+      [randomUUID(), eventSlug, legacy, sessionId, sha256('clave-legado-join')],
+    );
+
+    for (const host of [ROOT_HOST, 'fiestapay.somospanas.com'] as const) {
+      // Legado: mutaciones usan `allowedOrigins` de config (harness → ORIGIN), no el origen HTTPS de producción.
+      const origin = host === ROOT_HOST ? ROOT_ORIGIN : ORIGIN;
+      const res = await injectJson(app, 'POST', `/api/events/${eventSlug}/join`, {
+        host,
+        origin,
+        payload: { name: 'Invitado legado' },
+      });
+      expect(res.statusCode, host).toBe(200);
+    }
   });
 
   it(`tras ${SITE_CREATE_USER_LIMIT + 1} creaciones en ventana el usuario recibe 429`, async () => {

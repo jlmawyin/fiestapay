@@ -126,7 +126,7 @@ async function chargeSiteCreateAttempt(db: PoolClient, ip: string, userId: strin
 export async function ensureMuestraTemplate(db: Pool | PoolClient): Promise<string> {
   await db.query(
     `INSERT INTO tenants (slug, kind, discoverable, payment_provider)
-     VALUES ($1, 'template', true, 'none')
+     VALUES ($1, 'template', false, 'none')
      ON CONFLICT (slug) DO NOTHING`,
     [MUESTRA_SLUG],
   );

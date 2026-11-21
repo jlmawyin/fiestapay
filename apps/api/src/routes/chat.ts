@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { chatWithAssistant } from '../ai/chat.js';
 import { chatPublic } from '../ai/public-chat.js';
-import { presentedAdminKey } from '../domain/access.js';
+import { presentedAdminKey, resolveEventPortalGate } from '../domain/access.js';
 import { listOwnTranscript } from '../domain/moderation.js';
 import { requestLocale } from '../lib/locale.js';
 import { chatSchema, parseOr400, slugParamSchema, transcriptQuerySchema } from '../lib/schemas.js';
@@ -29,10 +29,11 @@ export async function registerChatRoutes(app: FastifyInstance, deps: RouteDeps):
       const { slug } = parseOr400(slugParamSchema, req.params);
       const { message } = parseOr400(chatSchema, req.body);
       const session = await ensureSession(pool, config, req, reply);
+      const gate = await resolveEventPortalGate(pool, req, session.id);
       return chatWithAssistant(pool, config, session.id, slug, message, {
         respond: deps.respond,
         deadlineMs: deps.assistantDeadlineMs,
-      }, presentedAdminKey(req), requestLocale(req));
+      }, presentedAdminKey(req), requestLocale(req), gate);
     },
   );
 
@@ -60,6 +61,7 @@ export async function registerChatRoutes(app: FastifyInstance, deps: RouteDeps):
     const { slug } = parseOr400(slugParamSchema, req.params);
     const query = parseOr400(transcriptQuerySchema, req.query);
     const session = await readSession(pool, config, req);
-    return listOwnTranscript(pool, slug, session?.id ?? null, presentedAdminKey(req), query.limit, query.before);
+    const gate = await resolveEventPortalGate(pool, req, session?.id ?? null);
+    return listOwnTranscript(pool, slug, session?.id ?? null, presentedAdminKey(req), query.limit, query.before, gate);
   });
 }

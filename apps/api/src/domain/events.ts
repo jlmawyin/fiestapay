@@ -3,7 +3,14 @@ import { defaultThemeFor, normalizeOrganizerName, themeBelongs, type EventInput,
 import { withTransaction, type Pool, type PoolClient } from '../db/pool.js';
 import { badRequest, conflict, forbidden, gone, notFound } from '../errors.js';
 import { newAdminKey, newId, newSlug, sha256 } from '../lib/ids.js';
-import { assertAdminKey, digestMatches, rememberUnlock, revokeUnlocks } from './access.js';
+import {
+  assertAdminKey,
+  assertGroupPrivateEventOnPortalHost,
+  digestMatches,
+  rememberUnlock,
+  revokeUnlocks,
+  type EventPortalGate,
+} from './access.js';
 import { audit } from './audit.js';
 import { decideFundingIfDue, fundingBlocksNewCharge, fundingForNewEvent, fundingNow, nextFundingTerms, type FundingGate } from './funding.js';
 import { legacyTenantId } from '../lib/host.js';
@@ -65,6 +72,8 @@ export async function insertEvent(
       const presentation = presentationOf(input);
       const tenantId = await legacyTenantId(db);
       const paymentProvider = await paymentProviderIdForTenant(db, tenantId);
+      // TODO(SP-futuro): al crear eventos en sitios de grupo, usar paymentProvider del tenant en
+      // fundingForNewEvent (nunca abrir financiamiento con proveedor `none`; ver SP-8).
       const funding = fundingForNewEvent(input, fundingNow(), paymentProvider);
       const { rows } = await db.query<EventRow>(
         `INSERT INTO events (id, slug, tenant_id, organizer_session_id, generation, title, template, meal, description,
@@ -306,7 +315,13 @@ export async function listOwnedEvents(pool: Pool, sessionId: string): Promise<Fi
 }
 
 /** One-time key for a legacy event that has no digest yet. A keyed event never falls back to the session. */
-export async function bootstrapAdminKey(pool: Pool, sessionId: string, slug: string): Promise<string> {
+export async function bootstrapAdminKey(
+  pool: Pool,
+  sessionId: string,
+  slug: string,
+  gate?: EventPortalGate,
+): Promise<string> {
+  await portalGate(pool, slug, gate);
   return withTransaction(pool, async (client) => {
     const event = await lockBySlug(client, slug);
     if (event.purged_at || isPastRetention(event.ends_at)) throw gone('Este evento ya no esta disponible');
@@ -328,6 +343,12 @@ export function assertActive(event: EventRow, now = new Date()): void {
 export function assertAcceptingGuests(event: EventRow): void {
   assertActive(event);
   if (event.closed_at) throw conflict('El organizador cerro las nuevas asistencias y pagos');
+}
+
+/** SP7-D-1: cerrojo de portal antes de tocar el evento por slug (rutas HTTP pasan `gate`). */
+async function portalGate(pool: Pool, slug: string, gate?: EventPortalGate): Promise<void> {
+  if (!gate) return;
+  await assertGroupPrivateEventOnPortalHost(pool, slug, gate.hostKind, gate.accountUserId);
 }
 
 async function lockBySlug(client: PoolClient, slug: string): Promise<EventRow> {
@@ -357,7 +378,13 @@ async function withAdmin<T>(
   return outcome.value;
 }
 
-export async function confirmEvent(pool: Pool, slug: string, presentedKey: string | null): Promise<FiestaEvent> {
+export async function confirmEvent(
+  pool: Pool,
+  slug: string,
+  presentedKey: string | null,
+  gate?: EventPortalGate,
+): Promise<FiestaEvent> {
+  await portalGate(pool, slug, gate);
   const outcome = await withAdmin<FundingGate<{ event: FiestaEvent }>>(pool, slug, presentedKey, async (client, locked) => {
     const settled = await decideFundingIfDue(client, locked);
     const blocked = fundingBlocksNewCharge(settled.event, settled.at);
@@ -390,7 +417,9 @@ export async function updateEvent(
   slug: string,
   presentedKey: string | null,
   input: EventInput,
+  gate?: EventPortalGate,
 ): Promise<FiestaEvent> {
+  await portalGate(pool, slug, gate);
   return withAdmin(pool, slug, presentedKey, async (client, event) => {
     if (event.archived) throw gone('Esta invitacion fue archivada por un reinicio de demo');
     const totals = await eventTotals(client, event.id);
@@ -477,7 +506,13 @@ export async function updateEvent(
   });
 }
 
-export async function closeEvent(pool: Pool, slug: string, presentedKey: string | null): Promise<FiestaEvent> {
+export async function closeEvent(
+  pool: Pool,
+  slug: string,
+  presentedKey: string | null,
+  gate?: EventPortalGate,
+): Promise<FiestaEvent> {
+  await portalGate(pool, slug, gate);
   return withAdmin(pool, slug, presentedKey, async (client, event) => {
     if (event.archived) throw gone('Esta invitacion fue archivada por un reinicio de demo');
     const { rows } = await client.query<EventRow>(
@@ -490,7 +525,13 @@ export async function closeEvent(pool: Pool, slug: string, presentedKey: string 
 }
 
 /** Locks the event, then tombstones. In-flight money waits on the same row lock and then sees purged. */
-export async function deleteEvent(pool: Pool, slug: string, presentedKey: string | null): Promise<void> {
+export async function deleteEvent(
+  pool: Pool,
+  slug: string,
+  presentedKey: string | null,
+  gate?: EventPortalGate,
+): Promise<void> {
+  await portalGate(pool, slug, gate);
   await withAdmin(pool, slug, presentedKey, async (client, event) => {
     // A due minimum is decided before the tombstone commits. The deadline,
     // price and minimum stay on the row so a later pass can still refund.
@@ -499,7 +540,14 @@ export async function deleteEvent(pool: Pool, slug: string, presentedKey: string
   });
 }
 
-export async function unlockEvent(pool: Pool, sessionId: string, slug: string, code: string): Promise<void> {
+export async function unlockEvent(
+  pool: Pool,
+  sessionId: string,
+  slug: string,
+  code: string,
+  gate?: EventPortalGate,
+): Promise<void> {
+  await portalGate(pool, slug, gate);
   await withTransaction(pool, async (client) => {
     const event = await lockBySlug(client, slug);
     if (event.purged_at || isPastRetention(event.ends_at)) throw gone('Este evento ya no esta disponible');

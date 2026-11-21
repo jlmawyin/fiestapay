@@ -7,7 +7,7 @@ import { recoveryEmail } from '../email/compose.js';
 import { maskMailbox, normalizeMailbox } from '../email/address.js';
 import type { EmailAdapter, EmailSendResult } from '../email/types.js';
 import { newId, sha256 } from '../lib/ids.js';
-import { assertAdminKey, digestMatches } from './access.js';
+import { assertAdminKey, assertGroupPrivateEventOnPortalHost, digestMatches, type EventPortalGate } from './access.js';
 import { audit } from './audit.js';
 import { findEventBySlug, lockEvent, type EventRow, type Queryable } from './read.js';
 import { isPastRetention, tombstoneEvent } from './retention.js';
@@ -218,7 +218,9 @@ export async function recoveryStatus(
   slug: string,
   presentedKey: string | null,
   emailEnabled: boolean,
+  gate?: EventPortalGate,
 ): Promise<RecoveryStatus> {
+  if (gate) await assertGroupPrivateEventOnPortalHost(pool, slug, gate.hostKind, gate.accountUserId);
   const outcome = await withTransaction(pool, async (client) => {
     const event = await lockBySlug(client, slug);
     assertAdminKey(event, presentedKey);
@@ -243,7 +245,9 @@ export async function setRecoveryContact(
   adapter: EmailAdapter | null,
   limits: RecoveryLimits | null,
   origin: string | null,
+  gate?: EventPortalGate,
 ): Promise<RecoveryContactUpdate> {
+  if (gate) await assertGroupPrivateEventOnPortalHost(pool, slug, gate.hostKind, gate.accountUserId);
   const mail = readyMail(adapter, limits, origin);
   const email = normalizeMailbox(rawEmail);
   if (!email) throw badRequest('Correo invalido');
@@ -290,7 +294,9 @@ export async function removeRecoveryContact(
   slug: string,
   presentedKey: string | null,
   emailEnabled: boolean,
+  gate?: EventPortalGate,
 ): Promise<RecoveryStatus> {
+  if (gate) await assertGroupPrivateEventOnPortalHost(pool, slug, gate.hostKind, gate.accountUserId);
   const outcome = await withTransaction(pool, async (client) => {
     const event = await lockBySlug(client, slug);
     assertAdminKey(event, presentedKey);
@@ -320,17 +326,19 @@ export async function requestRecoveryLink(
   adapter: EmailAdapter | null,
   limits: RecoveryLimits | null,
   origin: string | null,
+  gate?: EventPortalGate,
 ): Promise<typeof PUBLIC_ACCEPTED> {
   const mail = readyMail(adapter, limits, origin);
   const email = normalizeMailbox(rawEmail);
   if (!email) throw badRequest('Correo invalido');
   const slug = rawSlug.trim().toLowerCase();
   if (!SLUG_RE.test(slug)) throw badRequest('Enlace invalido');
+  if (gate) await assertGroupPrivateEventOnPortalHost(pool, slug, gate.hostKind, gate.accountUserId);
   const emailHash = sha256(email);
   const outcome = await withTransaction(pool, async (client) => {
     const allowed = await charge(client, ip, slug, mail.limits);
     if (!allowed) return { kind: 'limited' as const };
-    const event = await findEventBySlug(client, slug);
+    const event = await findEventBySlug(client, slug, gate);
     if (!event || unavailableEvent(event, new Date())) return { kind: 'silent' as const };
     const contact = await loadContact(client, event.id);
     if (!contact?.verified_at || !sameDigest(contact.email_hash, emailHash)) return { kind: 'silent' as const };

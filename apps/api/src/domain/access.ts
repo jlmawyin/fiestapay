@@ -142,9 +142,39 @@ interface SiteEventGateRow {
   purged_at: Date | null;
 }
 
+/** Contexto del request HTTP para aplicar el cerrojo de eventos de grupo en raíz/legado (SP7-D-1). */
+export interface EventPortalGate {
+  hostKind: HostKind | undefined;
+  accountUserId: string | null;
+}
+
+/**
+ * Arma el cerrojo a partir del host clasificado y la sesión cookie actual.
+ * Entrada: request Fastify y id de sesión si existe.
+ * Salida: contexto para `getEventBySlug` / `findEventBySlug`.
+ */
+export async function resolveEventPortalGate(
+  db: Queryable,
+  req: FastifyRequest,
+  sessionId: string | null,
+): Promise<EventPortalGate> {
+  let accountUserId: string | null = null;
+  if (sessionId) {
+    const { rows } = await db.query<{ user_id: string | null }>(
+      'SELECT user_id FROM sessions WHERE id = $1',
+      [sessionId],
+    );
+    accountUserId = rows[0]?.user_id ?? null;
+  }
+  return {
+    hostKind: req.hostClassification?.kind,
+    accountUserId,
+  };
+}
+
 /**
  * En raíz o legado, un evento privado de un sitio que no es FiestaPay no se expone
- * salvo al admin de ese sitio (SP7-D-2 / herencia SP-4); evita filtrar cuerpo por slug global.
+ * salvo al admin de ese sitio (SP7-D-1); misma respuesta que slug inexistente (404).
  * Entrada: slug del evento, clase de host y usuario de cuenta si la sesión está enlazada.
  * Salida: void o HttpError 404 como evento inexistente.
  */

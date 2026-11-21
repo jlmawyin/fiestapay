@@ -6,9 +6,17 @@ Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, 
 
 **Pedido:** ENCARGO SP-7 — plantilla idempotente `muestra`, `POST /api/sites` en la raíz (sesión verificada, límite por usuario/IP), clonación de colores/módulos/textos sin gente ni dinero; handoff de un solo uso en el subdominio; eventos privados de sitios no legados ocultan cuerpo en raíz/legado salvo admin del sitio; subdominio `muestra` enrutable si existe fila (sigue reservado al crear).
 
-**Archivos:** `apps/api/src/domain/sites.ts`, `apps/api/src/routes/sites.ts`, `apps/api/src/domain/access.ts`, `apps/api/src/routes/core.ts`, `apps/api/src/app.ts`, `apps/api/src/lib/host.ts`, `apps/api/src/db/migrations/0015_site_create_limits.sql`, `apps/api/test/clone-site.test.ts`, `AGENTS.md`, `CHANGELOG.md`.
+**Archivos (intento 1):** `apps/api/src/domain/sites.ts`, `apps/api/src/routes/sites.ts`, `apps/api/src/domain/access.ts`, `apps/api/src/routes/core.ts`, `apps/api/src/app.ts`, `apps/api/src/lib/host.ts`, `apps/api/src/db/migrations/0015_site_create_limits.sql`, `apps/api/test/clone-site.test.ts`, `apps/api/test/payment-provider.test.ts`, `packages/shared/src/server-errors.ts`, `AGENTS.md`, `CHANGELOG.md`.
 
 **Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/clone-site.test.ts apps/api/test/accounts.test.ts` (Postgres 16 como CI).
+
+### 2026-11-20 — SP-7 · Corrección verificador SP7-D-1 (intento 2)
+
+**Pedido:** SP7-D-1 — cerrojo de eventos private de grupo centralizado en `findEventBySlug`/`getEventBySlug` con `EventPortalGate` en join, rsvp, quote, orders, dashboard, chat, moderación, recuperación, voz, recordatorios y organizador; R-1 comentario/caso cookie sin Domain; R-2 `muestra` con `discoverable=false`; R-4 TODO `fundingForNewEvent` en altas futuras de eventos por sitio.
+
+**Archivos:** `apps/api/src/domain/read.ts`, `apps/api/src/domain/access.ts`, `apps/api/src/domain/events.ts`, `apps/api/src/domain/rsvp.ts`, `apps/api/src/domain/quotes.ts`, `apps/api/src/domain/orders.ts`, `apps/api/src/domain/dashboard.ts`, `apps/api/src/domain/moderation.ts`, `apps/api/src/domain/recovery.ts`, `apps/api/src/ai/chat.ts`, `apps/api/src/routes/core.ts`, `apps/api/src/routes/payments.ts`, `apps/api/src/routes/chat.ts`, `apps/api/src/routes/moderation.ts`, `apps/api/src/routes/recovery.ts`, `apps/api/src/routes/voice.ts`, `apps/api/src/routes/reminders.ts`, `apps/api/src/routes/organizer-assistant.ts`, `apps/api/src/domain/sites.ts`, `apps/api/test/clone-site.test.ts`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/clone-site.test.ts apps/api/test/accounts.test.ts apps/api/test/payment-provider.test.ts` (Postgres 16 como CI).
 
 ## 2026-11-20 — SP-5 · Configuración editable del sitio
 

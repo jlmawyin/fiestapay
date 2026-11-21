@@ -2,7 +2,7 @@ import { estimateOrganizerFee, fixedQuote, formatMoney, type Locale, type Quote 
 import { withTransaction, type Pool, type PoolClient } from '../db/pool.js';
 import { conflict, notFound } from '../errors.js';
 import { newId } from '../lib/ids.js';
-import { assertPrivateAccess } from './access.js';
+import { assertPrivateAccess, type EventPortalGate } from './access.js';
 import { assertSessionMayAct } from './moderation.js';
 import { audit } from './audit.js';
 import { assertAcceptingGuests } from './events.js';
@@ -159,8 +159,9 @@ export async function createQuoteForSession(
   ttlSeconds: number,
   presentedKey: string | null = null,
   locale: Locale = 'es',
+  gate?: EventPortalGate,
 ): Promise<Quote> {
-  const visible = await findEventBySlug(pool, slug);
+  const visible = await findEventBySlug(pool, slug, gate);
   if (!visible) throw notFound('Evento no encontrado');
   await concealExpired(pool, visible);
   const outcome = await withTransaction<FundingGate<{ quote: Quote }>>(pool, async (client) => {
