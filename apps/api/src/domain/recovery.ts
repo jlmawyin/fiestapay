@@ -251,12 +251,18 @@ export async function setRecoveryContact(
   adapter: EmailAdapter | null,
   limits: RecoveryLimits | null,
   origin: string | null,
-  _gate?: EventPortalGate,
+  gate?: EventPortalGate,
 ): Promise<RecoveryContactUpdate> {
   // SP7-D-2: mismo 503/400 que slug inexistente — validar correo y SMTP antes del cerrojo.
   const mail = readyMail(adapter, limits, origin);
   const email = normalizeMailbox(rawEmail);
   if (!email) throw badRequest('Correo invalido');
+  // SP7-D-3: con SMTP y correo válidos, un private de grupo en raíz/legado no llega a
+  // lockBySlug ni a assertAdminKey. El 404 es el de slug inexistente: sin charge, sin fila
+  // y sin correo. El admin del propio sitio (groupPrivateEventHiddenOnPortal falso) sigue.
+  if (gate && (await groupPrivateEventHiddenOnPortal(pool, slug, gate.hostKind, gate.accountUserId))) {
+    throw notFound('Evento no encontrado');
+  }
   const emailHash = sha256(email);
   const outcome = await withTransaction(pool, async (client) => {
     const event = await lockBySlug(client, slug);

@@ -173,13 +173,11 @@ export async function resolveEventPortalGate(
 }
 
 /**
- * En raíz o legado, un evento privado de un sitio que no es FiestaPay no se expone
- * salvo al admin de ese sitio (SP7-D-1); misma respuesta que slug inexistente (404).
+ * SP7-D-1 / SP7-D-2 / SP7-D-3: indica si en raíz o legado un evento private de un grupo
+ * (distinto del sitio legado) quedaría oculto para esta cuenta. No lanza.
  * Entrada: slug del evento, clase de host y usuario de cuenta si la sesión está enlazada.
- * Salida: void o HttpError 404 como evento inexistente.
- */
-/**
- * SP7-D-1 / SP7-D-2: true si en raíz/legado el evento private de grupo quedaría oculto (sin lanzar).
+ * Salida: boolean. true si hay que responder como slug inexistente; false si puede seguir
+ * (público, legado, otro host, o admin del propio sitio).
  */
 export async function groupPrivateEventHiddenOnPortal(
   db: Queryable,
@@ -203,6 +201,12 @@ export async function groupPrivateEventHiddenOnPortal(
   return role !== 'admin';
 }
 
+/**
+ * En raíz o legado, un evento privado de un sitio que no es FiestaPay no se expone
+ * salvo al admin de ese sitio (SP7-D-1); misma respuesta que slug inexistente (404).
+ * Entrada: slug del evento, clase de host y usuario de cuenta si la sesión está enlazada.
+ * Salida: void, o HttpError 404 «Evento no encontrado».
+ */
 export async function assertGroupPrivateEventOnPortalHost(
   db: Queryable,
   eventSlug: string,
