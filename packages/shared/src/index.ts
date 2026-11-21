@@ -30,6 +30,13 @@ export {
 export * from './i18n.js';
 export * from './payments.js';
 export * from './server-errors.js';
+export {
+  SITE_SLUG_PATTERN,
+  RESERVED_SITE_SLUGS,
+  normalizeSiteSlugInput,
+  validateSiteSlug,
+  type SiteSlugValidation,
+} from './site-slug.js';
 
 export type TemplateKind = 'comida' | 'casa' | 'viaje' | 'evento';
 export type RsvpStatus = 'yes' | 'no' | 'maybe';
