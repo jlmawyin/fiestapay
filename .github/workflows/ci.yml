@@ -29,4 +29,6 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npx playwright install chromium
+      - run: npm run verificar
       - run: npm run check

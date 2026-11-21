@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { UI_LABELS } from '@fiestapay/shared';
 import type { Quote, TemplateKind } from '../../types';
-import { useI18n } from '../../i18n/I18nContext';
+import { useI18n, useMessages } from '../../i18n/I18nContext';
+import { paypalCatalog } from '../../i18n/messages/paypal';
 import {
   guestCoveredCopy,
   guestPaymentCopy,
@@ -15,6 +16,8 @@ interface QuoteReviewCardProps {
   onRefreshQuote: () => Promise<void>;
   onCreateOrder: (quoteId: string) => Promise<void>;
   isCreatingOrder: boolean;
+  /** SP8-D-2: false en tenants `none`; oculta confirmación y POST /orders. */
+  onlineCheckout?: boolean;
   /** Selects zero-due wording. Money lines always come from the server quote. */
   template?: TemplateKind | null;
 }
@@ -25,6 +28,7 @@ export const QuoteReviewCard: React.FC<QuoteReviewCardProps> = ({
   onRefreshQuote,
   onCreateOrder,
   isCreatingOrder,
+  onlineCheckout = true,
   template = null,
 }) => {
   const [confirmedQuoteId, setConfirmedQuoteId] = useState<string | null>(null);
@@ -32,6 +36,7 @@ export const QuoteReviewCard: React.FC<QuoteReviewCardProps> = ({
   const [localBusy, setLocalBusy] = useState(false);
   const inFlight = useRef(false);
   const { locale, formatMoney } = useI18n();
+  const paypalCopy = useMessages(paypalCatalog);
   const copy = guestPaymentCopy(locale);
   const labels = UI_LABELS[locale];
   const confirmedByUser = quote !== null && confirmedQuoteId === quote.id;
@@ -153,6 +158,31 @@ export const QuoteReviewCard: React.FC<QuoteReviewCardProps> = ({
           <p role="status" style={{ margin: 0, color: 'var(--color-ink)', fontWeight: 700 }}>
             {guestCoveredCopy(template, quote.paidCents, locale)}
           </p>
+          <button
+            type="button"
+            onClick={onRefreshQuote}
+            disabled={isLoadingQuote || preparing}
+            className="btn btn-secondary"
+            aria-label={copy.update}
+          >
+            {copy.update}
+          </button>
+        </div>
+      ) : !onlineCheckout ? (
+        <div
+          style={{
+            backgroundColor: 'var(--color-surface-subtle)',
+            border: '1.5px dashed var(--color-border)',
+            padding: '1rem',
+            borderRadius: 'var(--radius-md)',
+            fontSize: '0.875rem',
+            color: 'var(--color-ink-muted)',
+          }}
+        >
+          <p style={{ fontWeight: 600, color: 'var(--color-ink)', margin: '0 0 0.35rem' }}>
+            {paypalCopy.noOnlinePaymentTitle}
+          </p>
+          <p style={{ margin: '0 0 0.75rem' }}>{paypalCopy.noOnlinePaymentBody}</p>
           <button
             type="button"
             onClick={onRefreshQuote}

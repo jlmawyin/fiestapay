@@ -1,0 +1,34 @@
+/*
+ * Contenedor visual de subdominios Somos Panas (SP5-D-1).
+ * Depende de variables definidas en estilos/tokens.css; el inline del perfil solo pisa --sp-color-*.
+ */
+.site-shell {
+  background: var(--sp-color-cloudwhite);
+  color: var(--sp-color-ink);
+  font-family: var(--sp-font-body, 'Manrope', sans-serif);
+}
+
+.site-shell h1,
+.site-shell h2 {
+  color: var(--sp-color-ink);
+  font-family: var(--sp-font-display, 'Nunito Sans', sans-serif);
+}
+
+.site-shell .site-muted {
+  color: var(--sp-color-ink-muted);
+}
+
+.site-shell .site-btn {
+  background: var(--sp-color-blue);
+  color: var(--sp-color-cloudwhite);
+  border: none;
+  border-radius: var(--sp-radius-md, 10px);
+  padding: 0.5rem 0.85rem;
+  cursor: pointer;
+}
+
+.site-shell .site-btn-secondary {
+  background: transparent;
+  color: var(--sp-color-ink);
+  border: 1px solid var(--sp-color-border, #E2E8F0);
+}

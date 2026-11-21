@@ -1,0 +1,21 @@
+{
+  "registro": {
+    "titulo": { "es": "Crear cuenta", "en": "Create account" },
+    "correo": { "es": "Correo", "en": "Email" },
+    "contrasena": { "es": "Contraseña", "en": "Password" },
+    "enviar": { "es": "Registrarse", "en": "Sign up" },
+    "irSesion": { "es": "Ya tengo cuenta", "en": "I already have an account" }
+  },
+  "sesion": {
+    "titulo": { "es": "Iniciar sesión", "en": "Sign in" },
+    "correo": { "es": "Correo", "en": "Email" },
+    "contrasena": { "es": "Contraseña", "en": "Password" },
+    "enviar": { "es": "Entrar", "en": "Sign in" },
+    "irRegistro": { "es": "Crear cuenta", "en": "Create account" }
+  },
+  "verificar": {
+    "titulo": { "es": "Verificar correo", "en": "Verify email" },
+    "enviar": { "es": "Confirmar correo", "en": "Confirm email" },
+    "sinToken": { "es": "Abre el enlace que enviamos a tu correo.", "en": "Open the link we sent to your email." }
+  }
+}

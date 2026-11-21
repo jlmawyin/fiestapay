@@ -11,10 +11,21 @@ import type { EmailAdapter } from './email/types.js';
 import type { Pool } from './db/pool.js';
 import { HttpError } from './errors.js';
 import { requestLocale } from './lib/locale.js';
-import { isAllowedOrigin } from './lib/origin.js';
+import {
+  classifyHost,
+  isHealthProbeExempt,
+  isHostRoutable,
+  isOriginAllowedForHost,
+  isPayPalWebhookHost,
+  type HostClassification,
+} from './lib/host.js';
+import { tenantIdForSlug } from './domain/access.js';
 import { requestLogger } from './lib/redact.js';
 import { PayPalSandboxClient } from './paypal/client.js';
 import type { PayPalAdapter } from './paypal/types.js';
+import { capabilitiesForHost } from './payments/provider.js';
+import { registerAccountRoutes } from './routes/accounts.js';
+import { registerSettingsRoutes } from './routes/settings.js';
 import { registerRecoveryRoutes } from './routes/recovery.js';
 import { registerChatRoutes } from './routes/chat.js';
 import { registerSuggestRoutes } from './routes/suggest.js';
@@ -51,6 +62,32 @@ export interface BuildAppOptions {
 }
 
 const WEBHOOK_PATH = '/api/paypal/webhook';
+
+declare module 'fastify' {
+  interface FastifyRequest {
+    hostClassification?: HostClassification;
+  }
+}
+
+/**
+ * SP4-D-3: en host `site` solo entran `/api/site/*` (y el health); el API de invitaciones queda en raíz/legado.
+ * Sin fila en `tenants`, el subdominio sigue respondiendo 404.
+ */
+async function isRequestRoutable(
+  method: string,
+  pathOnly: string,
+  host: HostClassification,
+  db: Pool,
+): Promise<boolean> {
+  if (isHealthProbeExempt(method, pathOnly)) return true;
+  if (isHostRoutable(host)) return true;
+  if (host.kind === 'site' && host.slug) {
+    const tenantId = await tenantIdForSlug(db, host.slug);
+    if (!tenantId) return false;
+    return pathOnly === '/api/site' || pathOnly.startsWith('/api/site/');
+  }
+  return false;
+}
 
 /** HTTP status for a thrown error: ours, Fastify's (validation, rate limit) or 500. */
 function statusOf(err: unknown): number {
@@ -112,14 +149,43 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
    * because it is server-to-server and authenticated by its signature instead.
    */
   app.addHook('onRequest', async (req, reply) => {
+    // Solo `Host`: no confiar en X-Forwarded-Host con trustProxy (ver cabecera en host.ts).
+    const hostClassification = classifyHost(req.headers.host, { env: config.env });
+    req.hostClassification = hostClassification;
+
     reply.header('Referrer-Policy', 'no-referrer');
     const pathOnly = req.url.split('?')[0] ?? req.url;
-    if (pathOnly === '/api' || pathOnly.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
     const method = req.method.toUpperCase();
+    if (pathOnly === '/api' || pathOnly.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
+
+    // D-1: el healthcheck interno usa 127.0.0.1/local sin tratar esos Host como legado en producción.
+    if (!(await isRequestRoutable(method, pathOnly, hostClassification, pool))) {
+      reply.code(404).send({ error: 'Ruta no encontrada' });
+      return reply;
+    }
+
+    if (pathOnly === WEBHOOK_PATH && !isPayPalWebhookHost(hostClassification)) {
+      reply.code(404).send({ error: 'Ruta no encontrada' });
+      return reply;
+    }
+
+    // SP-8: credenciales de comprador demo solo en el host legado (no en raíz ni subdominios de grupo).
+    if (pathOnly === '/api/demo/buyer' && hostClassification.kind !== 'legacy') {
+      reply.code(404).send({ error: 'Ruta no encontrada' });
+      return reply;
+    }
+
+    // SP-8: capacidades según host sin duplicar la ruta de core (legado conserva PayPal sandbox).
+    if (method === 'GET' && pathOnly === '/api/capabilities') {
+      return reply.send(capabilitiesForHost(hostClassification, config, email !== null));
+    }
+
     if (method === 'GET' || method === 'HEAD') return;
     const path = req.url.split('?')[0] ?? req.url;
     if (path === WEBHOOK_PATH) return;
-    if (!isAllowedOrigin({ origin: req.headers.origin, referer: req.headers.referer, allowed: config.allowedOrigins })) {
+    if (
+      !isOriginAllowedForHost(hostClassification, { origin: req.headers.origin, referer: req.headers.referer }, config.allowedOrigins)
+    ) {
       reply.code(403).send({ error: 'Origen no permitido' });
       return reply; // stops the request lifecycle
     }
@@ -191,6 +257,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await app.register(
     async (api) => {
       await registerCoreRoutes(api, deps);
+      await registerAccountRoutes(api, deps);
+      await registerSettingsRoutes(api, deps);
       await registerRecoveryRoutes(api, deps);
       await registerPaymentRoutes(api, deps);
       await registerChatRoutes(api, deps);

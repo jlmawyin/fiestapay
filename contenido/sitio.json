@@ -1,0 +1,29 @@
+{
+  "ajustes": {
+    "titulo": { "es": "Ajustes del sitio", "en": "Site settings" },
+    "nombre": { "es": "Nombre visible", "en": "Display name" },
+    "frase": { "es": "Frase corta", "en": "Tagline" },
+    "acerca": { "es": "Presentación", "en": "About" },
+    "colores": { "es": "Colores", "en": "Colors" },
+    "modulos": { "es": "Módulos", "en": "Modules" },
+    "moduloReuniones": { "es": "Reuniones", "en": "Meetups" },
+    "moduloEventos": { "es": "Eventos", "en": "Events" },
+    "moduloRecaudacion": { "es": "Recaudación", "en": "Fundraising" },
+    "moduloAsistente": { "es": "Asistente (voz y texto)", "en": "Assistant (voice and text)" },
+    "guardar": { "es": "Guardar cambios", "en": "Save changes" },
+    "volver": { "es": "Volver al inicio", "en": "Back to home" }
+  },
+  "inicio": {
+    "recaudacionTitulo": { "es": "Recaudaciones", "en": "Fundraising" },
+    "recaudacionTexto": {
+      "es": "Las recaudaciones del grupo aparecerán aquí cuando SP-9 esté listo.",
+      "en": "Group fundraising will show here when SP-9 ships."
+    },
+    "irAjustes": { "es": "Ajustes", "en": "Settings" }
+  },
+  "errores": {
+    "guardarFallo": { "es": "No se pudo guardar", "en": "Could not save" },
+    "red": { "es": "Error de red.", "en": "Network error." },
+    "cargarSitio": { "es": "No se pudo cargar el sitio", "en": "Could not load the site" }
+  }
+}

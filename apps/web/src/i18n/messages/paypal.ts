@@ -44,6 +44,9 @@ export const paypalCatalog = defineCatalog({
     noProviderTitle: 'Proveedor PayPal no configurado en el servidor',
     noProviderBody:
       'El servidor reporta que las credenciales de PayPal Sandbox están ausentes. Los botones de pago directo no se pueden inicializar en este entorno sin configurar ',
+    noOnlinePaymentTitle: 'Cobro en línea no disponible en este sitio',
+    noOnlinePaymentBody:
+      'Este espacio aún no tiene procesador de pagos conectado. El organizador coordina el cobro por fuera de la app; aquí no aparece el botón de PayPal.',
     secureNote:
       'Paga de forma segura mediante PayPal Sandbox. El pago solo se considerará completado una vez que nuestro servidor capture y verifique la transacción.',
     loadingSdk: 'Cargando interfaz oficial de PayPal Sandbox...',
@@ -90,6 +93,9 @@ export const paypalCatalog = defineCatalog({
     noProviderTitle: 'PayPal provider not configured on the server',
     noProviderBody:
       'The server reports that the PayPal Sandbox credentials are missing. Direct payment buttons cannot start in this environment without setting ',
+    noOnlinePaymentTitle: 'Online checkout is not available on this site',
+    noOnlinePaymentBody:
+      'This space does not have a payment processor connected yet. The organizer coordinates payment outside the app; the PayPal button does not appear here.',
     secureNote:
       'Pay securely through PayPal Sandbox. The payment only counts as complete once our server captures and verifies the transaction.',
     loadingSdk: 'Loading the official PayPal Sandbox interface...',

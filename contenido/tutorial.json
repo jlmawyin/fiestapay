@@ -1,0 +1,44 @@
+{
+  "titulo": {
+    "es": "Tutorial guiado",
+    "en": "Guided tutorial"
+  },
+  "intro": {
+    "es": "Cuatro pasos para crear tu espacio en Somos Panas. Puedes seguir el tutorial por voz o por texto.",
+    "en": "Four steps to create your space on Somos Panas. You can follow the tutorial by voice or text."
+  },
+  "pasos": [
+    {
+      "numero": "01",
+      "titulo": { "es": "Crea tu espacio", "en": "Create your space" },
+      "texto": {
+        "es": "Elige un nombre de subdominio en somospanas.com y personaliza los colores y módulos de tu grupo.",
+        "en": "Pick a subdomain on somospanas.com and customize your group's colors and modules."
+      }
+    },
+    {
+      "numero": "02",
+      "titulo": { "es": "Invita a tus panas", "en": "Invite your friends" },
+      "texto": {
+        "es": "Comparte el enlace de tu espacio y suma miembros con su cuenta.",
+        "en": "Share your space link and add members with their account."
+      }
+    },
+    {
+      "numero": "03",
+      "titulo": { "es": "Organicen y junten fondos", "en": "Plan and pool funds" },
+      "texto": {
+        "es": "Creen reuniones o eventos y, si hace falta, anoten recaudaciones. El tutor acompaña por voz o por texto.",
+        "en": "Create meetups or events and, when needed, note fundraisers. The tutor guides you by voice or text."
+      }
+    },
+    {
+      "numero": "04",
+      "titulo": { "es": "Cuentas claras", "en": "Clear accounts" },
+      "texto": {
+        "es": "Cada aporte y cada anotación queda visible para el grupo, con totales calculados en el servidor.",
+        "en": "Every contribution and note stays visible for the group, with totals calculated on the server."
+      }
+    }
+  ]
+}

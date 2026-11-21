@@ -14,6 +14,7 @@ const labels = UI_LABELS.en;
 const caps: Capabilities = {
   paypal: false,
   paypalClientId: null,
+  paymentProvider: 'paypal_sandbox',
   chat: true,
   llmProvider: 'openai',
   voice: true,

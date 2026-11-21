@@ -6,8 +6,19 @@ import { newAdminKey, newId, newSlug, sha256 } from '../lib/ids.js';
 import { assertAdminKey, digestMatches, rememberUnlock, revokeUnlocks } from './access.js';
 import { audit } from './audit.js';
 import { decideFundingIfDue, fundingBlocksNewCharge, fundingForNewEvent, fundingNow, nextFundingTerms, type FundingGate } from './funding.js';
+import { legacyTenantId } from '../lib/host.js';
+import { paymentProviderIdForEventId, paymentProviderIdForTenant } from '../payments/provider.js';
 import { isPastRetention, tombstoneEvent } from './retention.js';
-import { EVENT_COLUMNS, eventTotals, loadFiestaEvent, lockEvent, toFiestaEvent, type EventRow, type FiestaEventWithDemo, type Queryable } from './read.js';
+import {
+  EVENT_COLUMNS,
+  eventForClient,
+  eventTotals,
+  loadFiestaEvent,
+  lockEvent,
+  type EventRow,
+  type FiestaEventWithDemo,
+  type Queryable,
+} from './read.js';
 
 const UNIQUE_VIOLATION = '23505';
 
@@ -51,18 +62,21 @@ export async function insertEvent(
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const slug = newSlug(input.template);
     try {
-      const funding = fundingForNewEvent(input, fundingNow());
       const presentation = presentationOf(input);
+      const tenantId = await legacyTenantId(db);
+      const paymentProvider = await paymentProviderIdForTenant(db, tenantId);
+      const funding = fundingForNewEvent(input, fundingNow(), paymentProvider);
       const { rows } = await db.query<EventRow>(
-        `INSERT INTO events (id, slug, organizer_session_id, generation, title, template, meal, description,
+        `INSERT INTO events (id, slug, tenant_id, organizer_session_id, generation, title, template, meal, description,
            starts_at, ends_at, location, includes, agenda, price_cents, capacity, goal_cents, minimum_cents,
            is_demo, admin_key_hash, access_code_hash, funding_deadline_at, funding_status,
            organizer_name, theme)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
          RETURNING ${EVENT_COLUMNS}`,
         [
           newId(),
           slug,
+          tenantId,
           sessionId,
           generation,
           input.title,
@@ -110,7 +124,10 @@ async function mintAndInsert(
   });
   await audit(client, row.id, isDemo ? 'demo_seeded' : 'event_created');
   if (input.accessCode) await audit(client, row.id, 'access_code_set');
-  return { event: toFiestaEvent(row, await eventTotals(client, row.id)), adminKey };
+  return {
+    event: await eventForClient(client, row, await eventTotals(client, row.id)),
+    adminKey,
+  };
 }
 
 export async function createEvent(pool: Pool, sessionId: string, input: EventInput): Promise<MintedEvent> {
@@ -167,7 +184,12 @@ export async function startDemo(pool: Pool, sessionId: string): Promise<MintedEv
       [sessionId, generation],
     );
     const row = existing.rows[0];
-    if (row) return { event: toFiestaEvent(row, await eventTotals(client, row.id)), adminKey: null };
+    if (row) {
+      return {
+        event: await eventForClient(client, row, await eventTotals(client, row.id)),
+        adminKey: null,
+      };
+    }
     return mintAndInsert(client, sessionId, demoEventInput(), generation, true);
   });
 }
@@ -352,7 +374,7 @@ export async function confirmEvent(pool: Pool, slug: string, presentedKey: strin
       await client.query('UPDATE events SET confirmed = true WHERE id = $1', [event.id]);
       await audit(client, event.id, 'event_confirmed');
     }
-    return { event: toFiestaEvent({ ...event, confirmed: true }, totals) };
+    return { event: await eventForClient(client, { ...event, confirmed: true }, totals) };
   });
   if ('blocked' in outcome) throw conflict(outcome.blocked);
   return outcome.event;
@@ -385,7 +407,15 @@ export async function updateEvent(
     if (!sameMoney(event, input) && ((usage?.guests ?? 0) > 0 || (usage?.orders ?? 0) > 0)) {
       throw conflict('No se pueden cambiar la cuota, la meta o el minimo cuando ya hay invitados o pagos');
     }
-    const terms = nextFundingTerms(event, input, new Date(input.startsAt), usage?.orders ?? 0, fundingNow());
+    const paymentProvider = await paymentProviderIdForEventId(client, event.id);
+    const terms = nextFundingTerms(
+      event,
+      input,
+      new Date(input.startsAt),
+      usage?.orders ?? 0,
+      fundingNow(),
+      paymentProvider,
+    );
 
     let accessCodeHash: Buffer | null | undefined;
     if (input.accessCode === undefined) accessCodeHash = undefined;
@@ -443,7 +473,7 @@ export async function updateEvent(
       await audit(client, event.id, nextHash === null ? 'access_code_cleared' : 'access_code_set');
     }
     await audit(client, event.id, 'event_updated');
-    return toFiestaEvent(updated, totals);
+    return await eventForClient(client, updated, totals);
   });
 }
 
@@ -455,7 +485,7 @@ export async function closeEvent(pool: Pool, slug: string, presentedKey: string 
       [event.id],
     );
     if (!event.closed_at) await audit(client, event.id, 'event_closed');
-    return toFiestaEvent(rows[0]!, await eventTotals(client, event.id));
+    return await eventForClient(client, rows[0]!, await eventTotals(client, event.id));
   });
 }
 

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tipos-evento.schema.json",
+  "title": "CatalogoTiposEvento",
+  "type": "object",
+  "required": ["tipos"],
+  "additionalProperties": false,
+  "properties": {
+    "tipos": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "evento.schema.json" }
+    }
+  }
+}

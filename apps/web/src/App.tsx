@@ -18,6 +18,16 @@ import { OrganizerDashboardView } from './views/OrganizerDashboardView';
 import { OrganizerRecoveryView } from './views/OrganizerRecoveryView';
 import { JudgePreviewView } from './views/JudgePreviewView';
 import { TutorialView } from './views/TutorialView';
+import { AccountRegisterView } from './views/AccountRegisterView';
+import { AccountLoginView } from './views/AccountLoginView';
+import { AccountVerifyView } from './views/AccountVerifyView';
+import { SiteHomeView } from './views/SiteHomeView';
+import { SiteSettingsView } from './views/SiteSettingsView';
+import sitioTextos from '../../../contenido/sitio.json';
+import { shouldRenderLegacyOrb } from './lib/legacy-orb';
+import { readSiteHostContext } from './lib/site-host';
+import { siteThemeStyle } from './lib/site-theme';
+import type { TenantSiteSettings } from './lib/site-types';
 import { AssistantOrb } from './components/assistant/AssistantOrb';
 import { DemoBuyerAccountCard } from './components/demo/DemoBuyerAccountCard';
 import { parseCreatePath, type CreatePath } from './lib/create-interview';
@@ -49,7 +59,12 @@ type ViewMode =
   | { mode: 'invite'; slug: string }
   | { mode: 'dashboard'; slug: string }
   | { mode: 'recover' }
-  | { mode: 'tutorial' };
+  | { mode: 'tutorial' }
+  | { mode: 'register' }
+  | { mode: 'login' }
+  | { mode: 'verify' }
+  | { mode: 'site-home' }
+  | { mode: 'site-settings' };
 
 /** Guide pages are the public routes; invite/dashboard are not guide pages. */
 function viewToGuidePage(view: ViewMode): UiPage | null {
@@ -58,6 +73,9 @@ function viewToGuidePage(view: ViewMode): UiPage | null {
   if (view.mode === 'create') return 'create';
   if (view.mode === 'recover') return 'recover';
   if (view.mode === 'tutorial') return 'tutorial';
+  if (view.mode === 'register') return 'landing';
+  if (view.mode === 'login') return 'landing';
+  if (view.mode === 'verify') return 'landing';
   return null;
 }
 
@@ -69,10 +87,14 @@ function guidePageToView(page: UiPage): ViewMode {
   return { mode: 'home' };
 }
 
+const SITE_HOST = readSiteHostContext();
+
 export const App: React.FC = () => {
   captureAdminKeyFromLocation();
   const { locale } = useI18n();
   const m = useMessages(appCatalog);
+  const [siteProfile, setSiteProfile] = useState<TenantSiteSettings | null>(null);
+  const [siteProfileError, setSiteProfileError] = useState<string | null>(null);
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
   const [events, setEvents] = useState<FiestaEvent[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
@@ -122,6 +144,10 @@ export const App: React.FC = () => {
     else if (view.mode === 'demo') path = '/demo';
     else if (view.mode === 'recover') path = '/recover';
     else if (view.mode === 'tutorial') path = '/tutorial';
+    else if (view.mode === 'register') path = '/register';
+    else if (view.mode === 'login') path = '/login';
+    else if (view.mode === 'verify') path = '/verify';
+    else if (view.mode === 'site-settings') path = '/settings';
     else if (view.mode === 'invite') path = `/e/${view.slug}`;
     else if (view.mode === 'dashboard') path = `/e/${view.slug}/admin`;
 
@@ -165,6 +191,22 @@ export const App: React.FC = () => {
       setCurrentView({ mode: 'tutorial' });
       return;
     }
+    if (path === '/register' || path === '/register/') {
+      setCurrentView({ mode: 'register' });
+      return;
+    }
+    if (path === '/login' || path === '/login/') {
+      setCurrentView({ mode: 'login' });
+      return;
+    }
+    if (path === '/verify' || path === '/verify/') {
+      setCurrentView({ mode: 'verify' });
+      return;
+    }
+    if (SITE_HOST.isSiteHost && (path === '/settings' || path === '/settings/')) {
+      setCurrentView({ mode: 'site-settings' });
+      return;
+    }
     const dashboardMatch = path.match(/^\/e\/([^/]+)\/(?:admin|dashboard)\/?$/);
     if (dashboardMatch && dashboardMatch[1]) {
       setCurrentView({ mode: 'dashboard', slug: decodeURIComponent(dashboardMatch[1]) });
@@ -180,12 +222,42 @@ export const App: React.FC = () => {
       setCurrentView({ mode: 'create', path: rawPath === null ? undefined : parseCreatePath(rawPath) });
       return;
     }
+    if (SITE_HOST.isSiteHost) {
+      setCurrentView({ mode: 'site-home' });
+      return;
+    }
     setCurrentView({ mode: 'home' });
+  }, []);
+
+  /** Carga la marca del subdominio (SP-5); no llama rutas de FiestaPay legado. */
+  const initSiteProfile = useCallback(async () => {
+    setSiteProfileError(null);
+    try {
+      const res = await fetch('/api/site/profile', { credentials: 'include' });
+      const data = (await res.json()) as { settings?: TenantSiteSettings; error?: string };
+      const fallo =
+        localeRef.current === 'en'
+          ? sitioTextos.errores.cargarSitio.en
+          : sitioTextos.errores.cargarSitio.es;
+      if (!res.ok || !data.settings) {
+        setSiteProfileError(data.error ?? fallo);
+        return;
+      }
+      setSiteProfile(data.settings);
+    } catch {
+      setSiteProfileError(
+        localeRef.current === 'en' ? sitioTextos.errores.cargarSitio.en : sitioTextos.errores.cargarSitio.es,
+      );
+    }
   }, []);
 
   // Initialize capabilities and restore organizer session. Both reads are bounded by the
   // API client timeout, so the home loader cannot stay pending forever.
   const initApp = useCallback(async () => {
+    if (SITE_HOST.isSiteHost) {
+      await initSiteProfile();
+      return;
+    }
     setSessionError(null);
     setIsLoadingEvents(true);
     setEventsError(null);
@@ -206,7 +278,7 @@ export const App: React.FC = () => {
       })
       .finally(() => setIsLoadingEvents(false));
     await Promise.allSettled([capabilitiesTask, eventsTask]);
-  }, []);
+  }, [initSiteProfile]);
 
   useEffect(() => {
     handleLocationChange();
@@ -372,27 +444,27 @@ export const App: React.FC = () => {
   }, []);
 
   const publicContext: AssistantContext = currentView.mode === 'demo' ? 'demo' : 'landing';
-
+  const siteTheme = siteProfile ? siteThemeStyle(siteProfile) : undefined;
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', ...siteTheme }}>
       {/* Sandbox Demo Ribbon */}
-      <DemoRibbon
+      {!SITE_HOST.isSiteHost ? <DemoRibbon
         capabilities={capabilities}
         status={capabilities ? 'ready' : sessionError ? 'unavailable' : 'loading'}
         onRetry={capabilities || !sessionError ? undefined : initApp}
-      />
+      /> : null}
 
       {/* Global Navigation Header */}
-      <Header
+      {!SITE_HOST.isSiteHost ? <Header
         onNavigateHome={goToOwnInvitations}
         onNavigateCreate={() => navigate({ mode: 'create' })}
         onNavigateDemo={() => navigate({ mode: 'demo' })}
         onNavigateTutorial={() => navigate({ mode: 'tutorial' })}
         hasActiveEvent={events.length > 0}
-      />
+      /> : null}
 
       {/* Expired Session / Connection Recovery Banner */}
-      {sessionError && (
+      {!SITE_HOST.isSiteHost && sessionError && (
         <div
           style={{
             backgroundColor: 'var(--color-coral-tint)',
@@ -420,6 +492,26 @@ export const App: React.FC = () => {
 
       {/* Main Body View */}
       <main className="app-container" style={{ marginTop: '1.5rem', flex: 1 }}>
+        {SITE_HOST.isSiteHost && siteProfileError && (
+          <p role="alert">{siteProfileError}</p>
+        )}
+        {currentView.mode === 'site-home' && siteProfile && (
+          <SiteHomeView
+            settings={siteProfile}
+            onNavigateSettings={() => navigate({ mode: 'site-settings' })}
+          />
+        )}
+        {currentView.mode === 'site-settings' && siteProfile && (
+          <SiteSettingsView
+            initial={siteProfile}
+            onSaved={(settings) => {
+              setSiteProfile(settings);
+              navigate({ mode: 'site-home' });
+            }}
+            onBack={() => navigate({ mode: 'site-home' })}
+          />
+        )}
+
         {currentView.mode === 'home' && (
           <LandingView
             events={events}
@@ -501,6 +593,24 @@ export const App: React.FC = () => {
           />
         )}
 
+        {currentView.mode === 'register' && (
+          <AccountRegisterView
+            onNavigateLogin={() => navigate({ mode: 'login' })}
+            onRegistered={() => navigate({ mode: 'login' })}
+          />
+        )}
+
+        {currentView.mode === 'login' && (
+          <AccountLoginView
+            onNavigateRegister={() => navigate({ mode: 'register' })}
+            onLoggedIn={() => navigate({ mode: 'home' })}
+          />
+        )}
+
+        {currentView.mode === 'verify' && (
+          <AccountVerifyView onVerified={() => navigate({ mode: 'login' })} />
+        )}
+
         {currentView.mode === 'dashboard' && (
           <OrganizerDashboardView
             slug={currentView.slug}
@@ -517,11 +627,7 @@ export const App: React.FC = () => {
           recovery get one launcher; invite and dashboard keep their own role-scoped orb.
           Landing and demo keep separate public conversations by context.
         */}
-        {(currentView.mode === 'home' ||
-          currentView.mode === 'demo' ||
-          currentView.mode === 'create' ||
-          currentView.mode === 'recover' ||
-          currentView.mode === 'tutorial') && (
+        {shouldRenderLegacyOrb(SITE_HOST.isSiteHost, currentView.mode) && (
           <AssistantOrb
             audience="public"
             capabilities={capabilities}

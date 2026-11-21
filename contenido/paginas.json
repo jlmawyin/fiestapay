@@ -1,0 +1,14 @@
+{
+  "portadaRaiz": {
+    "secciones": [
+      { "id": "barra", "bloque": "BarraNavegacion" },
+      { "id": "hero", "bloque": "HeroPortada" },
+      { "id": "foto-ambiente", "bloque": "FotoAmbiente" },
+      { "id": "compositor", "bloque": "CompositorSubdominio" },
+      { "id": "como-funciona", "bloque": "ComoFunciona" },
+      { "id": "eventos-publicos", "bloque": "EventosPublicos" },
+      { "id": "donaciones", "bloque": "DonacionesRecaudaciones" },
+      { "id": "pie", "bloque": "PiePortada" }
+    ]
+  }
+}
