@@ -20,6 +20,7 @@ import type {
 import type {
   AvatarLang,
   AvatarSessionErrorCode,
+  AvatarSessionRequest,
   AvatarSessionResponse,
   DemoKind,
 } from '@fiestapay/shared';
@@ -56,15 +57,6 @@ export class AvatarSessionError extends ApiError {
   }
 }
 
-/**
- * Respuesta de sesión con la URL del socket de texto (NAP-F4w). El contrato
- * `mode`/`socketUrl` lo agrega DSH en `packages/shared`; mientras el director
- * integra las ramas, la web lo tipa localmente como opcional.
- */
-export interface AvatarTextSessionResponse extends AvatarSessionResponse {
-  socketUrl?: string;
-}
-
 /** Lee `Retry-After` como segundos; las fechas HTTP se ignoran. */
 function parseRetryAfterHeader(res: Response): number | undefined {
   try {
@@ -98,7 +90,6 @@ export interface CreateSiteResult {
 
 export const REQUEST_TIMEOUT_MS = 30_000;
 
-/** AI routes wait longer: the model answers before 45 s and the client gives it 55 s. */
 // NAP-F5b: AI_REQUEST_TIMEOUT_MS murió con las rutas de IA propias.
 
 export const REQUEST_TIMEOUT_MESSAGES = {
@@ -436,15 +427,15 @@ export const api = {
   /**
    * Sesión de avatar Napster (NAP-F3 video, NAP-F4w texto). Usa `fetch` directo
    * en vez de `request()` para conservar el código de error y `retryAfterSec`
-   * en 429. Con `mode:'text'` el servidor (rama DSH) devuelve además
-   * `socketUrl`; la base estricta se valida sin esa clave local.
+   * en 429. NAP-F5: `mode`/`socketUrl` salen del contrato compartido; la web
+   * endurece además el transporte a wss/https (el esquema acepta http).
    */
   async createAvatarSession(payload: {
     lang: AvatarLang;
     intent?: 'create';
     eventSlug?: string;
-    mode?: 'text';
-  }): Promise<AvatarTextSessionResponse> {
+    mode?: AvatarSessionRequest['mode'];
+  }): Promise<AvatarSessionResponse> {
     const headers = new Headers({ 'Content-Type': 'application/json' });
     headers.set(LOCALE_HEADER, getActiveLocale());
     // NAP-F4: con eventSlug, la misma clave de organizador del panel viaja en
@@ -475,16 +466,14 @@ export const api = {
         retryAfterSec,
       );
     }
-    const record = (data ?? {}) as Record<string, unknown>;
-    const { socketUrl, ...rest } = record;
-    const parsed = avatarSessionResponseSchema.safeParse(rest);
+    const parsed = avatarSessionResponseSchema.safeParse(data);
     if (!parsed.success) {
       throw new AvatarSessionError('Respuesta inválida de la sesión de avatar', 502, 'avatar_upstream');
     }
-    if (socketUrl !== undefined && (typeof socketUrl !== 'string' || !/^(wss|https):\/\//.test(socketUrl))) {
+    if (parsed.data.socketUrl !== undefined && !/^(wss|https):\/\//.test(parsed.data.socketUrl)) {
       throw new AvatarSessionError('Respuesta inválida de la sesión de avatar', 502, 'avatar_upstream');
     }
-    return typeof socketUrl === 'string' ? { ...parsed.data, socketUrl } : parsed.data;
+    return parsed.data;
   },
 
   /** Cierre idempotente por handle; 204 no trae cuerpo. */

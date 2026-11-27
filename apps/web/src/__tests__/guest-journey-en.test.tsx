@@ -13,8 +13,6 @@ const caps: Capabilities = {
   paypal: false,
   paypalClientId: null,
   paymentProvider: 'paypal_sandbox',
-  chat: true,
-  voice: true,
   sandbox: true,
   email: false,
   avatar: true,

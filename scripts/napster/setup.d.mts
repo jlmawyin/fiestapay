@@ -1,5 +1,5 @@
 /**
- * Tipos públicos de `setup.mjs` para las pruebas (NAP-F2).
+ * Tipos públicos de `setup.mjs` para las pruebas (NAP-F2 / NAP-F4s).
  * No se ejecuta; solo describe `runSetup` con sus dependencias inyectables.
  */
 export interface RunSetupOptions {
@@ -13,7 +13,8 @@ export interface RunSetupResult {
   dryRun: boolean;
   ids: {
     funciones: string[];
-    faq: string;
+    faqs: { es: string; en: string };
+    conocimiento: string | null;
     agentes: { es: string; en: string };
   } | null;
 }

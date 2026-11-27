@@ -64,10 +64,9 @@ const dashboard: Dashboard = { event, guests: [], audit: [] };
 const caps = {
   paypal: false,
   paypalClientId: null,
-  chat: false,
-  voice: false,
   sandbox: true,
   email: false,
+  avatar: true,
 };
 
 type Call = { url: string; method: string; adminKey: string | null };

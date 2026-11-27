@@ -21,9 +21,9 @@ const capsNone = {
   paypal: false,
   paypalClientId: null,
   paymentProvider: 'none' as const,
-  voice: false,
   sandbox: true as const,
   email: false,
+  avatar: true,
 };
 
 const quote = {
@@ -117,9 +117,9 @@ describe('UI invitado sin procesador', () => {
           paypal: true,
           paypalClientId: 'sandbox-client',
           paymentProvider: 'none',
-          voice: false,
           sandbox: true,
           email: false,
+          avatar: true,
         }}
         isJoining={false}
         isSavingRsvp={false}

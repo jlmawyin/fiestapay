@@ -28,7 +28,7 @@ const SPANISH_DEMO = {
   capacity: 8,
   goalCents: 20000,
   minimumCents: 5000,
-  organizerName: 'Equipo FiestaPay (demo)',
+  organizerName: 'Equipo Somos Panas (demo)',
 };
 
 const SPANISH_AGENDA = [
@@ -124,7 +124,7 @@ describeDb('demos localizadas, listado con isDemo y reinicio aislado', () => {
     const english = body<CreatedWithDemo>(await en.post('/api/demo', { kind: 'payment' }));
     expect(english.event.isDemo).toBe(true);
     expect(english.event.title).toBe('Demo lunch');
-    expect(english.event.organizerName).toBe('FiestaPay team (demo)');
+    expect(english.event.organizerName).toBe('Somos Panas team (demo)');
     expect(english.event.location).toContain('fictional place');
     expect(english.event.description).toContain('Fictional demo meal');
     expect(english.event.agenda[0]).toEqual({ time: '13:00', title: 'Demo welcome' });
@@ -222,6 +222,6 @@ describeDb('demos localizadas, listado con isDemo y reinicio aislado', () => {
     const reset = body<CreatedWithDemo>(await client.post('/api/demo/reset'));
     expect(reset.event.isDemo).toBe(true);
     expect(reset.event.title).toBe('Almuerzo de demostración');
-    expect(reset.event.organizerName).toBe('Equipo FiestaPay (demo)');
+    expect(reset.event.organizerName).toBe('Equipo Somos Panas (demo)');
   });
 });

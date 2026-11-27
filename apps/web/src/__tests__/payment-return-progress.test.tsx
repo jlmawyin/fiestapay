@@ -32,10 +32,9 @@ const guest: Guest = {
 const capsOff = {
   paypal: false,
   paypalClientId: null,
-  chat: false,
-  voice: false,
   sandbox: true as const,
   email: false,
+  avatar: true,
 };
 
 const capsOn = { ...capsOff, paypal: true, paypalClientId: 'client-sandbox-test' };

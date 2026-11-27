@@ -10,6 +10,7 @@ import type { Config } from '../config.js';
 import type { Pool } from '../db/pool.js';
 import { currentAccount } from '../domain/accounts.js';
 import {
+  assertAdminKey,
   assertPrivateAccess,
   membershipRoleForUser,
   presentedAdminKey,
@@ -105,8 +106,8 @@ async function eventForGuest(
 }
 
 /**
- * Orden: admin del sitio -> creator; eventSlug -> guest validado; raíz con intent=create -> creator;
- * resto public. En el host legado, fuera de un evento, el visitante es public.
+ * Orden: admin del sitio -> creator; evento con clave de organizador en legado -> creator;
+ * eventSlug -> guest validado; raíz o legado con intent=create -> creator; resto public.
  */
 export async function decideAvatarVisitor(
   pool: Pool,
@@ -133,11 +134,29 @@ export async function decideAvatarVisitor(
 
   if (body.eventSlug) {
     const { event, siteName } = await eventForGuest(pool, config, req, body.eventSlug);
+    // NAP-F4s-D3: la clave del panel del organizador abre el recorrido de creador en el legado.
+    // Una clave inválida no cambia la decisión ni revela nada: sigue como invitado.
+    if (host?.kind === 'legacy') {
+      const adminKey = presentedAdminKey(req);
+      if (adminKey) {
+        try {
+          assertAdminKey(event, adminKey);
+          return { visitor: 'creator', eventTitle: event.title, siteName };
+        } catch {
+          // Clave incorrecta: se ignora y el evento se trata como invitado.
+        }
+      }
+    }
     return { visitor: 'guest', eventTitle: event.title, siteName };
   }
 
   if (host?.kind === 'root' && body.intent === 'create') {
     return { visitor: 'creator', siteName: 'Somos Panas' };
+  }
+
+  // NAP-F4s-D3: en el legado, crear una reunión usa el recorrido de creador.
+  if (host?.kind === 'legacy' && body.intent === 'create') {
+    return { visitor: 'creator', siteName: await legacySiteName(pool) };
   }
 
   if (host?.kind === 'site' && host.slug) {

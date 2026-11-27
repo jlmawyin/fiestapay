@@ -31,8 +31,6 @@ vi.mock('ag-grid-react', () => ({
 const capabilities: Capabilities = {
   paypal: true,
   paypalClientId: 'sb-client',
-  chat: false,
-  voice: false,
   sandbox: true,
   email: true,
   avatar: true,

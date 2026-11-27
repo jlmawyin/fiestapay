@@ -7,8 +7,7 @@ import {
   Guest,
   Quote,
   OrderResult,
-  Capabilities as SharedCapabilities,
-  ChatResult,
+  Capabilities,
   ChatTranscript,
   ChatTranscriptMessage,
   ModerationGuest,
@@ -28,13 +27,6 @@ import {
   fixedQuote,
 } from '@fiestapay/shared';
 
-/**
- * NAP-F5b: capabilities del servidor más el aviso local de la avatar.
- * F5b prohíbe tocar packages/shared (DSH la suma en F5a); la web extiende
- * aquí: ausente (servidor anterior) = ofrecida, `false` = recorrido fijo.
- */
-export type Capabilities = SharedCapabilities & { avatar?: boolean };
-
 export type {
   TemplateKind,
   RsvpStatus,
@@ -44,7 +36,7 @@ export type {
   Guest,
   Quote,
   OrderResult,
-  ChatResult,
+  Capabilities,
   ChatTranscript,
   ChatTranscriptMessage,
   ModerationGuest,

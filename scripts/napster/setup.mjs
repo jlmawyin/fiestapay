@@ -1,8 +1,9 @@
 /**
- * Configuración idempotente del agente Napster de Somos Panas (NAP-F2).
- * Depende de `avatar-tools.ts`, `contenido/avatar.json` y `contenido/preguntas.json`.
- * Crea/actualiza functions, una colección FAQ, los agentes es/en y el canal webrtc `deferred`.
- * Con `--dry-run` no hace red ni escribe ids. Nunca imprime la clave.
+ * Configuración idempotente del agente Napster de Somos Panas (NAP-F2 / NAP-F4s).
+ * Depende de `avatar-tools.ts`, `contenido/avatar.json`, `contenido/preguntas.json` y del
+ * conocimiento servido en `apps/web/public/conocimiento/`. Crea/actualiza functions, dos
+ * colecciones FAQ (es/en), una base de conocimiento opcional, los agentes es/en y el canal
+ * webrtc `deferred`. Con `--dry-run` no hace red ni escribe ids. Nunca imprime la clave.
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -11,7 +12,9 @@ import { AVATAR_TOOLS, AVATAR_TOOL_NAMES } from '../../packages/shared/dist/avat
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const RUTA_IDS = join(RAIZ, '.local', 'napster', 'ids.json');
-const NOMBRE_FAQ = 'somospanas-faq';
+const NOMBRE_FAQ_BASE = 'somospanas-faq';
+const NOMBRE_CONOCIMIENTO = 'somospanas-conocimiento';
+const ARCHIVOS_CONOCIMIENTO = ['somospanas.es.md', 'somospanas.en.md'];
 
 function parseArgs(argv) {
   const args = {};
@@ -30,7 +33,7 @@ function parseArgs(argv) {
 
 function lista(json) {
   if (Array.isArray(json)) return json;
-  for (const clave of ['items', 'data', 'results', 'functions', 'faqs', 'agents']) {
+  for (const clave of ['items', 'data', 'results', 'functions', 'faqs', 'agents', 'knowledgeBases']) {
     if (Array.isArray(json?.[clave])) return json[clave];
   }
   if (Array.isArray(json?.data?.items)) return json.data.items;
@@ -102,21 +105,51 @@ async function sincronizarFunciones(cliente, decir, existentes) {
   return ids;
 }
 
-async function sincronizarFaq(cliente, decir, existentes) {
-  const actual = existentes.find((item) => nombreDe(item) === NOMBRE_FAQ);
+/**
+ * NAP-F4s: el JSON es bilingüe por par; Napster limita a una colección por agente, así que
+ * se crean dos colecciones (es/en) con las preguntas y respuestas del idioma correspondiente.
+ */
+async function sincronizarFaq(cliente, decir, existentes, lang, preguntas) {
+  const nombre = `${NOMBRE_FAQ_BASE}-${lang}`;
+  const actual = existentes.find((item) => nombreDe(item) === nombre);
   if (actual && idDe(actual)) {
-    decir(`FAQ reutilizada: ${NOMBRE_FAQ} (${idDe(actual)})`);
+    decir(`FAQ reutilizada: ${nombre} (${idDe(actual)})`);
     return idDe(actual);
   }
-  const contenido = JSON.parse(await readFile(join(RAIZ, 'contenido', 'preguntas.json'), 'utf8'));
-  const faqs = (contenido.preguntas ?? []).slice(0, 50).map((item) => ({
-    question: `${item.pregunta.es}\n${item.pregunta.en}`,
-    answer: `${item.respuesta.es}\n${item.respuesta.en}`,
+  const faqs = preguntas.slice(0, 50).map((item) => ({
+    question: item.pregunta[lang],
+    answer: item.respuesta[lang],
   }));
-  const creada = await cliente.post('/public/faqs', { name: NOMBRE_FAQ, faqs });
+  const creada = await cliente.post('/public/faqs', { name: nombre, faqs });
   const id = idDe(creada);
-  if (!id) throw new Error('Napster no devolvió id para la colección FAQ');
-  decir(`FAQ creada: ${NOMBRE_FAQ} (${id}, ${faqs.length} pares)`);
+  if (!id) throw new Error(`Napster no devolvió id para la colección FAQ ${lang}`);
+  decir(`FAQ creada: ${nombre} (${id}, ${faqs.length} pares)`);
+  return id;
+}
+
+/**
+ * Crea o reutiliza la base de conocimiento por nombre. Si ya existe se reutiliza sin volver a
+ * subir archivos (idempotencia); si es nueva, sube los dos markdown servidos públicamente.
+ */
+async function sincronizarConocimiento(cliente, decir, existentes, urlBase) {
+  if (!urlBase) return null;
+  const actual = existentes.find((item) => nombreDe(item) === NOMBRE_CONOCIMIENTO);
+  if (actual && idDe(actual)) {
+    decir(`conocimiento reutilizado: ${NOMBRE_CONOCIMIENTO} (${idDe(actual)})`);
+    return idDe(actual);
+  }
+  const base = urlBase.replace(/\/+$/, '');
+  const creada = await cliente.post('/public/knowledge-bases', {
+    name: NOMBRE_CONOCIMIENTO,
+    provider: 'azureOpenAI',
+  });
+  const id = idDe(creada);
+  if (!id) throw new Error('Napster no devolvió id para la base de conocimiento');
+  for (const archivo of ARCHIVOS_CONOCIMIENTO) {
+    await cliente.post(`/public/knowledge-bases/${id}/files`, { url: `${base}/${archivo}` });
+    decir(`conocimiento subido: ${base}/${archivo}`);
+  }
+  decir(`conocimiento creado: ${NOMBRE_CONOCIMIENTO} (${id})`);
   return id;
 }
 
@@ -143,6 +176,7 @@ export async function runSetup({ argv = [], env = process.env, fetchImpl = fetch
   const dryRun = Boolean(args['dry-run']);
   const companionId = typeof args.companion === 'string' ? args.companion : '';
   const voiceId = typeof args.voice === 'string' ? args.voice : '';
+  const knowledgeBaseUrl = typeof args['knowledge-base-url'] === 'string' ? args['knowledge-base-url'] : '';
   const apiKey = (env.NAPSTER_API_KEY ?? '').trim();
   const baseUrl = (env.NAPSTER_API_BASE ?? 'https://napster-api.napster.com').trim();
 
@@ -152,7 +186,15 @@ export async function runSetup({ argv = [], env = process.env, fetchImpl = fetch
     salida(`companion: ${companionId || '<pendiente>'}`);
     salida(`voice: ${voiceId || '<pendiente>'}`);
     salida(`funciones: ${AVATAR_TOOL_NAMES.join(', ')}`);
-    salida(`FAQ: ${NOMBRE_FAQ} (máx. 50 pares desde contenido/preguntas.json)`);
+    salida(`FAQ es: ${NOMBRE_FAQ_BASE}-es (máx. 50 pares)`);
+    salida(`FAQ en: ${NOMBRE_FAQ_BASE}-en (máx. 50 pares)`);
+    if (knowledgeBaseUrl) {
+      const base = knowledgeBaseUrl.replace(/\/+$/, '');
+      salida(`conocimiento: ${NOMBRE_CONOCIMIENTO}`);
+      for (const archivo of ARCHIVOS_CONOCIMIENTO) salida(`  ${base}/${archivo}`);
+    } else {
+      salida('conocimiento: no configurado (sin --knowledge-base-url)');
+    }
     salida('agentes: somospanas-es (es), somospanas-en (en)');
     salida('canal: PUT /public/agents/{id}/channels/webrtc { videoPolicy: "deferred" }');
     return { dryRun: true, ids: null };
@@ -162,12 +204,24 @@ export async function runSetup({ argv = [], env = process.env, fetchImpl = fetch
   if (!apiKey) throw new Error('napster:setup requiere NAPSTER_API_KEY en el entorno (no se imprime)');
 
   const avatar = JSON.parse(await readFile(join(RAIZ, 'contenido', 'avatar.json'), 'utf8'));
+  const preguntas = JSON.parse(await readFile(join(RAIZ, 'contenido', 'preguntas.json'), 'utf8')).preguntas ?? [];
   const cliente = await crearCliente({ apiKey, baseUrl, fetchImpl });
 
   const funcionesExistentes = lista(await cliente.get('/public/functions'));
   const funciones = await sincronizarFunciones(cliente, salida, funcionesExistentes);
   const faqsExistentes = lista(await cliente.get('/public/faqs'));
-  const faq = await sincronizarFaq(cliente, salida, faqsExistentes);
+  const faqs = {
+    es: await sincronizarFaq(cliente, salida, faqsExistentes, 'es', preguntas),
+    en: await sincronizarFaq(cliente, salida, faqsExistentes, 'en', preguntas),
+  };
+  const conocimiento = knowledgeBaseUrl
+    ? await sincronizarConocimiento(
+        cliente,
+        salida,
+        lista(await cliente.get('/public/knowledge-bases')),
+        knowledgeBaseUrl,
+      )
+    : null;
   const agentesExistentes = lista(await cliente.get('/public/agents'));
 
   const agentes = {};
@@ -180,7 +234,8 @@ export async function runSetup({ argv = [], env = process.env, fetchImpl = fetch
       language: lang,
       providerSettings: { instructions: avatar[lang].instructions, temperature: 0.3 },
       functions: funciones,
-      faqCollections: [faq],
+      faqCollections: [faqs[lang]],
+      ...(conocimiento ? { knowledgeBaseId: conocimiento } : {}),
     };
     const id = await sincronizarAgente(cliente, salida, agentesExistentes, { name: nombre, body });
     await cliente.put(`/public/agents/${id}/channels/webrtc`, { videoPolicy: 'deferred' });
@@ -188,7 +243,7 @@ export async function runSetup({ argv = [], env = process.env, fetchImpl = fetch
     agentes[lang] = id;
   }
 
-  const ids = { funciones, faq, agentes };
+  const ids = { funciones, faqs, conocimiento, agentes };
   await mkdir(dirname(RUTA_IDS), { recursive: true });
   await writeFile(RUTA_IDS, `${JSON.stringify(ids, null, 2)}\n`, 'utf8');
   salida(`NAPSTER_AGENT_ID_ES=${agentes.es}`);

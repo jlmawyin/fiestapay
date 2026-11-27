@@ -10,10 +10,9 @@ describe('API Client Specification Compliance (docs/API.md)', () => {
   it('sends credentials same-origin and receives capabilities', async () => {
     const mockCaps = {
       paypal: true,
-      chat: false,
-      voice: false,
       paypalClientId: 'sb-client-id-123',
       sandbox: true as const,
+      avatar: true,
     };
 
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({

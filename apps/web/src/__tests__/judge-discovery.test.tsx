@@ -29,8 +29,6 @@ const capabilities: Capabilities = {
   paypal: true,
   paypalClientId: 'sb-client',
   paymentProvider: 'paypal_sandbox',
-  chat: false,
-  voice: false,
   sandbox: true,
   email: true,
   avatar: true,

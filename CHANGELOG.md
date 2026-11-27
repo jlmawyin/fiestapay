@@ -34,6 +34,22 @@ Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, 
 
 **Pruebas:** `npx vitest run src/__tests__/napster-avatar.test.tsx src/__tests__/napster-tool-router.test.ts src/__tests__/napster-avatar-session.test.ts src/__tests__/portal-landing.test.tsx` (web) y `npm run verificar` con `DATABASE_URL` de CI.
 
+## 2026-11-27 — NAP-F5a · Retiro de proveedores de IA y marca Somos Panas
+
+**Pedido:** NAP-F5a — dejar Napster como única IA del servidor: borrar módulos, rutas, configuración, scripts y pruebas de los proveedores anteriores; reportar `avatar` en capacidades; cambiar la marca visible del servidor a Somos Panas; actualizar documentación pública y este registro.
+
+**Archivos:** `apps/api/src/ai/**` (borrado), rutas `chat.ts`, `organizer-assistant.ts`, `suggest.ts`, `reminders.ts`, `voice.ts` (borradas), pruebas de chat/voz/draft/suggest/reminders/policy (borradas), `apps/api/src/app.ts`, `config.ts`, `index.ts`, `routes/deps.ts`, `routes/settings.ts`, `routes/core.ts`, `payments/provider.ts`, `packages/shared/src/index.ts`, `ui-guide.ts`, `apps/api/package.json`, `scripts/check-providers.mjs`, `scripts/smoke-providers.mjs` (borrado), `.env.example`, `email/compose.ts`, `domain/events.ts`, `docs/GEMINI.md` (borrado), `README.md`, `docs/API.md`, `docs/ARCHITECTURE.md`, `docs/JUDGES.md`, `docs/HISTORY.md`, `docs/DEVPOST_DRAFT.md`, `docs/AI_TOOLS.md`, `docs/DEMO_90_SECONDS.md`, `docs/OPERATIONS.md`, `docs/TRASPASO.md`, `docs/ENCARGO-somospanas-napster.md`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run lint` y typecheck del API/shared en verde. El director ejecuta `npm run verificar`. La web queda pendiente de F5b.
+
+## 2026-11-27 — NAP-F2/F4s · Modo texto, instrucciones, conocimiento y FAQ
+
+**Pedido:** NAP-F4s — extender `POST /api/avatar-session` con `mode:'video'|'text'` (WebSocket + `modality:'text'` y URL del socket resuelta por el servidor), mejorar las instrucciones y los tres saludos, publicar conocimiento es/en, ampliar la FAQ y configurar dos colecciones por idioma y una base de conocimiento opcional en `setup.mjs`.
+
+**Archivos:** `packages/shared/src/avatar-session.ts`, `apps/api/src/routes/avatar-session.ts`, `contenido/avatar.json`, `contenido/preguntas.json`, `contenido/conocimiento/somospanas.{es,en}.md`, `apps/web/public/conocimiento/somospanas.{es,en}.md`, `scripts/napster/setup.mjs`, `scripts/napster/setup.d.mts`, `apps/api/test/avatar-session.test.ts`, `apps/api/test/avatar-setup.test.ts`, `AGENTS.md`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run lint`, `npm run typecheck`; el director ejecuta `npx vitest run apps/api/test/avatar-session.test.ts apps/api/test/avatar-setup.test.ts packages/shared/test/avatar-tools.test.ts` y `npm run verificar` (sin red hacia Napster).
+
 ## 2026-11-21 — Pausa y traspaso
 
 **Pedido:** Documentar pausa del programa Somos Panas (21-nov-2026) y traspaso para agentes que retomen desde el IDE sin contexto previo.

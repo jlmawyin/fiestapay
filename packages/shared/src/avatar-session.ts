@@ -22,6 +22,8 @@ export const avatarSessionRequestSchema = z
       .max(80)
       .regex(/^[a-z0-9-]+$/, 'Slug invalido')
       .optional(),
+    /** NAP-F4s: 'text' usa WebSocket + modality text; 'video' mantiene WebRTC (por defecto). */
+    mode: z.enum(['video', 'text']).default('video'),
   })
   .strict();
 
@@ -35,6 +37,8 @@ export const avatarSessionResponseSchema = z
     visitor: z.enum(AVATAR_VISITORS),
     lang: z.enum(AVATAR_LANGS),
     agent: z.literal('default'),
+    /** Solo en modo texto: URL del socket ya resuelta por el servidor desde el token. */
+    socketUrl: z.string().url().optional(),
   })
   .strict();
 

@@ -130,8 +130,6 @@ describeDb('persistencia, clave de organizador y acceso privado', () => {
     expect((await stranger.get(`/api/events/${slug}`)).statusCode).toBe(403);
     expect((await stranger.post(`/api/events/${slug}/join`, { name: 'Ana' })).statusCode).toBe(403);
     expect((await stranger.post(`/api/events/${slug}/quote`)).statusCode).toBe(403);
-    expect((await stranger.post(`/api/events/${slug}/chat`, { message: 'hola' })).statusCode).toBe(403);
-    expect((await stranger.post(`/api/events/${slug}/voice/token`, { consent: true })).statusCode).toBe(403);
     expect((await stranger.post(`/api/events/${slug}/unlock`, { code: 'mal' })).statusCode).toBe(403);
 
     expect((await stranger.post(`/api/events/${slug}/unlock`, { code: 'codigo-valido' })).statusCode).toBe(200);

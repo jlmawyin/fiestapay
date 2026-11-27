@@ -1,11 +1,11 @@
 import {
   TEMPLATE_THEMES,
-  type DraftEventProposal,
   type Locale,
   type MealKind,
   type TemplateKind,
   type ThemeKey,
 } from '@fiestapay/shared';
+import type { DraftEventProposal } from './draft-proposal';
 import type { AgendaItem } from '../types';
 
 export type InvitationCardStyle = 'reencuentro' | 'elegante' | 'retro' | 'festiva';

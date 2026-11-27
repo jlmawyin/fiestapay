@@ -6,9 +6,9 @@ import {
   themeLabel,
   themePhrase,
   themesForTemplate,
-  type DraftEventProposal,
   type ThemeKey,
 } from '@fiestapay/shared';
+import type { DraftEventProposal } from '../../lib/draft-proposal';
 import type { AgendaItem, EventInput, TemplateKind } from '../../types';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { createEventCatalog } from '../../i18n/messages/organizerCreate';

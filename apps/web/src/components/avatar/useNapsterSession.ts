@@ -14,8 +14,8 @@ import {
   type NapsterCompanionApiConfig,
   type NapsterCompanionApiInstance,
 } from '@touchcastllc/napster-companion-api';
-import type { AvatarLang, AvatarVisitor } from '@fiestapay/shared';
-import { AvatarSessionError, api, type AvatarTextSessionResponse } from '../../api/client';
+import type { AvatarLang, AvatarSessionResponse, AvatarVisitor } from '@fiestapay/shared';
+import { AvatarSessionError, api } from '../../api/client';
 import { createAvatarToolRouter, type AvatarToolRouter } from './toolRouter';
 import { clearCreateIntent, consumeCreateIntent, peekCreateIntent } from './sessionIntent';
 
@@ -212,9 +212,9 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
    * visitante de la respuesta fija las tools del router.
    */
   const mintSession = useCallback(
-    async (mode?: 'text'): Promise<AvatarTextSessionResponse> => {
+    async (mode?: 'text'): Promise<AvatarSessionResponse> => {
       mintErrorRef.current = null;
-      const attempt = async (withSlug: boolean): Promise<AvatarTextSessionResponse> => {
+      const attempt = async (withSlug: boolean): Promise<AvatarSessionResponse> => {
         const slug = withSlug && !degradedRef.current ? eventSlugRef.current : undefined;
         // NAP-F4: la vista puede fijar intent; si no, vale la bandera de un uso.
         // La bandera siempre se ojea/consume para no arrastrarla a otra vista.
@@ -536,7 +536,7 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
     };
 
     void (async () => {
-      let session: AvatarTextSessionResponse;
+      let session: AvatarSessionResponse;
       try {
         session = await mintSession('text');
       } catch {

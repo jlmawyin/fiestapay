@@ -13,8 +13,6 @@ import type { Capabilities, FiestaEvent } from '../types';
 const capabilities: Capabilities = {
   paypal: true,
   paypalClientId: 'sb-client',
-  chat: false,
-  voice: false,
   sandbox: true,
   email: true,
   avatar: true,

@@ -14,12 +14,12 @@ import {
   UI_PAGES,
   UI_TARGETS,
   UI_TARGET_IDS,
-  type DraftEventProposal,
   type ShowOnScreenArgs,
   type ShowOnScreenResult,
   type UiPage,
   type UiTarget,
 } from '@fiestapay/shared';
+import type { DraftEventProposal } from '../lib/draft-proposal';
 import { guideStepFor } from './step-preview';
 
 /** Se dispara sync tras validar, antes de pintar la navegación. */

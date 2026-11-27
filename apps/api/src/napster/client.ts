@@ -48,6 +48,9 @@ export interface NapsterClient {
 const TIMEOUT_MS = 8_000;
 const RATE_LIMIT_WAIT_CAP_MS = 3_000;
 const SPACING_MS = 1_000;
+// NAP-F2-D4: los temporizadores de Windows/Linux pueden despertar ~1 ms antes; el margen
+// y Math.ceil garantizan que dos inicios reales nunca queden por debajo de 1000 ms.
+const SPACING_MARGIN_MS = 5;
 
 // NAP-F2: la API limita las conexiones a 1/s por clave; la cola es del proceso, no de una petición.
 let ultimaCreacion = 0;
@@ -67,7 +70,8 @@ function retryAfterMs(headers: Headers): number {
 
 function serializar<T>(fn: () => Promise<T>, sleep: (ms: number) => Promise<void>, now: () => number): Promise<T> {
   const turno = colaCreacion.then(async () => {
-    const espera = Math.max(0, SPACING_MS - (now() - ultimaCreacion));
+    const objetivo = ultimaCreacion + SPACING_MS + SPACING_MARGIN_MS;
+    const espera = Math.max(0, Math.ceil(objetivo - now()));
     if (espera > 0) await sleep(espera);
     ultimaCreacion = now();
     return fn();

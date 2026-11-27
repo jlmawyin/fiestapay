@@ -34,10 +34,8 @@ afterEach(() => {
 
 const caps: Capabilities = {
   paypal: false,
-  voice: false,
   paypalClientId: null,
   sandbox: true,
-  chat: true,
   email: false,
   avatar: true,
 };

@@ -161,7 +161,7 @@ export function demoEventInput(now = new Date()): EventInput {
     template: 'comida',
     meal: 'almuerzo',
     description:
-      'Demo de FiestaPay con pagos de prueba en el sandbox de PayPal. Cuota fija por persona, asistencia y pago separados.',
+      'Demo de Somos Panas con pagos de prueba en el sandbox de PayPal. Cuota fija por persona, asistencia y pago separados.',
     startsAt: startsAt.toISOString(),
     endsAt: endsAt.toISOString(),
     location: 'Restaurante de demostracion, Guayaquil',
@@ -243,7 +243,7 @@ export function demoEventInputForLocale(locale: Locale, now = new Date()): Event
         { time: '14:00', title: 'Fictional lunch' },
         { time: '16:00', title: 'Closing and PayPal Sandbox test' },
       ],
-      organizerName: 'FiestaPay team (demo)',
+      organizerName: 'Somos Panas team (demo)',
     };
   }
 
@@ -259,7 +259,7 @@ export function demoEventInputForLocale(locale: Locale, now = new Date()): Event
       { time: '14:00', title: 'Almuerzo ficticio' },
       { time: '16:00', title: 'Cierre y prueba de PayPal Sandbox' },
     ],
-    organizerName: 'Equipo FiestaPay (demo)',
+    organizerName: 'Equipo Somos Panas (demo)',
   };
 }
 

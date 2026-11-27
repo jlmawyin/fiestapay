@@ -14,8 +14,8 @@ import {
   normalizeSiteSlugInput,
   validateSiteSlug,
   type AvatarVisitor,
-  type DraftEventProposal,
 } from '@fiestapay/shared';
+import type { DraftEventProposal } from '../../lib/draft-proposal';
 import { guidePrefersReducedMotion, setGuideDraftProposal, showOnScreen } from '../../guide/showOnScreen';
 import { api, type PortalListedEvent } from '../../api/client';
 import { readAppHostContext } from '../../lib/app-host';

@@ -18,8 +18,6 @@ function deferred<T>() {
 const pendingCaps: Capabilities = {
   paypal: false,
   paypalClientId: null,
-  chat: false,
-  voice: false,
   sandbox: true,
   email: false,
   avatar: false,
