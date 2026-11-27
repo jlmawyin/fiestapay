@@ -2,6 +2,8 @@
  * Clasifica el host del navegador en raíz Somos Panas, legado FiestaPay o sitio de grupo (SP-6).
  * Depende de `site-host.ts` y de `window.location.hostname`.
  */
+// NAP-F1b: tipos de `import.meta.env` sin archivo ambient adicional en web.
+/// <reference types="vite/client" />
 import { readSiteHostContext } from './site-host';
 
 const SP_ROOT_HOSTS = new Set(['somospanas.com', 'www.somospanas.com']);
@@ -19,8 +21,8 @@ export interface AppHostContext {
 const OVERRIDE_KEY = 'fp_sp_host_override';
 
 function hostOverrideAllowed(): boolean {
-  const meta = import.meta as ImportMeta & { env?: { DEV?: boolean; MODE?: string } };
-  return meta.env?.DEV === true || meta.env?.MODE === 'test';
+  // NAP-F1b (recomendación verificador): `import.meta.env` directo; misma semántica.
+  return import.meta.env.DEV === true || import.meta.env.MODE === 'test';
 }
 
 /**

@@ -2,7 +2,7 @@
  * SP-6 — capturas Playwright con API real sirviendo `apps/web/dist` y Host somospanas.com.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Browser } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -35,11 +35,38 @@ class FakeEmail implements EmailAdapter {
   }
 }
 
+/**
+ * Cita un argumento para cmd.exe cuando hay que pasar una sola cadena (igual que verificar.mjs).
+ */
+function citarParaCmd(valor: string): string {
+  return /[\s"&|<>^]/.test(valor) ? `"${valor.replaceAll('"', '""')}"` : valor;
+}
+
 function ensureBuild(): void {
-  const build = spawnSync('npm', ['run', 'build', '-w', '@fiestapay/web'], {
+  // NAP-F1b: mismo patrón que scripts/verificar.mjs (NAP-F0): en Windows `npm` es
+  // npm.cmd y spawnSync sin shell devuelve ENOENT. Si npm presta su CLI se invoca
+  // con Node; si no, cmd.exe solo en win32 con una única cadena (sin DEP0190).
+  const args = ['run', 'build', '-w', '@fiestapay/web'];
+  let comando = 'npm';
+  let argumentos = args;
+  let shell = false;
+  if (process.platform === 'win32') {
+    const cli = process.env.npm_execpath;
+    if (cli && existsSync(cli)) {
+      comando = process.execPath;
+      argumentos = [cli, ...args];
+    } else {
+      comando = ['npm', ...args].map(citarParaCmd).join(' ');
+      argumentos = [];
+      shell = true;
+    }
+  }
+  const build = spawnSync(comando, argumentos, {
     cwd: RAIZ,
     stdio: 'inherit',
+    shell,
   });
+  expect(build.error).toBeUndefined();
   expect(build.status).toBe(0);
 }
 
