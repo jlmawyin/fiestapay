@@ -459,6 +459,19 @@ export async function updateEvent(
       paymentProvider,
     );
 
+    // SP6-D-6: el CHECK de 0013 rechaza access_code en eventos public; avisamos antes del UPDATE.
+    if (input.accessCode !== undefined && input.accessCode !== null && input.accessCode.trim().length > 0) {
+      const { rows: visRows } = await client.query<{ visibility: string }>(
+        'SELECT visibility FROM events WHERE id = $1 LIMIT 1',
+        [event.id],
+      );
+      if (visRows[0]?.visibility === 'public') {
+        throw badRequest(
+          'Un evento publico no puede tener codigo de acceso. Marcalo privado antes de anadir el codigo.',
+        );
+      }
+    }
+
     let accessCodeHash: Buffer | null | undefined;
     if (input.accessCode === undefined) accessCodeHash = undefined;
     else if (input.accessCode === null || input.accessCode.trim().length === 0) accessCodeHash = null;

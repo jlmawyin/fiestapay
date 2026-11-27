@@ -71,9 +71,11 @@ Método completo: [docs/somospanas/METODO.md](docs/somospanas/METODO.md). Cada c
 | Configuración del sitio (nombre, colores, módulos) | `apps/api/src/domain/tenant-settings.ts`, `apps/api/src/routes/settings.ts`, `esquemas/sitio.schema.json`, pantallas `apps/web/src/views/Site*.tsx`, `apps/web/src/lib/legacy-orb.ts`, `apps/web/src/styles/site-shell.css`, textos en `contenido/sitio.json`, tokens base en `estilos/tokens.css` | `apps/api/test/tenant-settings.test.ts`, `apps/web/src/__tests__/site-settings-view.test.tsx`, `site-home-view.test.tsx`, `app-site-orb.test.tsx` |
 | Plantilla `muestra`, alta `POST /api/sites` (raíz, cuenta verificada) y canje `POST /api/sites/handoff` en el subdominio | `apps/api/src/domain/sites.ts`, `apps/api/src/routes/sites.ts`, semilla `ensureMuestraTemplate`, migración `0015_site_create_limits.sql`, corte de host en `apps/api/src/app.ts` | `apps/api/test/clone-site.test.ts` |
 | Texto de la portada (hero, barra, ejemplos C2) | `contenido/portada.json` | `scripts/somospanas/portada.test.ts` |
+| Portada C2 en la raíz y listado público | `apps/web/src/views/PortalLandingView.tsx`, `apps/web/src/App.tsx`, `apps/api/src/domain/portal.ts`, `apps/api/src/routes/portal.ts` | `apps/api/test/portal-listing.test.ts`, `apps/web/src/__tests__/portal-landing.test.tsx`, `scripts/somospanas/portal-visual.test.ts` |
+| Directorio `GET /api/portal/events` y visibilidad al publicar | `apps/api/src/domain/portal.ts`, `apps/api/src/routes/portal.ts` | `apps/api/test/portal-listing.test.ts` |
 | Pasos del tutorial | `contenido/tutorial.json` | `scripts/somospanas/tutorial.test.ts` |
 | Tipos de evento (catálogo / formulario) | `contenido/tipos-evento.json` + `esquemas/evento.schema.json` | `scripts/somospanas/tipos-evento.test.ts` |
-| Colores, tipografía y espaciados | `estilos/tokens.css` | `scripts/somospanas/tokens.test.ts` (tokens + estilos computados 390×844 y 1440×960 vía Playwright; la portada C2 en navegador llega en **SP-6**) |
+| Colores, tipografía y espaciados | `estilos/tokens.css` | `scripts/somospanas/tokens.test.ts`, `scripts/somospanas/portal-visual.test.ts` (390×844 y 1440×960) |
 | Orden de secciones en la portada | `contenido/paginas.json` | `scripts/somospanas/portada.test.ts` |
 | Preguntas frecuentes | `contenido/preguntas.json` | validación en `npm run verificar` |
 | Validación del JSON guardado por el admin del sitio | `esquemas/sitio.schema.json` | `apps/api/test/tenant-settings.test.ts` y `npm run verificar` |
