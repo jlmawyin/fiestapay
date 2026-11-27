@@ -43,6 +43,19 @@ Updated by Jorge's request on 10 Nov 2026 for the final hackathon stretch (Devpo
 - One active director (Claude or Codex). Builders: Muse and DSH, at most two construction fronts with disjoint ownership; AGY Gemini Flash verifies independently; AGY Gemini 4 Argon handles recovery. Grok is retired. OpenCode free usage is exhausted and its paid balance is reserved for emergencies; do not migrate DSH to a paid API automatically.
 - Workers never commit or push, never revert others and never edit outside their assigned paths. Changing providers does not reset attempt counters (see dirigir-agentes/references/deepseek.md for DSH).
 
+## Somos Panas — lectura obligatoria al empezar
+
+El programa multiinquilino (**somospanas/plan**) quedó **en pausa** el 21-nov-2026. Antes de tocar código en esa línea:
+
+1. [docs/TRASPASO.md](docs/TRASPASO.md) — traspaso para agentes nuevos (arquitectura, comandos, siguiente paso, plantillas).
+2. [docs/somospanas/PROGRESO.md](docs/somospanas/PROGRESO.md) — qué etapas están fusionadas, PRs abiertos y orden de trabajo.
+3. [docs/somospanas/PLAN.md](docs/somospanas/PLAN.md) — criterios de la etapa SP-n que vayas a hacer.
+4. [docs/somospanas/METODO.md](docs/somospanas/METODO.md) — niveles de cambio; casi todo SP-1…SP-10 es **nivel 4** (no fusionar sin Jorge y veredicto independiente).
+
+**Resumen de reglas Somos Panas:** rama de integración `somospanas/plan` (no `main` sin OK de Jorge); migraciones `0001`–`0015` inmutables una vez fusionadas; comentarios en español con cabecera, funciones importantes y id de defecto en arreglos; `npm run verificar` con Postgres 16 y **0 pruebas omitidas**; `ACCOUNTS_EMAIL_HMAC_KEY` en producción antes de desplegar cuentas; un encargo = un objetivo y solo los archivos que el PLAN asigna a esa etapa.
+
+Las reglas de producto FiestaPay (Gemini, PayPal, hackathon) de las secciones anteriores siguen vigentes en el **sitio legado**; no las contradigas al trabajar tenants nuevos con proveedor `none`.
+
 ## Somos Panas — mapa de edición (contenido y diseño)
 
 Método completo: [docs/somospanas/METODO.md](docs/somospanas/METODO.md). Cada cambio de contenido o tokens termina con `npm run verificar` (validación de JSON + pruebas + `npm run check`). La vista previa local de la app es `npm run dev`.
@@ -54,6 +67,7 @@ Método completo: [docs/somospanas/METODO.md](docs/somospanas/METODO.md). Cada c
 | Clasificación raíz / legado / sitio por `Host` (`legacyTenantId`) | `apps/api/src/lib/host.ts` + hook en `apps/api/src/app.ts` | `apps/api/test/host.test.ts` |
 | Registro, sesión, verificación de correo y roles por sitio | `apps/api/src/domain/accounts.ts`, `apps/api/src/routes/accounts.ts`, membresías en `apps/api/src/domain/access.ts`, vistas en `apps/web/src/views/Account*.tsx`, textos en `contenido/cuentas.json` | `apps/api/test/accounts.test.ts`, `apps/web/src/__tests__/accounts-form.test.tsx` |
 | Configuración del sitio (nombre, colores, módulos) | `apps/api/src/domain/tenant-settings.ts`, `apps/api/src/routes/settings.ts`, `esquemas/sitio.schema.json`, pantallas `apps/web/src/views/Site*.tsx`, `apps/web/src/lib/legacy-orb.ts`, `apps/web/src/styles/site-shell.css`, textos en `contenido/sitio.json`, tokens base en `estilos/tokens.css` | `apps/api/test/tenant-settings.test.ts`, `apps/web/src/__tests__/site-settings-view.test.tsx`, `site-home-view.test.tsx`, `app-site-orb.test.tsx` |
+| Plantilla `muestra`, alta `POST /api/sites` (raíz, cuenta verificada) y canje `POST /api/sites/handoff` en el subdominio | `apps/api/src/domain/sites.ts`, `apps/api/src/routes/sites.ts`, semilla `ensureMuestraTemplate`, migración `0015_site_create_limits.sql`, corte de host en `apps/api/src/app.ts` | `apps/api/test/clone-site.test.ts` |
 | Texto de la portada (hero, barra, ejemplos C2) | `contenido/portada.json` | `scripts/somospanas/portada.test.ts` |
 | Portada C2 en la raíz y listado público | `apps/web/src/views/PortalLandingView.tsx`, `apps/web/src/App.tsx`, `apps/api/src/domain/portal.ts`, `apps/api/src/routes/portal.ts` | `apps/api/test/portal-listing.test.ts`, `apps/web/src/__tests__/portal-landing.test.tsx`, `scripts/somospanas/portal-visual.test.ts` |
 | Directorio `GET /api/portal/events` y visibilidad al publicar | `apps/api/src/domain/portal.ts`, `apps/api/src/routes/portal.ts` | `apps/api/test/portal-listing.test.ts` |

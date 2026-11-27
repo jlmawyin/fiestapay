@@ -2,6 +2,8 @@
  * SP-6 — portada C2 en la raíz: contenido JSON, navegación de barra y crear espacio.
  */
 import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import portada from '../../../../contenido/portada.json';
@@ -129,6 +131,24 @@ describe('PortalLandingView (SP-6)', () => {
     fireEvent.click(screen.getByTestId('portal-create-space'));
     await waitFor(() => expect(screen.getByTestId('portal-slug-error')).toBeTruthy());
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it('rechaza `muestra` como reservado antes del POST (NAP-F1b/SP-7)', async () => {
+    const create = vi.spyOn(api, 'createSiteSpace');
+    mount();
+    fireEvent.change(screen.getByTestId('portal-slug-input'), { target: { value: 'muestra' } });
+    fireEvent.click(screen.getByTestId('portal-create-space'));
+    await waitFor(() => expect(screen.getByTestId('portal-slug-error')).toBeTruthy());
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('el placeholder del compositor usa ink-muted con opacity 1 (SP6-D-4)', () => {
+    // jsdom no calcula ::placeholder; se verifica la regla servida y portal-contrast
+    // prueba el par ink-muted/cloudwhite (6.45:1) sobre los tokens reales.
+    const cssPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'styles', 'portal-landing.css');
+    const block = readFileSync(cssPath, 'utf8').match(/\.portal-compositor-row input::placeholder\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(block).toMatch(/color:\s*var\(--sp-color-ink-muted\)/);
+    expect(block).toMatch(/opacity:\s*1\s*;/);
   });
 
   it('POST /api/sites 404 muestra estado no disponible', async () => {

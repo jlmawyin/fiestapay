@@ -16,7 +16,10 @@ export const LEGACY_TENANT_SLUG = 'fiestapay';
 
 type TenantLookup = Pick<Pool, 'query'> | Pick<PoolClient, 'query'>;
 
-/** Reexporta el conjunto compartido de slugs reservados (SP-2). */
+/** Reexporta el conjunto compartido de slugs no enrutables (SP-2/SP-6). */
+// NAP-F1b: se queda la versión SP-6 (lista en @fiestapay/shared). `muestra` no está en
+// RESERVED_SITE_SLUGS: su subdominio enruta al sitio plantilla si existe fila (SP-7) y solo
+// está vetado al crear (sites.ts lo compara con MUESTRA_SLUG y el compositor lo rechaza).
 export { RESERVED_SITE_SLUGS };
 
 const ROOT_HOSTNAMES = new Set(['somospanas.com', 'www.somospanas.com']);

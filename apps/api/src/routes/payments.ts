@@ -2,7 +2,7 @@ import type { PayPalNotificationItem } from '@fiestapay/shared';
 import type { Guest, OrderResult } from '@fiestapay/shared';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { badRequest, notFound, unavailable } from '../errors.js';
-import { presentedAdminKey } from '../domain/access.js';
+import { presentedAdminKey, resolveEventPortalGate } from '../domain/access.js';
 import { audit, PAYPAL_NOTIFICATION_PREFIX } from '../domain/audit.js';
 import {
   captureOwnOrder,
@@ -19,7 +19,7 @@ import {
   requireOnlinePayment,
 } from '../payments/provider.js';
 import { convergeCapture, convergeRefund, isApplied, type CaptureOutcome } from '../domain/payments.js';
-import { findOrderByAnyId } from '../domain/read.js';
+import { findOrderByAnyId, getEventBySlug } from '../domain/read.js';
 import { captureIdFromRefund } from '../paypal/verify.js';
 import { assertNoClientMoneyState, orderIdParamSchema, orderSchema, parseOr400, slugParamSchema } from '../lib/schemas.js';
 import { requireSession } from '../lib/session.js';
@@ -97,9 +97,11 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
       assertNoClientMoneyState(req.body, ['confirmed']);
       const { quoteId } = parseOr400(orderSchema, req.body);
       const session = await requireSession(pool, config, req);
+      const gate = await resolveEventPortalGate(pool, req, session.id);
+      await getEventBySlug(pool, slug, gate);
       const tenantProviderId = await paymentProviderIdForEventSlug(pool, slug);
       const payment = requireOnlinePayment(config, deps.paypal, tenantProviderId);
-      return createOrderForSession(pool, payment, session.id, slug, quoteId, presentedAdminKey(req));
+      return createOrderForSession(pool, payment, session.id, slug, quoteId, presentedAdminKey(req), gate);
     },
   );
 

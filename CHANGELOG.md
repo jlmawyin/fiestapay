@@ -2,6 +2,16 @@
 
 Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, pedido, archivos tocados y pruebas ejecutadas.
 
+## 2026-11-21 — Pausa y traspaso
+
+**Pedido:** Documentar pausa del programa Somos Panas (21-nov-2026) y traspaso para agentes que retomen desde el IDE sin contexto previo.
+
+**Archivos:** `docs/TRASPASO.md` (nuevo), `docs/somospanas/PROGRESO.md`, `AGENTS.md`, `CHANGELOG.md`.
+
+**Estado documentado:** fusionadas en `somospanas/plan` SP-1 (#43), SP-1b (#42), SP-2 (#44), SP-3 (#45), SP-4 (#47), SP-8 (#46), SP-5 (#48); PR abierto SP-7 (#49, `5abd771`, pendiente veredicto y squash); PR abierto SP-6 (#50, `3dc9cf3`, intento 2/3, bloqueo SP6-D-4); pendientes SP-9, SP-10, SP-11. Orden siguiente: verificar y fusionar #49 → SP6-D-4 e integración SP-7 en #50 → verificar y fusionar #50 → SP-9 ∥ SP-10 → SP-11.
+
+**Pruebas:** Solo documentación; sin cambios de aplicación. No se ejecutó `npm run verificar` (ninguna prueba del mapa valida estos archivos de traspaso).
+
 ## 2026-11-20 — SP-6 · Portada C2 y listado público
 
 **Pedido:** ENCARGO SP-6 (intento 1/3) — la raíz `somospanas.com` muestra la portada C2 leída de `contenido/`; `GET /api/portal/events` lista solo eventos `public`; admin de sitio marca visibilidad; legado FiestaPay conserva `LandingView`; botón crear espacio llama `POST /api/sites` (estado no disponible con 404 hasta SP-7).
@@ -17,6 +27,38 @@ Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, 
 **Archivos:** `PortalLandingView.tsx`, `App.tsx`, `portal-landing.css`, `portal.ts`, `events.ts`, `packages/shared/src/site-slug.ts`, `portal-listing.test.ts`, `portal-landing.test.tsx`, `app-root-portal.test.tsx`, `portal-contrast.test.ts`, `portal-visual.test.ts`, `contenido/portada.json`, `app-host.ts`, `CHANGELOG.md`.
 
 **Pruebas:** `npm run verificar` (mapa somospanas verde); `npx vitest run apps/api/test/portal-listing.test.ts apps/web/src/__tests__/portal-landing.test.tsx` (19/19); Playwright 390×844 y 1440×960 con API + dist; `npm run check` sigue con 3 fallos ajenos en `apps/api/test/api.test.ts` (`startsAt` pasado, SP-7).
+
+## 2026-11-20 — SP-7 · Plantilla y clonación
+
+**Pedido:** ENCARGO SP-7 — plantilla idempotente `muestra`, `POST /api/sites` en la raíz (sesión verificada, límite por usuario/IP), clonación de colores/módulos/textos sin gente ni dinero; handoff de un solo uso en el subdominio; eventos privados de sitios no legados ocultan cuerpo en raíz/legado salvo admin del sitio; subdominio `muestra` enrutable si existe fila (sigue reservado al crear).
+
+**Archivos (intento 1):** `apps/api/src/domain/sites.ts`, `apps/api/src/routes/sites.ts`, `apps/api/src/domain/access.ts`, `apps/api/src/routes/core.ts`, `apps/api/src/app.ts`, `apps/api/src/lib/host.ts`, `apps/api/src/db/migrations/0015_site_create_limits.sql`, `apps/api/test/clone-site.test.ts`, `apps/api/test/payment-provider.test.ts`, `packages/shared/src/server-errors.ts`, `AGENTS.md`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/clone-site.test.ts apps/api/test/accounts.test.ts` (Postgres 16 como CI).
+
+### 2026-11-20 — SP-7 · Corrección verificador SP7-D-1 (intento 2)
+
+**Pedido:** SP7-D-1 — cerrojo de eventos private de grupo centralizado en `findEventBySlug`/`getEventBySlug` con `EventPortalGate` en join, rsvp, quote, orders, dashboard, chat, moderación, recuperación, voz, recordatorios y organizador; R-1 comentario/caso cookie sin Domain; R-2 `muestra` con `discoverable=false`; R-4 TODO `fundingForNewEvent` en altas futuras de eventos por sitio.
+
+**Archivos:** `apps/api/src/domain/read.ts`, `apps/api/src/domain/access.ts`, `apps/api/src/domain/events.ts`, `apps/api/src/domain/rsvp.ts`, `apps/api/src/domain/quotes.ts`, `apps/api/src/domain/orders.ts`, `apps/api/src/domain/dashboard.ts`, `apps/api/src/domain/moderation.ts`, `apps/api/src/domain/recovery.ts`, `apps/api/src/ai/chat.ts`, `apps/api/src/routes/core.ts`, `apps/api/src/routes/payments.ts`, `apps/api/src/routes/chat.ts`, `apps/api/src/routes/moderation.ts`, `apps/api/src/routes/recovery.ts`, `apps/api/src/routes/voice.ts`, `apps/api/src/routes/reminders.ts`, `apps/api/src/routes/organizer-assistant.ts`, `apps/api/src/domain/sites.ts`, `apps/api/test/clone-site.test.ts`, `apps/api/test/api.test.ts`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/clone-site.test.ts apps/api/test/accounts.test.ts apps/api/test/payment-provider.test.ts` (Postgres 16 como CI).
+
+### 2026-11-21 — SP-7 · Corrección verificador SP7-D-2 (intento 3)
+
+**Pedido:** SP7-D-2 anti-enumeración en recuperación; `listOwnedEvents` con cerrojo en raíz/legado; R-3 y comentarios (sites, read, insertEvent).
+
+**Archivos:** `apps/api/src/domain/access.ts`, `apps/api/src/domain/recovery.ts`, `apps/api/src/domain/events.ts`, `apps/api/src/domain/read.ts`, `apps/api/src/domain/sites.ts`, `apps/api/src/routes/core.ts`, `apps/api/test/recovery.test.ts`, `apps/api/test/clone-site.test.ts`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/clone-site.test.ts apps/api/test/accounts.test.ts apps/api/test/payment-provider.test.ts apps/api/test/recovery.test.ts` (Postgres 16 como CI).
+
+### 2026-11-21 — SP-7 · Rescate SP7-D-3
+
+**Pedido:** SP7-D-3 — `setRecoveryContact` recibía el cerrojo como `_gate` y no lo usaba. Con SMTP encendido y correo válido, un evento private de un tenant group en raíz o legado llegaba a `assertAdminKey` (403, o 200 con la clave: fila, correo y `charge`) en vez del 404 «Evento no encontrado» de un slug inexistente. Tras validar SMTP y el correo, si `groupPrivateEventHiddenOnPortal` es verdadero se lanza ese 404 antes de `lockBySlug`, sin charge, sin filas y sin correo. El admin del propio sitio sigue. Revisión de `_gate` y de parámetros `gate` en dominios por slug: el único ignorado era este.
+
+**Archivos:** `apps/api/src/domain/recovery.ts`, `apps/api/src/domain/access.ts` (comentario de la función booleana), `apps/api/test/recovery.test.ts`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run verificar`; `npx vitest run apps/api/test/clone-site.test.ts apps/api/test/accounts.test.ts apps/api/test/payment-provider.test.ts apps/api/test/recovery.test.ts` (Postgres 16, `DATABASE_URL` como CI).
 
 ## 2026-11-20 — SP-5 · Configuración editable del sitio
 

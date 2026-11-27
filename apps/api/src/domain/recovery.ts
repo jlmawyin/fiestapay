@@ -7,7 +7,13 @@ import { recoveryEmail } from '../email/compose.js';
 import { maskMailbox, normalizeMailbox } from '../email/address.js';
 import type { EmailAdapter, EmailSendResult } from '../email/types.js';
 import { newId, sha256 } from '../lib/ids.js';
-import { assertAdminKey, digestMatches } from './access.js';
+import {
+  assertAdminKey,
+  assertGroupPrivateEventOnPortalHost,
+  digestMatches,
+  groupPrivateEventHiddenOnPortal,
+  type EventPortalGate,
+} from './access.js';
 import { audit } from './audit.js';
 import { findEventBySlug, lockEvent, type EventRow, type Queryable } from './read.js';
 import { isPastRetention, tombstoneEvent } from './retention.js';
@@ -218,7 +224,9 @@ export async function recoveryStatus(
   slug: string,
   presentedKey: string | null,
   emailEnabled: boolean,
+  gate?: EventPortalGate,
 ): Promise<RecoveryStatus> {
+  if (gate) await assertGroupPrivateEventOnPortalHost(pool, slug, gate.hostKind, gate.accountUserId);
   const outcome = await withTransaction(pool, async (client) => {
     const event = await lockBySlug(client, slug);
     assertAdminKey(event, presentedKey);
@@ -243,10 +251,18 @@ export async function setRecoveryContact(
   adapter: EmailAdapter | null,
   limits: RecoveryLimits | null,
   origin: string | null,
+  gate?: EventPortalGate,
 ): Promise<RecoveryContactUpdate> {
+  // SP7-D-2: mismo 503/400 que slug inexistente — validar correo y SMTP antes del cerrojo.
   const mail = readyMail(adapter, limits, origin);
   const email = normalizeMailbox(rawEmail);
   if (!email) throw badRequest('Correo invalido');
+  // SP7-D-3: con SMTP y correo válidos, un private de grupo en raíz/legado no llega a
+  // lockBySlug ni a assertAdminKey. El 404 es el de slug inexistente: sin charge, sin fila
+  // y sin correo. El admin del propio sitio (groupPrivateEventHiddenOnPortal falso) sigue.
+  if (gate && (await groupPrivateEventHiddenOnPortal(pool, slug, gate.hostKind, gate.accountUserId))) {
+    throw notFound('Evento no encontrado');
+  }
   const emailHash = sha256(email);
   const outcome = await withTransaction(pool, async (client) => {
     const event = await lockBySlug(client, slug);
@@ -290,7 +306,9 @@ export async function removeRecoveryContact(
   slug: string,
   presentedKey: string | null,
   emailEnabled: boolean,
+  gate?: EventPortalGate,
 ): Promise<RecoveryStatus> {
+  if (gate) await assertGroupPrivateEventOnPortalHost(pool, slug, gate.hostKind, gate.accountUserId);
   const outcome = await withTransaction(pool, async (client) => {
     const event = await lockBySlug(client, slug);
     assertAdminKey(event, presentedKey);
@@ -320,6 +338,7 @@ export async function requestRecoveryLink(
   adapter: EmailAdapter | null,
   limits: RecoveryLimits | null,
   origin: string | null,
+  gate?: EventPortalGate,
 ): Promise<typeof PUBLIC_ACCEPTED> {
   const mail = readyMail(adapter, limits, origin);
   const email = normalizeMailbox(rawEmail);
@@ -331,7 +350,9 @@ export async function requestRecoveryLink(
     const allowed = await charge(client, ip, slug, mail.limits);
     if (!allowed) return { kind: 'limited' as const };
     const event = await findEventBySlug(client, slug);
-    if (!event || unavailableEvent(event, new Date())) return { kind: 'silent' as const };
+    const hidden =
+      event && gate ? await groupPrivateEventHiddenOnPortal(client, slug, gate.hostKind, gate.accountUserId) : false;
+    if (!event || hidden || unavailableEvent(event, new Date())) return { kind: 'silent' as const };
     const contact = await loadContact(client, event.id);
     if (!contact?.verified_at || !sameDigest(contact.email_hash, emailHash)) return { kind: 'silent' as const };
     await client.query(`DELETE FROM recovery_tokens WHERE event_id = $1 AND purpose = 'recover'`, [event.id]);

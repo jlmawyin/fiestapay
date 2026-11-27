@@ -1,7 +1,7 @@
 import type { RecoveryConsumeResult, RecoveryContactUpdate, RecoveryStatus } from '@fiestapay/shared';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { badRequest } from '../errors.js';
-import { presentedAdminKey } from '../domain/access.js';
+import { presentedAdminKey, resolveEventPortalGate } from '../domain/access.js';
 import {
   PUBLIC_ACCEPTED,
   consumeRecoveryToken,
@@ -11,6 +11,7 @@ import {
   requestRecoveryLink,
   setRecoveryContact,
 } from '../domain/recovery.js';
+import { readSession } from '../lib/session.js';
 import type { RouteDeps } from './deps.js';
 
 function clientIp(req: FastifyRequest): string {
@@ -46,22 +47,30 @@ export async function registerRecoveryRoutes(app: FastifyInstance, deps: RouteDe
 
   app.get('/events/:slug/recovery', async (req): Promise<RecoveryStatus> => {
     const slug = typeof (req.params as { slug?: unknown }).slug === 'string' ? (req.params as { slug: string }).slug : '';
-    return recoveryStatus(pool, slug, presentedAdminKey(req), email !== null);
+    const session = await readSession(pool, config, req);
+    const gate = await resolveEventPortalGate(pool, req, session?.id ?? null);
+    return recoveryStatus(pool, slug, presentedAdminKey(req), email !== null, gate);
   });
 
   app.put('/events/:slug/recovery/contact', async (req): Promise<RecoveryContactUpdate> => {
     const slug = typeof (req.params as { slug?: unknown }).slug === 'string' ? (req.params as { slug: string }).slug : '';
-    return setRecoveryContact(pool, slug, presentedAdminKey(req), readEmailField(req.body), clientIp(req), email, limits, origin);
+    const session = await readSession(pool, config, req);
+    const gate = await resolveEventPortalGate(pool, req, session?.id ?? null);
+    return setRecoveryContact(pool, slug, presentedAdminKey(req), readEmailField(req.body), clientIp(req), email, limits, origin, gate);
   });
 
   app.delete('/events/:slug/recovery/contact', async (req): Promise<RecoveryStatus> => {
     const slug = typeof (req.params as { slug?: unknown }).slug === 'string' ? (req.params as { slug: string }).slug : '';
-    return removeRecoveryContact(pool, slug, presentedAdminKey(req), email !== null);
+    const session = await readSession(pool, config, req);
+    const gate = await resolveEventPortalGate(pool, req, session?.id ?? null);
+    return removeRecoveryContact(pool, slug, presentedAdminKey(req), email !== null, gate);
   });
 
   // Public. The admin key is ignored on purpose: a cookie or header must not change this body.
   app.post('/recovery/request', async (req): Promise<typeof PUBLIC_ACCEPTED> => {
-    return requestRecoveryLink(pool, readSlugField(req.body), readEmailField(req.body), clientIp(req), email, limits, origin);
+    const session = await readSession(pool, config, req);
+    const gate = await resolveEventPortalGate(pool, req, session?.id ?? null);
+    return requestRecoveryLink(pool, readSlugField(req.body), readEmailField(req.body), clientIp(req), email, limits, origin, gate);
   });
 
   // POST only. Opening the link is a GET of the web page and must not rotate a key.

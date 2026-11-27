@@ -71,8 +71,9 @@
   background: var(--sp-color-blue-hover);
 }
 
+/* NAP-F1b (recomendación verificador): sin opacity en deshabilitado para no bajar el
+   contraste del texto; el estado se señala con cursor y el atributo disabled. */
 .portal-btn:disabled {
-  opacity: 0.65;
   cursor: not-allowed;
 }
 
@@ -170,6 +171,13 @@
   font-family: var(--sp-font-body);
   color: var(--sp-color-ink);
   background: var(--sp-color-cloudwhite);
+}
+
+/* SP6-D-4: placeholder legible sobre cloudwhite (6.45:1 ≥ 4.5:1); opacity 1 porque el
+   valor por defecto del navegador (~0.5) mezclaría el color y rompería el contraste. */
+.portal-compositor-row input::placeholder {
+  color: var(--sp-color-ink-muted);
+  opacity: 1;
 }
 
 .portal-steps {

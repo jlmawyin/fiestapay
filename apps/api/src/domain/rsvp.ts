@@ -2,7 +2,7 @@ import type { FiestaEvent, Guest, RsvpStatus } from '@fiestapay/shared';
 import { sumToCents, withTransaction, type Pool, type PoolClient } from '../db/pool.js';
 import { conflict, notFound } from '../errors.js';
 import { newId } from '../lib/ids.js';
-import { assertPrivateAccess } from './access.js';
+import { assertPrivateAccess, type EventPortalGate } from './access.js';
 import { assertSessionMayAct } from './moderation.js';
 import { audit } from './audit.js';
 import { assertAcceptingGuests } from './events.js';
@@ -36,8 +36,9 @@ export async function joinEvent(
   slug: string,
   name: string,
   presentedKey: string | null = null,
+  gate?: EventPortalGate,
 ): Promise<Guest> {
-  const visible = await findEventBySlug(pool, slug);
+  const visible = await findEventBySlug(pool, slug, gate);
   if (!visible) throw notFound('Evento no encontrado');
   await concealExpired(pool, visible);
   const outcome = await withTransaction<FundingGate<{ guest: Guest }>>(pool, async (client) => {
@@ -102,8 +103,9 @@ export async function setRsvp(
   slug: string,
   change: RsvpChange,
   presentedKey: string | null = null,
+  gate?: EventPortalGate,
 ): Promise<RsvpResult> {
-  const visible = await findEventBySlug(pool, slug);
+  const visible = await findEventBySlug(pool, slug, gate);
   if (!visible) throw notFound('Evento no encontrado');
   await concealExpired(pool, visible);
   const outcome = await withTransaction<FundingGate<RsvpResult>>(pool, async (client) => {
