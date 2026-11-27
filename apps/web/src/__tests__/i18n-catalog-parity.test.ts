@@ -7,12 +7,10 @@ describe('catalog ES/EN parity', () => {
       'app',
       'buyer',
       'cards',
-      'chat',
       'demo',
       'header',
       'landing',
       'modal',
-      'orb',
       'ribbon',
       'toast',
     ]);

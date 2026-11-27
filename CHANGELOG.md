@@ -2,6 +2,14 @@
 
 Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, pedido, archivos tocados y pruebas ejecutadas.
 
+## 2026-11-27 — NAP-F5b · Retiro de IA propia, avatar Napster único y marca Somos Panas
+
+**Pedido:** NAP-F5b — retirar de la web Gemini/OpenAI/AssemblyAI y la voz/chat propios; `NapsterAvatar` (Pana) único asistente en portada raíz, `/create` y portada del legado (intent create), invitación (eventSlug), panel (eventSlug+clave), demo y tutorial; formularios manuales con aviso que abre la avatar; marca visible «Somos Panas».
+
+**Archivos:** borrados `apps/web/src/voice/`, `components/{voice,assistant,chat}/`, `CreateInterview.tsx`, `PayPalAiPanel.tsx`, `public-chat.ts`, `legacy-orb.ts`, `create-interview.ts`, catálogos `voice/guestChat/chat/orb/demoPaypalAi`, 26 pruebas IA y ~760 líneas de CSS; `api/client.ts` sin métodos IA; `Capabilities` extendida en web con `avatar?`; `UI_LABELS` rebrandeados; `package.json` sin `@google/genai` (lock del director intacto).
+
+**Pruebas:** `npx eslint`, `tsc --noEmit`, suite web 61/485 en verde, 0 omitidas; `npm run verificar` exit 0 (mapa y check en verde con `DATABASE_URL` de CI).
+
 ## 2026-11-27 — NAP-F4 · Creador en el legado y botón de reunión en la raíz
 
 **Pedido:** NAP-F4 (defecto NAP-F4w2) — avatar con intent:'create' en /create (CreateWizard) y en la portada del legado (LandingView); el panel manda eventSlug y la clave de organizador en la misma cabecera del panel; botón «Organizar una reunión» en la portada raíz hacia /create del host legado (URL desde app-host, nunca del modelo).

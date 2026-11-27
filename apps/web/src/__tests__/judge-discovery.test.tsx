@@ -23,9 +23,7 @@ vi.mock('ag-grid-react', () => ({
   ),
 }));
 
-vi.mock('../components/assistant/AssistantOrb', () => ({
-  AssistantOrb: () => <div data-testid="assistant-orb" />,
-}));
+// NAP-F5b: sin orbe; la avatar Napster real monta en reposo sin red.
 
 const capabilities: Capabilities = {
   paypal: true,
@@ -35,6 +33,7 @@ const capabilities: Capabilities = {
   voice: false,
   sandbox: true,
   email: true,
+  avatar: true,
 };
 
 function sampleEvent(over: Partial<FiestaEvent> = {}): FiestaEvent {
@@ -162,7 +161,7 @@ describe('landing journey and organizer safety', () => {
     vi.spyOn(api, 'getOrganizerEvents').mockResolvedValue({ events: [] });
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /Tu anfitrión con IA que cobra la parte de cada uno/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Tu anfitrión que cobra la parte de cada uno/i })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Crear mi invitación' }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: 'Demo para jueces' }).length).toBeGreaterThan(0);
     expect(screen.getByText('Sandbox · Sin dinero real')).toBeInTheDocument();
@@ -171,7 +170,7 @@ describe('landing journey and organizer safety', () => {
     expect(screen.getByRole('region', { name: 'Mis invitaciones' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Recuperar mi enlace' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: 'Reiniciar mis demos' })).toBeNull();
-    expect(screen.getByTestId('assistant-orb')).toBeInTheDocument();
+    expect(screen.getByTestId('napster-avatar')).toBeInTheDocument();
   });
 
   it('routes a missing admin key to recovery, not to a misleading dashboard error', async () => {

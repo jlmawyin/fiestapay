@@ -1,5 +1,5 @@
 /**
- * Clasifica el host del navegador en raíz Somos Panas, legado FiestaPay o sitio de grupo (SP-6).
+ * Clasifica el host del navegador en raíz Somos Panas, legado o sitio de grupo (SP-6).
  * Depende de `site-host.ts` y de `window.location.hostname`.
  */
 // NAP-F1b: tipos de `import.meta.env` sin archivo ambient adicional en web.

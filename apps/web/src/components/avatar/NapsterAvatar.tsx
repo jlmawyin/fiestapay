@@ -16,6 +16,7 @@ import { avatarCatalog } from '../../i18n/messages/avatar';
 import { useNapsterSession } from './useNapsterSession';
 import { createAvatarToolRouter, type AvatarToolRouter } from './toolRouter';
 import { markCreateIntent } from './sessionIntent';
+import { AVATAR_OPEN_EVENT } from './avatar-open';
 
 type LocaleKey = 'es' | 'en';
 
@@ -26,6 +27,11 @@ export interface NapsterAvatarProps {
   eventTitle?: string;
   /** Intención fija de la vista (NAP-F4: el legado pide `intent:'create'`). */
   intent?: 'create';
+  /**
+   * NAP-F5b: capabilities.avatar de la vista. Con `false` la tarjeta muestra
+   * el recorrido fijo sin tocar la red; sin dato se asume disponible.
+   */
+  avatarEnabled?: boolean;
 }
 
 /** Sección del DOM → etiqueta de contexto en el idioma de la página. */
@@ -48,7 +54,7 @@ function sectionLabel(sectionId: string, texts: (typeof avatarCatalog)['es']): s
   }
 }
 
-export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTitle, intent }) => {
+export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTitle, intent, avatarEnabled = true }) => {
   const { locale } = useI18n();
   const texts = useMessages(avatarCatalog);
   const lang: AvatarLang = locale === 'en' ? 'en' : 'es';
@@ -112,6 +118,46 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
     document.addEventListener('click', onClick);
     return () => document.removeEventListener('click', onClick);
   }, []);
+
+  // NAP-F5b: el aviso del formulario manual abre la avatar (video con su
+  // intent) y lleva hasta la tarjeta.
+  const statusRef = useRef(status);
+  statusRef.current = status;
+  const startRef = useRef(session.start);
+  startRef.current = session.start;
+  useEffect(() => {
+    const onOpen = (): void => {
+      if (statusRef.current !== 'idle' && statusRef.current !== 'fallback') return;
+      startRef.current();
+      try {
+        document
+          .querySelector('[data-testid="napster-avatar"],[data-testid="napster-avatar-fallback"]')
+          ?.scrollIntoView({ block: 'start' });
+      } catch {
+        // El scroll es cortesía; la sesión ya arrancó.
+      }
+    };
+    document.addEventListener(AVATAR_OPEN_EVENT, onOpen);
+    return () => document.removeEventListener(AVATAR_OPEN_EVENT, onOpen);
+  }, []);
+
+  if (!avatarEnabled) {
+    return (
+      <section className="napster-card" data-testid="napster-avatar-fallback" aria-labelledby="napster-fallback">
+        <h2 id="napster-fallback">{texts.unavailableTitle}</h2>
+        <p>{texts.unavailableBody}</p>
+        <ol className="napster-fallback-steps" data-testid="napster-avatar-tutorial">
+          {tutorial.pasos.map((paso) => (
+            <li key={paso.numero} data-testid={`napster-avatar-step-${paso.numero}`}>
+              <p className="napster-step-num">{paso.numero}</p>
+              <h3>{paso.titulo[page] ?? paso.titulo.es}</h3>
+              <p>{paso.texto[page] ?? paso.texto.es}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+    );
+  }
 
   if (status === 'idle') {
     return (

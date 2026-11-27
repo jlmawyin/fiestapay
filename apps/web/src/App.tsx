@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { TriangleAlert } from 'lucide-react';
-import { DEMO_GUEST_NAME, type AssistantContext, type UiPage } from '@fiestapay/shared';
+import { DEMO_GUEST_NAME, type UiPage } from '@fiestapay/shared';
 import { GuideOverlay } from './guide/GuideOverlay';
 import { registerGuideNavigator } from './guide/showOnScreen';
 import type { Capabilities, FiestaEvent, ToastMessage } from './types';
@@ -25,13 +25,11 @@ import { AccountVerifyView } from './views/AccountVerifyView';
 import { SiteHomeView } from './views/SiteHomeView';
 import { SiteSettingsView } from './views/SiteSettingsView';
 import sitioTextos from '../../../contenido/sitio.json';
-import { shouldRenderLegacyOrb } from './lib/legacy-orb';
 import { readAppHostContext } from './lib/app-host';
 import { siteThemeStyle } from './lib/site-theme';
 import type { TenantSiteSettings } from './lib/site-types';
-import { AssistantOrb } from './components/assistant/AssistantOrb';
 import { DemoBuyerAccountCard } from './components/demo/DemoBuyerAccountCard';
-import { parseCreatePath, type CreatePath } from './lib/create-interview';
+// NAP-F5b: lib/create-interview eliminado con los caminos de IA.
 
 const DEMO_PAYMENT_SLUG_KEY = 'fp_demo_payment_slug';
 
@@ -56,7 +54,7 @@ function rememberDemoPaymentSlug(slug: string): void {
 type ViewMode =
   | { mode: 'home' }
   | { mode: 'demo'; quick?: boolean }
-  | { mode: 'create'; path?: CreatePath }
+  | { mode: 'create' }
   | { mode: 'invite'; slug: string }
   | { mode: 'dashboard'; slug: string }
   | { mode: 'recover' }
@@ -105,12 +103,9 @@ export const App: React.FC = () => {
   const [isResettingDemo, setIsResettingDemo] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [currentView, setCurrentView] = useState<ViewMode>({ mode: 'home' });
-  /** One-shot AI prefill for /create, set only by the judges-demo AI step. */
-  const [aiDraftRequest, setAiDraftRequest] = useState<{ text: string; id: number } | null>(null);
-  const aiDraftIdRef = useRef(0);
+  // NAP-F5b: el paso IA de la demo y el orbe se retiraron con la IA propia.
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [demoPaymentSlug, setDemoPaymentSlug] = useState<string | null>(() => readDemoPaymentSlug());
-  const [orbOpenSignal, setOrbOpenSignal] = useState<number | undefined>(undefined);
   const currentViewRef = useRef<ViewMode>(currentView);
   currentViewRef.current = currentView;
   const demoCreationRef = useRef<Promise<void> | null>(null);
@@ -138,8 +133,8 @@ export const App: React.FC = () => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // URL Routing helper. Keep unrelated query parameters and the bounded create
-  // path so deep links such as /create?path=interview survive locale changes.
+  // URL Routing helper. Keep unrelated query parameters so deep links survive
+  // locale changes. NAP-F5b: /create?path=… murió con los caminos de IA.
   const navigate = useCallback((view: ViewMode, push = true) => {
     setCurrentView(view);
     let path = '/';
@@ -158,7 +153,6 @@ export const App: React.FC = () => {
     params.delete('path');
     params.delete('quick');
     if (view.mode === 'demo' && view.quick) params.set('quick', '1');
-    if (view.mode === 'create' && view.path) params.set('path', view.path);
     const query = params.toString();
     const url = query ? `${path}?${query}` : path;
 
@@ -225,8 +219,7 @@ export const App: React.FC = () => {
       return;
     }
     if (path === '/create') {
-      const rawPath = new URLSearchParams(window.location.search).get('path');
-      setCurrentView({ mode: 'create', path: rawPath === null ? undefined : parseCreatePath(rawPath) });
+      setCurrentView({ mode: 'create' });
       return;
     }
     if (APP_HOST.isSiteHost) {
@@ -236,7 +229,7 @@ export const App: React.FC = () => {
     setCurrentView({ mode: 'home' });
   }, []);
 
-  /** Carga la marca del subdominio (SP-5); no llama rutas de FiestaPay legado. */
+  /** Carga la marca del subdominio (SP-5); no llama rutas del legado. */
   const initSiteProfile = useCallback(async () => {
     setSiteProfileError(null);
     try {
@@ -433,27 +426,6 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleTalkToAssistant = useCallback(() => {
-    setOrbOpenSignal((prev) => (prev ?? 0) + 1);
-  }, []);
-
-  /**
-   * Judges-demo AI step. The person's click is the consent to run one AI
-   * fill: /create mounts with the phrase prefilled and fires "Rellenar con
-   * IA" exactly once. The request is consumed on mount, so any later manual
-   * visit to /create starts with an empty phrase and no AI call.
-   */
-  const handleBuildPartyWithAi = useCallback((phrase: string) => {
-    aiDraftIdRef.current += 1;
-    setAiDraftRequest({ text: phrase, id: aiDraftIdRef.current });
-    navigate({ mode: 'create' });
-  }, [navigate]);
-
-  const consumeAiDraftRequest = useCallback(() => {
-    setAiDraftRequest(null);
-  }, []);
-
-  const publicContext: AssistantContext = currentView.mode === 'demo' ? 'demo' : 'landing';
   const siteTheme = siteProfile ? siteThemeStyle(siteProfile) : undefined;
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', ...siteTheme }}>
@@ -536,7 +508,7 @@ export const App: React.FC = () => {
             capabilities={capabilities}
             eventsError={eventsError}
             onRetryEvents={initApp}
-            onNavigateCreate={(path) => navigate({ mode: 'create', ...(path ? { path } : {}) })}
+            onNavigateCreate={() => navigate({ mode: 'create' })}
             onNavigateInvite={(slug) => navigate({ mode: 'invite', slug })}
             onNavigateDashboard={(slug) => navigate({ mode: 'dashboard', slug })}
             onNavigateDemo={(quick) => navigate({ mode: 'demo', quick })}
@@ -553,9 +525,8 @@ export const App: React.FC = () => {
             onRetryEvents={initApp}
             onCreateDemo={handleCreateDemo}
             quickPath={currentView.quick}
-            onBuildPartyWithAi={handleBuildPartyWithAi}
+            onNavigateCreate={() => navigate({ mode: 'create' })}
             onStartPaymentDemo={handleStartPaymentDemo}
-            onTalkToAssistant={handleTalkToAssistant}
             onResetDemo={handleResetDemo}
             isResetting={isResettingDemo}
             onNavigateInvite={(slug) => navigate({ mode: 'invite', slug })}
@@ -567,11 +538,7 @@ export const App: React.FC = () => {
 
         {currentView.mode === 'create' && (
           <CreateEventView
-            draftRequest={aiDraftRequest}
-            onConsumeDraftRequest={consumeAiDraftRequest}
             recoveryAvailable={capabilities?.email === true}
-            createPath={currentView.path}
-            onSelectCreatePath={(path) => navigate({ mode: 'create', path })}
             onEventCreated={(slug) => {
               initApp();
               // The create response already stored the organizer key. A missing key stays public.
@@ -603,6 +570,7 @@ export const App: React.FC = () => {
 
         {currentView.mode === 'tutorial' && IS_LEGACY_HOST && (
           <TutorialView
+            capabilities={capabilities}
             onNavigateDemo={() => navigate({ mode: 'demo' })}
             onNavigateCreate={() => navigate({ mode: 'create' })}
             onNavigateInvitations={goToOwnInvitations}
@@ -639,20 +607,7 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/*
-          Cross-front contract: builder B supplies the unified orb. Public home/demo/create/
-          recovery get one launcher; invite and dashboard keep their own role-scoped orb.
-          Landing and demo keep separate public conversations by context.
-        */}
-        {shouldRenderLegacyOrb(APP_HOST.isSiteHost, currentView.mode, APP_HOST.kind) && (
-          <AssistantOrb
-            audience="public"
-            capabilities={capabilities}
-            onShowToast={showToast}
-            context={publicContext}
-            openSignal={orbOpenSignal}
-          />
-        )}
+        {/* NAP-F5b: el orbe se retiró; la avatar Napster vive en cada vista. */}
       </main>
 
       {/* Global Toast Notifications */}

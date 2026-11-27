@@ -1,6 +1,6 @@
 /**
  * Claves de color del sitio según `esquemas/sitio.schema.json` (SP5-D-1).
- * Evita duplicar la paleta FiestaPay en la web.
+ * Evita duplicar la paleta legada en la web.
  */
 import sitioSchema from '../../../../esquemas/sitio.schema.json';
 import type { TenantSiteSettings } from './site-types';

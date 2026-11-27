@@ -147,7 +147,7 @@ describe('NapsterAvatar invitado y creador (NAP-F4w)', () => {
     // Al terminar, la bienvenida ya es la pública, sin el nombre del evento.
     fireEvent.click(screen.getByTestId('napster-avatar-end'));
     await screen.findByTestId('napster-avatar-start');
-    expect(screen.getByText('Hola, soy tu pana guía de Somos Panas')).toBeTruthy();
+    expect(screen.getByText('Hola, soy Pana, tu guía de Somos Panas')).toBeTruthy();
     expect(screen.queryByText(/Evento viejo/)).toBeNull();
   });
 
@@ -243,7 +243,7 @@ describe('NapsterAvatar invitado y creador (NAP-F4w)', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     render(
       <I18nProvider>
-        <ReminderDrafts slug="asado-pana" />
+        <ReminderDrafts />
       </I18nProvider>,
     );
     expect(screen.queryByTestId('reminder-avatar-note')).toBeNull();
@@ -271,7 +271,7 @@ describe('NapsterAvatar invitado y creador (NAP-F4w)', () => {
     cleanup();
     render(
       <I18nProvider>
-        <ReminderDrafts slug="asado-pana" />
+        <ReminderDrafts />
       </I18nProvider>,
     );
     expect(await screen.findByTestId('reminder-avatar-note')).toBeTruthy();

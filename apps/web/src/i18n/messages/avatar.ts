@@ -4,22 +4,22 @@ import { defineCatalog } from '../catalog';
  * Textos de la avatar Napster en la portada raíz (NAP-F3, visitante Público).
  * Sigue el patrón messages/*: un defineCatalog es/en exportado suelto en
  * messages/index.ts (sin entrar en ALL_GUEST_CATALOGS, cuya prueba fija las claves).
- * Sin «FiestaPay» ni otra IA: el consentimiento nombra solo a Napster.
+ * Sin marca legada ni otra IA: el consentimiento nombra solo a Napster.
  */
 export const avatarCatalog = defineCatalog({
   es: {
-    welcomeTitle: 'Hola, soy tu pana guía de Somos Panas',
+    welcomeTitle: 'Hola, soy Pana, tu guía de Somos Panas',
     welcomeText:
       'Te presento el sitio, te muestro los eventos abiertos y te acompaño a crear tu espacio.',
     consent:
       'Si eliges conversar, tu voz y tu video los procesa Napster para la llamada. También puedes leer el recorrido sin video.',
     startVideo: 'Conversar con video y voz',
     preferReading: 'Prefiero leer',
-    connecting: 'Conectando con tu pana guía…',
-    liveLabel: 'Conversando con video y voz',
+    connecting: 'Conectando con Pana…',
+    liveLabel: 'Conversando con Pana por video y voz',
     endSession: 'Terminar',
     captionsTitle: 'Subtítulos',
-    avatarSays: 'Tu pana guía',
+    avatarSays: 'Pana',
     youSaid: 'Tú',
     unavailableTitle: 'El video no está disponible ahora mismo',
     unavailableBody: 'Te dejamos el recorrido para leer. Puedes reintentar el video cuando quieras.',
@@ -27,7 +27,7 @@ export const avatarCatalog = defineCatalog({
     retryVideo: 'Reintentar video',
     invitedTitle: (event: string) => `Te invitaron a ${event}`,
     invitedText: 'Te llevo directo a la reunión: confirma tu asistencia o revisa tu aporte.',
-    textTitle: 'Chat con tu pana guía',
+    textTitle: 'Chat con Pana',
     textConnecting: 'Conectando el chat…',
     textHint: 'Respuestas por texto de la misma guía, sin video.',
     textPlaceholder: 'Escribe tu mensaje…',
@@ -46,17 +46,17 @@ export const avatarCatalog = defineCatalog({
     nowAt: (place: string) => `El visitante ahora está en ${place}.`,
   },
   en: {
-    welcomeTitle: 'Hi, I am your Somos Panas buddy guide',
+    welcomeTitle: 'Hi, I am Pana, your Somos Panas guide',
     welcomeText: 'I will show you around, list the open events and help you create your space.',
     consent:
       'If you choose to talk, Napster processes your voice and video for the call. You can also read the tour with no video.',
     startVideo: 'Talk with video and voice',
     preferReading: 'I prefer to read',
-    connecting: 'Connecting to your buddy guide…',
-    liveLabel: 'Talking with video and voice',
+    connecting: 'Connecting to Pana…',
+    liveLabel: 'Talking with Pana by video and voice',
     endSession: 'End',
     captionsTitle: 'Captions',
-    avatarSays: 'Your buddy guide',
+    avatarSays: 'Pana',
     youSaid: 'You',
     unavailableTitle: 'Video is not available right now',
     unavailableBody: 'Here is the tour to read. You can retry video whenever you like.',
@@ -64,7 +64,7 @@ export const avatarCatalog = defineCatalog({
     retryVideo: 'Retry video',
     invitedTitle: (event: string) => `You were invited to ${event}`,
     invitedText: "I'll take you straight to the gathering: confirm your attendance or review your share.",
-    textTitle: 'Chat with your buddy guide',
+    textTitle: 'Chat with Pana',
     textConnecting: 'Connecting the chat…',
     textHint: 'Text replies from the same guide, with no video.',
     textPlaceholder: 'Type your message…',

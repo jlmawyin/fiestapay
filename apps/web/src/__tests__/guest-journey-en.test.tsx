@@ -1,13 +1,11 @@
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { UI_LABELS } from '@fiestapay/shared';
 import { PublicInviteView } from '../views/PublicInviteView';
-import { ChatAssistant } from '../components/chat/ChatAssistant';
-import { VoiceInvitationAgent } from '../components/voice/VoiceInvitationAgent';
 import { api } from '../api/client';
 import { I18nProvider } from '../i18n/I18nContext';
 import { setActiveLocale } from '../i18n/locale-store';
-import type { Capabilities, ChatResult, FiestaEvent, Guest, Quote } from '../types';
+import type { Capabilities, FiestaEvent, Guest, Quote } from '../types';
 
 const labels = UI_LABELS.en;
 
@@ -16,10 +14,10 @@ const caps: Capabilities = {
   paypalClientId: null,
   paymentProvider: 'paypal_sandbox',
   chat: true,
-  llmProvider: 'openai',
   voice: true,
   sandbox: true,
   email: false,
+  avatar: true,
 };
 
 function eventFixture(over: Partial<FiestaEvent> = {}): FiestaEvent {
@@ -273,78 +271,5 @@ describe('guest invitation in English', () => {
   });
 });
 
-describe('guest chat in English', () => {
-  it('greets, types, and sends in English while server history stays verbatim', async () => {
-    localStorage.setItem('fp_locale', 'en');
-    vi.spyOn(api, 'getChatHistory').mockResolvedValue({
-      messages: [{ id: 'h1', role: 'assistant', text: 'Historial del servidor sin traducir', createdAt: '2026-12-01T12:00:00Z' }],
-    });
-    let resolveSend!: (value: ChatResult) => void;
-    const sendPromise = new Promise<ChatResult>((resolve) => { resolveSend = resolve; });
-    const send = vi.spyOn(api, 'sendChat').mockReturnValue(sendPromise);
-    render(
-      <I18nProvider>
-        <ChatAssistant slug="sunday-lunch" capabilities={caps} />
-      </I18nProvider>
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Open AI assistant' }));
-    expect(await screen.findByText(/I am your FiestaPay agent for this invitation/)).toBeInTheDocument();
-    expect(screen.getByText('Historial del servidor sin traducir')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Write a message or question...')).toBeInTheDocument();
-
-    const input = screen.getByRole('textbox', { name: 'Message for the assistant' });
-    fireEvent.change(input, { target: { value: 'How much is it?' } });
-    fireEvent.submit(input.closest('form')!);
-    expect(await screen.findByText(/Thinking… \d+ s/)).toBeInTheDocument();
-    expect(send).toHaveBeenCalledWith('sunday-lunch', 'How much is it?');
-    await act(async () => { resolveSend({ text: 'Respuesta del modelo' }); });
-    expect(await screen.findByText('Respuesta del modelo')).toBeInTheDocument();
-
-    const body = document.body.textContent ?? '';
-    expect(body).not.toContain('Soy tu asistente');
-    expect(body).not.toContain('Escribe un mensaje');
-    expect(body).not.toContain('está escribiendo');
-  });
-});
-
-describe('guest voice panel in English', () => {
-  it('shows consent and literal start/stop labels in English', async () => {
-    localStorage.setItem('fp_locale', 'en');
-    render(
-      <I18nProvider>
-        <VoiceInvitationAgent
-          slug="sunday-lunch"
-          capabilities={caps}
-          guest={guestFixture({ status: 'yes' })}
-          onShowToast={vi.fn()}
-        />
-      </I18nProvider>
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Open voice assistant' }));
-    expect(screen.getByText('Voice assistant')).toBeInTheDocument();
-    expect(screen.getByText('I consent to processing my audio with AssemblyAI')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: labels.startVoice })).toBeDisabled();
-    fireEvent.click(screen.getByRole('checkbox'));
-    expect(screen.getByRole('button', { name: labels.startVoice })).toBeEnabled();
-
-    const body = document.body.textContent ?? '';
-    expect(body).not.toContain('Acepto procesar mi audio');
-    expect(body).not.toContain('Iniciar Conversación');
-    expect(body).not.toContain('Detener y Cerrar');
-  });
-
-  it('offers the literal listen label for the public voice', () => {
-    localStorage.setItem('fp_locale', 'en');
-    render(
-      <I18nProvider>
-        <VoiceInvitationAgent audience="public" capabilities={{ ...caps, voice: false }} onShowToast={vi.fn()} />
-      </I18nProvider>
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Open voice assistant' }));
-    expect(screen.getByRole('button', { name: labels.listen })).toBeInTheDocument();
-    expect(document.body.textContent ?? '').not.toContain('Escuchar información');
-  });
-});
+// NAP-F5b: el chat y la voz propios murieron; la avatar Napster montada en
+// PublicInviteView es el único asistente del invitado (ver napster-*).

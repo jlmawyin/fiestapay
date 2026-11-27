@@ -104,89 +104,9 @@ describe('API Client Specification Compliance (docs/API.md)', () => {
     expect(joinHeaders.get('X-Fiesta-Admin-Key')).toBeNull();
   });
 
-  it('requests voice token with consent: true contract', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        token: 'tok-abc',
-        sessionConfig: { sample_rate: 24000 },
-        maxSeconds: 180,
-        leaseId: 'lease-123',
-      }),
-    } as Response);
-
-    const tokenRes = await api.getVoiceToken('fiesta-slug');
-    expect(tokenRes.token).toBe('tok-abc');
-    expect(tokenRes.leaseId).toBe('lease-123');
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/events/fiesta-slug/voice/token',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ consent: true }),
-      })
-    );
-  });
-
-  it('sends the current public page context when requesting the public voice token', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        token: 'tok-public',
-        sessionConfig: { sample_rate: 24000 },
-        maxSeconds: 120,
-        leaseId: 'lease-public',
-      }),
-    } as Response);
-
-    await api.getPublicVoiceToken('demo');
-    await api.getPublicVoiceToken();
-    await api.getPublicVoiceToken('landing');
-
-    expect(fetchSpy).toHaveBeenNthCalledWith(
-      1,
-      '/api/voice/public/token',
-      expect.objectContaining({ body: JSON.stringify({ consent: true, context: 'demo' }) }),
-    );
-    expect(fetchSpy).toHaveBeenNthCalledWith(
-      2,
-      '/api/voice/public/token',
-      expect.objectContaining({ body: JSON.stringify({ consent: true, context: 'landing' }) }),
-    );
-    expect(fetchSpy).toHaveBeenNthCalledWith(
-      3,
-      '/api/voice/public/token',
-      expect.objectContaining({ body: JSON.stringify({ consent: true, context: 'landing' }) }),
-    );
-  });
-
-  it('executes voice tool with leaseId and arguments', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        response: { success: true },
-        actions: ['rsvp:yes:1'],
-      }),
-    } as Response);
-
-    const toolRes = await api.executeVoiceTool('fiesta-slug', {
-      leaseId: 'lease-123',
-      name: 'set_rsvp',
-      arguments: { status: 'yes', companions: 1 },
-    });
-
-    expect(toolRes.actions).toEqual(['rsvp:yes:1']);
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/events/fiesta-slug/voice/tool',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({
-          leaseId: 'lease-123',
-          name: 'set_rsvp',
-          arguments: { status: 'yes', companions: 1 },
-        }),
-      })
-    );
-  });
+  // NAP-F5b: los contratos de voz/chat propios murieron con api.getVoiceToken
+  // y familia; la avatar Napster usa POST /api/avatar-session (ver prueba
+  // napster-avatar-session).
 });
 
 function headerOf(init: RequestInit | undefined): string | null {
@@ -353,7 +273,7 @@ describe('moderation admin header allowlist', () => {
     expect(adminHeaderFor('/api/events/comida-abc/moderation/messages/msg-1?before=4', 'Delete')).toBe(key);
   });
 
-  it('keeps public get, join, rsvp, quote, orders, capture, receipt, chat, history, and voice free of the key', async () => {
+  it('keeps public get, join, rsvp, quote, orders, capture, receipt, and unlock free of the key', async () => {
     rememberAdminKey(slug, key);
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
@@ -367,10 +287,6 @@ describe('moderation admin header allowlist', () => {
     await api.createOrder(slug, 'quote-1');
     await api.captureOrder('ord-1');
     await api.getOrder('ord-1');
-    await api.sendChat(slug, 'hola');
-    await api.getChatHistory(slug);
-    await api.getVoiceToken(slug);
-    await api.executeVoiceTool(slug, { leaseId: 'lease-1', name: 'set_rsvp', arguments: {} });
     await api.unlockEvent(slug, 'codigo');
     await api.getHealth();
 
@@ -382,10 +298,6 @@ describe('moderation admin header allowlist', () => {
       '/api/events/comida-abc/orders',
       '/api/orders/ord-1/capture',
       '/api/orders/ord-1',
-      '/api/events/comida-abc/chat',
-      '/api/events/comida-abc/chat/history',
-      '/api/events/comida-abc/voice/token',
-      '/api/events/comida-abc/voice/tool',
       '/api/events/comida-abc/unlock',
       '/api/health',
     ];

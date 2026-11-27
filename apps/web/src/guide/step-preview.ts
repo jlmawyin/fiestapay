@@ -22,7 +22,6 @@ const HEADER_GAP = 12;
 const BOTTOM_GAP = 16;
 const PREVIEW_MAX = 240;
 const PREVIEW_MIN = 56;
-const MAX_VOICE_PREVIEW_WAIT_MS = 1500;
 
 export function guideStepFor(element: HTMLElement): HTMLElement | null {
   try {
@@ -125,7 +124,7 @@ interface Keyframe {
   holdBefore?: number;
 }
 
-function animateScroll(keyframes: Keyframe[], finalHeading: () => number, previewReady?: () => boolean): () => void {
+function animateScroll(keyframes: Keyframe[], finalHeading: () => number): () => void {
   const firstTop = currentScroll();
   const segments: Segment[] = [];
   let cursor = 0;
@@ -144,8 +143,6 @@ function animateScroll(keyframes: Keyframe[], finalHeading: () => number, previe
   let cancelled = false;
   let rafId = 0;
   let startedAt: number | null = null;
-  let voiceWaitStarted: number | null = null;
-  let previewReleased = !previewReady;
   const onManual = () => cancel();
   const onKeyDown = (event: KeyboardEvent) => {
     if (
@@ -188,17 +185,7 @@ function animateScroll(keyframes: Keyframe[], finalHeading: () => number, previe
   function frame(timestamp: number): void {
     if (cancelled) return;
     if (startedAt === null) startedAt = timestamp;
-    let elapsed = timestamp - startedAt;
-    const headingArrival = segments[0]?.duration ?? 0;
-    if (!previewReleased && elapsed >= headingArrival) {
-      voiceWaitStarted ??= timestamp;
-      if (previewReady?.() || timestamp - voiceWaitStarted >= MAX_VOICE_PREVIEW_WAIT_MS) {
-        previewReleased = true;
-      } else {
-        startedAt = timestamp - headingArrival;
-        elapsed = headingArrival;
-      }
-    }
+    const elapsed = timestamp - startedAt;
     let top = finalTop;
     for (const segment of segments) {
       if (elapsed <= segment.start) {
@@ -241,8 +228,6 @@ export interface GuideScrollOptions {
   /** Fixed step wrapper found by the caller; auto-detected when omitted. */
   step?: HTMLElement | null;
   reducedMotion: boolean;
-  /** When available, begin the down-and-back preview as the voice starts speaking. */
-  previewReady?: () => boolean;
   /** Tests may force the mobile branch. */
   mobile?: boolean;
 }
@@ -306,5 +291,5 @@ export function startGuideScroll(options: GuideScrollOptions): () => void {
     { top: start, duration: Math.min(420, Math.max(160, distance * 0.45)) },
     { top: down, duration: 520, holdBefore: 80 },
     { top: start, duration: 520, holdBefore: 200 },
-  ], finalHeading, options.previewReady);
+  ], finalHeading);
 }

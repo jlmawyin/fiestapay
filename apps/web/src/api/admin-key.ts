@@ -61,7 +61,7 @@ function moderationOrganizer(rest: string, verb: string): boolean {
   return false;
 }
 
-/** Organizer calls only. Public, join, pay, chat and voice stay without the key. */
+/** Solo llamadas del organizador. Lo público, unirse y pagar van sin la clave. */
 export function adminHeaderFor(path: string, method: string): string | null {
   const match = path.match(/^\/api\/events\/([^/?]+)/);
   if (!match || !match[1]) return null;

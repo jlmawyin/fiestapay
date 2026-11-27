@@ -53,7 +53,6 @@ export const inviteCatalog = defineCatalog({
     dismissOrder: 'Orden descartada de la sesión.',
     dismissTitle: 'Sesión limpia',
     payIncompleteTitle: 'Pago no completado',
-    assistantQuote: 'Cotización sugerida por el asistente cargada. Revisa los detalles en pantalla.',
     loading: 'Cargando la invitación...',
     retry: 'Reintentar',
     goHome: 'Ir al Inicio',
@@ -87,7 +86,7 @@ export const inviteCatalog = defineCatalog({
     revokedRemoved:
       'Tu participación fue retirada. El abono ya registrado sigue visible y no se reembolsa solo. Si un pago sigue en verificación, espera a que se concilie antes de reintentar el retiro.',
     revokedBlocked:
-      'Esta sesión no puede confirmar asistencia, chatear, usar voz ni iniciar un pago nuevo. Si ya había un cobro en curso, verifica su estado real abajo. El recibo de lo abonado sigue visible.',
+      'Esta sesión no puede confirmar asistencia ni iniciar un pago nuevo. Si ya había un cobro en curso, verifica su estado real abajo. El recibo de lo abonado sigue visible.',
     stepperAria: 'Pasos para pagar con PayPal',
     stepperSub: 'PayPal Sandbox, sin dinero real. Cada paso se completa en esta misma invitación.',
     stepJoinTodo: 'Escribe un alias para crear tu sesión.',
@@ -109,7 +108,7 @@ export const inviteCatalog = defineCatalog({
     wizardPaidLead: 'Abonado',
     wizardDueLead: 'Falta',
     wizardPaidDone: 'Pagado',
-    paymentVerified: (amount: string) => `FiestaPay verificó el pago de ${amount}.`,
+    paymentVerified: (amount: string) => `Somos Panas verificó el pago de ${amount}.`,
     activeOrder: 'Orden activa registrada: ',
     orderChecking: 'Consultando...',
     orderDismiss: 'Descartar',
@@ -161,7 +160,6 @@ export const inviteCatalog = defineCatalog({
     dismissOrder: 'Order dismissed from the session.',
     dismissTitle: 'Session cleared',
     payIncompleteTitle: 'Payment not completed',
-    assistantQuote: 'Assistant-suggested quote loaded. Review the details on screen.',
     loading: 'Loading the invitation...',
     retry: 'Retry',
     goHome: 'Go home',
@@ -195,7 +193,7 @@ export const inviteCatalog = defineCatalog({
     revokedRemoved:
       'Your participation was withdrawn. The registered payment stays visible and is not refunded on its own. If a payment is still being verified, wait for it to reconcile before retrying the withdrawal.',
     revokedBlocked:
-      'This session cannot confirm attendance, chat, use voice, or start a new payment. If a charge was already in progress, check its real status below. The receipt of what was paid stays visible.',
+      'This session cannot confirm attendance or start a new payment. If a charge was already in progress, check its real status below. The receipt of what was paid stays visible.',
     stepperAria: 'Steps to pay with PayPal',
     stepperSub: 'PayPal Sandbox, no real money. Every step completes on this same invitation.',
     stepJoinTodo: 'Type an alias to create your session.',
@@ -217,7 +215,7 @@ export const inviteCatalog = defineCatalog({
     wizardPaidLead: 'Paid',
     wizardDueLead: 'Remaining',
     wizardPaidDone: 'Paid',
-    paymentVerified: (amount: string) => `FiestaPay verified the ${amount} payment.`,
+    paymentVerified: (amount: string) => `Somos Panas verified the ${amount} payment.`,
     activeOrder: 'Active order on record: ',
     orderChecking: 'Checking...',
     orderDismiss: 'Dismiss',

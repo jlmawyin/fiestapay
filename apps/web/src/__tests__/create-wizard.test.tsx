@@ -7,7 +7,7 @@ import { UI_LABELS, themeBelongs } from '@fiestapay/shared';
 import { CreateWizard } from '../components/events/CreateWizard';
 import { I18nProvider } from '../i18n/I18nContext';
 import { setActiveLocale } from '../i18n/locale-store';
-import { ApiError, api } from '../api/client';
+// NAP-F5b: sin api/client; el wizard manual no llama a la red.
 import { suggestThemeFor } from '../lib/event-presentation';
 import type { EventInput, TemplateKind } from '../types';
 
@@ -586,112 +586,8 @@ describe('suggestThemeFor rules', () => {
   });
 });
 
-describe('wizard AI suggestion', () => {
-  function reachLook(): void {
-    fireEvent.click(screen.getByRole('radio', { name: /En Casa/ }));
-    fireEvent.change(screen.getByLabelText(/Título del Evento/i), { target: { value: 'Cena en casa' } });
-    fireEvent.change(screen.getByLabelText(/Nombre de quien organiza/i), { target: { value: 'Ana Secreta' } });
-    saveStepEs();
-    saveStepEs();
-    fireEvent.change(screen.getByLabelText(/Lugar o Dirección/i), { target: { value: 'Mi sala' } });
-    fireEvent.click(screen.getByLabelText('Música'));
-    saveStepEs();
-    fireEvent.change(screen.getByLabelText(/Cuota por persona/i), { target: { value: '10.00' } });
-    fireEvent.change(screen.getByLabelText(/Capacidad máxima/i), { target: { value: '6' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Opciones avanzadas' }));
-    fireEvent.change(screen.getByLabelText(/Codigo de acceso/i), { target: { value: 'clave-secreta' } });
-    saveStepEs();
-  }
-
-  it('applies the mocked theme and offers the description without personal data', async () => {
-    const suggest = vi.spyOn(api, 'suggestPresentation').mockResolvedValue({
-      theme: 'sala',
-      description: 'Una noche para brindar en casa.',
-      source: 'ai',
-    });
-    const onSubmit = vi.fn().mockResolvedValue(undefined);
-    renderEs(<CreateWizard onSubmit={onSubmit} onCancel={vi.fn()} isLoading={false} />);
-    reachLook();
-
-    fireEvent.click(screen.getByRole('button', { name: '✨ Sugerir con IA' }));
-    await waitFor(() => {
-      expect(screen.getByRole('radio', { name: 'Sala' })).toHaveAttribute('aria-checked', 'true');
-    });
-    expect(screen.getByText('Tema aplicado: Sala.')).toBeInTheDocument();
-    expect(screen.getByText('Una noche para brindar en casa.')).toBeInTheDocument();
-
-    expect(suggest).toHaveBeenCalledTimes(1);
-    const body = suggest.mock.calls[0][0] as unknown as Record<string, unknown>;
-    expect(body.template).toBe('casa');
-    expect(body.title).toBe('Cena en casa');
-    expect(body.location).toBe('Mi sala');
-    expect(body.hints).toEqual(['Música']);
-    expect(Object.keys(body).sort()).toEqual(['hints', 'location', 'meal', 'template', 'title'].sort());
-    expect(JSON.stringify(body)).not.toContain('Ana Secreta');
-    expect(JSON.stringify(body)).not.toContain('clave-secreta');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Usar esta descripción' }));
-    expect(screen.queryByText('Una noche para brindar en casa.')).toBeNull();
-    saveStepEs();
-    fireEvent.click(screen.getByRole('button', { name: 'Publicar invitación' }));
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
-    const payload = onSubmit.mock.calls[0][0] as EventInput;
-    expect(payload.theme).toBe('sala');
-    expect(payload.description).toBe('Una noche para brindar en casa.');
-    expect(payload.organizerName).toBe('Ana Secreta');
-    expect(payload.accessCode).toBe('clave-secreta');
-  });
-
-  it('discards the proposed description without changing the theme', async () => {
-    vi.spyOn(api, 'suggestPresentation').mockResolvedValue({
-      theme: 'patio',
-      description: 'Texto propuesto.',
-      source: 'ai',
-    });
-    const onSubmit = vi.fn().mockResolvedValue(undefined);
-    renderEs(<CreateWizard onSubmit={onSubmit} onCancel={vi.fn()} isLoading={false} />);
-    reachLook();
-    fireEvent.click(screen.getByRole('button', { name: '✨ Sugerir con IA' }));
-    await waitFor(() => {
-      expect(screen.getByRole('radio', { name: 'Patio' })).toHaveAttribute('aria-checked', 'true');
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Descartar' }));
-    expect(screen.queryByText('Texto propuesto.')).toBeNull();
-    saveStepEs();
-    fireEvent.click(screen.getByRole('button', { name: 'Publicar invitación' }));
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
-    const payload = onSubmit.mock.calls[0][0] as EventInput;
-    expect(payload.theme).toBe('patio');
-    expect(payload.description).toBe('');
-  });
-
-  it.each([408, 429, 503])('keeps the rules suggestion and publishes after an AI failure (%s)', async (status) => {
-    vi.spyOn(api, 'suggestPresentation').mockRejectedValue(new ApiError('IA ocupada', status));
-    const onSubmit = vi.fn().mockResolvedValue(undefined);
-    renderEs(<CreateWizard onSubmit={onSubmit} onCancel={vi.fn()} isLoading={false} />);
-    fireEvent.change(screen.getByLabelText(/Título del Evento/i), { target: { value: 'Gran asado' } });
-    saveStepEs();
-    saveStepEs();
-    fireEvent.change(screen.getByLabelText(/Lugar o Dirección/i), { target: { value: 'Parque' } });
-    saveStepEs();
-    fireEvent.change(screen.getByLabelText(/Cuota por persona/i), { target: { value: '25.00' } });
-    fireEvent.change(screen.getByLabelText(/Capacidad máxima/i), { target: { value: '8' } });
-    saveStepEs();
-
-    await waitFor(() => {
-      expect(screen.getByRole('radio', { name: 'Fogata' })).toHaveAttribute('aria-checked', 'true');
-    });
-    fireEvent.click(screen.getByRole('button', { name: '✨ Sugerir con IA' }));
-    await waitFor(() => {
-      expect(screen.getByText('La IA no respondió. Te dejamos la sugerencia por reglas; puedes publicar igual.')).toBeInTheDocument();
-    });
-    expect(screen.getByRole('radio', { name: 'Fogata' })).toHaveAttribute('aria-checked', 'true');
-    saveStepEs();
-    fireEvent.click(screen.getByRole('button', { name: 'Publicar invitación' }));
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
-    expect((onSubmit.mock.calls[0][0] as EventInput).theme).toBe('fogata');
-  });
-});
+// NAP-F5b: el bloque «wizard AI suggestion» murió con api.suggestPresentation;
+// el formulario manual publica sin IA y la avatar arma borradores aparte.
 
 describe('wizard ES/EN parity', () => {
   const SPANISH_WITNESSES = [
@@ -707,7 +603,6 @@ describe('wizard ES/EN parity', () => {
     'Revisar y publicar',
     'Publicar invitación',
     'Opciones avanzadas',
-    'Sugerir con IA',
     'Escribe un titulo',
     'Desayuno',
     'Almuerzo',

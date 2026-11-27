@@ -8,11 +8,7 @@ import { I18nProvider } from '../i18n/I18nContext';
 import { setActiveLocale } from '../i18n/locale-store';
 import type { Capabilities, FiestaEvent } from '../types';
 
-vi.mock('../components/assistant/AssistantOrb', () => ({
-  AssistantOrb: ({ audience }: { audience: string }) => (
-    <div data-testid="assistant-orb" data-audience={audience} />
-  ),
-}));
+// NAP-F5b: sin orbe; la avatar Napster real monta en reposo sin red.
 
 const capabilities: Capabilities = {
   paypal: true,
@@ -21,6 +17,7 @@ const capabilities: Capabilities = {
   voice: false,
   sandbox: true,
   email: true,
+  avatar: true,
 };
 
 function event(over: Partial<FiestaEvent> = {}, isDemo?: boolean): FiestaEvent {
@@ -102,7 +99,7 @@ describe.each(['es', 'en'] as const)('product landing (%s)', (locale) => {
     expect(screen.getAllByRole('button', { name: labels.createInvitation }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: labels.judgesDemo }).length).toBeGreaterThan(0);
     expect(screen.getByText(labels.sandboxBadge)).toBeInTheDocument();
-    expect(screen.getByTestId('assistant-orb')).toHaveAttribute('data-audience', 'public');
+    expect(screen.getByTestId('napster-avatar')).toBeInTheDocument();
 
     const body = document.body.textContent ?? '';
     for (const witness of REAL_MONEY_WITNESSES) {
@@ -127,7 +124,7 @@ describe.each(['es', 'en'] as const)('product landing (%s)', (locale) => {
     expect(window.location.pathname).toBe('/demo');
   });
 
-  it('offers the three bounded creation paths and keeps the path in the URL', async () => {
+  it('offers one creation entry and keeps /create free of path params', async () => {
     const { landingCatalog } = await import('../i18n/catalogs/landing');
     const copy = landingCatalog[locale];
     renderLanding(locale, []);
@@ -135,15 +132,7 @@ describe.each(['es', 'en'] as const)('product landing (%s)', (locale) => {
 
     fireEvent.click(screen.getByRole('button', { name: copy.pathSentence }));
     expect(window.location.pathname).toBe('/create');
-    expect(window.location.search).toBe('?path=sentence');
-
-    fireEvent.click(screen.getByRole('button', { name: labels.myInvitations }));
-    fireEvent.click(screen.getByRole('button', { name: copy.pathInterview }));
-    expect(window.location.search).toBe('?path=interview');
-
-    fireEvent.click(screen.getByRole('button', { name: labels.myInvitations }));
-    fireEvent.click(screen.getByRole('button', { name: copy.pathManual }));
-    expect(window.location.search).toBe('?path=manual');
+    expect(window.location.search).toBe('');
   });
 
   it('lists only own invitations and keeps the panel/recovery behavior', async () => {

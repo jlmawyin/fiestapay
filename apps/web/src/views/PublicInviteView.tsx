@@ -10,7 +10,6 @@ import { TemplateCover } from '../components/illustrations/TemplateCover';
 import { ThemeScope } from '../components/events/ThemeScope';
 import { TicketCutout } from '../components/common/TicketCutout';
 import { PaymentWizard } from '../components/invite/PaymentWizard';
-import { AssistantOrb } from '../components/assistant/AssistantOrb';
 import { QrShareModal } from '../components/dashboard/QrShareModal';
 import { FundingStatusPanel, newGuestActivityBlocked } from '../components/common/FundingStatusPanel';
 import {
@@ -26,7 +25,6 @@ import {
   templateInviteCopy,
 } from '../lib/event-presentation';
 import { orderStatusLabel } from '../lib/order-status';
-import { showOnScreen } from '../guide/showOnScreen';
 import {
   CrestMedallion,
   PolaroidStrip,
@@ -372,16 +370,6 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
     onShowToast('warning', msg, copyRef.current.payIncompleteTitle);
   };
 
-  /** Guest chat/voice prepared the quote: show where the server summary is reviewed. */
-  const handleApplyQuote = (nextQuote: Quote) => {
-    setQuote(nextQuote);
-    onShowToast('info', copyRef.current.assistantQuote, copyRef.current.quoteTitle);
-    if (nextQuote.amountCents > 0) {
-      void showOnScreen({ target: activeOrder ? 'openPayPal' : 'quoteReview' }, { inviteSlug: slug });
-    }
-  };
-
-
   if (isLoading) {
     return (
       <div className="panel" style={{ textAlign: 'center', padding: '4rem 1rem' }}>
@@ -491,7 +479,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   return (
     <ThemeScope theme={theme}>
     <div className="invite-shell" data-invite-slug={slug}>
-      <NapsterAvatar eventSlug={slug} eventTitle={event.title} />
+      <NapsterAvatar eventSlug={slug} eventTitle={event.title} avatarEnabled={capabilities?.avatar !== false} />
       {/* Main Signature Invitation Ticket */}
       <article className={`ticket-card ticket-card--sig-${resolvedCardStyle}`} aria-label={m.inviteAria(event.title)}>
         {/* Cover illustration */}
@@ -761,19 +749,6 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         shareText={shareText}
       />
 
-      <AssistantOrb
-        key={`guest:${slug}`}
-        audience="guest"
-        slug={slug}
-        capabilities={capabilities}
-        guest={guest}
-        theme={{ template: event.template, themeKey: event.theme, meal: event.meal }}
-        accessRevoked={sessionRevoked}
-        eventClosed={activityBlocked}
-        onApplyQuote={handleApplyQuote}
-        onConfirmRsvp={handleSaveRsvp}
-        onShowToast={onShowToast}
-      />
     </div>
     </ThemeScope>
   );

@@ -7,8 +7,6 @@ import type {
   Quote,
   OrderResult,
   Dashboard,
-  ChatResult,
-  ChatTranscript,
   ModerationActionResult,
   ModerationGuest,
   ModerationConversation,
@@ -20,20 +18,10 @@ import type {
   RecoveryConsumeResult,
 } from '../types';
 import type {
-  AssistantContext,
   AvatarLang,
   AvatarSessionErrorCode,
   AvatarSessionResponse,
   DemoKind,
-  DraftEventProposal,
-  PresentationSuggestion,
-  PresentationSuggestionInput,
-  ReminderDraftResult,
-  ReminderTone,
-  VoiceAudience,
-  VoiceLeaseActivityResult,
-  VoiceLeaseReleaseResult,
-  VoiceProvider,
 } from '@fiestapay/shared';
 import {
   LOCALE_HEADER,
@@ -43,10 +31,6 @@ import {
 } from '@fiestapay/shared';
 import { getActiveLocale } from '../i18n/locale-store';
 import { adminHeaderFor, adminKeyFor } from './admin-key';
-
-export interface OrganizerChatTranscript extends ChatTranscript {
-  greeting: string;
-}
 
 export class ApiError extends Error {
   status: number;
@@ -115,7 +99,7 @@ export interface CreateSiteResult {
 export const REQUEST_TIMEOUT_MS = 30_000;
 
 /** AI routes wait longer: the model answers before 45 s and the client gives it 55 s. */
-export const AI_REQUEST_TIMEOUT_MS = 55_000;
+// NAP-F5b: AI_REQUEST_TIMEOUT_MS murió con las rutas de IA propias.
 
 export const REQUEST_TIMEOUT_MESSAGES = {
   read: 'La solicitud tardó más de 30 segundos. Revisa tu conexión e inténtalo de nuevo.',
@@ -140,7 +124,7 @@ function timeoutMessageFor(method: string, budgetMs: number = REQUEST_TIMEOUT_MS
 }
 
 export interface RequestOptions extends RequestInit {
-  /** Per-request budget in ms. AI routes pass AI_REQUEST_TIMEOUT_MS; the rest keep 30 s. */
+  /** Per-request budget in ms. NAP-F5b: sin rutas de IA, todo queda en 30 s. */
   timeoutMs?: number;
 }
 
@@ -387,57 +371,8 @@ export const api = {
     });
   },
 
-  /**
-   * Optional AI help at the end of the creation assistant. The caller sends
-   * no personal data (no organizer name, no access code); on any failure it
-   * keeps the rule-based suggestion and never blocks publishing.
-   */
-  async suggestPresentation(input: PresentationSuggestionInput): Promise<PresentationSuggestion> {
-    return request<PresentationSuggestion>('/api/ai/suggest-presentation', {
-      method: 'POST',
-      body: JSON.stringify(input),
-      timeoutMs: AI_REQUEST_TIMEOUT_MS,
-    });
-  },
-
-  /**
-   * "Describe your gathering in one sentence" (step 1 of the creation assistant).
-   * The server never creates an event from it: the proposal only pre-fills the
-   * wizard and the organizer reviews every step before creating.
-   */
-  async draftEvent(text: string): Promise<DraftEventProposal> {
-    return request<DraftEventProposal>('/api/ai/draft-event', {
-      method: 'POST',
-      body: JSON.stringify({ text }),
-      timeoutMs: AI_REQUEST_TIMEOUT_MS,
-    });
-  },
-
-  /**
-   * Organizer-only drafted payment reminders. The drafts are returned for
-   * manual review (copy or open WhatsApp); nothing is ever sent automatically.
-   * The organizer key travels in the same header as the other organizer calls.
-   */
-  async draftReminders(slug: string, tone: ReminderTone): Promise<ReminderDraftResult> {
-    return request<ReminderDraftResult>(`/api/events/${encodeURIComponent(slug)}/reminders/draft`, {
-      method: 'POST',
-      body: JSON.stringify({ tone }),
-      timeoutMs: AI_REQUEST_TIMEOUT_MS,
-    });
-  },
-
-  async sendChat(slug: string, message: string): Promise<ChatResult> {
-    return request<ChatResult>(`/api/events/${encodeURIComponent(slug)}/chat`, {
-      method: 'POST',
-      body: JSON.stringify({ message }),
-      timeoutMs: AI_REQUEST_TIMEOUT_MS,
-    });
-  },
-
-  async getChatHistory(slug: string): Promise<ChatTranscript> {
-    return request<ChatTranscript>(`/api/events/${encodeURIComponent(slug)}/chat/history`);
-  },
-
+  // NAP-F5b: la IA propia (/ai/*, /chat, /reminders/draft) se retiró; la única
+  // IA del producto es la avatar Napster (createAvatarSession, abajo).
   async getModerationGuests(slug: string): Promise<{ guests: ModerationGuest[] }> {
     return request<{ guests: ModerationGuest[] }>(`/api/events/${encodeURIComponent(slug)}/moderation/guests`);
   },
@@ -483,105 +418,8 @@ export const api = {
     );
   },
 
-  async getVoiceToken(
-    slug: string
-  ): Promise<{ token: string; sessionConfig: Record<string, unknown>; maxSeconds: number; leaseId: string; audience?: VoiceAudience; provider?: VoiceProvider }> {
-    return request<{ token: string; sessionConfig: Record<string, unknown>; maxSeconds: number; leaseId: string; audience?: VoiceAudience; provider?: VoiceProvider }>(
-      `/api/events/${encodeURIComponent(slug)}/voice/token`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ consent: true }),
-      }
-    );
-  },
-
-  /**
-   * Public informational voice. No event and no guest are created; only the session
-   * cookie, the shared daily budget and the per-session lease are used.
-   */
-  async getPublicVoiceToken(context: AssistantContext = 'landing'): Promise<{
-    token: string;
-    sessionConfig: Record<string, unknown>;
-    maxSeconds: number;
-    leaseId: string;
-    audience?: VoiceAudience;
-    provider?: VoiceProvider;
-  }> {
-    // SP5-D-5: la voz en subdominio llega en SP-10; el cliente legado sigue en `/api/voice/public/token`.
-    return request('/api/voice/public/token', {
-      method: 'POST',
-      body: JSON.stringify({ consent: true, context }),
-    });
-  },
-
-  /**
-   * Idempotent release, safe from pagehide with keepalive. The server ignores ids owned by
-   * another session. A network failure is the caller's to ignore; budget is not restored.
-   */
-  async releaseVoiceLease(
-    leaseId: string,
-    reason?: string,
-    keepalive = false,
-  ): Promise<VoiceLeaseReleaseResult> {
-    return request<VoiceLeaseReleaseResult>('/api/voice/lease/release', {
-      method: 'POST',
-      body: JSON.stringify({ leaseId, ...(reason ? { reason } : {}) }),
-      ...(keepalive ? { keepalive: true } : {}),
-    });
-  },
-
-  /** Real-interaction signal. `active:false` means the client must stop resources. */
-  async markVoiceActivity(leaseId: string): Promise<VoiceLeaseActivityResult> {
-    return request<VoiceLeaseActivityResult>('/api/voice/lease/activity', {
-      method: 'POST',
-      body: JSON.stringify({ leaseId }),
-    });
-  },
-
-  async executeVoiceTool(
-    slug: string,
-    payload: { leaseId: string; name: string; arguments: Record<string, unknown> }
-  ): Promise<{ response: unknown; quote?: Quote; actions?: string[] }> {
-    return request<{ response: unknown; quote?: Quote; actions?: string[] }>(
-      `/api/events/${encodeURIComponent(slug)}/voice/tool`,
-      {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      }
-    );
-  },
-
-  async sendOrganizerChat(slug: string, message: string): Promise<ChatResult> {
-    return request<ChatResult>(`/api/events/${encodeURIComponent(slug)}/organizer-chat`, {
-      method: 'POST',
-      body: JSON.stringify({ message }),
-      timeoutMs: AI_REQUEST_TIMEOUT_MS,
-    });
-  },
-
-  async getOrganizerChatHistory(slug: string): Promise<OrganizerChatTranscript> {
-    return request<OrganizerChatTranscript>(`/api/events/${encodeURIComponent(slug)}/organizer-chat/history`);
-  },
-
-  async getOrganizerVoiceToken(
-    slug: string,
-  ): Promise<{ token: string; sessionConfig: Record<string, unknown>; maxSeconds: number; leaseId: string; provider?: VoiceProvider }> {
-    return request(`/api/events/${encodeURIComponent(slug)}/organizer-voice/token`, {
-      method: 'POST',
-      body: JSON.stringify({ consent: true }),
-    });
-  },
-
-  async executeOrganizerVoiceTool(
-    slug: string,
-    payload: { leaseId: string; name: string; arguments: Record<string, unknown> },
-  ): Promise<{ response: unknown }> {
-    return request(`/api/events/${encodeURIComponent(slug)}/organizer-voice/tool`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-
+  // NAP-F5b: voz y chats propios (/voice/*, /organizer-chat, /organizer-voice)
+  // retirados; la única IA del producto es la avatar Napster.
   /** Listado de eventos marcados públicos; solo disponible en host raíz. */
   async getPortalEvents(): Promise<{ events: PortalListedEvent[] }> {
     return request<{ events: PortalListedEvent[] }>('/api/portal/events');

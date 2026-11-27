@@ -3,7 +3,7 @@ import { defineCatalog } from '../catalog';
 /** App shell: toasts, banners, and document title. Spanish stays identical. */
 export const appCatalog = defineCatalog({
   es: {
-    docTitle: 'FiestaPay — Fiestas organizadas, pagos resueltos',
+    docTitle: 'Somos Panas — Fiestas organizadas, pagos resueltos',
     sessionFallback: 'No se pudo conectar con el servidor backend.',
     eventsFallback: 'No se pudieron cargar tus invitaciones.',
     retryConnection: 'Reintentar Conexión',
@@ -34,7 +34,7 @@ export const appCatalog = defineCatalog({
     resetFailTitle: 'Error',
   },
   en: {
-    docTitle: 'FiestaPay — Gatherings organized, payments settled',
+    docTitle: 'Somos Panas — Gatherings organized, payments settled',
     sessionFallback: 'Could not reach the backend server.',
     eventsFallback: 'Your invitations could not be loaded.',
     retryConnection: 'Retry connection',

@@ -18,10 +18,8 @@ import type { Capabilities, FiestaEvent } from '../types';
 import { Modal } from '../components/common/Modal';
 import { GridToolbar } from '../components/common/GridToolbar';
 import { EventCard } from '../components/demo/EventCard';
-import { VoiceWelcomeCard } from '../components/voice/VoiceWelcomeCard';
 import { PaymentActivityPanel } from '../components/dashboard/PaymentActivityPanel';
-import { PayPalAiPanel } from '../components/demo/PayPalAiPanel';
-import { PublicChatAssistant } from '../components/chat/PublicChatAssistant';
+import { NapsterAvatar } from '../components/avatar/NapsterAvatar';
 import { SamplePartyCards } from '../components/demo/SamplePartyCards';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { cardsCatalog } from '../i18n/catalogs/cards';
@@ -35,18 +33,16 @@ export interface JudgePreviewViewProps {
   events?: FiestaEvent[];
   quickPath?: boolean;
   isLoading?: boolean;
-  /** Voice capabilities. The welcome card only shows while voice is known to be on. */
+  /** Capabilities del servidor. La tarjeta solo arranca con avatar conocida activa. */
   capabilities?: Capabilities | null;
   eventsError?: string | null;
   onRetryEvents?: () => void;
   /** Private demo: POST /api/demo { kind: 'private' }. */
   onCreateDemo: () => Promise<void>;
-  /** AI build step: opens /create with the phrase prefilled for one AI fill. */
-  onBuildPartyWithAi?: (phrase: string) => void;
+  /** Paso de crear: abre el formulario manual /create, donde ayuda la avatar. */
+  onNavigateCreate?: () => void;
   /** Payment tour: POST /api/demo { kind: 'payment' }, join, RSVP, open invite. */
   onStartPaymentDemo?: () => Promise<void>;
-  /** Opens the assistant orb in the demo context. */
-  onTalkToAssistant?: () => void;
   /** Archives only this browser's demos. */
   onResetDemo?: () => Promise<void>;
   isResetting?: boolean;
@@ -89,10 +85,10 @@ const GRID_LOCALE_TEXT_ES = {
 };
 
 /**
- * Judges demo: a fictional banner, a 3-step guided tour (read-only AG Grid
- * sample, guided Sandbox payment, assistant), the private demo, this
- * browser's demos, and the demos-only reset. No fetch happens here; every
- * demo action is an explicit button handled by the caller.
+ * Judges demo: a fictional banner, a guided tour (read-only AG Grid sample,
+ * guided Sandbox payment, Napster avatar), the private demo, this browser's
+ * demos, and the demos-only reset. No fetch happens here; every demo action
+ * is an explicit button handled by the caller.
  */
 export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
   events = [],
@@ -102,9 +98,8 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
   eventsError = null,
   onRetryEvents,
   onCreateDemo,
-  onBuildPartyWithAi,
+  onNavigateCreate,
   onStartPaymentDemo,
-  onTalkToAssistant,
   onResetDemo,
   isResetting = false,
   onNavigateInvite,
@@ -119,8 +114,6 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
   const [quickFilter, setQuickFilter] = useState('');
   const [pendingOnly, setPendingOnly] = useState(false);
   const [showExampleActivity, setShowExampleActivity] = useState(false);
-  const [aiEdited, setAiEdited] = useState<string | null>(null);
-  const aiPhrase = aiEdited ?? m.aiStepExample;
   const [selectedPartyId, setSelectedPartyId] = useState(SAMPLE_PARTIES[0].id);
   const selectedParty = samplePartyById(selectedPartyId);
   const gridApiRef = useRef<GridApi<SampleGuest> | null>(null);
@@ -346,26 +339,13 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.9rem', maxWidth: '720px' }}>
           {m.intro}
         </p>
-        {capabilities?.voice === true ? (
-          <div style={{ maxWidth: '720px' }}>
-            <VoiceWelcomeCard />
-          </div>
-        ) : null}
       </section>
 
       {quickPath ? (
         <section className="panel" aria-labelledby="judge-quick-heading" style={{ display: 'grid', gap: '0.75rem', minWidth: 0 }}>
           <h2 id="judge-quick-heading">{m.quickTitle}</h2>
           <p>{m.quickIntro}</p>
-          <PublicChatAssistant
-            capabilities={capabilities}
-            embedded
-            open
-            context="demo"
-            idSuffix="judge-quick"
-            key={locale}
-            initialMessage={m.quickExample}
-          />
+          <NapsterAvatar avatarEnabled={capabilities?.avatar !== false} />
           <div>
             <button type="button" className="btn btn-teal" onClick={() => void handlePaymentDemo()} disabled={isPaying || !onStartPaymentDemo}>
               {isPaying ? m.paymentLoading : labels.paymentDemo}
@@ -384,7 +364,6 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
         <SamplePartyCards parties={SAMPLE_PARTIES} selectedId={selectedPartyId} onSelect={setSelectedPartyId} />
       </section>
 
-      <PayPalAiPanel />
       <details onToggle={(event) => setShowExampleActivity(event.currentTarget.open)}>
         <summary>{m.quickSampleActivity}</summary>
         {showExampleActivity ? <PaymentActivityPanel activity={EXAMPLE_PAYMENT_ACTIVITY} notifications={[]} example /> : null}
@@ -404,27 +383,14 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
             {m.aiStepText}
           </p>
           <div>
-            <label className="form-label" htmlFor="judge-ai-phrase">
-              {m.aiStepLabel}
-            </label>
-            <input
-              id="judge-ai-phrase"
-              className="form-input"
-              value={aiPhrase}
-              onChange={(e) => setAiEdited(e.target.value)}
-              maxLength={400}
-              autoComplete="off"
-            />
-          </div>
-          <div>
             <button
               type="button"
-              onClick={() => onBuildPartyWithAi?.(aiPhrase)}
+              onClick={() => onNavigateCreate?.()}
               className="btn btn-primary"
               data-guide="aiBuildParty"
-              disabled={!onBuildPartyWithAi}
+              disabled={!onNavigateCreate}
             >
-              {labels.aiBuildParty}
+              {labels.createInvitation}
             </button>
           </div>
         </li>
@@ -554,16 +520,7 @@ export const JudgePreviewView: React.FC<JudgePreviewViewProps> = ({
           <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.9rem', maxWidth: '720px' }}>
             {m.step3Text}
           </p>
-          <div>
-            <button
-              type="button"
-              onClick={() => onTalkToAssistant?.()}
-              className="btn btn-teal"
-              disabled={!onTalkToAssistant}
-            >
-              {labels.talkToAssistant}
-            </button>
-          </div>
+          <NapsterAvatar avatarEnabled={capabilities?.avatar !== false} />
         </li>
       </ol>
 

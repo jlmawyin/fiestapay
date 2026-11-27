@@ -3,23 +3,21 @@ import { PartyPopper } from 'lucide-react';
 import { UI_LABELS } from '@fiestapay/shared';
 import type { Capabilities, FiestaEvent } from '../types';
 import { EventCard } from '../components/demo/EventCard';
-import { VoiceWelcomeCard } from '../components/voice/VoiceWelcomeCard';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { landingCatalog } from '../i18n/catalogs/landing';
 import { cardsCatalog } from '../i18n/catalogs/cards';
 import { isDemoEvent } from '../lib/event-presentation';
-import type { CreatePath } from '../lib/create-interview';
 import { NapsterAvatar } from '../components/avatar/NapsterAvatar';
 
 export interface LandingViewProps {
   events: FiestaEvent[];
   isLoading: boolean;
-  /** Voice capabilities. The welcome card only shows while voice is known to be on. */
+  /** Capabilities del servidor. La tarjeta solo arranca con avatar conocida activa. */
   capabilities?: Capabilities | null;
   /** A bounded read failure. Existing events stay visible. */
   eventsError?: string | null;
   onRetryEvents?: () => void;
-  onNavigateCreate: (path?: CreatePath) => void;
+  onNavigateCreate: () => void;
   onNavigateInvite: (slug: string) => void;
   onNavigateDashboard: (slug: string) => void;
   onNavigateDemo: (quick?: boolean) => void;
@@ -51,7 +49,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', minWidth: 0 }}>
-      <NapsterAvatar intent="create" />
+      <NapsterAvatar intent="create" avatarEnabled={capabilities?.avatar !== false} />
       <section
         aria-label={m.introLabel}
         style={{
@@ -85,11 +83,6 @@ export const LandingView: React.FC<LandingViewProps> = ({
         >
           {m.differentiation}
         </p>
-        {capabilities?.voice === true ? (
-          <div style={{ margin: '0 0 1rem', maxWidth: '720px' }}>
-            <VoiceWelcomeCard />
-          </div>
-        ) : null}
         <div className="landing-stats" aria-label={m.statsTitle}>
           <p className="landing-stats__title">{m.statsTitle}</p>
           <ul className="landing-stats__list">
@@ -103,19 +96,13 @@ export const LandingView: React.FC<LandingViewProps> = ({
         <div className="landing-choose__actions">
           <button
             type="button"
-            onClick={() => onNavigateCreate('sentence')}
+            onClick={() => onNavigateCreate()}
             className="btn btn-primary"
             data-guide="createInvitation"
           >
             {m.pathSentence}
           </button>
-          <button type="button" onClick={() => onNavigateCreate('interview')} className="btn btn-secondary">
-            {m.pathInterview}
-          </button>
         </div>
-        <button type="button" onClick={() => onNavigateCreate('manual')} className="landing-path-link">
-          {m.pathManual}
-        </button>
         <div className="landing-judge-path">
           <div>
             <strong>{m.judgePathTitle}</strong>

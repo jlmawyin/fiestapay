@@ -16,7 +16,7 @@ import { RecoveryEmailCard } from '../components/dashboard/RecoveryEmailCard';
 import { QrShareModal } from '../components/dashboard/QrShareModal';
 import { CreateEventForm } from '../components/events/CreateEventForm';
 import { Modal } from '../components/common/Modal';
-import { OrganizerAssistant } from '../components/chat/OrganizerAssistant';
+// NAP-F5b: el chat propio murió; NapsterAvatar es el único asistente.
 import { FundingStatusPanel, formatEventInstant } from '../components/common/FundingStatusPanel';
 import { ThemeScope } from '../components/events/ThemeScope';
 import {
@@ -413,7 +413,7 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         </div>
       </div>
 
-      <NapsterAvatar eventSlug={slug} />
+      <NapsterAvatar eventSlug={slug} avatarEnabled={capabilities?.avatar !== false} />
 
       {storedKey ? (
         <>
@@ -612,7 +612,7 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         </p>
       </section>
 
-      <ReminderDrafts slug={slug} />
+      <ReminderDrafts />
 
       {/* Audit Trail */}
       {audit && audit.length > 0 && (
@@ -683,11 +683,6 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         </div>
       </Modal>
 
-      <OrganizerAssistant
-        slug={slug}
-        capabilities={capabilities}
-        theme={{ template: event.template, themeKey: event.theme, meal: event.meal }}
-      />
     </div>
     </ThemeScope>
   );

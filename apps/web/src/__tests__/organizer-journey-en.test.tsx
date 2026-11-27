@@ -10,7 +10,6 @@ import { CreateEventForm } from '../components/events/CreateEventForm';
 import { CreateEventView } from '../views/CreateEventView';
 import { OrganizerDashboardView } from '../views/OrganizerDashboardView';
 import { forgetRecoveryToken, OrganizerRecoveryView } from '../views/OrganizerRecoveryView';
-import { OrganizerAssistant } from '../components/chat/OrganizerAssistant';
 import { ComidaCover } from '../components/illustrations/ComidaCover';
 import { CasaCover } from '../components/illustrations/CasaCover';
 import { ViajeCover } from '../components/illustrations/ViajeCover';
@@ -422,17 +421,8 @@ describe('recovery route in both languages', () => {
   });
 });
 
-describe('organizer assistant chrome in English', () => {
-  it('shows the English chrome with the server greeting', async () => {
-    vi.spyOn(api, 'getOrganizerChatHistory').mockResolvedValue({ messages: [], greeting: 'Server greeting.' });
-    renderEn(<OrganizerAssistant slug="sunday-dinner" capabilities={null} />);
-    fireEvent.click(screen.getByRole('button', { name: UI_LABELS.en.orbLauncher }));
-    expect(screen.getByText('Organizer agent · read-only')).toBeInTheDocument();
-    expect(await screen.findByText('Server greeting.')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: UI_LABELS.en.textTab })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: UI_LABELS.en.voiceTab })).toBeInTheDocument();
-  });
-});
+// NAP-F5b: el asistente del organizador murió; la avatar Napster montada en
+// OrganizerDashboardView es el único asistente (ver napster-*).
 
 describe('cover badges and share draft', () => {
   it('shows the badge in the active language', () => {

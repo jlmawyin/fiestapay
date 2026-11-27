@@ -7,13 +7,11 @@ import {
   themePhrase,
   themesForTemplate,
   type DraftEventProposal,
-  type PresentationSuggestionInput,
   type ThemeKey,
 } from '@fiestapay/shared';
 import type { AgendaItem, EventInput, TemplateKind } from '../../types';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { createEventCatalog } from '../../i18n/messages/organizerCreate';
-import { ApiError, api } from '../../api/client';
 import {
   buildEventInput,
   capitalLabel,
@@ -27,11 +25,6 @@ import {
   type ExampleHit,
   type EventFormFields,
 } from './event-form-model';
-import { CreateInterview } from './CreateInterview';
-import {
-  parseCreatePath,
-  type CreatePath,
-} from '../../lib/create-interview';
 import {
   defaultThemeFor,
   formatEventRange,
@@ -49,28 +42,19 @@ import {
   type InvitationCardStyle,
   type InvitationReferenceBlueprint,
 } from '../../lib/invitation-blueprints';
-import { ASSISTANT_THEME_EVENT, type AssistantThemeDetail } from '../assistant/orb-themes';
 import {
-  GUIDE_ACTION_EVENT,
   GUIDE_DRAFT_EVENT,
-  GUIDE_PREFILL_EVENT,
   consumeGuideDraftProposal,
-  consumeGuidePrefill,
   type GuideDraftDetail,
-  type GuidePrefillDetail,
 } from '../../guide/showOnScreen';
 import { isDraftEventProposal } from '../../lib/draft-proposal';
 import { NapsterAvatar } from '../avatar/NapsterAvatar';
+import { openAvatar } from '../avatar/avatar-open';
 
 interface CreateWizardProps {
   onSubmit: (input: EventInput) => Promise<void>;
   onCancel: () => void;
   isLoading: boolean;
-  /** One-shot prefill from the judges-demo AI step; the click consented to one AI fill. */
-  initialDraft?: { text: string; id: number } | null;
-  /** Bounded creation entry point from /create?path=… */
-  path?: CreatePath;
-  onSelectPath?: (path: CreatePath) => void;
 }
 
 export type CreateWizardStep = 1 | 2 | 3 | 4 | 5 | 6;
@@ -208,9 +192,6 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
   onSubmit,
   onCancel,
   isLoading,
-  initialDraft = null,
-  path = 'sentence',
-  onSelectPath,
 }) => {
   const { locale, formatMoney: formatMoneyInLocale } = useI18n();
   const m = useMessages(createEventCatalog);
@@ -245,14 +226,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
   const [accessTouched, setAccessTouched] = useState(false);
   const [theme, setTheme] = useState<ThemeKey>(defaultThemeFor('comida').key);
   const [themeTouched, setThemeTouched] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState(false);
-  const [aiApplied, setAiApplied] = useState<string | null>(null);
-  const [aiProposal, setAiProposal] = useState<{ theme: ThemeKey; description: string } | null>(null);
-  const [draftText, setDraftText] = useState(initialDraft?.text ?? '');
-  const autoDraftIdRef = useRef<number | null>(null);
-  const [draftLoading, setDraftLoading] = useState(false);
-  const [draftError, setDraftError] = useState<string | null>(null);
+  // NAP-F5b: formulario manual; la avatar Napster arma el borrador por tool.
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
   const [draftSource, setDraftSource] = useState<'ai' | 'rules' | null>(null);
   const [suggestedMarks, setSuggestedMarks] = useState<ReadonlySet<DraftMark>>(new Set());
@@ -260,22 +234,9 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
   const [stepError, setStepError] = useState<string | null>(null);
   const [errorStep, setErrorStep] = useState<CreateWizardStep | null>(null);
   const [reviewVisited, setReviewVisited] = useState(false);
-  const [activePath, setActivePath] = useState<CreatePath>(() => parseCreatePath(path));
   const [focusAfterNav, setFocusAfterNav] = useState<string | null>(null);
   const exampleWarningRef = useRef<HTMLDivElement>(null);
   const posting = useRef(false);
-
-  useEffect(() => {
-    setActivePath(parseCreatePath(path));
-  }, [path]);
-
-  const selectPath = (next: CreatePath) => {
-    setActivePath(next);
-    if (next !== 'interview') setOpenStep(1);
-    setStepError(null);
-    setErrorStep(null);
-    onSelectPath?.(next);
-  };
 
   const { startsAt, endsAt } = computeWhen(template, when);
   const hour = (() => {
@@ -448,26 +409,9 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
     }
   };
 
-  // The public orb listens: picking a type transforms it (the surprise).
-  // Unmounting (cancel, publish, back home) folds it back to deep-space.
-  useEffect(
-    () => () => {
-      document.dispatchEvent(
-        new CustomEvent<AssistantThemeDetail>(ASSISTANT_THEME_EVENT, { detail: { template: null } }),
-      );
-    },
-    [],
-  );
-
   const handleSelectTemplate = (t: TemplateKind) => {
     setTemplate(t);
-    setAiProposal(null);
-    setAiApplied(null);
-    setAiError(false);
     clearMark('template');
-    document.dispatchEvent(
-      new CustomEvent<AssistantThemeDetail>(ASSISTANT_THEME_EVENT, { detail: { template: t } }),
-    );
     if (!themesForTemplate(t).some((item) => item.key === theme)) {
       setTheme(defaultThemeFor(t).key);
       setThemeTouched(false);
@@ -885,7 +829,6 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
       proposal.source === 'rules' ? `${m.draftApplied} ${m.draftRules}.` : m.draftApplied,
     );
     // A draft always lands on the editable summary, never on a locked step 1.
-    selectPath('sentence');
     setReviewVisited(true);
     setStepError(null);
     setErrorStep(null);
@@ -893,9 +836,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
   };
 
   const handleApplyReference = (ref: InvitationReferenceBlueprint) => {
-    if (draftLoading || isLoading || posting.current) return;
-    setDraftError(null);
-    setDraftText(ref.sentence[locale]);
+    if (isLoading || posting.current) return;
     applyDraftProposal(ref.proposal(locale), ref);
   };
 
@@ -906,10 +847,10 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
   };
 
   /**
-   * FP-FINAL-A2: the public chat's "Review in Create" card hands over the whole
-   * server proposal. A mounted wizard receives it by event; a wizard that mounts
-   * after the controlled navigation consumes the one-shot pending slot. Reading
-   * consumes, so a later manual visit never keeps the proposal or puts it in the URL.
+   * NAP-F5b: la avatar Napster entrega el borrador (tool fill_event_draft). Un
+   * formulario montado lo recibe por evento; si monta tras navegar, consume el
+   * pending de un solo uso. La lectura consume: una visita manual posterior no
+   * hereda el borrador ni lo pone en la URL.
    */
   const applyDraftRef = useRef(applyDraftProposal);
   applyDraftRef.current = applyDraftProposal;
@@ -927,127 +868,6 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
     document.addEventListener(GUIDE_DRAFT_EVENT, onDraft);
     return () => document.removeEventListener(GUIDE_DRAFT_EVENT, onDraft);
   }, []);
-
-  const handleDraftFill = async (override?: string) => {
-    if (draftLoading || isLoading || posting.current) return;
-    const text = (override ?? draftText).trim();
-    if (text.length < 3) {
-      setDraftError(m.draftEmpty);
-      setDraftNotice(null);
-      return;
-    }
-    setDraftLoading(true);
-    setDraftError(null);
-    setDraftNotice(null);
-    try {
-      const proposal = await api.draftEvent(text);
-      applyDraftProposal(proposal, undefined, text);
-    } catch (err: unknown) {
-      // 429/503 keep the existing bilingual AI message; the manual form stays usable.
-      if (err instanceof ApiError && (err.status === 429 || err.status === 503)) {
-        setDraftError(m.aiError);
-      } else {
-        setDraftError(err instanceof Error && err.message ? err.message : m.aiError);
-      }
-    } finally {
-      setDraftLoading(false);
-    }
-  };
-  const draftFillRef = useRef(handleDraftFill);
-  draftFillRef.current = handleDraftFill;
-
-  // One-shot auto-fill for the judges-demo AI step: the demo click was the
-  // consent, so the prefilled phrase fires "Rellenar con IA" exactly once.
-  // No loops, no retries: each request id runs at most once, and a missing
-  // request (manual visit) never calls. An AI failure keeps the phrase
-  // written and shows the usual message through the normal error path.
-  useEffect(() => {
-    if (!initialDraft || autoDraftIdRef.current === initialDraft.id) return;
-    autoDraftIdRef.current = initialDraft.id;
-    setDraftText(initialDraft.text);
-    setActivePath('sentence');
-    void draftFillRef.current(initialDraft.text);
-  }, [initialDraft]);
-
-  // FP-WELCOME-1 voice prefill: the person's spoken sentence is written into
-  // the one-sentence field without running the AI. Step 1 opens so the field
-  // and "Rellenar con IA" are visible for the highlight; other fields stay.
-  useEffect(() => {
-    const applyPrefill = (sentence: string) => {
-      setDraftText(sentence);
-      setActivePath('sentence');
-      setOpenStep(1);
-    };
-    const pending = consumeGuidePrefill();
-    if (pending) applyPrefill(pending);
-    const onPrefill = (event: Event) => {
-      const sentence = (event as CustomEvent<GuidePrefillDetail>).detail?.sentence;
-      consumeGuidePrefill();
-      if (typeof sentence === 'string' && sentence) applyPrefill(sentence);
-    };
-    document.addEventListener(GUIDE_PREFILL_EVENT, onPrefill);
-    return () => document.removeEventListener(GUIDE_PREFILL_EVENT, onPrefill);
-  }, []);
-
-  // Guide targets on /create live in step 1. If the guide asks to highlight the
-  // sentence field while the wizard is showing the summary or the interview,
-  // reopen the sentence path so the documented target stays mounted.
-  useEffect(() => {
-    const onGuideAction = (event: Event) => {
-      const target = (event as CustomEvent<{ target?: string }>).detail?.target;
-      if (target !== 'describeInvitation' && target !== 'fillWithAi') return;
-      setActivePath('sentence');
-      setOpenStep(1);
-    };
-    document.addEventListener(GUIDE_ACTION_EVENT, onGuideAction);
-    return () => document.removeEventListener(GUIDE_ACTION_EVENT, onGuideAction);
-  }, []);
-
-  const handleSuggestAi = async () => {
-    if (aiLoading || isLoading || posting.current) return;
-    setAiLoading(true);
-    setAiError(false);
-    setAiApplied(null);
-    const hints: string[] = [];
-    const pushHint = (value: string) => {
-      const trimmed = value.trim().slice(0, 60);
-      if (trimmed) hints.push(trimmed);
-    };
-    if (template === 'comida') {
-      if (foodStyle) pushHint(foodStyleLabel(foodStyle));
-      pushHint(foodStyleFree);
-    }
-    for (const key of INCLUDE_KEYS[template]) {
-      if (checks[`${template}:${key}`]) pushHint(includeLabel(key));
-    }
-    for (const item of splitIncludesFree(includesFree)) pushHint(item);
-    const input: PresentationSuggestionInput = {
-      template,
-      title: title.trim().slice(0, 120),
-      meal,
-      ...(location.trim() ? { location: location.trim().slice(0, 200) } : {}),
-      ...(hints.length > 0 ? { hints: hints.slice(0, 10) } : {}),
-    };
-    try {
-      const res = await api.suggestPresentation(input);
-      setTheme(res.theme);
-      setThemeTouched(true);
-      setAiApplied(m.aiThemeApplied(themeLabel(res.theme, locale)));
-      const proposed = res.description?.trim() ?? '';
-      setAiProposal(proposed ? { theme: res.theme, description: proposed } : null);
-    } catch {
-      // Rules suggestion stays; publishing is never blocked.
-      setAiError(true);
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const handleAcceptAiDescription = () => {
-    if (!aiProposal) return;
-    setDescription(aiProposal.description);
-    setAiProposal(null);
-  };
 
   const templateLabels: Record<TemplateKind, string> = {
     comida: m.templateComida,
@@ -1098,76 +918,46 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
   const renderWhat = () => (
     <>
       <p className="create-wizard__explain">{m.explainWhat}</p>
-      {activePath !== 'manual' ? (
-        <div className="create-wizard__draft">
-          <label className="form-label" htmlFor="wizard-draft-text" data-guide="describeInvitation">
-            {m.draftTitle}
-          </label>
-          <div className="create-wizard__draft-row">
-            <input
-              id="wizard-draft-text"
-              className="form-input"
-              value={draftText}
-              onChange={(e) => setDraftText(e.target.value)}
-              placeholder={m.draftPlaceholder}
-              maxLength={400}
-              autoComplete="off"
-              aria-describedby="wizard-draft-help"
-            />
-            <button
-              type="button"
-              className="btn btn-primary"
-              data-guide="fillWithAi"
-              onClick={() => void handleDraftFill()}
-              disabled={draftLoading || isLoading}
-            >
-              {draftLoading ? m.draftFilling : m.draftFill}
-            </button>
-          </div>
-          <span id="wizard-draft-help" className="form-label-desc">
-            {m.draftHelp}
+      <div className="create-wizard__draft">
+        <p className="form-label">{m.avatarNoticeText}</p>
+        <button type="button" className="btn btn-primary" onClick={() => openAvatar()} disabled={isLoading}>
+          {m.avatarNoticeCta}
+        </button>
+        <div
+          className="create-wizard__ref-bar"
+          role="group"
+          aria-label={
+            locale === 'en'
+              ? 'Reference invitation templates'
+              : 'Base de invitaciones de referencia'
+          }
+        >
+          <span className="create-wizard__ref-label">
+            {locale === 'en'
+              ? 'Or load a complete reference invitation:'
+              : 'O carga una invitación de referencia completa:'}
           </span>
-          <div
-            className="create-wizard__ref-bar"
-            role="group"
-            aria-label={
-              locale === 'en'
-                ? 'Reference invitation templates'
-                : 'Base de invitaciones de referencia'
-            }
-          >
-            <span className="create-wizard__ref-label">
-              {locale === 'en'
-                ? 'Or load a complete reference invitation:'
-                : 'O carga una invitación de referencia completa:'}
-            </span>
-            <div className="create-wizard__ref-chips">
-              {INVITATION_REFERENCES.map((ref) => (
-                <button
-                  key={ref.id}
-                  type="button"
-                  className="create-wizard__ref-chip"
-                  data-testid={`reference-invite-${ref.id}`}
-                  onClick={() => handleApplyReference(ref)}
-                  disabled={draftLoading || isLoading}
-                >
-                  {ref.chipLabel[locale]}
-                </button>
-              ))}
-            </div>
+          <div className="create-wizard__ref-chips">
+            {INVITATION_REFERENCES.map((ref) => (
+              <button
+                key={ref.id}
+                type="button"
+                className="create-wizard__ref-chip"
+                data-testid={`reference-invite-${ref.id}`}
+                onClick={() => handleApplyReference(ref)}
+                disabled={isLoading}
+              >
+                {ref.chipLabel[locale]}
+              </button>
+            ))}
           </div>
-          {draftError ? (
-            <p role="alert" className="create-wizard__error">
-              {draftError}
-            </p>
-          ) : null}
-          {draftNotice ? (
-            <p role="status" className="create-wizard__ai-note">
-              {draftNotice}
-            </p>
-          ) : null}
         </div>
-      ) : null}
+        {draftNotice ? (
+          <p role="status" className="create-wizard__ai-note">
+            {draftNotice}
+          </p>
+        ) : null}
+      </div>
       <div>
         <span className="form-label" id="wizard-type-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
           {m.typeLabel} {markBadge('template')}
@@ -1964,42 +1754,6 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
           ))}
         </div>
       </div>
-      {activePath !== 'manual' ? (
-        <div className="create-wizard__ai">
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => void handleSuggestAi()}
-            disabled={aiLoading || isLoading}
-          >
-            {aiLoading ? m.aiLoading : labels.suggestWithAi}
-          </button>
-        {aiError ? (
-          <p role="status" className="create-wizard__ai-note">
-            {m.aiError}
-          </p>
-        ) : null}
-        {aiApplied && !aiError ? (
-          <p role="status" className="create-wizard__ai-note">
-            {aiApplied}
-          </p>
-        ) : null}
-        {aiProposal ? (
-          <div className="create-wizard__ai-proposal">
-            <p className="form-label">{m.aiProposedDescription}</p>
-            <p className="create-wizard__ai-text">{aiProposal.description}</p>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button type="button" className="btn btn-primary" onClick={handleAcceptAiDescription}>
-                {m.aiAccept}
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => setAiProposal(null)}>
-                {m.aiDismiss}
-              </button>
-            </div>
-          </div>
-        ) : null}
-        </div>
-      ) : null}
     </>
   );
 
@@ -2325,44 +2079,16 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
     }
   };
 
-  const pathLabels: Record<CreatePath, string> = {
-    sentence: m.pathSentence,
-    interview: m.pathInterview,
-    manual: m.pathManual,
-  };
-
   return (
     <section aria-label={m.wizardAria} className="create-wizard">
       <div className="create-wizard__header">
         <h2 className="create-wizard__title">{labels.createWizardTitle}</h2>
       </div>
       <NapsterAvatar intent="create" />
-      <div className="create-wizard__paths" role="group" aria-label={m.pathLabel}>
-        {(['sentence', 'interview', 'manual'] as CreatePath[]).map((option) => (
-          <button
-            key={option}
-            type="button"
-            className="create-wizard__path"
-            data-selected={activePath === option}
-            aria-pressed={activePath === option}
-            onClick={() => selectPath(option)}
-            disabled={isLoading}
-          >
-            {pathLabels[option]}
-          </button>
-        ))}
-      </div>
       <p className="create-wizard__live" aria-live="polite">
-        {activePath === 'interview' ? m.interviewTitle : titles[openStep]}
+        {titles[openStep]}
       </p>
-      {activePath === 'interview' ? (
-        <CreateInterview
-          onProposal={applyDraftProposal}
-          onManual={() => selectPath('manual')}
-          onCancel={onCancel}
-        />
-      ) : (
-        <ol className="create-wizard__steps">
+      <ol className="create-wizard__steps">
           {(openStep === 6 ? [6 as const] : steps).map((step) => {
             const state = stepState(step);
             return (
@@ -2403,7 +2129,6 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
             );
           })}
         </ol>
-      )}
       <div className="create-wizard__footer">
         <button type="button" onClick={onCancel} className="btn btn-secondary" disabled={isLoading}>
           {m.cancel}

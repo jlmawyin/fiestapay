@@ -83,7 +83,7 @@ describe('PortalLandingView (SP-6)', () => {
     expect(within(screen.getByTestId('portal-footer')).getByText(portada.barra.marca.es)).toBeTruthy();
   });
 
-  it('el botón del hero lleva a la sección de pasos, no al tutorial FiestaPay (SP6-D-3)', () => {
+  it('el botón del hero lleva a la sección de pasos, no al tutorial del legado (SP6-D-3)', () => {
     mount();
     fireEvent.click(screen.getByTestId('portal-hero-tutorial'));
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
