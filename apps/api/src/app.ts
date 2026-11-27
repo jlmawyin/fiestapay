@@ -27,6 +27,7 @@ import { registerSiteRoutes } from './routes/sites.js';
 import { registerRecoveryRoutes } from './routes/recovery.js';
 import { registerModerationRoutes } from './routes/moderation.js';
 import { registerAvatarSessionRoutes } from './routes/avatar-session.js';
+import { registerEventAvatarMediaRoute, registerEventAvatarRoutes } from './routes/event-avatar.js';
 import { registerPortalRoutes } from './routes/portal.js';
 import { registerCoreRoutes } from './routes/core.js';
 import { registerPaymentRoutes } from './routes/payments.js';
@@ -242,10 +243,14 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       await registerPaymentRoutes(api, deps);
       await registerModerationRoutes(api, deps);
       await registerAvatarSessionRoutes(api, deps);
+      await registerEventAvatarRoutes(api, deps);
       await registerPortalRoutes(api, deps);
     },
     { prefix: '/api' },
   );
+
+  // NAP-F6s: la foto debe ser pública para que Napster la descargue; queda fuera del prefijo /api.
+  await registerEventAvatarMediaRoute(app, deps);
 
   if (serveWeb) {
     const fastifyStatic = (await import('@fastify/static')).default;

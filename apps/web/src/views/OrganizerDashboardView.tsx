@@ -5,6 +5,7 @@ import type { Dashboard, Capabilities, EventInput, ModerationGuest } from '../ty
 import { api, ApiError } from '../api/client';
 import { adminKeyFor, rememberAdminKey } from '../api/admin-key';
 import { NapsterAvatar } from '../components/avatar/NapsterAvatar';
+import { EventAvatarSection } from '../components/avatar/EventAvatarSection';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { dashboardCatalog } from '../i18n/messages/organizerDashboard';
 import { GuestGrid } from '../components/dashboard/GuestGrid';
@@ -414,6 +415,7 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
       </div>
 
       <NapsterAvatar eventSlug={slug} avatarEnabled={capabilities?.avatar !== false} />
+      <EventAvatarSection slug={slug} />
 
       {storedKey ? (
         <>

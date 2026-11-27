@@ -100,6 +100,8 @@ export interface UseNapsterSession {
   textReady: boolean;
   /** Verdadero cuando un 404 degradó el saludo de invitado a público. */
   degradedToPublic: boolean;
+  /** NAP-F6w: agente de la sesión ('custom' → avatar con foto del organizador). */
+  agent: string | null;
   /** Solo el clic en «Conversar» lo llama; sin clic no hay sesión. */
   start: () => void;
   /** Terminar visible: destruye el widget o el socket y cierra el handle. */
@@ -124,6 +126,8 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
   const [textMessages, setTextMessages] = useState<NapsterCaption[]>([]);
   const [textReady, setTextReady] = useState(false);
   const [degradedToPublic, setDegradedToPublic] = useState(false);
+  /** NAP-F6w: 'custom' cuando el evento tiene avatar con la foto del organizador. */
+  const [agent, setAgent] = useState<string | null>(null);
 
   const langRef = useRef(options.lang);
   langRef.current = options.lang;
@@ -249,6 +253,7 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
         const session = await attempt(true);
         if (mode !== 'text') clearCreateIntent();
         router.setVisitor(session.visitor);
+        setAgent(typeof session.agent === 'string' ? session.agent : null);
         return session;
       } catch (error) {
         // NAP-F4w: 404 con slug → se cae al saludo público sin revelar nada.
@@ -263,6 +268,7 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
           const session = await attempt(false);
           if (mode !== 'text') clearCreateIntent();
           router.setVisitor(session.visitor);
+          setAgent(typeof session.agent === 'string' ? session.agent : null);
           return session;
         }
         throw error;
@@ -279,6 +285,7 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
     degradedRef.current = false;
     setDegradedToPublic(false);
     setCaptions([]);
+    setAgent(null);
     setStatus('connecting');
     setRequested(true);
   }, []);
@@ -289,6 +296,7 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
     setRequested(false);
     setTextRequested(false);
     setTextReady(false);
+    setAgent(null);
     setStatus('idle');
   }, []);
 
@@ -642,6 +650,7 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
     textMessages,
     textReady,
     degradedToPublic,
+    agent,
     start,
     stop,
     readInstead,

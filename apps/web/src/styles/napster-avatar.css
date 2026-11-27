@@ -230,3 +230,33 @@
     outline-style: dashed;
   }
 }
+
+/* «Tu avatar con tu foto» (NAP-F6w): la tarjeta reutiliza .panel/.btn del
+ * panel del organizador; aquí solo lo específico, con la paleta legada. */
+.event-avatar-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.event-avatar-preview {
+  display: block;
+  width: 6rem;
+  height: 6rem;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  margin-top: 0.5rem;
+}
+
+.event-avatar-notice {
+  font-size: 0.875rem;
+  color: var(--color-ink);
+}
+
+.event-avatar-error-text {
+  color: var(--color-coral-hover);
+  font-size: 0.875rem;
+  margin: 0;
+}

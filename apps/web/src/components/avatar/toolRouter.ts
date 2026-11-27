@@ -445,11 +445,11 @@ export function createAvatarToolRouter(deps: AvatarToolRouterDeps) {
   }
 
   /**
-   * Lleva a la configuración del sitio (NAP-F4w, creador). Los ajustes de
-   * avatar con foto llegan en otro frente; por ahora solo navega. Fuera de un
-   * subdominio de sitio no hay ajustes a los que ir.
+   * Lleva y resalta la sección «Tu avatar con tu foto» del panel (NAP-F6w,
+   * creador). Si no está montada, cae a la configuración del sitio (NAP-F4w).
    */
   async function openAvatarSettings(): Promise<AvatarToolOutput> {
+    if (flashSection('event-avatar-section')) return { ok: true };
     let isSiteHost: boolean;
     try {
       isSiteHost = readAppHostContext().isSiteHost;

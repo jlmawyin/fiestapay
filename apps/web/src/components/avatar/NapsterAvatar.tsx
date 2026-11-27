@@ -32,6 +32,11 @@ export interface NapsterAvatarProps {
    * el recorrido fijo sin tocar la red; sin dato se asume disponible.
    */
   avatarEnabled?: boolean;
+  /**
+   * NAP-F6w: la vista se entera del agente de la sesión ('custom' cuando el
+   * evento tiene avatar con la foto del organizador).
+   */
+  onAgent?: (agent: string | null) => void;
 }
 
 /** Sección del DOM → etiqueta de contexto en el idioma de la página. */
@@ -54,7 +59,7 @@ function sectionLabel(sectionId: string, texts: (typeof avatarCatalog)['es']): s
   }
 }
 
-export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTitle, intent, avatarEnabled = true }) => {
+export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTitle, intent, avatarEnabled = true, onAgent }) => {
   const { locale } = useI18n();
   const texts = useMessages(avatarCatalog);
   const lang: AvatarLang = locale === 'en' ? 'en' : 'es';
@@ -72,8 +77,13 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
     intent,
     router: routerRef.current,
   });
-  const { status, reason, captions, textMessages, textReady, degradedToPublic, notifyLocation } = session;
+  const { status, reason, captions, textMessages, textReady, degradedToPublic, agent, notifyLocation } = session;
   const guestGreeting = eventTitle && !degradedToPublic ? eventTitle : null;
+
+  // NAP-F6w: informa del agente ('custom') para el saludo de la invitación.
+  useEffect(() => {
+    onAgent?.(agent);
+  }, [agent, onAgent]);
 
   // NAP-F3: con la sesión viva, cada cambio de sección visible avisa al agente
   // con send_message sistema y trigger_response:false (doc client-commands).

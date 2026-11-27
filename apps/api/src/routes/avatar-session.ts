@@ -13,6 +13,7 @@ import {
 } from '@fiestapay/shared';
 import { buildExternalClientProfile, buildInitialSpeech } from '../napster/profile.js';
 import { createNapsterClient, NapsterError } from '../napster/client.js';
+import { readyEventAvatarAgents } from '../domain/event-avatars.js';
 import { AvatarEventNotFoundError, decideAvatarVisitor, type VisitorDecision } from '../napster/visitor.js';
 import type { RouteDeps } from './deps.js';
 
@@ -96,8 +97,7 @@ export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: Ro
     if (!cliente || !napster) {
       return responderError(reply, 503, 'avatar_disabled');
     }
-    const agentId = body.lang === 'es' ? napster.agentIdEs : napster.agentIdEn;
-    if (!agentId) return responderError(reply, 503, 'avatar_disabled');
+    const baseAgentId = body.lang === 'es' ? napster.agentIdEs : napster.agentIdEn;
 
     let decision: VisitorDecision;
     try {
@@ -106,6 +106,19 @@ export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: Ro
       if (error instanceof AvatarEventNotFoundError) return responderError(reply, 404, 'event_not_found');
       return responderError(reply, 502, 'avatar_upstream');
     }
+
+    // NAP-F6s: si el evento tiene su avatar listo, se usa el agente custom de ese idioma.
+    let agentId = baseAgentId;
+    let agentKind: 'default' | 'custom' = 'default';
+    if (body.eventSlug) {
+      const custom = await readyEventAvatarAgents(pool, body.eventSlug);
+      const customId = body.lang === 'es' ? custom?.es : custom?.en;
+      if (customId) {
+        agentId = customId;
+        agentKind = 'custom';
+      }
+    }
+    if (!agentId) return responderError(reply, 503, 'avatar_disabled');
 
     const visitor: AvatarVisitor = decision.visitor;
     const contexto = {
@@ -131,7 +144,7 @@ export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: Ro
         handle,
         visitor,
         lang: body.lang,
-        agent: 'default',
+        agent: agentKind,
       };
       // NAP-F4s: solo el modo texto necesita abrir el socket; la URL sale del token del servidor.
       if (esTexto) respuesta.socketUrl = socketUrlDesdeToken(conexion.token);

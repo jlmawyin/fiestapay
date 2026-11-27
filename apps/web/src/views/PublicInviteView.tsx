@@ -6,6 +6,7 @@ import type { FiestaEvent, Guest, Quote, OrderResult, Capabilities, RsvpStatus, 
 import { api, ApiError } from '../api/client';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { inviteCatalog } from '../i18n/messages/invite';
+import { avatarCatalog } from '../i18n/messages/avatar';
 import { TemplateCover } from '../components/illustrations/TemplateCover';
 import { ThemeScope } from '../components/events/ThemeScope';
 import { TicketCutout } from '../components/common/TicketCutout';
@@ -64,8 +65,11 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const [isSavingRsvp, setIsSavingRsvp] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [showSignatureCard, setShowSignatureCard] = useState(false);
+  /** NAP-F6w: agente de la sesión ('custom' → recibe el organizador). */
+  const [avatarAgent, setAvatarAgent] = useState<string | null>(null);
   const { locale, formatMoney } = useI18n();
   const m = useMessages(inviteCatalog);
+  const avatarTexts = useMessages(avatarCatalog);
   const copyRef = useRef(m);
   copyRef.current = m;
   const localeRef = useRef(locale);
@@ -443,7 +447,11 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const copy = templateInviteCopy(event.template, locale);
   const whenLabel = formatEventRange(event.startsAt, event.endsAt, undefined, locale);
   const hostLine = organizerLine(event.organizerName, locale);
-  const greeting = namedGreeting(event.organizerName, locale);
+  // NAP-F6w: con avatar personalizado del evento, recibe el organizador.
+  const hostName = event.organizerName?.trim() || null;
+  const greeting = avatarAgent === 'custom'
+    ? (hostName ? avatarTexts.eventAvatarWelcomesYou(hostName) : avatarTexts.eventAvatarWelcomesYouGeneric)
+    : namedGreeting(event.organizerName, locale);
   const publicUrl = (() => {
     try {
       return publicInviteUrl(window.location.origin, event.slug);
@@ -479,7 +487,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   return (
     <ThemeScope theme={theme}>
     <div className="invite-shell" data-invite-slug={slug}>
-      <NapsterAvatar eventSlug={slug} eventTitle={event.title} avatarEnabled={capabilities?.avatar !== false} />
+      <NapsterAvatar eventSlug={slug} eventTitle={event.title} avatarEnabled={capabilities?.avatar !== false} onAgent={setAvatarAgent} />
       {/* Main Signature Invitation Ticket */}
       <article className={`ticket-card ticket-card--sig-${resolvedCardStyle}`} aria-label={m.inviteAria(event.title)}>
         {/* Cover illustration */}

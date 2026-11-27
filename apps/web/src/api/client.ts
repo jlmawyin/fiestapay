@@ -23,11 +23,16 @@ import type {
   AvatarSessionRequest,
   AvatarSessionResponse,
   DemoKind,
+  EventAvatarErrorCode,
+  EventAvatarStatusResponse,
+  EventAvatarUpload,
 } from '@fiestapay/shared';
 import {
   LOCALE_HEADER,
   avatarSessionErrorSchema,
   avatarSessionResponseSchema,
+  eventAvatarErrorSchema,
+  eventAvatarStatusSchema,
   translateServerError,
 } from '@fiestapay/shared';
 import { getActiveLocale } from '../i18n/locale-store';
@@ -55,6 +60,41 @@ export class AvatarSessionError extends ApiError {
     this.code = code;
     if (retryAfterSec !== undefined) this.retryAfterSec = retryAfterSec;
   }
+}
+
+/**
+ * Error de las rutas del avatar con foto (NAP-F6w). Conserva el código
+ * cerrado del servidor (`avatar_limit`, `avatar_upstream`) para que la
+ * sección elija el mensaje amable sin adivinar por el texto.
+ */
+export class EventAvatarError extends ApiError {
+  code: EventAvatarErrorCode | 'unknown';
+  constructor(message: string, status: number, code: EventAvatarErrorCode | 'unknown') {
+    super(message, status);
+    this.name = 'EventAvatarError';
+    this.code = code;
+  }
+}
+
+/**
+ * Cabeceras del avatar con foto (NAP-F6w): la misma clave de organizador
+ * del panel viaja en la misma cabecera (localStorage).
+ */
+function eventAvatarHeaders(slug: string): Headers {
+  const headers = new Headers({ 'Content-Type': 'application/json' });
+  headers.set(LOCALE_HEADER, getActiveLocale());
+  const organizerKey = adminKeyFor(slug);
+  if (organizerKey) headers.set('X-Fiesta-Admin-Key', organizerKey);
+  return headers;
+}
+
+function toEventAvatarError(data: unknown, status: number): EventAvatarError {
+  const parsed = eventAvatarErrorSchema.safeParse(data);
+  return new EventAvatarError(
+    'No se pudo procesar el avatar del evento',
+    status,
+    parsed.success ? parsed.data.error : 'unknown',
+  );
 }
 
 /** Lee `Retry-After` como segundos; las fechas HTTP se ignoran. */
@@ -520,6 +560,66 @@ export const api = {
       if (pending && typeof pending.catch === 'function') pending.catch(() => undefined);
     } catch {
       // El cierre nunca rompe la salida de la página.
+    }
+  },
+
+  /** Estado del avatar con foto del evento (NAP-F6w). Usa `fetch` directo para conservar el código cerrado. */
+  async getEventAvatar(slug: string): Promise<EventAvatarStatusResponse> {
+    const res = await fetch(`/api/events/${encodeURIComponent(slug)}/avatar`, {
+      credentials: 'same-origin',
+      headers: eventAvatarHeaders(slug),
+    });
+    let data: unknown;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+    if (!res.ok) throw toEventAvatarError(data, res.status);
+    const parsed = eventAvatarStatusSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new EventAvatarError('Respuesta inválida del avatar del evento', 502, 'unknown');
+    }
+    return parsed.data;
+  },
+
+  /** Sube la foto propia y pide generar el avatar (NAP-F6w). */
+  async uploadEventAvatar(slug: string, upload: EventAvatarUpload): Promise<EventAvatarStatusResponse> {
+    const res = await fetch(`/api/events/${encodeURIComponent(slug)}/avatar`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: eventAvatarHeaders(slug),
+      body: JSON.stringify(upload),
+    });
+    let data: unknown;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+    if (!res.ok) throw toEventAvatarError(data, res.status);
+    const parsed = eventAvatarStatusSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new EventAvatarError('Respuesta inválida del avatar del evento', 502, 'unknown');
+    }
+    return parsed.data;
+  },
+
+  /** Borra el avatar con foto; los invitados vuelven a la avatar general (NAP-F6w). 204 sin cuerpo. */
+  async deleteEventAvatar(slug: string): Promise<void> {
+    const res = await fetch(`/api/events/${encodeURIComponent(slug)}/avatar`, {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: eventAvatarHeaders(slug),
+    });
+    if (!res.ok) {
+      let data: unknown;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+      throw toEventAvatarError(data, res.status);
     }
   },
 };
