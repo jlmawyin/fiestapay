@@ -147,6 +147,19 @@ export const SHOW_ON_SCREEN_DECLARATION: GeminiFunctionDeclaration = {
   },
 };
 
+/**
+ * NAP-F2: ids de la portada raíz que la avatar puede resaltar (SP-10).
+ * No incluye controles de PayPal ni la demo; esos siguen en UI_TARGETS.
+ */
+export const ROOT_UI_TARGETS = [
+  'tutorial',
+  'crear-espacio',
+  'eventos-publicos',
+  'donaciones',
+  'registro',
+  'sesion',
+] as const;
+
 /** Guest voice may highlight controls on its current invitation without navigating. */
 export const INVITE_SHOW_ON_SCREEN_DECLARATION: GeminiFunctionDeclaration = {
   name: SHOW_ON_SCREEN_TOOL,

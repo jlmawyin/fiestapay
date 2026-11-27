@@ -92,8 +92,19 @@ export interface DemoBuyerConfig {
   password: string;
 }
 
-export interface EmailConfig {
-  /** cPanel outgoing hostname from SMTP_HOST. Never a default invented here. */
+/**
+ * Napster Omniagent. `null` significa deshabilitado o sin clave; la ruta responde avatar_disabled.
+ * Los ids de agente se eligen por idioma y nunca llegan al navegador.
+ */
+export interface NapsterConfig {
+  enabled: boolean;
+  apiKey: string;
+  baseUrl: string;
+  agentIdEs: string;
+  agentIdEn: string;
+}
+
+export interface EmailConfig {  /** cPanel outgoing hostname from SMTP_HOST. Never a default invented here. */
   host: string;
   port: 465 | 587;
   user: string;
@@ -135,6 +146,8 @@ export interface Config {
   gemini: GeminiConfig | null;
   geminiDisabledReason: string | null;
   voice: ReturnType<typeof voiceConfig>;
+  /** Napster avatar; null when disabled or missing the API key. */
+  napster: NapsterConfig | null;
   email: EmailConfig | null;
   /** Opt-in public disclosure for the dedicated PayPal Personal sandbox buyer only. */
   demoBuyer?: DemoBuyerConfig | null;
@@ -225,6 +238,21 @@ function readSmtpPass(raw: string | undefined): string | null {
   if (raw !== raw.trim()) return null;
   if (hasControl(raw)) return null;
   return raw;
+}
+
+/** Napster solo queda activo con NAPSTER_ENABLED=true y clave presente. */
+function readNapster(env: NodeJS.ProcessEnv): NapsterConfig | null {
+  const enabled = (env.NAPSTER_ENABLED ?? '').trim().toLowerCase() === 'true';
+  const apiKey = str(env.NAPSTER_API_KEY);
+  if (!enabled || !apiKey) return null;
+  const baseUrl = (str(env.NAPSTER_API_BASE) ?? 'https://napster-api.napster.com').replace(/\/+$/, '');
+  return {
+    enabled: true,
+    apiKey,
+    baseUrl,
+    agentIdEs: str(env.NAPSTER_AGENT_ID_ES) ?? '',
+    agentIdEn: str(env.NAPSTER_AGENT_ID_EN) ?? '',
+  };
 }
 
 function readEmail(env: NodeJS.ProcessEnv, publicOrigin: string | null): { config: EmailConfig | null; reason: string | null } {
@@ -367,6 +395,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const textProvider = readTextProvider(env);
   const openai = readOpenAI(env);
   const gemini = readGemini(env);
+  const napster = readNapster(env);
   const webDir = str(env.WEB_DIST_DIR) ?? join(import.meta.dirname, '..', '..', 'web', 'dist');
 
   return {
@@ -393,6 +422,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     openaiDisabledReason: openai.reason,
     gemini: gemini.config,
     geminiDisabledReason: gemini.reason,
+    napster,
     voice: voiceConfig(env),
     email: email.config,
     emailDisabledReason: email.reason,
