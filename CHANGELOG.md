@@ -2,6 +2,14 @@
 
 Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, pedido, archivos tocados y pruebas ejecutadas.
 
+## 2026-11-27 — NAP-F6s · Avatar con la foto del organizador
+
+**Pedido:** NAP-F6s — permitir que el organizador del host legado suba su foto con consentimiento, cree un companion Napster v1 y, cuando esté listo, use agentes propios para recibir a invitados y al organizador; borrar la foto al quedar listo.
+
+**Archivos:** migración `0016_event_avatars.sql`, `apps/api/src/domain/event-avatars.ts`, `apps/api/src/routes/event-avatar.ts`, `apps/api/src/routes/avatar-session.ts`, `apps/api/src/napster/client.ts`, `apps/api/src/app.ts`, `packages/shared/src/avatar-session.ts`, `scripts/napster/diagnostico.mjs`, `apps/api/test/event-avatar.test.ts`, `apps/api/test/avatar-session.test.ts`, `AGENTS.md`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run lint` y typecheck de shared/API en verde; pruebas focales de avatar y `event-avatar.test.ts` en verde con fetch falso. El director ejecuta `npm run verificar`.
+
 ## 2026-11-27 — NAP-F5a · Retiro de proveedores de IA y marca Somos Panas
 
 **Pedido:** NAP-F5a — dejar Napster como única IA del servidor: borrar módulos, rutas, configuración, scripts y pruebas de los proveedores anteriores; reportar `avatar` en capacidades; cambiar la marca visible del servidor a Somos Panas; actualizar documentación pública y este registro.

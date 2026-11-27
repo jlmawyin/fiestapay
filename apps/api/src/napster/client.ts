@@ -39,10 +39,27 @@ export interface StockCompanionPage {
   [key: string]: unknown;
 }
 
+export interface NapsterCompanion {
+  id: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
+export interface NapsterAgent {
+  id: string;
+  [key: string]: unknown;
+}
+
 export interface NapsterClient {
   createConnection(agentId: string, body: Record<string, unknown>): Promise<NapsterConnection>;
   deleteConnection(id: string): Promise<void>;
   listStockCompanions(query?: { pageSize?: number; pageIndex?: number; search?: string }): Promise<StockCompanionPage>;
+  createCompanion(body: Record<string, unknown>): Promise<NapsterCompanion>;
+  getCompanion(id: string): Promise<NapsterCompanion>;
+  getAgent(id: string): Promise<NapsterAgent>;
+  createAgent(body: Record<string, unknown>): Promise<NapsterAgent>;
+  deleteAgent(id: string): Promise<void>;
+  putWebrtcChannel(agentId: string, body: Record<string, unknown>): Promise<void>;
 }
 
 const TIMEOUT_MS = 8_000;
@@ -119,8 +136,7 @@ export function createNapsterClient(options: NapsterClientOptions): NapsterClien
     }
   }
 
-  async function crear(agentId: string, body: Record<string, unknown>): Promise<NapsterConnection> {
-    let response = await pedir(`/public/agents/${encodeURIComponent(agentId)}/connections`, {
+  async function crear(agentId: string, body: Record<string, unknown>): Promise<NapsterConnection> {    let response = await pedir(`/public/agents/${encodeURIComponent(agentId)}/connections`, {
       method: 'POST',
       body: JSON.stringify(body),
     });
@@ -147,10 +163,73 @@ export function createNapsterClient(options: NapsterClientOptions): NapsterClien
     return { token, connectionId };
   }
 
+  function lanzarPorStatus(status: number, headers: Headers): never {
+    if (status === 409) throw new NapsterError('busy');
+    if (status === 429) throw new NapsterError('rate_limited', retryAfterMs(headers));
+    if (status === 403) throw new NapsterError('no_credits');
+    if (status === 401) throw new NapsterError('unauthorized');
+    throw new NapsterError('upstream');
+  }
+
+  /** GET/POST/PUT/DELETE con la misma traducción de errores; devuelve JSON o null. */
+  async function pedirJson(path: string, init: RequestInit = {}): Promise<unknown> {
+    const response = await pedir(path, init);
+    if (!response.ok) lanzarPorStatus(response.status, response.headers);
+    if (response.status === 204) return null;
+    const text = await response.text();
+    if (text.trim().length === 0) return null;
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new NapsterError('upstream');
+    }
+  }
+
+  function exigirId(value: unknown): string {
+    const id = (value as { id?: unknown } | null)?.id;
+    if (typeof id !== 'string' || id.length === 0) throw new NapsterError('upstream');
+    return id;
+  }
+
   return {
     async createConnection(agentId, body) {
       return serializar(() => crear(agentId, body), sleep, now);
     },
+
+    async createCompanion(body) {
+      const json = await pedirJson('/public/companions', { method: 'POST', body: JSON.stringify(body) });
+      return { ...(json as Record<string, unknown>), id: exigirId(json) } as NapsterCompanion;
+    },
+
+    async getCompanion(id) {
+      const json = await pedirJson(`/public/companions/${encodeURIComponent(id)}`, { method: 'GET' });
+      return { ...(json as Record<string, unknown>), id } as NapsterCompanion;
+    },
+
+    async getAgent(id) {
+      const json = await pedirJson(`/public/agents/${encodeURIComponent(id)}`, { method: 'GET' });
+      return { ...(json as Record<string, unknown>), id } as NapsterAgent;
+    },
+
+    async createAgent(body) {
+      const json = await pedirJson('/public/agents', { method: 'POST', body: JSON.stringify(body) });
+      return { ...(json as Record<string, unknown>), id: exigirId(json) } as NapsterAgent;
+    },
+
+    async deleteAgent(id) {
+      const response = await pedir(`/public/agents/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!response.ok && response.status !== 404) lanzarPorStatus(response.status, response.headers);
+    },
+
+    async putWebrtcChannel(agentId, body) {
+      const response = await pedir(`/public/agents/${encodeURIComponent(agentId)}/channels/webrtc`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) lanzarPorStatus(response.status, response.headers);
+    },
+
+
 
     async deleteConnection(id) {
       const response = await pedir(`/public/connections/${encodeURIComponent(id)}`, { method: 'DELETE' });

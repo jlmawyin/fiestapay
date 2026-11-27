@@ -79,6 +79,7 @@ Método completo: [docs/somospanas/METODO.md](docs/somospanas/METODO.md). Cada c
 | Orden de secciones en la portada | `contenido/paginas.json` | `scripts/somospanas/portada.test.ts` |
 | Preguntas frecuentes | `contenido/preguntas.json` | validación en `npm run verificar` |
 | Avatar Napster: sesión video/texto, saludos e instrucciones | `packages/shared/src/avatar-session.ts`, `apps/api/src/routes/avatar-session.ts`, `apps/api/src/napster/**`, `contenido/avatar.json` | `apps/api/test/avatar-session.test.ts`, `packages/shared/test/avatar-tools.test.ts` |
+| Avatar con foto del organizador (legado) | `apps/api/src/db/migrations/0016_event_avatars.sql`, `apps/api/src/domain/event-avatars.ts`, `apps/api/src/routes/event-avatar.ts` | `apps/api/test/event-avatar.test.ts` |
 | Conocimiento publicado de la avatar (es/en) | `contenido/conocimiento/**` + copia en `apps/web/public/conocimiento/**` | `npm run napster:setup -- --knowledge-base-url …` (director) |
 | Diagnóstico y configuración de Napster (functions, FAQ, agentes, canal) | `scripts/napster/**` | `apps/api/test/avatar-setup.test.ts`, `npm run napster:diagnostico` (director) |
 | Validación del JSON guardado por el admin del sitio | `esquemas/sitio.schema.json` | `apps/api/test/tenant-settings.test.ts` y `npm run verificar` |
