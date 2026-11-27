@@ -60,6 +60,7 @@ import {
   type GuidePrefillDetail,
 } from '../../guide/showOnScreen';
 import { isDraftEventProposal } from '../../lib/draft-proposal';
+import { NapsterAvatar } from '../avatar/NapsterAvatar';
 
 interface CreateWizardProps {
   onSubmit: (input: EventInput) => Promise<void>;
@@ -2335,6 +2336,7 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
       <div className="create-wizard__header">
         <h2 className="create-wizard__title">{labels.createWizardTitle}</h2>
       </div>
+      <NapsterAvatar intent="create" />
       <div className="create-wizard__paths" role="group" aria-label={m.pathLabel}>
         {(['sentence', 'interview', 'manual'] as CreatePath[]).map((option) => (
           <button

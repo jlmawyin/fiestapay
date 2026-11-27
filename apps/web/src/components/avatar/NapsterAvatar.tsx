@@ -24,6 +24,8 @@ export interface NapsterAvatarProps {
   eventSlug?: string;
   /** Título visible del evento, para el saludo «Te invitaron a …». */
   eventTitle?: string;
+  /** Intención fija de la vista (NAP-F4: el legado pide `intent:'create'`). */
+  intent?: 'create';
 }
 
 /** Sección del DOM → etiqueta de contexto en el idioma de la página. */
@@ -46,7 +48,7 @@ function sectionLabel(sectionId: string, texts: (typeof avatarCatalog)['es']): s
   }
 }
 
-export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTitle }) => {
+export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTitle, intent }) => {
   const { locale } = useI18n();
   const texts = useMessages(avatarCatalog);
   const lang: AvatarLang = locale === 'en' ? 'en' : 'es';
@@ -57,7 +59,13 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
   if (!routerRef.current) {
     routerRef.current = createAvatarToolRouter({ visitor: 'public', inviteSlug: eventSlug });
   }
-  const session = useNapsterSession({ lang, containerRef, eventSlug, router: routerRef.current });
+  const session = useNapsterSession({
+    lang,
+    containerRef,
+    eventSlug,
+    intent,
+    router: routerRef.current,
+  });
   const { status, reason, captions, textMessages, textReady, degradedToPublic, notifyLocation } = session;
   const guestGreeting = eventTitle && !degradedToPublic ? eventTitle : null;
 

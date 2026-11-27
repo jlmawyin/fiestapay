@@ -83,6 +83,11 @@ export interface UseNapsterSessionOptions {
   containerRef: RefObject<HTMLDivElement | null>;
   /** Slug del evento abierto; el servidor valida y decide `guest`. */
   eventSlug?: string;
+  /**
+   * Intención fija de la vista (NAP-F4: crear reunión en el legado pide
+   * `intent:'create'` en cada intento, sin depender de la bandera de un uso).
+   */
+  intent?: 'create';
   /** Router compartido (video y texto preservan la última lista). */
   router?: AvatarToolRouter;
 }
@@ -124,6 +129,8 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
   langRef.current = options.lang;
   const eventSlugRef = useRef(options.eventSlug);
   eventSlugRef.current = options.eventSlug;
+  const intentPropRef = useRef(options.intent);
+  intentPropRef.current = options.intent;
   const degradedRef = useRef(false);
   const requestedRef = useRef(false);
   const textRequestedRef = useRef(false);
@@ -209,7 +216,10 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
       mintErrorRef.current = null;
       const attempt = async (withSlug: boolean): Promise<AvatarTextSessionResponse> => {
         const slug = withSlug && !degradedRef.current ? eventSlugRef.current : undefined;
-        const intent = mode === 'text' ? consumeCreateIntent() : peekCreateIntent();
+        // NAP-F4: la vista puede fijar intent; si no, vale la bandera de un uso.
+        // La bandera siempre se ojea/consume para no arrastrarla a otra vista.
+        const flag = mode === 'text' ? consumeCreateIntent() : peekCreateIntent();
+        const intent = intentPropRef.current ?? flag;
         try {
           try {
             return await api.createAvatarSession({

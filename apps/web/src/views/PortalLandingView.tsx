@@ -12,7 +12,9 @@ import tutorial from '../../../../contenido/tutorial.json';
 import preguntas from '../../../../contenido/preguntas.json';
 import { normalizeSiteSlugInput, validateSiteSlug } from '@fiestapay/shared';
 import { NapsterAvatar } from '../components/avatar/NapsterAvatar';
-import { useI18n } from '../i18n/I18nContext';
+import { legacyCreateUrl } from '../lib/app-host';
+import { useI18n, useMessages } from '../i18n/I18nContext';
+import { avatarCatalog } from '../i18n/messages/avatar';
 import { LanguageSelector } from '../i18n/LanguageSelector';
 import { ApiError, api, type PortalListedEvent, type CreateSiteResult } from '../api/client';
 
@@ -57,6 +59,7 @@ type CreateSpaceState = 'idle' | 'loading' | 'unavailable' | 'done';
 export const PortalLandingView: React.FC<PortalLandingViewProps> = ({ onNavigateRegister, onNavigateLogin }) => {
   const { locale } = useI18n();
   const lang = (locale === 'en' ? 'en' : 'es') as LocaleKey;
+  const avatarTexts = useMessages(avatarCatalog);
 
   const [listedEvents, setListedEvents] = useState<PortalListedEvent[]>([]);
   const [eventsError, setEventsError] = useState<string | null>(null);
@@ -197,6 +200,9 @@ export const PortalLandingView: React.FC<PortalLandingViewProps> = ({ onNavigate
             <button type="button" className="portal-btn" onClick={() => scrollTo('compositor')}>
               {pick(portada.hero.botonCrearEspacio, lang)}
             </button>
+            <a className="portal-btn portal-btn-secondary" data-testid="portal-organize-meeting" href={legacyCreateUrl()}>
+              {avatarTexts.organizeMeeting}
+            </a>
           </div>
           <NapsterAvatar />
           <p className="portal-hero-auth">

@@ -2,6 +2,14 @@
 
 Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, pedido, archivos tocados y pruebas ejecutadas.
 
+## 2026-11-27 — NAP-F4 · Creador en el legado y botón de reunión en la raíz
+
+**Pedido:** NAP-F4 (defecto NAP-F4w2) — avatar con intent:'create' en /create (CreateWizard) y en la portada del legado (LandingView); el panel manda eventSlug y la clave de organizador en la misma cabecera del panel; botón «Organizar una reunión» en la portada raíz hacia /create del host legado (URL desde app-host, nunca del modelo).
+
+**Archivos:** `apps/web/src/components/avatar/*` (prop intent), `CreateWizard.tsx`, `LandingView.tsx`, `OrganizerDashboardView.tsx` (solo montar), `PortalLandingView.tsx` (solo el botón), `apps/web/src/lib/app-host.ts` (helper legacyCreateUrl), `apps/web/src/api/client.ts` (clave en avatar-session), `apps/web/src/i18n/messages/avatar.ts`, prueba `napster-legacy-creator.test.tsx`, `CHANGELOG.md`.
+
+**Pruebas:** focal napster web y `npm run verificar` con `DATABASE_URL` de CI.
+
 ## 2026-11-27 — NAP-F4w · Invitado, creador y modo texto Napster
 
 **Pedido:** ENCARGO F4w — saludos de invitado («Te invitaron a {evento}», sesión con eventSlug, 404→público silencioso) y creador (dashboard del organizador) con sus tools, e intent:'create' para la siguiente sesión tras crear espacio; modo texto por WebSocket con la misma avatar («Prefiero leer» y respaldo de 409/micro/WebRTC), con recorrido fijo si el chat también falla.

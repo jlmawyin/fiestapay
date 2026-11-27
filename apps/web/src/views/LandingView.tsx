@@ -9,6 +9,7 @@ import { landingCatalog } from '../i18n/catalogs/landing';
 import { cardsCatalog } from '../i18n/catalogs/cards';
 import { isDemoEvent } from '../lib/event-presentation';
 import type { CreatePath } from '../lib/create-interview';
+import { NapsterAvatar } from '../components/avatar/NapsterAvatar';
 
 export interface LandingViewProps {
   events: FiestaEvent[];
@@ -50,6 +51,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', minWidth: 0 }}>
+      <NapsterAvatar intent="create" />
       <section
         aria-label={m.introLabel}
         style={{

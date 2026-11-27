@@ -32,8 +32,9 @@ vi.mock('../../../../contenido/portada.json', () => ({
   },
 }));
 
-vi.mock('../lib/app-host', () => ({
-  readAppHostContext: () => ({ kind: 'somospanas-root', isSiteHost: false, slug: null }),
+vi.mock('../lib/app-host', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/app-host')>()),
+  readAppHostContext: () => ({ kind: 'somospanas-root' as const, isSiteHost: false, slug: null }),
 }));
 
 function mount(overrides?: Partial<Parameters<typeof PortalLandingView>[0]>) {

@@ -413,7 +413,7 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         </div>
       </div>
 
-      <NapsterAvatar />
+      <NapsterAvatar eventSlug={slug} />
 
       {storedKey ? (
         <>

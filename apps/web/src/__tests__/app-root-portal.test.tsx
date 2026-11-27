@@ -6,8 +6,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../i18n/I18nContext';
 import { App } from '../App';
 
-vi.mock('../lib/app-host', () => ({
-  readAppHostContext: () => ({ kind: 'somospanas-root', isSiteHost: false, slug: null }),
+vi.mock('../lib/app-host', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/app-host')>()),
+  readAppHostContext: () => ({ kind: 'somospanas-root' as const, isSiteHost: false, slug: null }),
 }));
 
 vi.mock('../api/client', async (importOriginal) => {

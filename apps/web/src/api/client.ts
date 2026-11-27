@@ -42,7 +42,7 @@ import {
   translateServerError,
 } from '@fiestapay/shared';
 import { getActiveLocale } from '../i18n/locale-store';
-import { adminHeaderFor } from './admin-key';
+import { adminHeaderFor, adminKeyFor } from './admin-key';
 
 export interface OrganizerChatTranscript extends ChatTranscript {
   greeting: string;
@@ -609,6 +609,10 @@ export const api = {
   }): Promise<AvatarTextSessionResponse> {
     const headers = new Headers({ 'Content-Type': 'application/json' });
     headers.set(LOCALE_HEADER, getActiveLocale());
+    // NAP-F4: con eventSlug, la misma clave de organizador del panel viaja en
+    // la misma cabecera que las llamadas del organizador (localStorage).
+    const organizerKey = payload.eventSlug ? adminKeyFor(payload.eventSlug) : null;
+    if (organizerKey) headers.set('X-Fiesta-Admin-Key', organizerKey);
     const res = await fetch('/api/avatar-session', {
       method: 'POST',
       credentials: 'same-origin',
