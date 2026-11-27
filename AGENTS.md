@@ -1,11 +1,13 @@
 # FiestaPay implementation rules
 
+> **Napster API Ignite (27 Nov 2026, Jorge):** the only runtime AI is **Napster** (avatar agents over WebRTC, text over WebSocket, tools, knowledge, FAQ). Gemini, OpenAI and AssemblyAI are being removed from code, dependencies, config and visible text, including the legacy host. Read [docs/ENCARGO-somospanas-napster.md](docs/ENCARGO-somospanas-napster.md) and [docs/internal/PLAN-NAPSTER-IGNITE.md](docs/internal/PLAN-NAPSTER-IGNITE.md) first. Where a section below says Gemini, AGY or Grok, those two documents prevail. Deadline: 30 Nov 2026 23:59 PT.
+
 Updated by Jorge's request on 10 Nov 2026 for the final hackathon stretch (Devpost deadline 12 Nov 2026 15:00 ECT; judges test 1–15 Dec 2026). These rules supersede the October plans (docs/internal/ENCARGO_2026-10-28.md, docs/internal/PLAN_DIARIO.md), which stay as history.
 
 ## Product direction
 
 - FiestaPay is an **AI party host that collects everyone's share with PayPal**. AI belongs in the main path: one sentence builds the invitation, the agent explains and guides by voice or text, prepares the payment and drafts reminders.
-- Runtime AI is **Gemini (Gemini Developer API, prepaid key)**: `gemini-3.5-flash` for text and `gemini-3.8-live` for real-time voice through single-use ephemeral tokens minted by the server (see docs/GEMINI.md). The key never reaches the browser. OpenAI and AssemblyAI remain only as configuration rollbacks. The Google Cloud USD 300 trial credit does not cover the Gemini Developer API; Vertex AI is not used (Live ephemeral tokens do not exist there).
+- Runtime AI is **Napster only** (since 27 Nov 2026): the server calls `POST /public/agents/{id}/connections` with `X-Api-Key` and returns only the single-use token to the browser; the Web SDK `@touchcastllc/napster-companion-api` renders the avatar. The key never reaches the browser. No Gemini, OpenAI or AssemblyAI fallback; if video fails, fall back to Napster text mode, then to the fixed script in `contenido/tutorial.json`. (The previous Gemini setup in docs/GEMINI.md is history and is being removed.)
 - The interface is bilingual (Spanish/English) and follows `?lang`, then the saved preference, then the browser language.
 
 ## What agents may do in the product
@@ -25,7 +27,7 @@ Updated by Jorge's request on 10 Nov 2026 for the final hackathon stretch (Devpo
 ## Testing, secrets and spending
 
 - Tests for money, permissions and concurrency are required. Maximum three evaluated deliveries per defect across providers; then evidence and a new hypothesis.
-- Real-provider tests only within Jorge's approved budget (Gemini: USD 10 total, logged in .local/coord/GEMINI-GASTO.md); measuring product metrics (accuracy, latency, cost per event) is an approved use of that budget. Sandbox only: no live funds or cards. No real WhatsApp or SMTP sends during tests without Jorge's explicit approval. Use isolated fixtures and preserve historical payments and Jorge's tester event.
+- Real-provider tests only within Jorge's approved budget (Napster: USD 40 of the USD 150 credits for development tests, logged in .local/coord/NAPSTER-GASTO.md; only the director makes real calls; automated tests use a fake); measuring product metrics (accuracy, latency, cost per event) is an approved use of that budget. Sandbox only: no live funds or cards. No real WhatsApp or SMTP sends during tests without Jorge's explicit approval. Use isolated fixtures and preserve historical payments and Jorge's tester event.
 - Production data is deleted or archived only with Jorge's explicit approval of the exact items, after a backup; prefer archiving to permanent deletion.
 - Keys, prepaid AI balance and daily AI limits must stay active through the judging period (until 15 Dec 2026).
 - No secrets in Git, logs, browser, reports or reviewer prompts. No real judge data.
@@ -40,7 +42,7 @@ Updated by Jorge's request on 10 Nov 2026 for the final hackathon stretch (Devpo
 
 ## Agent routing (dirigir-agentes)
 
-- One active director (Claude or Codex). Builders: Muse and DSH, at most two construction fronts with disjoint ownership; AGY Gemini Flash verifies independently; AGY Gemini 4 Argon handles recovery. Grok is retired. OpenCode free usage is exhausted and its paid balance is reserved for emergencies; do not migrate DSH to a paid API automatically.
+- One active director (Claude, skill director-claude, since 27 Nov 2026). Builders: Muse and DSH, at most two construction fronts with disjoint ownership; Codex (highest Sol) verifies independently in read-only mode and handles recovery. AGY and Grok are retired. OpenCode paid balance is reserved for second opinions; do not migrate DSH to a paid API automatically.
 - Workers never commit or push, never revert others and never edit outside their assigned paths. Changing providers does not reset attempt counters (see dirigir-agentes/references/deepseek.md for DSH).
 
 ## Somos Panas — lectura obligatoria al empezar
