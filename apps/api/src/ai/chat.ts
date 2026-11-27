@@ -9,6 +9,7 @@ import { assertPrivateAccess } from '../domain/access.js';
 import { assertActive } from '../domain/events.js';
 import { concealExpired } from '../domain/retention.js';
 import { reserveAiRequest } from './budget.js';
+import type { EventPortalGate } from '../domain/access.js';
 import { findGuestBySession, getEventBySlug, loadGuest, type EventRow, type GuestRow } from '../domain/read.js';
 import {
   claimsSensitiveExecution,
@@ -281,10 +282,11 @@ export async function chatWithAssistant(
   providers: ChatProviders = {},
   presentedKey: string | null = null,
   locale: Locale = 'es',
+  gate?: EventPortalGate,
 ): Promise<ChatResult> {
   const startedAt = Date.now();
   const signal = assistantDeadline(providers.deadlineMs);
-  const event = await getEventBySlug(pool, slug);
+  const event = await getEventBySlug(pool, slug, gate);
   await concealExpired(pool, event);
   assertActive(event);
   await assertPrivateAccess(pool, event, sessionId, presentedKey);

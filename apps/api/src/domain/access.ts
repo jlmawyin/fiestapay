@@ -6,6 +6,7 @@ import { timingSafeEqual } from 'node:crypto';
 import type { FastifyRequest } from 'fastify';
 import type { Pool, PoolClient } from '../db/pool.js';
 import { forbidden, gone, notFound } from '../errors.js';
+import type { HostKind } from '../lib/host.js';
 import { sha256 } from '../lib/ids.js';
 import type { EventRow, Queryable } from './read.js';
 
@@ -139,6 +140,82 @@ interface SiteEventGateRow {
   tenant_id: string;
   visibility: 'private' | 'public';
   purged_at: Date | null;
+}
+
+/** Contexto del request HTTP para aplicar el cerrojo de eventos de grupo en raíz/legado (SP7-D-1). */
+export interface EventPortalGate {
+  hostKind: HostKind | undefined;
+  accountUserId: string | null;
+}
+
+/**
+ * Arma el cerrojo a partir del host clasificado y la sesión cookie actual.
+ * Entrada: request Fastify y id de sesión si existe.
+ * Salida: contexto para `getEventBySlug` / `findEventBySlug`.
+ */
+export async function resolveEventPortalGate(
+  db: Queryable,
+  req: FastifyRequest,
+  sessionId: string | null,
+): Promise<EventPortalGate> {
+  let accountUserId: string | null = null;
+  if (sessionId) {
+    const { rows } = await db.query<{ user_id: string | null }>(
+      'SELECT user_id FROM sessions WHERE id = $1',
+      [sessionId],
+    );
+    accountUserId = rows[0]?.user_id ?? null;
+  }
+  return {
+    hostKind: req.hostClassification?.kind,
+    accountUserId,
+  };
+}
+
+/**
+ * SP7-D-1 / SP7-D-2 / SP7-D-3: indica si en raíz o legado un evento private de un grupo
+ * (distinto del sitio legado) quedaría oculto para esta cuenta. No lanza.
+ * Entrada: slug del evento, clase de host y usuario de cuenta si la sesión está enlazada.
+ * Salida: boolean. true si hay que responder como slug inexistente; false si puede seguir
+ * (público, legado, otro host, o admin del propio sitio).
+ */
+export async function groupPrivateEventHiddenOnPortal(
+  db: Queryable,
+  eventSlug: string,
+  hostKind: HostKind | undefined,
+  accountUserId: string | null,
+): Promise<boolean> {
+  if (hostKind !== 'root' && hostKind !== 'legacy') return false;
+  const { rows } = await db.query<{ tenant_kind: string; tenant_id: string; visibility: 'private' | 'public' }>(
+    `SELECT t.kind AS tenant_kind, e.tenant_id, e.visibility
+       FROM events e
+       JOIN tenants t ON t.id = e.tenant_id
+      WHERE e.slug = $1 LIMIT 1`,
+    [eventSlug],
+  );
+  const row = rows[0];
+  if (!row || row.tenant_kind === 'legacy') return false;
+  if (row.visibility !== 'private') return false;
+  if (!accountUserId) return true;
+  const role = await membershipRoleForUser(db, row.tenant_id, accountUserId);
+  return role !== 'admin';
+}
+
+/**
+ * En raíz o legado, un evento privado de un sitio que no es FiestaPay no se expone
+ * salvo al admin de ese sitio (SP7-D-1); misma respuesta que slug inexistente (404).
+ * Entrada: slug del evento, clase de host y usuario de cuenta si la sesión está enlazada.
+ * Salida: void, o HttpError 404 «Evento no encontrado».
+ */
+export async function assertGroupPrivateEventOnPortalHost(
+  db: Queryable,
+  eventSlug: string,
+  hostKind: HostKind | undefined,
+  accountUserId: string | null,
+): Promise<void> {
+  if (await groupPrivateEventHiddenOnPortal(db, eventSlug, hostKind, accountUserId)) {
+    throw notFound('Evento no encontrado');
+  }
 }
 
 export async function readPrivateEventForSiteAdmin(

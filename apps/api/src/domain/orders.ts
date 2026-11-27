@@ -10,7 +10,7 @@ import {
 } from '../payments/provider.js';
 import { PayPalError } from '../paypal/types.js';
 import { approveUrlOf } from '../paypal/verify.js';
-import { assertPrivateAccess } from './access.js';
+import { assertPrivateAccess, type EventPortalGate } from './access.js';
 import { REVOKED_MESSAGE, assertSessionMayAct, guestAccessRevoked } from './moderation.js';
 import { audit } from './audit.js';
 import { assertAcceptingGuests } from './events.js';
@@ -82,8 +82,9 @@ async function reserveOrderIntent(
   quoteId: string,
   merchantId: string,
   presentedKey: string | null,
+  gate?: EventPortalGate,
 ): Promise<ReservedOrder> {
-  const visible = await findEventBySlug(pool, slug);
+  const visible = await findEventBySlug(pool, slug, gate);
   if (!visible) throw notFound('Evento no encontrado');
   await concealExpired(pool, visible);
   return withTransaction(pool, async (client) => {
@@ -233,8 +234,9 @@ export async function createOrderForSession(
   slug: string,
   quoteId: string,
   presentedKey: string | null = null,
+  gate?: EventPortalGate,
 ): Promise<OrderResult> {
-  const reserved = await reserveOrderIntent(pool, sessionId, slug, quoteId, deps.merchantId, presentedKey);
+  const reserved = await reserveOrderIntent(pool, sessionId, slug, quoteId, deps.merchantId, presentedKey, gate);
   if ('blocked' in reserved) throw conflict(reserved.blocked);
   const { order, quote } = reserved;
 

@@ -1,17 +1,25 @@
 /**
  * Decide en el servidor el tipo de visitante de la avatar (NAP-F2).
  * Depende de la clasificación de `Host`, la sesión de cuenta y los cerrojos de `access.ts`.
- * El navegador no puede elegir `visitor`; un evento privado de grupo se trata como inexistente.
+ * Reutiliza el mismo cerrojo que la lectura pública del evento: en el host del sitio exige
+ * pertenencia al tenant y código/desbloqueo; en raíz/legado oculta los private de grupo (SP7-D-1).
  */
 import type { FastifyRequest } from 'fastify';
 import type { AvatarLang, AvatarVisitor } from '@fiestapay/shared';
 import type { Config } from '../config.js';
 import type { Pool } from '../db/pool.js';
 import { currentAccount } from '../domain/accounts.js';
-import { assertPrivateAccess, membershipRoleForUser, presentedAdminKey, tenantIdForSlug } from '../domain/access.js';
+import {
+  assertPrivateAccess,
+  membershipRoleForUser,
+  presentedAdminKey,
+  resolveEventPortalGate,
+  tenantIdForSlug,
+} from '../domain/access.js';
 import { assertActive } from '../domain/events.js';
 import { findEventBySlug, type EventRow } from '../domain/read.js';
 import { readPublicSiteSettings } from '../domain/tenant-settings.js';
+import { LEGACY_TENANT_SLUG } from '../lib/host.js';
 import { readSession } from '../lib/session.js';
 
 export class AvatarEventNotFoundError extends Error {
@@ -40,13 +48,31 @@ async function siteNameForTenant(pool: Pool, tenantId: string): Promise<string |
   return rows[0]?.display_name;
 }
 
+/** NAP-F2-D3: el legado usa el displayName de sus ajustes; si no existe, el nombre del producto. */
+async function legacySiteName(pool: Pool): Promise<string> {
+  try {
+    return (await readPublicSiteSettings(pool, LEGACY_TENANT_SLUG)).displayName;
+  } catch {
+    return 'Somos Panas';
+  }
+}
+
 async function eventForGuest(
   pool: Pool,
   config: Config,
   req: FastifyRequest,
   eventSlug: string,
 ): Promise<{ event: EventRow; siteName?: string }> {
-  const event = await findEventBySlug(pool, eventSlug);
+  const session = await readSession(pool, config, req);
+  const gate = await resolveEventPortalGate(pool, req, session?.id ?? null);
+
+  let event: EventRow | null;
+  try {
+    // NAP-F2-D2: mismo cerrojo SP7-D-1 que `GET /api/events/:slug` en raíz/legado.
+    event = await findEventBySlug(pool, eventSlug, gate);
+  } catch {
+    throw new AvatarEventNotFoundError();
+  }
   if (!event) throw new AvatarEventNotFoundError();
 
   const { rows } = await pool.query<EventTenantRow>(
@@ -54,23 +80,28 @@ async function eventForGuest(
     [event.id],
   );
   const tenant = rows[0];
-  // NAP-F2: un evento privado de grupo no revela ni el título; se responde como inexistente.
-  if (tenant?.tenant_id && tenant.visibility === 'private') throw new AvatarEventNotFoundError();
+
+  // En el subdominio del grupo, el evento debe ser de ese tenant (si no, no existe para la avatar).
+  const host = req.hostClassification;
+  if (host?.kind === 'site') {
+    const hostTenantId = host.slug ? await tenantIdForSlug(pool, host.slug) : null;
+    if (!hostTenantId || tenant?.tenant_id !== hostTenantId) throw new AvatarEventNotFoundError();
+  }
 
   try {
-    if (!tenant?.tenant_id) {
-      const session = await readSession(pool, config, req);
-      await assertPrivateAccess(pool, event, session?.id ?? null, presentedAdminKey(req));
-    }
+    // Mismo control que la página: código de acceso, desbloqueo de sesión o clave de admin.
+    await assertPrivateAccess(pool, event, session?.id ?? null, presentedAdminKey(req));
     assertActive(event);
   } catch {
     throw new AvatarEventNotFoundError();
   }
 
-  return {
-    event,
-    siteName: tenant?.tenant_id ? await siteNameForTenant(pool, tenant.tenant_id) : 'Fiestapay',
-  };
+  const siteName = tenant?.tenant_id
+    ? await siteNameForTenant(pool, tenant.tenant_id)
+    : host?.kind === 'legacy'
+      ? await legacySiteName(pool)
+      : 'Somos Panas';
+  return { event, siteName };
 }
 
 /**
@@ -109,5 +140,13 @@ export async function decideAvatarVisitor(
     return { visitor: 'creator', siteName: 'Somos Panas' };
   }
 
-  return { visitor: 'public', siteName: host?.kind === 'site' && host.slug ? host.slug : 'Somos Panas' };
+  if (host?.kind === 'site' && host.slug) {
+    try {
+      return { visitor: 'public', siteName: (await readPublicSiteSettings(pool, host.slug)).displayName };
+    } catch {
+      return { visitor: 'public', siteName: host.slug };
+    }
+  }
+  if (host?.kind === 'legacy') return { visitor: 'public', siteName: await legacySiteName(pool) };
+  return { visitor: 'public', siteName: 'Somos Panas' };
 }

@@ -38,6 +38,11 @@ function responderError(
 
 export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: RouteDeps): Promise<void> {
   const { config, pool } = deps;
+  // NAP-F2-D1: un solo cliente por app conserva la serialización de 1 conexión/s entre peticiones.
+  const napster = config.napster;
+  const cliente = napster?.enabled && napster.apiKey
+    ? createNapsterClient({ apiKey: napster.apiKey, baseUrl: napster.baseUrl })
+    : null;
   const handles = new Map<string, SesionGuardada>();
   const intentosPorIp = new Map<string, number[]>();
 
@@ -74,12 +79,11 @@ export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: Ro
     if (!parsed.success) return reply.code(400).send({ error: 'Datos invalidos' });
     const body = parsed.data;
 
-    const napster = config.napster;
-    if (!napster || !napster.enabled || !napster.apiKey) {
+    if (!cliente || !napster) {
       return responderError(reply, 503, 'avatar_disabled');
     }
     const agentId = body.lang === 'es' ? napster.agentIdEs : napster.agentIdEn;
-    if (!agentId) return responderError(reply, 502, 'avatar_upstream');
+    if (!agentId) return responderError(reply, 503, 'avatar_disabled');
 
     let decision: VisitorDecision;
     try {
@@ -96,10 +100,9 @@ export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: Ro
       eventTitle: decision.eventTitle,
       siteName: decision.siteName,
     };
-    const client = createNapsterClient({ apiKey: napster.apiKey, baseUrl: napster.baseUrl });
 
     try {
-      const conexion = await client.createConnection(agentId, {
+      const conexion = await cliente.createConnection(agentId, {
         channelType: 'webrtc',
         externalClientProfile: buildExternalClientProfile(contexto),
         initialSpeech: buildInitialSpeech(contexto),
@@ -132,11 +135,9 @@ export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: Ro
     const sesion = handles.get(parsed.data.handle);
     if (!sesion) return reply.code(204).send();
     handles.delete(parsed.data.handle);
-    const napster = config.napster;
-    if (napster?.apiKey) {
+    if (cliente) {
       try {
-        const client = createNapsterClient({ apiKey: napster.apiKey, baseUrl: napster.baseUrl });
-        await client.deleteConnection(sesion.connectionId);
+        await cliente.deleteConnection(sesion.connectionId);
       } catch {
         // NAP-F2: el cierre del navegador no debe quedar bloqueado por un fallo de Napster.
       }

@@ -60,9 +60,9 @@ describeDb('proveedor de pago por sitio (SP-8)', () => {
     await pool.query(
       `INSERT INTO events (
          id, slug, tenant_id, organizer_session_id, generation, title, template, meal, description,
-         starts_at, ends_at, location, price_cents, minimum_cents, funding_status, admin_key_hash
+         starts_at, ends_at, location, price_cents, minimum_cents, funding_status, visibility, admin_key_hash
        ) VALUES ($1,$2,$3,$4,1,'Reunion SP-8','casa','cena','Sin PayPal',
-         $5::timestamptz,$6::timestamptz,'Casa',2500,5000,'inactive',$7)`,
+         $5::timestamptz,$6::timestamptz,'Casa',2500,5000,'inactive','public',$7)`,
       [noneEventId, noneEventSlug, noneTenantId, noneSessionId, starts, ends, sha256(noneAdminKey)],
     );
   }

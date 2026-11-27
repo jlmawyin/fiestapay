@@ -26,6 +26,7 @@ import type { PayPalAdapter } from './paypal/types.js';
 import { capabilitiesForHost } from './payments/provider.js';
 import { registerAccountRoutes } from './routes/accounts.js';
 import { registerSettingsRoutes } from './routes/settings.js';
+import { registerSiteRoutes } from './routes/sites.js';
 import { registerRecoveryRoutes } from './routes/recovery.js';
 import { registerChatRoutes } from './routes/chat.js';
 import { registerSuggestRoutes } from './routes/suggest.js';
@@ -87,6 +88,7 @@ async function isRequestRoutable(
     if (!tenantId) return false;
     // NAP-F2: la sesión de avatar también se pide desde el subdominio del sitio (creador).
     if (pathOnly === '/api/avatar-session' || pathOnly === '/api/avatar-session/end') return true;
+    if (pathOnly === '/api/sites/handoff') return true;
     return pathOnly === '/api/site' || pathOnly.startsWith('/api/site/');
   }
   return false;
@@ -262,6 +264,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       await registerCoreRoutes(api, deps);
       await registerAccountRoutes(api, deps);
       await registerSettingsRoutes(api, deps);
+      await registerSiteRoutes(api, deps);
       await registerRecoveryRoutes(api, deps);
       await registerPaymentRoutes(api, deps);
       await registerChatRoutes(api, deps);

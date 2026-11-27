@@ -75,6 +75,27 @@ function fakePool(event = eventRow(), tenant: { tenant_id: string | null; visibi
   } as unknown as Pool;
 }
 
+/** Pool para el host de un sitio: tenant del host, evento y nombre visible. */
+function sitePool(
+  event: Record<string, unknown>,
+  tenantId: string,
+  displayName: string,
+  portalRow: Record<string, unknown> | null = null,
+  hostTenantId = tenantId,
+) {
+  return {
+    query: vi.fn(async (sql: string) => {
+      if (sql.includes('JOIN tenants t ON t.id = e.tenant_id')) return { rows: portalRow ? [portalRow] : [] };
+      if (sql.includes('FROM events WHERE slug')) return { rows: [event] };
+      if (sql.includes('SELECT tenant_id, visibility FROM events')) return { rows: [{ tenant_id: tenantId, visibility: 'private' }] };
+      if (sql.includes('SELECT id FROM tenants WHERE slug')) return { rows: [{ id: hostTenantId }] };
+      if (sql.includes('SELECT display_name FROM tenant_settings')) return { rows: [{ display_name: displayName }] };
+      if (sql.includes('SELECT modulo_asistente')) return { rows: [{ modulo_asistente: false }] };
+      return { rows: [] };
+    }),
+  } as unknown as Pool;
+}
+
 function config(overrides: Record<string, string | undefined> = {}) {
   return testConfig({
     NAPSTER_ENABLED: 'true',
@@ -214,6 +235,17 @@ describe('POST /api/avatar-session (NAP-F2)', () => {
     await app.close();
   });
 
+  it('responde 503 avatar_disabled si falta el agentId del idioma', async () => {
+    const fetchMock = successfulFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    const app = await appWith(fakePool(), { NAPSTER_AGENT_ID_ES: '' });
+    const response = await post(app, '/api/avatar-session', { lang: 'es' });
+    expect(response.statusCode).toBe(503);
+    expect(response.json<{ error: string }>().error).toBe('avatar_disabled');
+    expect(fetchMock).not.toHaveBeenCalled();
+    await app.close();
+  });
+
   it('un evento privado responde 404 event_not_found sin llamar a Napster', async () => {
     const fetchMock = successfulFetch();
     vi.stubGlobal('fetch', fetchMock);
@@ -248,6 +280,101 @@ describe('POST /api/avatar-session (NAP-F2)', () => {
     const deletes = fake.mock.calls.filter(([url]) => String(url).includes('/public/connections/'));
     expect(deletes).toHaveLength(1);
     expect(String(deletes[0]![0])).toContain('/public/connections/conn-end');
+    await app.close();
+  });
+
+  it('reutiliza un cliente por app y separa dos conexiones al menos 1 s', async () => {
+    const tiempos: number[] = [];
+    const fake = vi.fn(async () => {
+      tiempos.push(Date.now());
+      return jsonResponse(200, { token: 'tok', connection: { id: `conn-${tiempos.length}` } });
+    });
+    vi.stubGlobal('fetch', fake);
+    const app = await appWith(fakePool());
+    expect((await post(app, '/api/avatar-session', { lang: 'es' })).statusCode).toBe(200);
+    expect((await post(app, '/api/avatar-session', { lang: 'es' })).statusCode).toBe(200);
+    expect(tiempos).toHaveLength(2);
+    expect(tiempos[1]! - tiempos[0]!).toBeGreaterThanOrEqual(1000);
+    await app.close();
+  }, 15_000);
+
+  it('en el host del sitio acepta un evento private sin código y lo saluda con su título', async () => {
+    const fake = successfulFetch('conn-site');
+    vi.stubGlobal('fetch', fake);
+    const event = eventRow({ slug: 'asado-grupo', title: 'Asado del grupo', access_code_hash: null });
+    const app = await appWith(sitePool(event, 'tenant-a', 'Grupo A'));
+    const response = await post(
+      app,
+      '/api/avatar-session',
+      { lang: 'es', eventSlug: 'asado-grupo' },
+      'grupo-a.somospanas.com',
+      'https://grupo-a.somospanas.com',
+    );
+    expect(response.statusCode).toBe(200);
+    expect(response.json<{ visitor: string }>().visitor).toBe('guest');
+    const body = JSON.parse(String((fake.mock.calls[0]![1] as RequestInit).body)) as {
+      externalClientProfile: Record<string, unknown>;
+      initialSpeech: string;
+    };
+    expect(body.externalClientProfile).toEqual({
+      visitorType: 'guest',
+      lang: 'es',
+      eventTitle: 'Asado del grupo',
+      siteName: 'Grupo A',
+    });
+    expect(body.initialSpeech).toContain('Asado del grupo');
+    expect(body.initialSpeech).toContain('Grupo A');
+    await app.close();
+  });
+
+  it('oculta en la raíz un evento private de grupo, sin llamar a Napster', async () => {
+    const fetchMock = successfulFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    const event = eventRow({ slug: 'privado-grupo', title: 'Privado', access_code_hash: null });
+    const pool = sitePool(event, 'tenant-a', 'Grupo A', {
+      tenant_kind: 'group',
+      tenant_id: 'tenant-a',
+      visibility: 'private',
+    });
+    const app = await appWith(pool);
+    const response = await post(app, '/api/avatar-session', { lang: 'es', eventSlug: 'privado-grupo' });
+    expect(response.statusCode).toBe(404);
+    expect(response.json<{ error: string }>().error).toBe('event_not_found');
+    expect(fetchMock).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it('rechaza un evento del sitio B pedido desde el host del sitio A', async () => {
+    const fetchMock = successfulFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    const event = eventRow({ slug: 'evento-b', title: 'Evento B', access_code_hash: null });
+    const app = await appWith(sitePool(event, 'tenant-b', 'Grupo B', null, 'tenant-a'));
+    const response = await post(
+      app,
+      '/api/avatar-session',
+      { lang: 'es', eventSlug: 'evento-b' },
+      'grupo-a.somospanas.com',
+      'https://grupo-a.somospanas.com',
+    );
+    expect(response.statusCode).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it('rechaza un evento con código de acceso sin desbloquear', async () => {
+    const fetchMock = successfulFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    const event = eventRow({ slug: 'con-codigo', title: 'Con código' });
+    const app = await appWith(sitePool(event, 'tenant-a', 'Grupo A'));
+    const response = await post(
+      app,
+      '/api/avatar-session',
+      { lang: 'es', eventSlug: 'con-codigo' },
+      'grupo-a.somospanas.com',
+      'https://grupo-a.somospanas.com',
+    );
+    expect(response.statusCode).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
     await app.close();
   });
 

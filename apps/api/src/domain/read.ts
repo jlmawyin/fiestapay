@@ -11,6 +11,7 @@ import type {
 import { paymentProviderIdForEventId } from '../payments/provider.js';
 import { normalizeOrganizerName, resolveTheme } from '@fiestapay/shared';
 import { sumToCents, type Pool, type PoolClient } from '../db/pool.js';
+import { assertGroupPrivateEventOnPortalHost, type EventPortalGate } from './access.js';
 import { notFound } from '../errors.js';
 
 export type Queryable = Pool | PoolClient;
@@ -97,13 +98,29 @@ export async function findEventById(db: Queryable, eventId: string): Promise<Eve
   return rows[0] ?? null;
 }
 
-export async function findEventBySlug(db: Queryable, slug: string): Promise<EventRow | null> {
+/**
+ * Carga por slug con cerrojo SP7-D-1 opcional (`gate`): en raíz/legado oculta eventos private de
+ * grupo que no sean del tenant legado (404 salvo admin del sitio). Entrada: slug y contexto HTTP.
+ */
+export async function findEventBySlug(
+  db: Queryable,
+  slug: string,
+  gate?: EventPortalGate,
+): Promise<EventRow | null> {
   const { rows } = await db.query<EventRow>(`SELECT ${EVENT_COLUMNS} FROM events WHERE slug = $1`, [slug]);
-  return rows[0] ?? null;
+  const row = rows[0] ?? null;
+  if (row && gate) {
+    await assertGroupPrivateEventOnPortalHost(db, slug, gate.hostKind, gate.accountUserId);
+  }
+  return row;
 }
 
-export async function getEventBySlug(db: Queryable, slug: string): Promise<EventRow> {
-  const row = await findEventBySlug(db, slug);
+/**
+ * Igual que `findEventBySlug` pero lanza 404 si falta la fila (o si el cerrojo la oculta).
+ * Entrada: slug y cerrojo opcional. Salida: fila del evento.
+ */
+export async function getEventBySlug(db: Queryable, slug: string, gate?: EventPortalGate): Promise<EventRow> {
+  const row = await findEventBySlug(db, slug, gate);
   if (!row) throw notFound('Evento no encontrado');
   return row;
 }
