@@ -1,4 +1,5 @@
 import type { LocaleCatalog, Messages } from '../catalog';
+import { avatarCatalog } from './avatar';
 import { inviteCatalog } from './invite';
 import { rsvpCatalog } from './rsvp';
 import { paypalCatalog } from './paypal';
@@ -55,3 +56,6 @@ export {
   qrShareCatalog,
   paypalAiCatalog,
 };
+
+/** Catálogo suelto de la avatar Napster (NAP-F3); fuera de los mapas con claves fijas. */
+export { avatarCatalog };

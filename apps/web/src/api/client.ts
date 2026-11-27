@@ -21,6 +21,9 @@ import type {
 } from '../types';
 import type {
   AssistantContext,
+  AvatarLang,
+  AvatarSessionErrorCode,
+  AvatarSessionResponse,
   DemoKind,
   DraftEventProposal,
   PresentationSuggestion,
@@ -32,7 +35,12 @@ import type {
   VoiceLeaseReleaseResult,
   VoiceProvider,
 } from '@fiestapay/shared';
-import { LOCALE_HEADER, translateServerError } from '@fiestapay/shared';
+import {
+  LOCALE_HEADER,
+  avatarSessionErrorSchema,
+  avatarSessionResponseSchema,
+  translateServerError,
+} from '@fiestapay/shared';
 import { getActiveLocale } from '../i18n/locale-store';
 import { adminHeaderFor } from './admin-key';
 
@@ -46,6 +54,33 @@ export class ApiError extends Error {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+  }
+}
+
+/**
+ * Error de `POST /api/avatar-session` (NAP-F3). Conserva el código cerrado del
+ * servidor y los segundos de `Retry-After`, que `request()` descartaría.
+ */
+export class AvatarSessionError extends ApiError {
+  code: AvatarSessionErrorCode | 'unknown';
+  retryAfterSec?: number;
+  constructor(message: string, status: number, code: AvatarSessionErrorCode | 'unknown', retryAfterSec?: number) {
+    super(message, status);
+    this.name = 'AvatarSessionError';
+    this.code = code;
+    if (retryAfterSec !== undefined) this.retryAfterSec = retryAfterSec;
+  }
+}
+
+/** Lee `Retry-After` como segundos; las fechas HTTP se ignoran. */
+function parseRetryAfterHeader(res: Response): number | undefined {
+  try {
+    const raw = res.headers.get('Retry-After');
+    if (raw === null) return undefined;
+    const secs = Number.parseInt(raw.trim(), 10);
+    return Number.isFinite(secs) && secs >= 0 ? secs : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -549,5 +584,94 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  },
+
+  /**
+   * Sesión de avatar Napster (NAP-F3). Usa `fetch` directo en vez de
+   * `request()` para conservar el código de error y `retryAfterSec` en 429.
+   */
+  async createAvatarSession(payload: {
+    lang: AvatarLang;
+    intent?: 'create';
+    eventSlug?: string;
+  }): Promise<AvatarSessionResponse> {
+    const headers = new Headers({ 'Content-Type': 'application/json' });
+    headers.set(LOCALE_HEADER, getActiveLocale());
+    const res = await fetch('/api/avatar-session', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    const headerRetry = parseRetryAfterHeader(res);
+    let data: unknown;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+    if (!res.ok) {
+      const parsed = avatarSessionErrorSchema.safeParse(data);
+      const code = parsed.success ? parsed.data.error : 'unknown';
+      const retryAfterSec = parsed.success ? (parsed.data.retryAfterSec ?? headerRetry) : headerRetry;
+      throw new AvatarSessionError(
+        `No se pudo abrir la sesión de avatar (${res.status})`,
+        res.status,
+        code,
+        retryAfterSec,
+      );
+    }
+    const parsed = avatarSessionResponseSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new AvatarSessionError('Respuesta inválida de la sesión de avatar', 502, 'avatar_upstream');
+    }
+    return parsed.data;
+  },
+
+  /** Cierre idempotente por handle; 204 no trae cuerpo. */
+  async endAvatarSession(handle: string): Promise<void> {
+    const headers = new Headers({ 'Content-Type': 'application/json' });
+    headers.set(LOCALE_HEADER, getActiveLocale());
+    const res = await fetch('/api/avatar-session/end', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers,
+      body: JSON.stringify({ handle }),
+    });
+    if (!res.ok) {
+      throw new ApiError(`No se pudo cerrar la sesión de avatar (${res.status})`, res.status);
+    }
+  },
+
+  /**
+   * Cierre best-effort al desmontar o en `pagehide` (NAP-F3): `sendBeacon`
+   * primero y `fetch` con `keepalive` si no hay beacon o lo rechaza.
+   */
+  queueAvatarSessionEnd(handle: string): void {
+    const payload = JSON.stringify({ handle });
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+        const blob =
+          typeof Blob === 'function'
+            ? new Blob([payload], { type: 'application/json' })
+            : payload;
+        if (navigator.sendBeacon('/api/avatar-session/end', blob)) return;
+      }
+    } catch {
+      // Sin beacon: se intenta el fetch con keepalive.
+    }
+    try {
+      const pending = fetch('/api/avatar-session/end', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+        keepalive: true,
+      });
+      // NAP-F3: el rechazo también se traga; en pagehide nadie lo recogería.
+      if (pending && typeof pending.catch === 'function') pending.catch(() => undefined);
+    } catch {
+      // El cierre nunca rompe la salida de la página.
+    }
   },
 };

@@ -2,6 +2,14 @@
 
 Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, pedido, archivos tocados y pruebas ejecutadas.
 
+## 2026-11-27 — NAP-F3 · Avatar Napster en la portada (Público)
+
+**Pedido:** ENCARGO F3 — en la portada raíz, una avatar Napster con video y voz recibe al visitante Público: tarjeta de bienvenida con consentimiento explícito (voz y video los procesa Napster), video inline tras el clic, subtítulos, tools del público ejecutadas por la app con listas cerradas y respaldo fijo de lectura (tutorial.json) si el video no está disponible.
+
+**Archivos:** `apps/web/src/components/avatar/NapsterAvatar.tsx`, `apps/web/src/components/avatar/useNapsterSession.ts`, `apps/web/src/components/avatar/toolRouter.ts`, `apps/web/src/i18n/messages/avatar.ts` (+ registro suelto en `messages/index.ts`), `apps/web/src/styles/napster-avatar.css`, `apps/web/src/api/client.ts` (solo `createAvatarSession`, `endAvatarSession`, `queueAvatarSessionEnd` y `AvatarSessionError`), `apps/web/src/views/PortalLandingView.tsx` (solo monta `<NapsterAvatar />` en el hero), pruebas `napster-avatar.test.tsx`, `napster-tool-router.test.ts`, `napster-avatar-session.test.ts`, `AGENTS.md`, `CHANGELOG.md`.
+
+**Pruebas:** `npx vitest run src/__tests__/napster-avatar.test.tsx src/__tests__/napster-tool-router.test.ts src/__tests__/napster-avatar-session.test.ts src/__tests__/portal-landing.test.tsx` (web) y `npm run verificar` con `DATABASE_URL` de CI.
+
 ## 2026-11-21 — Pausa y traspaso
 
 **Pedido:** Documentar pausa del programa Somos Panas (21-nov-2026) y traspaso para agentes que retomen desde el IDE sin contexto previo.

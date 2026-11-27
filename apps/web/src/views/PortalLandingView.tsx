@@ -11,6 +11,7 @@ import paginas from '../../../../contenido/paginas.json';
 import tutorial from '../../../../contenido/tutorial.json';
 import preguntas from '../../../../contenido/preguntas.json';
 import { normalizeSiteSlugInput, validateSiteSlug } from '@fiestapay/shared';
+import { NapsterAvatar } from '../components/avatar/NapsterAvatar';
 import { useI18n } from '../i18n/I18nContext';
 import { LanguageSelector } from '../i18n/LanguageSelector';
 import { ApiError, api, type PortalListedEvent, type CreateSiteResult } from '../api/client';
@@ -197,6 +198,7 @@ export const PortalLandingView: React.FC<PortalLandingViewProps> = ({ onNavigate
               {pick(portada.hero.botonCrearEspacio, lang)}
             </button>
           </div>
+          <NapsterAvatar />
           <p className="portal-hero-auth">
             <button type="button" className="portal-btn-secondary portal-btn" onClick={onNavigateRegister}>
               {pick(portada.hero.enlaceRegistro, lang)}
