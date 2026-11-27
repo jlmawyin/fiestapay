@@ -4,6 +4,7 @@ import { UI_LABELS, formatEventDateTime, themePhrase, type Locale } from '@fiest
 import type { Dashboard, Capabilities, EventInput, ModerationGuest } from '../types';
 import { api, ApiError } from '../api/client';
 import { adminKeyFor, rememberAdminKey } from '../api/admin-key';
+import { NapsterAvatar } from '../components/avatar/NapsterAvatar';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { dashboardCatalog } from '../i18n/messages/organizerDashboard';
 import { GuestGrid } from '../components/dashboard/GuestGrid';
@@ -411,6 +412,8 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
           </button>
         </div>
       </div>
+
+      <NapsterAvatar />
 
       {storedKey ? (
         <>

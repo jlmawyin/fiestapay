@@ -1,10 +1,11 @@
 /**
- * Router de tools implícitas de la avatar Napster (NAP-F3, visitante Público).
- * Depende del contrato `packages/shared/src/avatar-tools.ts` (nombres, JSON Schema
- * y listas por visitante) y de `guide/showOnScreen.ts` para los resaltados. La app
- * ejecuta cada tool y responde con `send_function_output`; el modelo nunca aporta
- * URLs ni selectores. Toda tool desconocida, de otro visitante o con argumentos
- * inválidos responde `{ok:false, error:'not_allowed'}` sin efectos.
+ * Router de tools implícitas de la avatar Napster (NAP-F3 público, NAP-F4w
+ * invitado y creador). Depende del contrato `packages/shared/src/avatar-tools.ts`
+ * (nombres, JSON Schema y listas por visitante) y de `guide/showOnScreen.ts`
+ * para resaltados y borradores. La app ejecuta cada tool y responde con
+ * `send_function_output`; el modelo nunca aporta URLs ni selectores. Toda tool
+ * desconocida, de otro visitante o con argumentos inválidos responde
+ * `{ok:false, error:'not_allowed'}` sin efectos.
  */
 import {
   AVATAR_SHOW_ON_SCREEN_TARGETS,
@@ -13,9 +14,13 @@ import {
   normalizeSiteSlugInput,
   validateSiteSlug,
   type AvatarVisitor,
+  type DraftEventProposal,
 } from '@fiestapay/shared';
-import { guidePrefersReducedMotion, showOnScreen } from '../../guide/showOnScreen';
+import { guidePrefersReducedMotion, setGuideDraftProposal, showOnScreen } from '../../guide/showOnScreen';
 import { api, type PortalListedEvent } from '../../api/client';
+import { readAppHostContext } from '../../lib/app-host';
+import { consumeAvatarReminderDraft, setAvatarReminderDraft } from './reminderPrefill';
+import { markCreateIntent } from './sessionIntent';
 
 /** Llamada implícita tal como llega en `function_implicitly_called`. */
 export interface AvatarFunctionCall {
@@ -58,8 +63,12 @@ export interface AvatarToolRouterDeps {
   fetchEvents?: () => Promise<{ events: PortalListedEvent[] }>;
   /** Navegación; por defecto `location.assign`. Inyectable en pruebas. */
   navigate?: (url: string) => void;
+  /** Navegación interna SPA; por defecto pushState + popstate. Inyectable en pruebas. */
+  navigateTo?: (path: string) => void;
   /** Resaltado legado; por defecto `showOnScreen`. Inyectable en pruebas. */
   highlight?: typeof showOnScreen;
+  /** Slug del evento abierto, para amarrar los resaltados de invitado. */
+  inviteSlug?: string;
   /** Presupuesto por tool; las pruebas lo acortan. */
   timeoutMs?: number;
 }
@@ -120,6 +129,41 @@ function validateToolArgs(
         if (typeof args.caption !== 'string' || args.caption.length > 60) return { ok: false };
       }
       return { ok: true, args };
+    }
+    case 'fill_event_draft': {
+      for (const key of Object.keys(args)) {
+        if (key !== 'title' && key !== 'startsAt' && key !== 'place' && key !== 'description') {
+          return { ok: false };
+        }
+      }
+      if (typeof args.title !== 'string' || args.title.length < 1 || args.title.length > 120) {
+        return { ok: false };
+      }
+      if (typeof args.startsAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(args.startsAt)) {
+        return { ok: false };
+      }
+      if (args.place !== undefined && (typeof args.place !== 'string' || args.place.length > 160)) {
+        return { ok: false };
+      }
+      if (
+        args.description !== undefined &&
+        (typeof args.description !== 'string' || args.description.length > 500)
+      ) {
+        return { ok: false };
+      }
+      return { ok: true, args };
+    }
+    case 'draft_reminder': {
+      const keys = Object.keys(args);
+      if (keys.length !== 1 || !('text' in args)) return { ok: false };
+      if (typeof args.text !== 'string' || args.text.length < 1 || args.text.length > 500) {
+        return { ok: false };
+      }
+      return { ok: true, args };
+    }
+    case 'show_event_details':
+    case 'open_avatar_settings': {
+      return Object.keys(args).length === 0 ? { ok: true, args } : { ok: false };
     }
     default:
       return { ok: false };
@@ -187,13 +231,80 @@ function withToolTimeout<T>(work: Promise<T>, timeoutMs: number): Promise<T> {
 }
 
 /**
+ * Navegación SPA sin tocar App.tsx (NAP-F4w): pushState más un popstate
+ * sintético, que el router de App ya escucha. No navega si ya está en la ruta.
+ */
+function defaultNavigateTo(path: string): void {
+  try {
+    if (window.location.pathname === path) return;
+    window.history.pushState({}, '', path);
+    // El router de App solo escucha el nombre del evento; PopStateEvent con
+    // respaldo a Event por si el entorno no lo implementa.
+    const EventCtor: new (type: string) => Event =
+      typeof PopStateEvent === 'function' ? PopStateEvent : Event;
+    window.dispatchEvent(new EventCtor('popstate'));
+  } catch {
+    // Sin historial no hay navegación; la tool informa no disponible.
+    throw new Error('navigate_failed');
+  }
+}
+
+/** Fecha de calendario real YYYY-MM-DD (el patrón del contrato no basta). */
+function isRealDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+/** Hora real HH:MM de 24 h. */
+function isRealTime(value: string): boolean {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+/** Lleva a un selector existente y lo resalta; falso si no está en la página. */
+function flashSelector(selector: string): boolean {
+  try {
+    const element = document.querySelector(selector);
+    if (!(element instanceof HTMLElement)) return false;
+    element.scrollIntoView({ block: 'start', behavior: smoothScroll() });
+    element.classList.add(AVATAR_FLASH_CLASS);
+    window.setTimeout(() => {
+      try {
+        element.classList.remove(AVATAR_FLASH_CLASS);
+      } catch {
+        // Decorativo; su limpieza nunca falla la tool.
+      }
+    }, FLASH_MS);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Crea el router de tools para un visitante. Guarda la última lista de eventos
- * (refs 1..5 con la URL que dio el servidor) para validar `open_event`.
+ * (refs 1..5 con la URL que dio el servidor) para validar `open_event`. El
+ * visitante real lo fija la sesión con `setVisitor` desde la respuesta del
+ * servidor, nunca desde la vista (NAP-F4w).
  */
 export function createAvatarToolRouter(deps: AvatarToolRouterDeps) {
-  const visitorTools = AVATAR_TOOLS_BY_VISITOR[deps.visitor] as readonly string[];
+  let visitor: AvatarVisitor = deps.visitor;
   const timeoutMs = deps.timeoutMs ?? AVATAR_TOOL_TIMEOUT_MS;
   let lastList: { ref: number; url: string }[] = [];
+
+  function visitorTools(): readonly string[] {
+    return AVATAR_TOOLS_BY_VISITOR[visitor] as readonly string[];
+  }
+
+  /**
+   * Fija el visitante decidido por el servidor. Si cambia, la última lista se
+   * descarta: los refs de otro contexto no deben abrirse aquí.
+   */
+  function setVisitor(next: AvatarVisitor): void {
+    if (next !== visitor) lastList = [];
+    visitor = next;
+  }
 
   async function listOpenEvents(): Promise<AvatarToolOutput> {
     const res = await (deps.fetchEvents ?? api.getPortalEvents)();
@@ -226,7 +337,17 @@ export function createAvatarToolRouter(deps: AvatarToolRouterDeps) {
   async function startNewSpace(args: Record<string, unknown>): Promise<AvatarToolOutput> {
     // Lleva al compositor de subdominio y lo resalta; la persona pulsa «Crear».
     // NAP-F3: esta tool jamás llama a POST /api/sites.
+    // NAP-F4w: el compositor solo existe en la raíz; fuera de ella no aplica.
+    let compositor: HTMLElement | null;
+    try {
+      const found = document.getElementById('portal-section-compositor');
+      compositor = found instanceof HTMLElement ? found : null;
+    } catch {
+      compositor = null;
+    }
+    if (!compositor) return { ok: false, error: 'unavailable' };
     flashSection('portal-section-compositor');
+    markCreateIntent();
     if (typeof args.slug === 'string') {
       const slug = normalizeSiteSlugInput(args.slug);
       if (validateSiteSlug(slug) === 'ok') setPortalInput('portal-slug', slug);
@@ -245,7 +366,12 @@ export function createAvatarToolRouter(deps: AvatarToolRouterDeps) {
       : undefined;
     if (LEGACY_UI_TARGETS.includes(target)) {
       const highlight = deps.highlight ?? showOnScreen;
-      const result = await highlight({ target, ...(caption ? { caption } : {}) });
+      const callArgs = { target, ...(caption ? { caption } : {}) };
+      // NAP-F4w: en página de evento, el resaltado de invitado se amarra al slug.
+      const result =
+        deps.inviteSlug !== undefined
+          ? await highlight(callArgs, { inviteSlug: deps.inviteSlug })
+          : await highlight(callArgs);
       if (result.ok) return { ok: true, target };
       if (result.reason === 'unavailable_here') return { ok: false, error: 'unavailable' };
       return notAllowed();
@@ -256,12 +382,97 @@ export function createAvatarToolRouter(deps: AvatarToolRouterDeps) {
   }
 
   /**
+   * Rellena el formulario de crear evento sin enviarlo (NAP-F4w, creador).
+   * Reutiliza el pending de un solo uso de `guide/showOnScreen`: si el
+   * formulario ya está montado lo aplica por evento; si no, viaja a /create y
+   * el formulario lo consume al montar. La persona revisa y publica.
+   */
+  async function fillEventDraft(args: Record<string, unknown>): Promise<AvatarToolOutput> {
+    const startsAt = args.startsAt as string;
+    const date = startsAt.slice(0, 10);
+    const startTime = startsAt.slice(11, 16);
+    if (!isRealDate(date) || !isRealTime(startTime)) return notAllowed();
+    const title = (args.title as string).trim();
+    if (title.length === 0) return notAllowed();
+    const place = typeof args.place === 'string' && args.place.trim().length > 0
+      ? args.place.trim().slice(0, 160)
+      : undefined;
+    const description =
+      typeof args.description === 'string' && args.description.trim().length > 0
+        ? args.description.trim().slice(0, 500)
+        : undefined;
+    const proposal: DraftEventProposal & { description?: string } = {
+      template: 'evento',
+      title,
+      date,
+      startTime,
+      ...(place ? { location: place } : {}),
+      ...(description ? { description } : {}),
+      includes: [],
+      suggested: ['title', 'date', 'startTime', ...(place ? (['location'] as const) : [])],
+      source: 'rules',
+    };
+    setGuideDraftProposal(proposal);
+    const navigateTo = deps.navigateTo ?? defaultNavigateTo;
+    try {
+      navigateTo('/create');
+    } catch {
+      return { ok: false, error: 'unavailable' };
+    }
+    return { ok: true };
+  }
+
+  /**
+   * Deja el recordatorio en el campo general de la vista del organizador
+   * (NAP-F4w, creador). El organizador lo copia o lo abre en WhatsApp; la tool
+   * jamás envía nada. Sin la sección en la página no aplica y no deja pending.
+   */
+  async function draftReminder(args: Record<string, unknown>): Promise<AvatarToolOutput> {
+    const section =
+      typeof document === 'undefined' ? null : document.querySelector('.reminder-drafts');
+    if (!(section instanceof HTMLElement)) {
+      consumeAvatarReminderDraft();
+      return { ok: false, error: 'unavailable' };
+    }
+    setAvatarReminderDraft(args.text as string);
+    flashSelector('.reminder-drafts');
+    return { ok: true };
+  }
+
+  /** Lleva a los detalles logísticos de la invitación abierta (NAP-F4w). */
+  async function showEventDetails(): Promise<AvatarToolOutput> {
+    return flashSelector('.invite-facts') ? { ok: true } : { ok: false, error: 'unavailable' };
+  }
+
+  /**
+   * Lleva a la configuración del sitio (NAP-F4w, creador). Los ajustes de
+   * avatar con foto llegan en otro frente; por ahora solo navega. Fuera de un
+   * subdominio de sitio no hay ajustes a los que ir.
+   */
+  async function openAvatarSettings(): Promise<AvatarToolOutput> {
+    let isSiteHost: boolean;
+    try {
+      isSiteHost = readAppHostContext().isSiteHost;
+    } catch {
+      isSiteHost = false;
+    }
+    if (!isSiteHost) return { ok: false, error: 'unavailable' };
+    const navigateTo = deps.navigateTo ?? defaultNavigateTo;
+    try {
+      navigateTo('/settings');
+    } catch {
+      return { ok: false, error: 'unavailable' };
+    }
+    return { ok: true };
+  }
+
+  /**
    * Enruta una llamada implícita y devuelve la salida para `send_function_output`.
    * Acepta `arguments` como objeto o como JSON en texto; todo lo demás se rechaza.
    */
   async function route(call: AvatarFunctionCall): Promise<AvatarToolOutput> {
     const name = typeof call.name === 'string' ? call.name : '';
-    if (!visitorTools.includes(name)) return notAllowed();
+    if (!visitorTools().includes(name)) return notAllowed();
     let rawArgs: unknown = call.arguments;
     if (typeof rawArgs === 'string') {
       try {
@@ -280,14 +491,22 @@ export function createAvatarToolRouter(deps: AvatarToolRouterDeps) {
             ? openEvent(validated.args)
             : name === 'start_new_space'
               ? startNewSpace(validated.args)
-              : showOnScreenTool(validated.args);
+              : name === 'fill_event_draft'
+                ? fillEventDraft(validated.args)
+                : name === 'draft_reminder'
+                  ? draftReminder(validated.args)
+                  : name === 'show_event_details'
+                    ? showEventDetails()
+                    : name === 'open_avatar_settings'
+                      ? openAvatarSettings()
+                      : showOnScreenTool(validated.args);
       return await withToolTimeout(work, timeoutMs);
     } catch {
       return { ok: false, error: 'failed' };
     }
   }
 
-  return { route };
+  return { route, setVisitor };
 }
 
 export type AvatarToolRouter = ReturnType<typeof createAvatarToolRouter>;

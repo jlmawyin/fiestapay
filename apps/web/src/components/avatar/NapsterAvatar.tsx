@@ -1,11 +1,12 @@
 /**
- * Avatar Napster en la portada raíz (NAP-F3, visitante Público).
+ * Avatar Napster (NAP-F3 portada pública, NAP-F4w invitado/creador y texto).
  * Depende de `useNapsterSession` (ciclo de vida), del catálogo
  * `i18n/messages/avatar` y del recorrido fijo `contenido/tutorial.json` como
- * respaldo sin IA. Primero muestra bienvenida y consentimiento; el video inline
- * solo se monta tras el clic en «Conversar con video y voz».
+ * último respaldo sin IA. Primero muestra bienvenida y consentimiento; el video
+ * inline o el chat solo arrancan tras un clic. El visitante lo decide el
+ * servidor; la vista solo aporta `eventSlug`/`eventTitle` cuando hay evento.
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { AvatarLang } from '@fiestapay/shared';
 import '@touchcastllc/napster-companion-api/styles';
 import '../../styles/napster-avatar.css';
@@ -13,8 +14,17 @@ import tutorial from '../../../../../contenido/tutorial.json';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { avatarCatalog } from '../../i18n/messages/avatar';
 import { useNapsterSession } from './useNapsterSession';
+import { createAvatarToolRouter, type AvatarToolRouter } from './toolRouter';
+import { markCreateIntent } from './sessionIntent';
 
 type LocaleKey = 'es' | 'en';
+
+export interface NapsterAvatarProps {
+  /** Slug del evento abierto; el servidor valida y decide `guest`. */
+  eventSlug?: string;
+  /** Título visible del evento, para el saludo «Te invitaron a …». */
+  eventTitle?: string;
+}
 
 /** Sección del DOM → etiqueta de contexto en el idioma de la página. */
 function sectionLabel(sectionId: string, texts: (typeof avatarCatalog)['es']): string | null {
@@ -36,19 +46,25 @@ function sectionLabel(sectionId: string, texts: (typeof avatarCatalog)['es']): s
   }
 }
 
-export const NapsterAvatar: React.FC = () => {
+export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTitle }) => {
   const { locale } = useI18n();
   const texts = useMessages(avatarCatalog);
   const lang: AvatarLang = locale === 'en' ? 'en' : 'es';
   const page = lang as LocaleKey;
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const session = useNapsterSession({ lang, containerRef });
-  const { status, reason, captions, notifyLocation } = session;
+  const [draft, setDraft] = useState('');
+  const routerRef = useRef<AvatarToolRouter | null>(null);
+  if (!routerRef.current) {
+    routerRef.current = createAvatarToolRouter({ visitor: 'public', inviteSlug: eventSlug });
+  }
+  const session = useNapsterSession({ lang, containerRef, eventSlug, router: routerRef.current });
+  const { status, reason, captions, textMessages, textReady, degradedToPublic, notifyLocation } = session;
+  const guestGreeting = eventTitle && !degradedToPublic ? eventTitle : null;
 
   // NAP-F3: con la sesión viva, cada cambio de sección visible avisa al agente
   // con send_message sistema y trigger_response:false (doc client-commands).
   useEffect(() => {
-    if (status !== 'live' || typeof IntersectionObserver === 'undefined') return;
+    if ((status !== 'live' && status !== 'text') || typeof IntersectionObserver === 'undefined') return;
     const sections = Array.from(document.querySelectorAll('[id^="portal-section-"]'));
     if (sections.length === 0) return;
     let current: string | null = null;
@@ -78,11 +94,22 @@ export const NapsterAvatar: React.FC = () => {
     };
   }, [status, notifyLocation, texts]);
 
+  // NAP-F4w: si la persona pulsa «Crear un nuevo espacio» en la raíz, la
+  // siguiente sesión se pide con intent:'create'. Delegación sin tocar la vista.
+  useEffect(() => {
+    const onClick = (event: MouseEvent): void => {
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (target?.closest('[data-testid="portal-create-space"]')) markCreateIntent();
+    };
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
+  }, []);
+
   if (status === 'idle') {
     return (
       <section className="napster-card" data-testid="napster-avatar" aria-labelledby="napster-welcome">
-        <h2 id="napster-welcome">{texts.welcomeTitle}</h2>
-        <p>{texts.welcomeText}</p>
+        <h2 id="napster-welcome">{guestGreeting ? texts.invitedTitle(guestGreeting) : texts.welcomeTitle}</h2>
+        <p>{guestGreeting ? texts.invitedText : texts.welcomeText}</p>
         <p className="napster-consent">{texts.consent}</p>
         <div className="napster-actions">
           <button type="button" className="napster-btn" data-testid="napster-avatar-start" onClick={session.start}>
@@ -102,9 +129,8 @@ export const NapsterAvatar: React.FC = () => {
   }
 
   if (status === 'fallback') {
-    const title =
-      reason === 'busy' ? texts.busyTitle : reason === 'reading' ? texts.readingTitle : texts.unavailableTitle;
-    const body = reason === 'busy' ? texts.busyBody : reason === 'reading' ? null : texts.unavailableBody;
+    const title = reason === 'reading' ? texts.readingTitle : texts.unavailableTitle;
+    const body = reason === 'reading' ? null : texts.unavailableBody;
     return (
       <section className="napster-card" data-testid="napster-avatar-fallback" aria-labelledby="napster-fallback">
         <h2 id="napster-fallback">{title}</h2>
@@ -121,6 +147,63 @@ export const NapsterAvatar: React.FC = () => {
         <div className="napster-actions">
           <button type="button" className="napster-btn" data-testid="napster-avatar-retry" onClick={session.start}>
             {texts.retryVideo}
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (status === 'text') {
+    return (
+      <section className="napster-card" data-testid="napster-avatar-text" aria-labelledby="napster-chat">
+        <h2 id="napster-chat">{texts.textTitle}</h2>
+        <p className="napster-consent">{textReady ? texts.textHint : texts.textConnecting}</p>
+        <ol className="napster-chat-list" aria-live="polite" data-testid="napster-avatar-messages">
+          {textMessages.map((message) => (
+            <li
+              key={message.id}
+              data-testid={`napster-avatar-message-${message.id}`}
+              className={message.role === 'user' ? 'napster-chat-user' : 'napster-chat-assistant'}
+            >
+              <span className="napster-caption-role">
+                {message.role === 'user' ? texts.youSaid : texts.avatarSays}:{' '}
+              </span>
+              {message.text}
+            </li>
+          ))}
+        </ol>
+        <form
+          className="napster-chat-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            session.sendText(draft);
+            setDraft('');
+          }}
+        >
+          <label className="napster-chat-label" htmlFor="napster-chat-input">
+            {texts.textPlaceholder}
+          </label>
+          <input
+            id="napster-chat-input"
+            data-testid="napster-avatar-input"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder={texts.textPlaceholder}
+            autoComplete="off"
+            disabled={!textReady}
+          />
+          <button
+            type="submit"
+            className="napster-btn"
+            data-testid="napster-avatar-send"
+            disabled={!textReady || draft.trim().length === 0}
+          >
+            {texts.textSend}
+          </button>
+        </form>
+        <div className="napster-actions">
+          <button type="button" className="napster-btn" data-testid="napster-avatar-end" onClick={session.stop}>
+            {texts.endSession}
           </button>
         </div>
       </section>

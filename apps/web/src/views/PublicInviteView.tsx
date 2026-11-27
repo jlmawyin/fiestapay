@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useLayoutEffect, useRef, useMemo } from 'react';
 import { siteAllowsPayPalCheckout } from '@fiestapay/shared';
+import { NapsterAvatar } from '../components/avatar/NapsterAvatar';
 import { Check, MapPin, QrCode } from 'lucide-react';
 import type { FiestaEvent, Guest, Quote, OrderResult, Capabilities, RsvpStatus, AgendaItem } from '../types';
 import { api, ApiError } from '../api/client';
@@ -490,6 +491,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   return (
     <ThemeScope theme={theme}>
     <div className="invite-shell" data-invite-slug={slug}>
+      <NapsterAvatar eventSlug={slug} eventTitle={event.title} />
       {/* Main Signature Invitation Ticket */}
       <article className={`ticket-card ticket-card--sig-${resolvedCardStyle}`} aria-label={m.inviteAria(event.title)}>
         {/* Cover illustration */}

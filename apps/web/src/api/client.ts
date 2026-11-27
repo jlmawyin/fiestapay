@@ -72,6 +72,15 @@ export class AvatarSessionError extends ApiError {
   }
 }
 
+/**
+ * Respuesta de sesión con la URL del socket de texto (NAP-F4w). El contrato
+ * `mode`/`socketUrl` lo agrega DSH en `packages/shared`; mientras el director
+ * integra las ramas, la web lo tipa localmente como opcional.
+ */
+export interface AvatarTextSessionResponse extends AvatarSessionResponse {
+  socketUrl?: string;
+}
+
 /** Lee `Retry-After` como segundos; las fechas HTTP se ignoran. */
 function parseRetryAfterHeader(res: Response): number | undefined {
   try {
@@ -587,14 +596,17 @@ export const api = {
   },
 
   /**
-   * Sesión de avatar Napster (NAP-F3). Usa `fetch` directo en vez de
-   * `request()` para conservar el código de error y `retryAfterSec` en 429.
+   * Sesión de avatar Napster (NAP-F3 video, NAP-F4w texto). Usa `fetch` directo
+   * en vez de `request()` para conservar el código de error y `retryAfterSec`
+   * en 429. Con `mode:'text'` el servidor (rama DSH) devuelve además
+   * `socketUrl`; la base estricta se valida sin esa clave local.
    */
   async createAvatarSession(payload: {
     lang: AvatarLang;
     intent?: 'create';
     eventSlug?: string;
-  }): Promise<AvatarSessionResponse> {
+    mode?: 'text';
+  }): Promise<AvatarTextSessionResponse> {
     const headers = new Headers({ 'Content-Type': 'application/json' });
     headers.set(LOCALE_HEADER, getActiveLocale());
     const res = await fetch('/api/avatar-session', {
@@ -621,11 +633,16 @@ export const api = {
         retryAfterSec,
       );
     }
-    const parsed = avatarSessionResponseSchema.safeParse(data);
+    const record = (data ?? {}) as Record<string, unknown>;
+    const { socketUrl, ...rest } = record;
+    const parsed = avatarSessionResponseSchema.safeParse(rest);
     if (!parsed.success) {
       throw new AvatarSessionError('Respuesta inválida de la sesión de avatar', 502, 'avatar_upstream');
     }
-    return parsed.data;
+    if (socketUrl !== undefined && (typeof socketUrl !== 'string' || !/^(wss|https):\/\//.test(socketUrl))) {
+      throw new AvatarSessionError('Respuesta inválida de la sesión de avatar', 502, 'avatar_upstream');
+    }
+    return typeof socketUrl === 'string' ? { ...parsed.data, socketUrl } : parsed.data;
   },
 
   /** Cierre idempotente por handle; 204 no trae cuerpo. */

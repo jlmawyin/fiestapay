@@ -45,6 +45,38 @@ interface Captured {
   config: NapsterCompanionApiConfig | null;
 }
 
+/** WebSocket falso mínimo (NAP-F4w): registra URL, envíos y cierre. */
+class FakeSocket {
+  static OPEN = 1;
+  url: string;
+  readyState = 1;
+  sent: string[] = [];
+  closed = false;
+  onopen: ((event: object) => void) | null = null;
+  onmessage: ((event: { data: string }) => void) | null = null;
+  onerror: (() => void) | null = null;
+  onclose: (() => void) | null = null;
+  constructor(url: string) {
+    this.url = url;
+  }
+  send(payload: string): void {
+    this.sent.push(payload);
+  }
+  close(): void {
+    this.closed = true;
+    this.readyState = 3;
+  }
+}
+
+function fakeWebSocket(sockets: FakeSocket[]): unknown {
+  return class extends FakeSocket {
+    constructor(url: string) {
+      super(url);
+      sockets.push(this);
+    }
+  };
+}
+
 describe('NapsterAvatar (NAP-F3)', () => {
   const fetchMock = vi.fn();
   const sendBeacon = vi.fn();
@@ -123,7 +155,7 @@ describe('NapsterAvatar (NAP-F3)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('/api/avatar-session');
-    expect(JSON.parse(init.body as string)).toEqual({ lang: 'es', intent: 'create' });
+    expect(JSON.parse(init.body as string)).toEqual({ lang: 'es' });
     const [, config] = initMock.mock.calls[0] as [unknown, NapsterCompanionApiConfig];
     expect(config.layout?.type).toBe('inline');
     expect(config.layout?.mountContainer).toBe(screen.getByTestId('napster-avatar-video'));
@@ -137,18 +169,21 @@ describe('NapsterAvatar (NAP-F3)', () => {
     fireEvent.click(screen.getByTestId('napster-avatar-start'));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(JSON.parse(init.body as string)).toEqual({ lang: 'en', intent: 'create' });
+    expect(JSON.parse(init.body as string)).toEqual({ lang: 'en' });
   });
 
-  it('409 muestra el respaldo con los cuatro pasos y el mensaje amable', async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ error: 'avatar_busy' }, 409));
+  it('409 abre el chat de texto con la misma avatar (NAP-F4w)', async () => {
+    // NAP-F4w supera a F3: el 409 de video ya no muestra el recorrido fijo.
+    const sockets: FakeSocket[] = [];
+    vi.stubGlobal('WebSocket', fakeWebSocket(sockets));
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ error: 'avatar_busy' }, 409))
+      .mockResolvedValueOnce(jsonResponse({ ...SESSION, socketUrl: 'wss://napster.example.com/s?token=t' }, 200));
     mount();
     fireEvent.click(screen.getByTestId('napster-avatar-start'));
-    await screen.findByTestId('napster-avatar-fallback');
-    expect(screen.getByText('Las salas de video están llenas ahora mismo')).toBeTruthy();
-    expect(screen.getByTestId('napster-avatar-tutorial').querySelectorAll('li')).toHaveLength(4);
-    expect(screen.getByText('Crea tu espacio')).toBeTruthy();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await screen.findByTestId('napster-avatar-text');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(sockets).toHaveLength(1);
   });
 
   it('503 muestra el respaldo genérico con los cuatro pasos', async () => {
@@ -170,7 +205,6 @@ describe('NapsterAvatar (NAP-F3)', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2), { timeout: 5000 });
     expect(JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)).toEqual({
       lang: 'es',
-      intent: 'create',
     });
     await waitFor(() => expect(initMock).toHaveBeenCalledTimes(1));
     act(() => {
@@ -186,13 +220,21 @@ describe('NapsterAvatar (NAP-F3)', () => {
     expect(retryDelayMs(undefined)).toBe(1000);
   });
 
-  it('«Prefiero leer» muestra el recorrido sin red ni SDK', () => {
+  it('«Prefiero leer» abre el chat de texto sin SDK de video (NAP-F4w)', async () => {
+    // NAP-F4w supera a F3: leer ya no muestra el recorrido fijo sino el chat.
+    const sockets: FakeSocket[] = [];
+    vi.stubGlobal('WebSocket', fakeWebSocket(sockets));
+    fetchMock.mockResolvedValue(jsonResponse({ ...SESSION, socketUrl: 'wss://napster.example.com/s?token=t' }, 200));
     mount();
     fireEvent.click(screen.getByTestId('napster-avatar-read'));
-    expect(screen.getByTestId('napster-avatar-fallback')).toBeTruthy();
-    expect(screen.getByTestId('napster-avatar-tutorial').querySelectorAll('li')).toHaveLength(4);
-    expect(fetchMock).not.toHaveBeenCalled();
+    await screen.findByTestId('napster-avatar-text');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)).toEqual({
+      lang: 'es',
+      mode: 'text',
+    });
     expect(initMock).not.toHaveBeenCalled();
+    expect(sockets).toHaveLength(1);
   });
 
   it('los subtítulos anuncian lo que dice cada lado (aria-live)', async () => {

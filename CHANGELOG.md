@@ -2,6 +2,14 @@
 
 Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, pedido, archivos tocados y pruebas ejecutadas.
 
+## 2026-11-27 — NAP-F4w · Invitado, creador y modo texto Napster
+
+**Pedido:** ENCARGO F4w — saludos de invitado («Te invitaron a {evento}», sesión con eventSlug, 404→público silencioso) y creador (dashboard del organizador) con sus tools, e intent:'create' para la siguiente sesión tras crear espacio; modo texto por WebSocket con la misma avatar («Prefiero leer» y respaldo de 409/micro/WebRTC), con recorrido fijo si el chat también falla.
+
+**Archivos:** `apps/web/src/components/avatar/*` (useNapsterSession con texto+eventSlug+404, NapsterAvatar con props y chat, toolRouter con 4 tools nuevas+setVisitor, sessionIntent, reminderPrefill), `apps/web/src/api/client.ts` (mode/socketUrl locales), `apps/web/src/i18n/messages/avatar.ts`, `apps/web/src/styles/napster-avatar.css`, montaje en `PublicInviteView.tsx` y `OrganizerDashboardView.tsx`, puntos de relleno en `CreateWizard.tsx` (descripción) y `ReminderDrafts.tsx` (campo general), pruebas `napster-text-mode.test.tsx`, `napster-visitors.test.tsx`, `napster-tool-router-f4w.test.ts`, `napster-avatar-session-text.test.ts` (+ 5 aserciones F3 superadas por F4w), `AGENTS.md`, `CHANGELOG.md`.
+
+**Pruebas:** focales napster web y `npm run verificar` con `DATABASE_URL` de CI.
+
 ## 2026-11-27 — NAP-F3 · Avatar Napster en la portada (Público)
 
 **Pedido:** ENCARGO F3 — en la portada raíz, una avatar Napster con video y voz recibe al visitante Público: tarjeta de bienvenida con consentimiento explícito (voz y video los procesa Napster), video inline tras el clic, subtítulos, tools del público ejecutadas por la app con listas cerradas y respaldo fijo de lectura (tutorial.json) si el video no está disponible.

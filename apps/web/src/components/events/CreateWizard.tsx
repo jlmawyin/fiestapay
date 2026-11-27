@@ -802,6 +802,12 @@ export const CreateWizard: React.FC<CreateWizardProps> = ({
       setLocation(proposal.location.trim());
       marks.add('location');
     }
+    // NAP-F4w: punto de relleno de la avatar (fill_event_draft). La propuesta
+    // nunca trae submit, solo campos; la persona revisa y publica.
+    const avatarDescription = (proposal as DraftEventProposal & { description?: unknown }).description;
+    if (typeof avatarDescription === 'string' && avatarDescription.trim()) {
+      setDescription(avatarDescription.trim().slice(0, 500));
+    }
     if (wants.has('includes')) {
       const items = (proposal.includes ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 20);
       const matched: Record<string, boolean> = {};
