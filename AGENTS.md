@@ -43,6 +43,19 @@ Updated by Jorge's request on 10 Nov 2026 for the final hackathon stretch (Devpo
 - One active director (Claude or Codex). Builders: Muse and DSH, at most two construction fronts with disjoint ownership; AGY Gemini Flash verifies independently; AGY Gemini 4 Argon handles recovery. Grok is retired. OpenCode free usage is exhausted and its paid balance is reserved for emergencies; do not migrate DSH to a paid API automatically.
 - Workers never commit or push, never revert others and never edit outside their assigned paths. Changing providers does not reset attempt counters (see dirigir-agentes/references/deepseek.md for DSH).
 
+## Somos Panas — lectura obligatoria al empezar
+
+El programa multiinquilino (**somospanas/plan**) quedó **en pausa** el 21-nov-2026. Antes de tocar código en esa línea:
+
+1. [docs/TRASPASO.md](docs/TRASPASO.md) — traspaso para agentes nuevos (arquitectura, comandos, siguiente paso, plantillas).
+2. [docs/somospanas/PROGRESO.md](docs/somospanas/PROGRESO.md) — qué etapas están fusionadas, PRs abiertos y orden de trabajo.
+3. [docs/somospanas/PLAN.md](docs/somospanas/PLAN.md) — criterios de la etapa SP-n que vayas a hacer.
+4. [docs/somospanas/METODO.md](docs/somospanas/METODO.md) — niveles de cambio; casi todo SP-1…SP-10 es **nivel 4** (no fusionar sin Jorge y veredicto independiente).
+
+**Resumen de reglas Somos Panas:** rama de integración `somospanas/plan` (no `main` sin OK de Jorge); migraciones `0001`–`0015` inmutables una vez fusionadas; comentarios en español con cabecera, funciones importantes y id de defecto en arreglos; `npm run verificar` con Postgres 16 y **0 pruebas omitidas**; `ACCOUNTS_EMAIL_HMAC_KEY` en producción antes de desplegar cuentas; un encargo = un objetivo y solo los archivos que el PLAN asigna a esa etapa.
+
+Las reglas de producto FiestaPay (Gemini, PayPal, hackathon) de las secciones anteriores siguen vigentes en el **sitio legado**; no las contradigas al trabajar tenants nuevos con proveedor `none`.
+
 ## Somos Panas — mapa de edición (contenido y diseño)
 
 Método completo: [docs/somospanas/METODO.md](docs/somospanas/METODO.md). Cada cambio de contenido o tokens termina con `npm run verificar` (validación de JSON + pruebas + `npm run check`). La vista previa local de la app es `npm run dev`.
