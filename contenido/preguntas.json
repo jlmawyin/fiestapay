@@ -7,8 +7,8 @@
         "en": "What is a space on Somos Panas?"
       },
       "respuesta": {
-        "es": "Un subdominio propio de tu grupo (por ejemplo tu-grupo.somospanas.com) con nombre, colores, eventos y recaudaciones.",
-        "en": "Your group's own subdomain (for example your-group.somospanas.com) with a name, colors, events, and fundraisers."
+        "es": "Un subdominio propio de tu grupo (por ejemplo tu-grupo.somospanas.com) con nombre, colores y eventos.",
+        "en": "Your group's own subdomain (for example your-group.somospanas.com) with a name, colors, and events."
       }
     },
     {
@@ -29,8 +29,8 @@
         "en": "Are homepage fundraisers online payments?"
       },
       "respuesta": {
-        "es": "No necesariamente. Las cifras reales las anota el administrador del grupo; no son cobros verificados por un procesador hasta que exista uno configurado.",
-        "en": "Not necessarily. Real totals are noted by the group admin; they are not processor-verified charges until a provider is configured."
+        "es": "No. En los sitios de grupo hoy no hay cobro en línea ni registro de recaudaciones. Las tarjetas de donaciones de la portada son ejemplos con la leyenda «Barra de ejemplo · sin cifra real» y no representan dinero real.",
+        "en": "No. Group sites today have no online checkout and no fundraiser registry. The homepage donation cards are samples with the note \"Sample bar · no real amount\" and do not represent real money."
       }
     },
     {
@@ -42,6 +42,182 @@
       "respuesta": {
         "es": "No. Puedes seguirlo por texto. La voz es opcional y siempre pide tu consentimiento antes de activarse.",
         "en": "No. You can follow it in text. Voice is optional and always asks for your consent before starting."
+      }
+    },
+    {
+      "id": "crear-cuenta",
+      "pregunta": {
+        "es": "¿Necesito una cuenta para crear un espacio?",
+        "en": "Do I need an account to create a space?"
+      },
+      "respuesta": {
+        "es": "Sí. Se necesita una cuenta con correo verificado en somospanas.com. Sin cuenta puedes mirar la portada, los eventos públicos y el tutorial.",
+        "en": "Yes. You need an account with a verified email on somospanas.com. Without an account you can browse the homepage, public events, and the tutorial."
+      }
+    },
+    {
+      "id": "crear-espacio-pasos",
+      "pregunta": {
+        "es": "¿Cómo creo mi espacio?",
+        "en": "How do I create my space?"
+      },
+      "respuesta": {
+        "es": "Desde la portada eliges un subdominio y un nombre de grupo. El servidor crea el sitio y entrega un código de traspaso de un solo uso; al abrir tu subdominio y canjearlo quedas como administrador.",
+        "en": "From the homepage you choose a subdomain and a group name. The server creates the site and returns a single-use handoff code; when you open your subdomain and redeem it, you become the administrator."
+      }
+    },
+    {
+      "id": "reglas-subdominio",
+      "pregunta": {
+        "es": "¿Qué nombres de subdominio puedo usar?",
+        "en": "What subdomain names can I use?"
+      },
+      "respuesta": {
+        "es": "Solo letras minúsculas, números y guiones, por ejemplo tu-grupo. Algunos nombres están reservados y no se pueden elegir.",
+        "en": "Only lowercase letters, numbers, and hyphens, for example your-group. Some names are reserved and cannot be chosen."
+      }
+    },
+    {
+      "id": "codigo-traspaso",
+      "pregunta": {
+        "es": "¿Qué es el código de traspaso?",
+        "en": "What is the handoff code?"
+      },
+      "respuesta": {
+        "es": "Es un código de un solo uso que entrega el servidor al crear el sitio. Sirve para abrir tu subdominio y quedar como administrador; vence a los pocos minutos.",
+        "en": "It is a single-use code the server returns when the site is created. It lets you open your subdomain and become its administrator; it expires after a few minutes."
+      }
+    },
+    {
+      "id": "sitio-privado",
+      "pregunta": {
+        "es": "¿Mi espacio aparece en la portada?",
+        "en": "Does my space appear on the homepage?"
+      },
+      "respuesta": {
+        "es": "No. Los espacios nuevos nacen privados. La portada solo muestra eventos que su dueño marcó públicos, no el sitio completo.",
+        "en": "No. New spaces start private. The homepage only shows events their owner marked public, not the whole site."
+      }
+    },
+    {
+      "id": "marcar-evento-publico",
+      "pregunta": {
+        "es": "¿Cómo hago público un evento?",
+        "en": "How do I make an event public?"
+      },
+      "respuesta": {
+        "es": "El administrador del sitio cambia la visibilidad del evento a pública. Un evento con código de acceso no se puede marcar público desde el sitio.",
+        "en": "The site administrator changes the event visibility to public. An event with an access code cannot be marked public from the site."
+      }
+    },
+    {
+      "id": "evento-privado",
+      "pregunta": {
+        "es": "¿Quién puede ver un evento privado?",
+        "en": "Who can see a private event?"
+      },
+      "respuesta": {
+        "es": "No aparece en la portada. El servidor valida el acceso cuando se abre una sesión de invitado; si el evento tiene código de acceso, hay que desbloquearlo. Quien no tiene acceso lo ve como inexistente. La página pública del evento dentro de un sitio de grupo todavía no está implementada.",
+        "en": "It does not appear on the homepage. The server checks access when a guest session opens; if the event has an access code, it must be unlocked. People without access see it as nonexistent. The public event page inside a group site is not implemented yet."
+      }
+    },
+    {
+      "id": "codigo-acceso-evento",
+      "pregunta": {
+        "es": "¿Cómo entro a un evento con código de acceso?",
+        "en": "How do I enter an event with an access code?"
+      },
+      "respuesta": {
+        "es": "En el sitio legado, abre el enlace del evento e introduce el código cuando la página lo pida. La clave de administrador también desbloquea el evento, pero no la compartas. En los sitios de grupo la página pública del evento aún no está implementada.",
+        "en": "On the legacy site, open the event link and enter the code when the page asks for it. The administrator key also unlocks the event, but do not share it. On group sites the public event page is not implemented yet."
+      }
+    },
+    {
+      "id": "confirmar-asistencia",
+      "pregunta": {
+        "es": "¿La avatar puede confirmar mi asistencia?",
+        "en": "Can the avatar confirm my attendance?"
+      },
+      "respuesta": {
+        "es": "No. La avatar nunca confirma por ti. En el sitio legado, confirmar la asistencia es un paso que haces tú en la pantalla; en los sitios de grupo esa pantalla todavía no está implementada.",
+        "en": "No. The avatar never confirms for you. On the legacy site, confirming attendance is a step you take on screen; on group sites that screen is not implemented yet."
+      }
+    },
+    {
+      "id": "aportes-sitios-grupo",
+      "pregunta": {
+        "es": "¿Puedo pagar mi aporte en un sitio de grupo?",
+        "en": "Can I pay my contribution on a group site?"
+      },
+      "respuesta": {
+        "es": "Hoy los sitios de grupo no tienen cobro en línea ni registro de recaudaciones. No hay una pantalla para anotar aportes; las tarjetas de donaciones de la portada son ejemplos y no representan cifras reales.",
+        "en": "Group sites today have no online checkout and no fundraiser registry. There is no screen to record contributions; the homepage donation cards are samples and do not represent real totals."
+      }
+    },
+    {
+      "id": "aportes-en-linea-legado",
+      "pregunta": {
+        "es": "¿Dónde funcionan los aportes en línea?",
+        "en": "Where do online contributions work?"
+      },
+      "respuesta": {
+        "es": "Solo en la app de reuniones de Somos Panas, en modo de prueba. La persona revisa la cotización y aprueba el pago; el servidor verifica la captura. Es dinero de prueba, no dinero real.",
+        "en": "Only in the Somos Panas meetup app, in test mode. The person reviews the quote and approves the payment; the server verifies the capture. It is test money, not real money."
+      }
+    },
+    {
+      "id": "avatar-que-hace",
+      "pregunta": {
+        "es": "¿Qué puede hacer la avatar?",
+        "en": "What can the avatar do?"
+      },
+      "respuesta": {
+        "es": "Explica Somos Panas, responde dudas, lista eventos públicos, abre uno de la última lista, prepara un espacio, resalta elementos, rellena el borrador de un evento, redacta recordatorios y muestra detalles o ajustes.",
+        "en": "It explains Somos Panas, answers questions, lists public events, opens one from the last list, prepares a space, highlights elements, fills an event draft, writes reminders, and shows details or settings."
+      }
+    },
+    {
+      "id": "avatar-no-hace",
+      "pregunta": {
+        "es": "¿La avatar puede publicar o pagar por mí?",
+        "en": "Can the avatar publish or pay for me?"
+      },
+      "respuesta": {
+        "es": "No. Nunca publica, confirma, borra, paga, aprueba pagos ni envía mensajes por la persona. Solo prepara y guía; el paso final lo haces tú.",
+        "en": "No. It never publishes, confirms, deletes, pays, approves payments, or sends messages on the person's behalf. It only prepares and guides; you take the final step."
+      }
+    },
+    {
+      "id": "privacidad-portada",
+      "pregunta": {
+        "es": "¿La portada muestra datos de los invitados?",
+        "en": "Does the homepage show guest data?"
+      },
+      "respuesta": {
+        "es": "No. Solo muestra información del evento que su dueño hizo pública: título, fecha, lugar, nombre del sitio y enlace. No muestra nombres de invitados, correos, claves ni montos por persona.",
+        "en": "No. It only shows event information its owner made public: title, date, place, site name, and link. It does not show guest names, emails, keys, or per-person amounts."
+      }
+    },
+    {
+      "id": "avatar-voz-texto",
+      "pregunta": {
+        "es": "¿Puedo hablar con la avatar por texto?",
+        "en": "Can I talk to the avatar by text?"
+      },
+      "respuesta": {
+        "es": "Sí. La avatar puede abrirse con video y voz o en modo texto. El micrófono solo se activa con tu consentimiento y un clic; si la voz falla, queda el texto.",
+        "en": "Yes. The avatar can open with video and voice or in text mode. The microphone only starts with your consent and a click; if voice fails, text remains."
+      }
+    },
+    {
+      "id": "idioma",
+      "pregunta": {
+        "es": "¿La avatar habla inglés?",
+        "en": "Does the avatar speak Spanish?"
+      },
+      "respuesta": {
+        "es": "Sí. Hay un agente en español y otro en inglés. La app elige el agente según el idioma de la página.",
+        "en": "Yes. There is a Spanish agent and an English agent. The app chooses the agent based on the page language."
       }
     }
   ]

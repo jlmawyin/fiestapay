@@ -20,6 +20,20 @@ const VENTANA_MS = 10 * 60 * 1_000;
 const MAX_SESIONES_POR_IP = 6;
 const TTL_HANDLE_MS = 30 * 60 * 1_000;
 
+/**
+ * NAP-F4s: en modo texto el token de Napster es base64 con `{ url }`; el servidor lo decodifica
+ * para devolver la URL del socket, sin aceptar URLs del modelo ni reconstruirla desde el navegador.
+ */
+function socketUrlDesdeToken(token: string): string {
+  try {
+    const decoded = JSON.parse(Buffer.from(token, 'base64').toString('utf8')) as { url?: unknown };
+    if (typeof decoded.url === 'string' && /^(https|wss):\/\//.test(decoded.url)) return decoded.url;
+  } catch {
+    // Token ilegible: se trata como fallo del proveedor.
+  }
+  throw new NapsterError('upstream');
+}
+
 interface SesionGuardada {
   connectionId: string;
   expiresAt: number;
@@ -102,20 +116,26 @@ export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: Ro
     };
 
     try {
-      const conexion = await cliente.createConnection(agentId, {
-        channelType: 'webrtc',
+      const esTexto = body.mode === 'text';
+      const peticion: Record<string, unknown> = {
+        channelType: esTexto ? 'websocket' : 'webrtc',
         externalClientProfile: buildExternalClientProfile(contexto),
         initialSpeech: buildInitialSpeech(contexto),
-      });
+      };
+      if (esTexto) peticion.modality = 'text';
+      const conexion = await cliente.createConnection(agentId, peticion);
       const handle = randomUUID();
       handles.set(handle, { connectionId: conexion.connectionId, expiresAt: Date.now() + TTL_HANDLE_MS });
-      return {
+      const respuesta: AvatarSessionResponse = {
         token: conexion.token,
         handle,
         visitor,
         lang: body.lang,
         agent: 'default',
       };
+      // NAP-F4s: solo el modo texto necesita abrir el socket; la URL sale del token del servidor.
+      if (esTexto) respuesta.socketUrl = socketUrlDesdeToken(conexion.token);
+      return respuesta;
     } catch (error) {
       if (!(error instanceof NapsterError)) return responderError(reply, 502, 'avatar_upstream');
       if (error.kind === 'busy') return responderError(reply, 409, 'avatar_busy');

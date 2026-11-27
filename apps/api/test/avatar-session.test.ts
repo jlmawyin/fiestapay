@@ -7,6 +7,7 @@ import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
 import type { Pool } from '../src/db/pool.js';
 import { createNapsterClient } from '../src/napster/client.js';
+import { sha256 } from '../src/lib/ids.js';
 import { testConfig } from './harness.js';
 
 const KEY = 'napster-secret-key';
@@ -111,8 +112,15 @@ async function appWith(pool: Pool, overrides: Record<string, string | undefined>
   return buildApp({ pool, config: config(overrides), logger: false });
 }
 
-async function post(app: FastifyInstance, url: string, payload: object, host = ROOT_HOST, origin = ROOT_ORIGIN) {
-  return app.inject({ method: 'POST', url, payload, headers: { host, origin } });
+async function post(
+  app: FastifyInstance,
+  url: string,
+  payload: object,
+  host = ROOT_HOST,
+  origin = ROOT_ORIGIN,
+  extraHeaders: Record<string, string> = {},
+) {
+  return app.inject({ method: 'POST', url, payload, headers: { host, origin, ...extraHeaders } });
 }
 
 afterEach(() => {
@@ -134,7 +142,9 @@ describe('cliente Napster (NAP-F2)', () => {
     });
     await client.createConnection('agent-es', { channelType: 'webrtc' });
     await client.createConnection('agent-es', { channelType: 'webrtc' });
-    expect(sleeps).toContain(1000);
+    // NAP-F2-D4: con reloj falso la espera incluye margen; nunca baja de 1000 ms.
+    expect(sleeps.length).toBeGreaterThan(0);
+    for (const ms of sleeps) expect(ms).toBeGreaterThanOrEqual(1000);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
@@ -197,10 +207,28 @@ describe('POST /api/avatar-session (NAP-F2)', () => {
     await app.close();
   });
 
+  it('en modo texto crea websocket + modality text y devuelve la URL del socket', async () => {
+    const socketUrl = 'https://ws.napster.test/session?token=abc';
+    const token = Buffer.from(JSON.stringify({ url: socketUrl })).toString('base64');
+    const fake = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) =>
+      jsonResponse(200, { token, connection: { id: 'conn-text' } }),
+    );
+    vi.stubGlobal('fetch', fake);
+    const app = await appWith(fakePool());
+    const response = await post(app, '/api/avatar-session', { lang: 'es', mode: 'text' });
+    expect(response.statusCode).toBe(200);
+    expect(response.json<{ socketUrl: string }>().socketUrl).toBe(socketUrl);
+    const body = JSON.parse(String((fake.mock.calls[0]![1] as RequestInit).body)) as Record<string, unknown>;
+    expect(body).toMatchObject({ channelType: 'websocket', modality: 'text' });
+    await app.close();
+  });
+
   it('mapea busy, rate limit y no credits', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(409, { code: 'ConcurrentSessionLimitReached' })));
     const appBusy = await appWith(fakePool());
     expect((await post(appBusy, '/api/avatar-session', { lang: 'es' })).statusCode).toBe(409);
+    // NAP-F4s: el modo texto comparte el mismo mapeo de errores del proveedor.
+    expect((await post(appBusy, '/api/avatar-session', { lang: 'es', mode: 'text' })).statusCode).toBe(409);
     await appBusy.close();
 
     vi.stubGlobal(
@@ -284,18 +312,28 @@ describe('POST /api/avatar-session (NAP-F2)', () => {
   });
 
   it('reutiliza un cliente por app y separa dos conexiones al menos 1 s', async () => {
-    const tiempos: number[] = [];
-    const fake = vi.fn(async () => {
-      tiempos.push(Date.now());
-      return jsonResponse(200, { token: 'tok', connection: { id: `conn-${tiempos.length}` } });
-    });
-    vi.stubGlobal('fetch', fake);
-    const app = await appWith(fakePool());
-    expect((await post(app, '/api/avatar-session', { lang: 'es' })).statusCode).toBe(200);
-    expect((await post(app, '/api/avatar-session', { lang: 'es' })).statusCode).toBe(200);
-    expect(tiempos).toHaveLength(2);
-    expect(tiempos[1]! - tiempos[0]!).toBeGreaterThanOrEqual(1000);
-    await app.close();
+    // NAP-F2-D4: reloj falso determinista; el margen de la implementación debe dar ≥1000 ms.
+    vi.useFakeTimers({ now: 10_000 });
+    try {
+      const tiempos: number[] = [];
+      const fake = vi.fn(async () => {
+        tiempos.push(Date.now());
+        return jsonResponse(200, { token: 'tok', connection: { id: `conn-${tiempos.length}` } });
+      });
+      vi.stubGlobal('fetch', fake);
+      const app = await appWith(fakePool());
+      const primero = post(app, '/api/avatar-session', { lang: 'es' });
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect((await primero).statusCode).toBe(200);
+      const segundo = post(app, '/api/avatar-session', { lang: 'es' });
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect((await segundo).statusCode).toBe(200);
+      expect(tiempos).toHaveLength(2);
+      expect(tiempos[1]! - tiempos[0]!).toBeGreaterThanOrEqual(1000);
+      await app.close();
+    } finally {
+      vi.useRealTimers();
+    }
   }, 15_000);
 
   it('en el host del sitio acepta un evento private sin código y lo saluda con su título', async () => {
@@ -375,6 +413,90 @@ describe('POST /api/avatar-session (NAP-F2)', () => {
     );
     expect(response.statusCode).toBe(404);
     expect(fetchMock).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it('en el legado, intent=create usa el recorrido de creador', async () => {
+    const fake = successfulFetch('conn-creator');
+    vi.stubGlobal('fetch', fake);
+    const app = await appWith(fakePool());
+    const response = await post(
+      app,
+      '/api/avatar-session',
+      { lang: 'es', intent: 'create' },
+      LEGACY_HOST,
+      LEGACY_ORIGIN,
+    );
+    expect(response.statusCode).toBe(200);
+    expect(response.json<{ visitor: string }>().visitor).toBe('creator');
+    const body = JSON.parse(String((fake.mock.calls[0]![1] as RequestInit).body)) as {
+      externalClientProfile: Record<string, unknown>;
+    };
+    expect(body.externalClientProfile.visitorType).toBe('creator');
+    await app.close();
+  });
+
+  it('en el legado, la clave válida del organizador abre el panel como creador', async () => {
+    const clave = 'clave-organizador';
+    const fake = successfulFetch('conn-panel');
+    vi.stubGlobal('fetch', fake);
+    const event = eventRow({
+      slug: 'reunion-legado',
+      title: 'Reunión del grupo',
+      access_code_hash: null,
+      admin_key_hash: sha256(clave),
+    });
+    const app = await appWith(fakePool(event));
+    const response = await post(
+      app,
+      '/api/avatar-session',
+      { lang: 'es', eventSlug: 'reunion-legado' },
+      LEGACY_HOST,
+      LEGACY_ORIGIN,
+      { 'x-fiesta-admin-key': clave },
+    );
+    expect(response.statusCode).toBe(200);
+    expect(response.json<{ visitor: string }>().visitor).toBe('creator');
+    const body = JSON.parse(String((fake.mock.calls[0]![1] as RequestInit).body)) as {
+      externalClientProfile: Record<string, unknown>;
+    };
+    expect(body.externalClientProfile).toMatchObject({
+      visitorType: 'creator',
+      eventTitle: 'Reunión del grupo',
+    });
+    await app.close();
+  });
+
+  it('en el legado, sin clave o con clave inválida el evento sigue siendo de invitado', async () => {
+    const clave = 'clave-organizador';
+    const fake = successfulFetch('conn-guest');
+    vi.stubGlobal('fetch', fake);
+    const event = eventRow({
+      slug: 'reunion-legado',
+      title: 'Reunión del grupo',
+      access_code_hash: null,
+      admin_key_hash: sha256(clave),
+    });
+    const app = await appWith(fakePool(event));
+    const sinClave = await post(
+      app,
+      '/api/avatar-session',
+      { lang: 'es', eventSlug: 'reunion-legado' },
+      LEGACY_HOST,
+      LEGACY_ORIGIN,
+    );
+    expect(sinClave.json<{ visitor: string }>().visitor).toBe('guest');
+    const invalida = await post(
+      app,
+      '/api/avatar-session',
+      { lang: 'es', eventSlug: 'reunion-legado' },
+      LEGACY_HOST,
+      LEGACY_ORIGIN,
+      { 'x-fiesta-admin-key': 'clave-incorrecta' },
+    );
+    expect(invalida.statusCode).toBe(200);
+    expect(invalida.json<{ visitor: string }>().visitor).toBe('guest');
+    expect(invalida.body).not.toContain('clave-organizador');
     await app.close();
   });
 

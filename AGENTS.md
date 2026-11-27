@@ -78,6 +78,9 @@ Método completo: [docs/somospanas/METODO.md](docs/somospanas/METODO.md). Cada c
 | Colores, tipografía y espaciados | `estilos/tokens.css` | `scripts/somospanas/tokens.test.ts`, `scripts/somospanas/portal-visual.test.ts` (390×844 y 1440×960) |
 | Orden de secciones en la portada | `contenido/paginas.json` | `scripts/somospanas/portada.test.ts` |
 | Preguntas frecuentes | `contenido/preguntas.json` | validación en `npm run verificar` |
+| Avatar Napster: sesión video/texto, saludos e instrucciones | `packages/shared/src/avatar-session.ts`, `apps/api/src/routes/avatar-session.ts`, `apps/api/src/napster/**`, `contenido/avatar.json` | `apps/api/test/avatar-session.test.ts`, `packages/shared/test/avatar-tools.test.ts` |
+| Conocimiento publicado de la avatar (es/en) | `contenido/conocimiento/**` + copia en `apps/web/public/conocimiento/**` | `npm run napster:setup -- --knowledge-base-url …` (director) |
+| Diagnóstico y configuración de Napster (functions, FAQ, agentes, canal) | `scripts/napster/**` | `apps/api/test/avatar-setup.test.ts`, `npm run napster:diagnostico` (director) |
 | Validación del JSON guardado por el admin del sitio | `esquemas/sitio.schema.json` | `apps/api/test/tenant-settings.test.ts` y `npm run verificar` |
 | Textos de la pantalla de ajustes del sitio | `contenido/sitio.json` | `apps/web/src/__tests__/site-settings-view.test.tsx` |
 | Qué bloque usa cada sección | `bloques/LEEME.md` | — |

@@ -2,6 +2,14 @@
 
 Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, pedido, archivos tocados y pruebas ejecutadas.
 
+## 2026-11-27 — NAP-F2/F4s · Modo texto, instrucciones, conocimiento y FAQ
+
+**Pedido:** NAP-F4s — extender `POST /api/avatar-session` con `mode:'video'|'text'` (WebSocket + `modality:'text'` y URL del socket resuelta por el servidor), mejorar las instrucciones y los tres saludos, publicar conocimiento es/en, ampliar la FAQ y configurar dos colecciones por idioma y una base de conocimiento opcional en `setup.mjs`.
+
+**Archivos:** `packages/shared/src/avatar-session.ts`, `apps/api/src/routes/avatar-session.ts`, `contenido/avatar.json`, `contenido/preguntas.json`, `contenido/conocimiento/somospanas.{es,en}.md`, `apps/web/public/conocimiento/somospanas.{es,en}.md`, `scripts/napster/setup.mjs`, `scripts/napster/setup.d.mts`, `apps/api/test/avatar-session.test.ts`, `apps/api/test/avatar-setup.test.ts`, `AGENTS.md`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run lint`, `npm run typecheck`; el director ejecuta `npx vitest run apps/api/test/avatar-session.test.ts apps/api/test/avatar-setup.test.ts packages/shared/test/avatar-tools.test.ts` y `npm run verificar` (sin red hacia Napster).
+
 ## 2026-11-21 — Pausa y traspaso
 
 **Pedido:** Documentar pausa del programa Somos Panas (21-nov-2026) y traspaso para agentes que retomen desde el IDE sin contexto previo.
