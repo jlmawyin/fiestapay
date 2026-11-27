@@ -2,7 +2,8 @@
  * Detecta si el navegador está en un subdominio de sitio Somos Panas (no raíz ni legado).
  * Depende solo de `window.location.hostname`; no envía datos al servidor.
  */
-const SITE_LABEL = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$/;
+// NAP-F1b: gramática compartida con la API; no se duplica la regex en la web.
+import { SITE_SLUG_PATTERN as SITE_LABEL } from '@fiestapay/shared';
 const ROOTS = new Set(['somospanas.com', 'www.somospanas.com', 'fiestapay.somospanas.com', 'localhost', '127.0.0.1']);
 
 export interface SiteHostContext {

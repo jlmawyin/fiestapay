@@ -119,7 +119,7 @@ describeDb('SP-1 red de seguridad — comportamiento actual', () => {
     expect(fake.createCalls[fake.createCalls.length - 1]!.amountCents).toBe(quote.amountCents);
   });
 
-  it('no existe GET /api/portal/events (el directorio público llegará en SP-6)', async () => {
+  it('GET /api/portal/events responde 404 en host legado (directorio solo en la raíz)', async () => {
     const res = await new Client(app).get('/api/portal/events');
     expect(res.statusCode).toBe(404);
   });

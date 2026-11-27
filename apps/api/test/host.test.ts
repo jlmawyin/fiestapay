@@ -61,6 +61,13 @@ describe('classifyHost', () => {
     expect(classifyHost('FIESTAPAY.SOMOSPANAS.COM:443', { env: 'production' }).kind).toBe('legacy');
   });
 
+  it('`muestra` enruta al sitio plantilla aunque no se puede crear (NAP-F1b/SP-7)', () => {
+    expect(classifyHost('muestra.somospanas.com', { env: 'production' })).toMatchObject({
+      kind: 'site',
+      slug: 'muestra',
+    });
+  });
+
   it('en producción, host ausente es inválido', () => {
     expect(classifyHost(undefined, { env: 'production' }).kind).toBe('invalid');
   });

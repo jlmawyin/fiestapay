@@ -44,7 +44,7 @@ describe('contenido/paginas.json (orden de secciones)', () => {
     expect(ids.at(-1)).toBe('pie');
   });
 
-  it('incluye las ocho secciones de la portada C2', () => {
+  it('incluye las secciones de la portada C2 con preguntas antes del pie', () => {
     const ids = paginas.portadaRaiz.secciones.map((s: { id: string }) => s.id);
     expect(ids).toEqual([
       'barra',
@@ -54,6 +54,7 @@ describe('contenido/paginas.json (orden de secciones)', () => {
       'como-funciona',
       'eventos-publicos',
       'donaciones',
+      'preguntas',
       'pie',
     ]);
   });

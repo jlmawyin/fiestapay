@@ -34,6 +34,7 @@ import { registerReminderRoutes } from './routes/reminders.js';
 import { registerOrganizerAssistantRoutes } from './routes/organizer-assistant.js';
 import { registerModerationRoutes } from './routes/moderation.js';
 import { registerVoiceRoutes } from './routes/voice.js';
+import { registerPortalRoutes } from './routes/portal.js';
 import { registerCoreRoutes } from './routes/core.js';
 import { registerPaymentRoutes } from './routes/payments.js';
 import type { RouteDeps } from './routes/deps.js';
@@ -270,6 +271,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       await registerOrganizerAssistantRoutes(api, deps);
       await registerModerationRoutes(api, deps);
       await registerVoiceRoutes(api, deps);
+      await registerPortalRoutes(api, deps);
     },
     { prefix: '/api' },
   );

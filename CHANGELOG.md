@@ -12,6 +12,22 @@ Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, 
 
 **Pruebas:** Solo documentación; sin cambios de aplicación. No se ejecutó `npm run verificar` (ninguna prueba del mapa valida estos archivos de traspaso).
 
+## 2026-11-20 — SP-6 · Portada C2 y listado público
+
+**Pedido:** ENCARGO SP-6 (intento 1/3) — la raíz `somospanas.com` muestra la portada C2 leída de `contenido/`; `GET /api/portal/events` lista solo eventos `public`; admin de sitio marca visibilidad; legado FiestaPay conserva `LandingView`; botón crear espacio llama `POST /api/sites` (estado no disponible con 404 hasta SP-7).
+
+**Archivos:** `apps/api/src/domain/portal.ts`, `apps/api/src/routes/portal.ts`, `apps/api/src/app.ts`, `apps/web/src/views/PortalLandingView.tsx`, `apps/web/src/lib/app-host.ts`, `apps/web/src/styles/portal-landing.css`, `apps/web/src/App.tsx`, `apps/web/src/api/client.ts`, `apps/web/src/lib/legacy-orb.ts`, `contenido/portada.json`, `contenido/paginas.json`, `esquemas/portada.schema.json`, pruebas portal y visual, `AGENTS.md`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run verificar`, `npx vitest run apps/api/test/portal-listing.test.ts apps/web/src/__tests__/portal-landing.test.tsx`, capturas Playwright `sp6-portada-mobile-390x844.png` y `sp6-portada-desktop-1440x960.png` (API real + `apps/web/dist`, Postgres 16 en el harness de integración).
+
+### 2026-11-20 — SP-6 · Correcciones verificador (intento 2)
+
+**Pedido:** SP6-D-1…D-7 — idioma en barra de portada; enlaces tutorial/iniciar sesión; sin TutorialView en raíz; contraste WCAG AA; listado sin `legacy` y badge Ejemplo en `template`; PUT `accessCode` en evento `public` → 400; validación de slug en compositor; recomendaciones de prueba/mock, override de host solo dev/test, pie Somos Panas.
+
+**Archivos:** `PortalLandingView.tsx`, `App.tsx`, `portal-landing.css`, `portal.ts`, `events.ts`, `packages/shared/src/site-slug.ts`, `portal-listing.test.ts`, `portal-landing.test.tsx`, `app-root-portal.test.tsx`, `portal-contrast.test.ts`, `portal-visual.test.ts`, `contenido/portada.json`, `app-host.ts`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run verificar` (mapa somospanas verde); `npx vitest run apps/api/test/portal-listing.test.ts apps/web/src/__tests__/portal-landing.test.tsx` (19/19); Playwright 390×844 y 1440×960 con API + dist; `npm run check` sigue con 3 fallos ajenos en `apps/api/test/api.test.ts` (`startsAt` pasado, SP-7).
+
 ## 2026-11-20 — SP-7 · Plantilla y clonación
 
 **Pedido:** ENCARGO SP-7 — plantilla idempotente `muestra`, `POST /api/sites` en la raíz (sesión verificada, límite por usuario/IP), clonación de colores/módulos/textos sin gente ni dinero; handoff de un solo uso en el subdominio; eventos privados de sitios no legados ocultan cuerpo en raíz/legado salvo admin del sitio; subdominio `muestra` enrutable si existe fila (sigue reservado al crear).

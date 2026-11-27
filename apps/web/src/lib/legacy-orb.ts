@@ -10,9 +10,13 @@ export type LegacyOrbMode = (typeof LEGACY_ORB_MODES)[number];
 
 /**
  * Decide si el orbe FiestaPay debe montarse en la vista actual.
- * Entrada: si el navegador está en subdominio y el modo de vista. Salida: true solo en host legado/raíz local con modo listado.
+ * Entrada: clasificación de host y modo de vista. Salida: true solo en legado FiestaPay, no en la raíz Somos Panas.
  */
-export function shouldRenderLegacyOrb(isSiteHost: boolean, viewMode: string): boolean {
-  if (isSiteHost) return false;
+export function shouldRenderLegacyOrb(
+  isSiteHost: boolean,
+  viewMode: string,
+  hostKind: 'somospanas-root' | 'legacy' | 'site' = isSiteHost ? 'site' : 'legacy',
+): boolean {
+  if (isSiteHost || hostKind === 'site' || hostKind === 'somospanas-root') return false;
   return (LEGACY_ORB_MODES as readonly string[]).includes(viewMode);
 }

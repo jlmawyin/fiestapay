@@ -5,6 +5,7 @@
  * `Host` con `$host`; cuando el vhost amplíe el despliegue, conviene que Nginx también fije
  * `X-Forwarded-Host` al mismo valor.
  */
+import { RESERVED_SITE_SLUGS, SITE_SLUG_PATTERN } from '@fiestapay/shared';
 import type { Pool, PoolClient } from '../db/pool.js';
 import { isAllowedOrigin, type OriginCheckInput } from './origin.js';
 
@@ -15,39 +16,16 @@ export const LEGACY_TENANT_SLUG = 'fiestapay';
 
 type TenantLookup = Pick<Pool, 'query'> | Pick<PoolClient, 'query'>;
 
-/** Subdominios reservados: no son sitios de grupo (PLAN SP-2). */
-export const RESERVED_SITE_SLUGS = new Set([
-  'www',
-  'api',
-  'mail',
-  'smtp',
-  'ftp',
-  'admin',
-  'app',
-  'static',
-  'cdn',
-  'assets',
-  'blog',
-  'status',
-  'webhook',
-  'paypal',
-  'pay',
-  'pagos',
-  'dev',
-  'staging',
-  'test',
-  'demo',
-  'fiestapay',
-  'ns1',
-  'ns2',
-  'localhost',
-]);
+/** Reexporta el conjunto compartido de slugs no enrutables (SP-2/SP-6). */
+// NAP-F1b: se queda la versión SP-6 (lista en @fiestapay/shared). `muestra` no está en
+// RESERVED_SITE_SLUGS: su subdominio enruta al sitio plantilla si existe fila (SP-7) y solo
+// está vetado al crear (sites.ts lo compara con MUESTRA_SLUG y el compositor lo rechaza).
+export { RESERVED_SITE_SLUGS };
 
 const ROOT_HOSTNAMES = new Set(['somospanas.com', 'www.somospanas.com']);
 const LEGACY_PRODUCTION_HOST = 'fiestapay.somospanas.com';
 
-/** Gramática de slug de sitio en el apex (misma que el plan SP-2). */
-const SITE_LABEL = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$/;
+const SITE_LABEL = SITE_SLUG_PATTERN;
 
 export type HostKind = 'legacy' | 'root' | 'site' | 'invalid';
 
