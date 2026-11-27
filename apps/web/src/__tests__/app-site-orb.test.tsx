@@ -50,7 +50,14 @@ describe('política LEGACY_ORB_MODES (SP5-D-7)', () => {
 });
 
 describe('orbe del asistente según host (integración App)', () => {
+  // NAP-F0: el import en frío de App con vi.resetModules() supera los 5 s por
+  // defecto en Windows/OneDrive; damos margen solo a estas pruebas de integración.
+  const TIMEOUT_INTEGRACION_MS = 60_000;
+
   beforeEach(() => {
+    // NAP-F0: si una prueba anterior agotó su tiempo, su render podría seguir
+    // montado; limpiar antes evita que el siguiente host herede ese orbe.
+    cleanup();
     vi.resetModules();
   });
 
@@ -70,7 +77,7 @@ describe('orbe del asistente según host (integración App)', () => {
     );
     await waitFor(() => expect(screen.getByTestId('site-display-name')).toBeTruthy());
     expect(screen.queryByTestId('orb-pill')).toBeNull();
-  });
+  }, TIMEOUT_INTEGRACION_MS);
 
   it('en host legado muestra el orbe en la portada', async () => {
     hostState.isSiteHost = false;
@@ -100,5 +107,5 @@ describe('orbe del asistente según host (integración App)', () => {
       </I18nProvider>,
     );
     await waitFor(() => expect(screen.getByTestId('orb-pill')).toBeTruthy());
-  });
+  }, TIMEOUT_INTEGRACION_MS);
 });
