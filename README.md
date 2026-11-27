@@ -1,106 +1,76 @@
-# FiestaPay
+# Somos Panas
 
-**FiestaPay is an AI party host that collects everyone's share with PayPal.** It is for organizers of meals, house parties, trips and events who want one link to answer questions, build the invitation, prepare each guest's fixed share in integer cents and collect it through PayPal Sandbox — and for judges who want to test the whole flow without a FiestaPay account.
+**Somos Panas** gives every group of friends — *panas* — its own space to organize get-togethers, invite people, and chip in with clear accounts. Each group gets a subdomain such as `tu-grupo.somospanas.com`; the root site at `somospanas.com` lists only the events their owners marked public.
 
-- **Live demo:** https://fiestapay.somospanas.com
-- **Judges demo (English):** https://fiestapay.somospanas.com/demo?lang=en
-- **Video:** [[VIDEO_URL]] (Jorge's placeholder until recording)
-- **Devpost:** [[DEVPOST_URL]] (Jorge's placeholder until submission)
-- **Source:** https://github.com/jlmawyin/fiestapay · MIT
+A **Napster avatar** welcomes people with a face and a voice. It explains the product, answers questions and guides the next step without ever taking the final action for the person.
 
-**Test it without a FiestaPay account.** Open the judges demo, use a fictional name and follow **Try a PayPal payment**: **Show test account** reveals the shared fictional PayPal Sandbox buyer, so no personal PayPal account or card is needed. The Napster avatar runs server-side, so no provider key is required in the browser; PostgreSQL stays private behind the API; AG Grid Community renders the organizer and judges tables. Everything is PayPal Sandbox, never live money.
+## The three visitors
 
-**The text flow.** The Napster avatar explains the product and guides by text or voice. It can prepare drafts and highlight the next control, but the person always reviews, publishes and approves. The avatar never publishes, pays, confirms or sends messages on the person's behalf.
+| Visitor | Where they arrive | What the avatar does |
+| --- | --- | --- |
+| **Public** | `somospanas.com` | Introduces Somos Panas, offers public events, and suggests creating a space. |
+| **Creator** | A group site or the legacy meetup flow | Guides the meeting step by step, fills the event draft and drafts reminders; the person reviews and publishes. |
+| **Guest** | An event invitation link | Greets them by the event name and guides them to confirm attendance or review a contribution; the person presses the button. |
 
-**Demo funding uses the real fixed-share flow.** The guest quote is prepared server-side in integer cents; the person approves it and the capture is verified by the server. RSVP is a separate state from payment. The demo does not use escrow, automatic refunds triggered by a promise, a Buyer Guarantee claim or live money.
+Visitor type is decided on the server from the host, the account session and the event access rules — never from a browser-provided role.
 
-## The judge path in 60 seconds
+## How Napster is integrated
 
-1. Open the [Judges demo in English](https://fiestapay.somospanas.com/demo?lang=en) and create the fictional demo meal.
-2. Join as **Demo Guest**, confirm attendance and request a quote. The amount is computed on the server in integer cents.
-3. Press **Try a PayPal payment**, copy the shared sandbox buyer from **Show test account**, and approve personally inside PayPal Sandbox.
-4. Return and use **Check / Continue Capture**. The status changes to **Paid** only after the server verifies the capture.
-5. Open the organizer dashboard to see totals, payment activity and reminder drafts. The organizer copies or sends any message personally.
+```text
+Browser                    Fastify API                     Napster
+   |  POST /api/avatar-session |                              |
+   |-------------------------->| POST /public/agents/{id}/     |
+   |                           |      connections              |
+   |<--- token + handle -------|                              |
+   |  Web SDK / WebSocket      |                              |
+   |<=================== audio, video or text ===============>|
+   |  implicit tool call ----->| validated in the browser     |
+   |  final click: the person  |                              |
+```
 
-Everything on this path is PayPal Sandbox. No real money moves, no escrow or automatic promise-based refund exists, and no message is sent automatically.
+- The API key stays on the server. The browser receives only a short-lived connection token and an opaque handle.
+- Video sessions use **WebRTC** with `videoPolicy: "deferred"`; if video is unavailable, the client falls back to a **Napster text session over WebSocket**.
+- The avatar uses eight implicit tools with closed argument lists: `list_open_events`, `open_event`, `start_new_space`, `show_on_screen`, `fill_event_draft`, `draft_reminder`, `show_event_details`, `open_avatar_settings`. The model never supplies URLs or selectors.
+- The organizer of a legacy meeting can upload their own photo with explicit consent. Napster creates a v1 companion and, when it is ready, event-specific agents greet guests with that face. The photo is deleted from our database once the avatar is ready.
+- FAQ collections exist in Spanish and English; an optional Napster knowledge base uses the two Markdown files served at `/conocimiento/somospanas.{es,en}.md`.
 
-## What the avatar does
+See [docs/NAPSTER.md](docs/NAPSTER.md) for every endpoint and file.
 
-**Napster is the only runtime AI.** The server creates short-lived Napster avatar sessions; the API key stays on the server. The avatar can explain the product, answer from the knowledge and FAQ, list public events and highlight allowed controls.
+## Run it locally
 
-- **Avatar only.** It never publishes, pays, confirms, deletes or sends messages for the person.
-- **Tools.** It uses the closed tool list in `packages/shared/src/avatar-tools.ts`; the browser validates the output and the person presses the final control.
-- **Fallback.** If video fails, the app falls back to Napster text mode and then to the fixed tutorial script.
-- **Limits.** Napster sessions are rate-limited by the server; the browser never receives the provider key.
-
-## What PayPal guarantees
-
-PayPal Orders v2 runs with intent `CAPTURE`. The person approves inside PayPal, and the server verifies the capture, currency, amount, order reference and receiver before updating an idempotent ledger. Webhooks pass PayPal's `verify-webhook-signature` check. Amounts are calculated only on the server, in integer cents.
-
-This is PayPal **Sandbox**: no real money is charged or transferred. There is no fund holding, escrow or Payouts, and Buyer Protection depends on PayPal eligibility and terms. Attendance and payment are separate states; a confirmed guest can still be unpaid.
-
-## Stack and quality
-
-React + Vite, Fastify and PostgreSQL, deployed in isolated containers behind Nginx and Cloudflare. PayPal Orders v2 and signed webhooks; Napster Omniagent for the avatar; AG Grid Community for the organizer and judges dashboards. The interface is bilingual ES/EN with a selector, `?lang=en`, and browser-language detection. Event times use America/Guayaquil and amounts are USD.
-
-CI runs the PostgreSQL integration and web suites, lint, type checks and builds.
-
-## Run locally
-
-Requirements: Node.js 24, npm, PostgreSQL 16. This app has no in-memory production database or fake-payment mode.
+Requirements: Node.js 24, npm and PostgreSQL 16.
 
 ```sh
 npm ci
 cp .env.example .env
-# Set DATABASE_URL and optional provider credentials in .env.
+# Set DATABASE_URL, PUBLIC_ORIGIN and the NAPSTER_* variables in .env.
+npm run napster:diagnostico   # checks the Napster host and saves the avatar catalog
+npm run napster:setup -- --companion <id> --voice <voice> --knowledge-base-url https://somospanas.com/conocimiento
 npm run dev
 ```
 
-Open http://localhost:5173. The API runs on port 3000 and applies versioned migrations on startup. For a production build: `npm run build`, then `npm start`.
+`npm run napster:setup -- --dry-run` prints the plan without network calls. The web app runs at `http://localhost:5173`; the API runs on port 3000.
 
-Keep all keys server-side. `.env` and `.env.buyers` are ignored. Set `NAPSTER_ENABLED`, `NAPSTER_API_KEY`, `NAPSTER_API_BASE` and `NAPSTER_AGENT_ID_ES` / `NAPSTER_AGENT_ID_EN`; the browser only ever receives a short-lived connection token. Missing keys leave the avatar disabled and the manual flows available.
-
-PayPal must use one **sandbox Business merchant** and sandbox client ID/secret. Set `PAYPAL_MERCHANT_ID` to that merchant's ID and `PAYPAL_WEBHOOK_ID` to the registered webhook ID, not its URL. Register:
-
-```text
-https://fiestapay.somospanas.com/api/paypal/webhook
-CHECKOUT.ORDER.APPROVED
-CHECKOUT.ORDER.COMPLETED
-PAYMENT.CAPTURE.COMPLETED
-PAYMENT.CAPTURE.DECLINED
-PAYMENT.CAPTURE.REFUNDED
-```
-
-An approved order is not a payment. The server verifies the capture, currency, amount, order reference and receiver before updating the ledger. A webhook must pass PayPal signature verification.
-
-## Verify
+## Tests
 
 ```sh
-npm run check
-npm run providers:check
-node --env-file=.env scripts/check-webhook.mjs
+npm run verificar
 ```
 
-Database integration tests require a dedicated `DATABASE_URL` (for example, database `fiestapay_test`). They create isolated random schemas and remove only those schemas. CI supplies PostgreSQL. Tests without a database are explicitly skipped. Fake PayPal and avatar adapters exist only in tests and cannot be selected by browser input.
+This validates `contenido/`, runs the Somos Panas map tests and then `npm run check` (lint, typecheck, full test suite and build). Integration tests need PostgreSQL 16 through `DATABASE_URL`; CI supplies it and the suite requires zero skipped tests.
+
+## Relationship to FiestaPay
+
+FiestaPay was the base project: fixed-share events, PayPal Sandbox, guests, RSVP and the legacy demo. **The entire Napster layer and the multi-tenant Somos Panas site — root portal, group spaces, site administration, avatar sessions, tools, FAQ and knowledge — are new work built during Napster API Ignite.** The legacy FiestaPay host remains as the judges' demo for the PayPal Sandbox flow.
+
+Payments remain **PayPal Sandbox only**. No real money, escrow, Payouts or automatic message sending is claimed.
 
 ## Documents
 
-- [Three-minute judge walkthrough](docs/JUDGES.md)
-- [Video script (2:45 maximum)](docs/VIDEO_SCRIPT.md)
-- [Devpost submission draft](docs/DEVPOST_DRAFT.md)
-- [Project history and release evidence](docs/HISTORY.md)
-- [AI contribution disclosure](docs/AI_TOOLS.md)
-- [Architecture and trust boundaries](docs/ARCHITECTURE.md)
+- [Napster integration](docs/NAPSTER.md)
+- [Five-minute judge guide](docs/JUDGES.md)
+- [Devpost draft](docs/DEVPOST_DRAFT.md)
+- [Video script](docs/VIDEO_SCRIPT.md)
+- [Architecture](docs/ARCHITECTURE.md)
 - [API contract](docs/API.md)
-- [Contabo deployment and recovery](docs/OPERATIONS.md)
-- [Approved daily plan (internal history)](docs/internal/PLAN_DIARIO.md)
-
-Deposits, open funds, collaborative expense splitting, physical contributions, discounts and beneficiary payouts are outside committed scope. No live payment processing is enabled.
-
-## Not claimed
-
-Real-money payments, escrow, automatic refunds based on a promise, a Buyer Guarantee beyond PayPal's own eligibility and terms, automatic WhatsApp sending, a new physical-phone payment test, a published video and a completed Devpost submission are not claimed.
-
-## License
-
-MIT, see [LICENSE](LICENSE). Fixed SVG covers are original project illustrations. Fonts are self-hosted through Fontsource; their package licenses are retained. AG Grid Community is used without enterprise features.
+- [AI contribution disclosure](docs/AI_TOOLS.md)
