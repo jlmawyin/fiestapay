@@ -6,7 +6,7 @@ export function recoveryEmail(purpose: 'verify' | 'recover', origin: string, to:
   if (purpose === 'verify') {
     return {
       to,
-      subject: 'Confirma tu correo en FiestaPay',
+      subject: 'Confirma tu correo en Somos Panas',
       text: [
         'Confirma el correo opcional de recuperacion de tu fiesta.',
         'El enlace caduca en 15 minutos y funciona una sola vez.',
@@ -18,7 +18,7 @@ export function recoveryEmail(purpose: 'verify' | 'recover', origin: string, to:
   }
   return {
     to,
-    subject: 'Recupera tu enlace de organizador en FiestaPay',
+    subject: 'Recupera tu enlace de organizador en Somos Panas',
     text: [
       'Puedes crear un enlace de organizador nuevo para tu fiesta.',
       'El enlace anterior dejara de servir. Este caduca en 15 minutos y funciona una sola vez.',

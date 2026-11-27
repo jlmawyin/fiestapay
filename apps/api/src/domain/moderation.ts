@@ -6,8 +6,6 @@ import type {
   ModerationMessage,
   ModerationMessagePage,
 } from '@fiestapay/shared';
-import { visibleText, type HistoryRole, type StoredPart } from '../ai/history.js';
-import { openaiTextOf } from '../ai/openai.js';
 import { withTransaction, type Pool, type PoolClient } from '../db/pool.js';
 import { HttpError, conflict, notFound } from '../errors.js';
 import { newId } from '../lib/ids.js';
@@ -41,14 +39,21 @@ export class ModerationHold extends HttpError {
   }
 }
 
-/** Visible user or assistant text. Tool calls, outputs and signatures are dropped. */
+/** Parte mínima del historial que la moderación necesita para mostrar texto visible. */
+type HistoryRole = 'user' | 'model' | 'system' | 'function';
+interface StoredPart {
+  text?: unknown;
+}
+
+/** Visible user or assistant text. Tool calls and outputs are dropped. */
 export function transcriptPartsText(role: HistoryRole, parts: StoredPart[]): string | null {
   if (role === 'function') return null;
-  const plain = visibleText(parts);
-  if (plain.length > 0) return plain;
-  if (role !== 'model') return null;
-  const text = openaiTextOf(parts.flatMap((part) => (part.openai ? [part.openai] : [])));
-  return text.length > 0 ? text : null;
+  const plain = parts
+    .map((part) => (typeof part.text === 'string' ? part.text.trim() : ''))
+    .filter((text) => text.length > 0)
+    .join(' ')
+    .trim();
+  return plain.length > 0 ? plain : null;
 }
 
 export function guestAccessRevoked(

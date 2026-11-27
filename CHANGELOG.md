@@ -2,6 +2,62 @@
 
 Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, pedido, archivos tocados y pruebas ejecutadas.
 
+## 2026-11-27 — NAP-F6w · «Tu avatar con tu foto» en el panel del organizador
+
+**Pedido:** NAP-F6w — sección opcional en el panel del legado donde el organizador sube SU foto (consentimiento obligatorio, JPG/PNG ≤5 MB validados en el navegador) para que Napster genere un avatar con su cara; nunca bloquea (sin avatar listo todos ven a la general). GET cada 10 s hasta ready, DELETE con confirmación para volver a la general, 409/502 amables con reintento; `open_avatar_settings` lleva y resalta la sección; la invitación dice «Te recibe {organizador}» cuando la sesión trae `agent:'custom'`.
+
+**Archivos:** `apps/web/src/components/avatar/EventAvatarSection.tsx` (nuevo, montado en `OrganizerDashboardView.tsx`), `apps/web/src/api/client.ts` (`EventAvatarError` + GET/POST/DELETE con `X-Fiesta-Admin-Key` de `admin-key.ts`), `useNapsterSession.ts` (expone `agent`) + `NapsterAvatar.tsx` (`onAgent`), saludo en `PublicInviteView.tsx`, `toolRouter.ts` (`open_avatar_settings`), `apps/web/src/i18n/messages/avatar.ts` (27 claves es/en), `apps/web/src/styles/napster-avatar.css`, prueba `napster-event-avatar.test.tsx` (7), `AGENTS.md`.
+
+**Pruebas:** focal 7/7 en verde; `npx eslint` y `tsc --noEmit` limpios; `npm run verificar` exit 0 (88 archivos, 791 pruebas, 0 omitidas) con `DATABASE_URL` de CI.
+
+## 2026-11-27 — NAP-F5b · Retiro de IA propia, avatar Napster único y marca Somos Panas
+
+**Pedido:** NAP-F5b — retirar de la web Gemini/OpenAI/AssemblyAI y la voz/chat propios; `NapsterAvatar` (Pana) único asistente en portada raíz, `/create` y portada del legado (intent create), invitación (eventSlug), panel (eventSlug+clave), demo y tutorial; formularios manuales con aviso que abre la avatar; marca visible «Somos Panas».
+
+**Archivos:** borrados `apps/web/src/voice/`, `components/{voice,assistant,chat}/`, `CreateInterview.tsx`, `PayPalAiPanel.tsx`, `public-chat.ts`, `legacy-orb.ts`, `create-interview.ts`, catálogos `voice/guestChat/chat/orb/demoPaypalAi`, 26 pruebas IA y ~760 líneas de CSS; `api/client.ts` sin métodos IA; `Capabilities` extendida en web con `avatar?`; `UI_LABELS` rebrandeados; `package.json` sin `@google/genai` (lock del director intacto).
+
+**Pruebas:** `npx eslint`, `tsc --noEmit`, suite web 61/485 en verde, 0 omitidas; `npm run verificar` exit 0 (mapa y check en verde con `DATABASE_URL` de CI).
+
+## 2026-11-27 — NAP-F4 · Creador en el legado y botón de reunión en la raíz
+
+**Pedido:** NAP-F4 (defecto NAP-F4w2) — avatar con intent:'create' en /create (CreateWizard) y en la portada del legado (LandingView); el panel manda eventSlug y la clave de organizador en la misma cabecera del panel; botón «Organizar una reunión» en la portada raíz hacia /create del host legado (URL desde app-host, nunca del modelo).
+
+**Archivos:** `apps/web/src/components/avatar/*` (prop intent), `CreateWizard.tsx`, `LandingView.tsx`, `OrganizerDashboardView.tsx` (solo montar), `PortalLandingView.tsx` (solo el botón), `apps/web/src/lib/app-host.ts` (helper legacyCreateUrl), `apps/web/src/api/client.ts` (clave en avatar-session), `apps/web/src/i18n/messages/avatar.ts`, prueba `napster-legacy-creator.test.tsx`, `CHANGELOG.md`.
+
+**Pruebas:** focal napster web y `npm run verificar` con `DATABASE_URL` de CI.
+
+## 2026-11-27 — NAP-F4w · Invitado, creador y modo texto Napster
+
+**Pedido:** ENCARGO F4w — saludos de invitado («Te invitaron a {evento}», sesión con eventSlug, 404→público silencioso) y creador (dashboard del organizador) con sus tools, e intent:'create' para la siguiente sesión tras crear espacio; modo texto por WebSocket con la misma avatar («Prefiero leer» y respaldo de 409/micro/WebRTC), con recorrido fijo si el chat también falla.
+
+**Archivos:** `apps/web/src/components/avatar/*` (useNapsterSession con texto+eventSlug+404, NapsterAvatar con props y chat, toolRouter con 4 tools nuevas+setVisitor, sessionIntent, reminderPrefill), `apps/web/src/api/client.ts` (mode/socketUrl locales), `apps/web/src/i18n/messages/avatar.ts`, `apps/web/src/styles/napster-avatar.css`, montaje en `PublicInviteView.tsx` y `OrganizerDashboardView.tsx`, puntos de relleno en `CreateWizard.tsx` (descripción) y `ReminderDrafts.tsx` (campo general), pruebas `napster-text-mode.test.tsx`, `napster-visitors.test.tsx`, `napster-tool-router-f4w.test.ts`, `napster-avatar-session-text.test.ts` (+ 5 aserciones F3 superadas por F4w), `AGENTS.md`, `CHANGELOG.md`.
+
+**Pruebas:** focales napster web y `npm run verificar` con `DATABASE_URL` de CI.
+
+## 2026-11-27 — NAP-F3 · Avatar Napster en la portada (Público)
+
+**Pedido:** ENCARGO F3 — en la portada raíz, una avatar Napster con video y voz recibe al visitante Público: tarjeta de bienvenida con consentimiento explícito (voz y video los procesa Napster), video inline tras el clic, subtítulos, tools del público ejecutadas por la app con listas cerradas y respaldo fijo de lectura (tutorial.json) si el video no está disponible.
+
+**Archivos:** `apps/web/src/components/avatar/NapsterAvatar.tsx`, `apps/web/src/components/avatar/useNapsterSession.ts`, `apps/web/src/components/avatar/toolRouter.ts`, `apps/web/src/i18n/messages/avatar.ts` (+ registro suelto en `messages/index.ts`), `apps/web/src/styles/napster-avatar.css`, `apps/web/src/api/client.ts` (solo `createAvatarSession`, `endAvatarSession`, `queueAvatarSessionEnd` y `AvatarSessionError`), `apps/web/src/views/PortalLandingView.tsx` (solo monta `<NapsterAvatar />` en el hero), pruebas `napster-avatar.test.tsx`, `napster-tool-router.test.ts`, `napster-avatar-session.test.ts`, `AGENTS.md`, `CHANGELOG.md`.
+
+**Pruebas:** `npx vitest run src/__tests__/napster-avatar.test.tsx src/__tests__/napster-tool-router.test.ts src/__tests__/napster-avatar-session.test.ts src/__tests__/portal-landing.test.tsx` (web) y `npm run verificar` con `DATABASE_URL` de CI.
+
+## 2026-11-27 — NAP-F6s · Avatar con la foto del organizador
+
+**Pedido:** NAP-F6s — permitir que el organizador del host legado suba su foto con consentimiento, cree un companion Napster v1 y, cuando esté listo, use agentes propios para recibir a invitados y al organizador; borrar la foto al quedar listo.
+
+**Archivos:** migración `0016_event_avatars.sql`, `apps/api/src/domain/event-avatars.ts`, `apps/api/src/routes/event-avatar.ts`, `apps/api/src/routes/avatar-session.ts`, `apps/api/src/napster/client.ts`, `apps/api/src/app.ts`, `packages/shared/src/avatar-session.ts`, `scripts/napster/diagnostico.mjs`, `apps/api/test/event-avatar.test.ts`, `apps/api/test/avatar-session.test.ts`, `AGENTS.md`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run lint` y typecheck de shared/API en verde; pruebas focales de avatar y `event-avatar.test.ts` en verde con fetch falso. El director ejecuta `npm run verificar`.
+
+## 2026-11-27 — NAP-F5a · Retiro de proveedores de IA y marca Somos Panas
+
+**Pedido:** NAP-F5a — dejar Napster como única IA del servidor: borrar módulos, rutas, configuración, scripts y pruebas de los proveedores anteriores; reportar `avatar` en capacidades; cambiar la marca visible del servidor a Somos Panas; actualizar documentación pública y este registro.
+
+**Archivos:** `apps/api/src/ai/**` (borrado), rutas `chat.ts`, `organizer-assistant.ts`, `suggest.ts`, `reminders.ts`, `voice.ts` (borradas), pruebas de chat/voz/draft/suggest/reminders/policy (borradas), `apps/api/src/app.ts`, `config.ts`, `index.ts`, `routes/deps.ts`, `routes/settings.ts`, `routes/core.ts`, `payments/provider.ts`, `packages/shared/src/index.ts`, `ui-guide.ts`, `apps/api/package.json`, `scripts/check-providers.mjs`, `scripts/smoke-providers.mjs` (borrado), `.env.example`, `email/compose.ts`, `domain/events.ts`, `docs/GEMINI.md` (borrado), `README.md`, `docs/API.md`, `docs/ARCHITECTURE.md`, `docs/JUDGES.md`, `docs/HISTORY.md`, `docs/DEVPOST_DRAFT.md`, `docs/AI_TOOLS.md`, `docs/DEMO_90_SECONDS.md`, `docs/OPERATIONS.md`, `docs/TRASPASO.md`, `docs/ENCARGO-somospanas-napster.md`, `CHANGELOG.md`.
+
+**Pruebas:** `npm run lint` y typecheck del API/shared en verde. El director ejecuta `npm run verificar`. La web queda pendiente de F5b.
+
 ## 2026-11-27 — NAP-F2/F4s · Modo texto, instrucciones, conocimiento y FAQ
 
 **Pedido:** NAP-F4s — extender `POST /api/avatar-session` con `mode:'video'|'text'` (WebSocket + `modality:'text'` y URL del socket resuelta por el servidor), mejorar las instrucciones y los tres saludos, publicar conocimiento es/en, ampliar la FAQ y configurar dos colecciones por idioma y una base de conocimiento opcional en `setup.mjs`.

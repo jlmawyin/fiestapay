@@ -22,7 +22,8 @@ const statusClusterStyle: React.CSSProperties = {
 
 export const DemoRibbon: React.FC<DemoRibbonProps> = ({ capabilities, status, onRetry }) => {
   const resolvedStatus: DemoRibbonStatus = status ?? 'ready';
-  const chatAvailable = Boolean(capabilities?.chat);
+  // NAP-F5b: la cinta refleja capabilities.avatar (ausente = ofrecida).
+  const avatarAvailable = capabilities?.avatar !== false;
   const m = useMessages(ribbonCatalog);
 
   return (
@@ -54,7 +55,7 @@ export const DemoRibbon: React.FC<DemoRibbonProps> = ({ capabilities, status, on
         >
           <span>{m.paypalUnavailable}</span>
           <span>•</span>
-          <span>{m.chatUnavailable}</span>
+          <span>{m.avatarUnavailable}</span>
           {onRetry ? (
             <button type="button" className="demo-ribbon-retry" onClick={onRetry}>
               {m.retry}
@@ -65,7 +66,7 @@ export const DemoRibbon: React.FC<DemoRibbonProps> = ({ capabilities, status, on
         <div className="demo-ribbon-status" style={statusClusterStyle}>
           <span>{capabilities?.paypal ? m.paypalConfigured : m.paypalMissing}</span>
           <span>•</span>
-          <span>{chatAvailable ? m.chatConfigured : m.chatOff}</span>
+          <span>{avatarAvailable ? m.avatarConfigured : m.avatarOff}</span>
         </div>
       )}
     </div>

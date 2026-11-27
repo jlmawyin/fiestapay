@@ -9,12 +9,12 @@ export const demoCatalog = defineCatalog({
     banner: 'Datos ficticios · Sandbox · Sin dinero real',
     intro:
       'Recorrido guiado para jueces: todo lo que ves aquí es ficticio y PayPal está en modo Sandbox, sin dinero real.',
-    aiStepTitle: 'Describe tu fiesta y la IA la arma',
+    aiStepTitle: 'Crea tu fiesta con ayuda de la avatar',
     aiStepText:
-      'Escribe una frase y pulsa el botón: la IA propone la invitación en «Crear» y tú revisas antes de publicar.',
+      'Pulsa el botón para abrir «Crear»: la avatar Pana te ayuda a armar la invitación y tú revisas antes de publicar.',
     aiStepLabel: 'Tu fiesta en una frase',
     quickTitle: 'Prueba el borrador y el pago',
-    quickIntro: 'Envía el ejemplo al chat. Después puedes revisar el borrador o abrir una invitación ficticia para probar PayPal Sandbox.',
+    quickIntro: 'Habla con la avatar y prueba el borrador. Después puedes abrir una invitación ficticia para probar PayPal Sandbox.',
     quickExample: 'Arma una parrillada para 10 personas, $15 por persona, el próximo sábado en Quito.',
     quickSampleActivity: 'Actividad de PayPal de ejemplo',
     aiStepExample: 'Parrillada para 10 amigos, $15 cada uno, el sábado a las 4 pm en el parque',
@@ -59,8 +59,8 @@ export const demoCatalog = defineCatalog({
     step2Text:
       'Crea una comida ficticia, une a Invitado Demo con un acompañante y abre la invitación para que completes el pago manualmente.',
     paymentLoading: 'Preparando pago de prueba...',
-    step3Title: 'Habla con el asistente',
-    step3Text: 'Pregunta cómo funciona FiestaPay en un chat separado del de la portada.',
+    step3Title: 'Habla con Pana, la avatar',
+    step3Text: 'Pregunta a la avatar cómo funciona Somos Panas, aquí mismo en la demo.',
     privateTitle: '¿Prefieres explorar por tu cuenta?',
     privateText:
       'Crea una comida ficticia propia con clave de organizador y abre tu panel real. El pago se prueba en PayPal Sandbox; no hay cobros reales.',
@@ -82,24 +82,24 @@ export const demoCatalog = defineCatalog({
     exportCsv: 'Exportar CSV',
     totals: 'Totales (ficticio)',
     tourAi:
-      'Describe tu fiesta en una frase y pulsa «Crear la fiesta con IA»: la IA propone la invitación y tú la revisas.',
+      'Pulsa «Crear mi invitación»: se abre el formulario y la avatar Pana te ayuda a armarla; tú revisas.',
     tourPreview:
       'Aquí ves la tabla de invitados y pagos de ejemplo. Puedes ordenar, filtrar y buscar sin cambiar nada real.',
     tourPayment:
       'Este botón crea una comida ficticia y abre la invitación para que completes el pago de prueba en PayPal Sandbox.',
-    tourPaypal:
-      'Aquí se explica cómo FiestaPay usa PayPal e IA: la IA prepara y explica, y solo tú apruebas.',
+    tourAvatar:
+      'Aquí habla Pana, la avatar de Somos Panas: explica, prepara borradores y solo tú apruebas.',
   },
   en: {
     banner: 'Fictional data · Sandbox · No real money',
     intro:
       'Guided tour for judges: everything you see here is fictional and PayPal runs in Sandbox mode, with no real money.',
-    aiStepTitle: 'Describe your party — the AI builds it',
+    aiStepTitle: 'Create your party with the avatar',
     aiStepText:
-      'Write one sentence and press the button: the AI drafts the invitation in “Create” and you review before publishing.',
+      'Press the button to open “Create”: the Pana avatar helps you build the invitation and you review before publishing.',
     aiStepLabel: 'Your party in one sentence',
     quickTitle: 'Try the draft and the payment',
-    quickIntro: 'Send the example to the chat. Then review the draft or open a fictional invitation to try PayPal Sandbox.',
+    quickIntro: 'Talk to the avatar and try the draft. Then open a fictional invitation to try PayPal Sandbox.',
     quickExample: 'Build a BBQ for 10 people at $15 each next Saturday in Quito.',
     quickSampleActivity: 'Example PayPal activity',
     aiStepExample: 'BBQ for 10 friends, $15 each, Saturday 4 pm at Central Park',
@@ -144,8 +144,8 @@ export const demoCatalog = defineCatalog({
     step2Text:
       'Create a fictional meal, join Demo Guest with one companion, and open the invitation so you can complete the payment manually.',
     paymentLoading: 'Preparing the test payment...',
-    step3Title: 'Talk to the assistant',
-    step3Text: 'Ask how FiestaPay works in a chat separate from the landing one.',
+    step3Title: 'Talk to Pana, the avatar',
+    step3Text: 'Ask the avatar how Somos Panas works, right here in the demo.',
     privateTitle: 'Prefer to explore on your own?',
     privateText:
       'Create your own fictional meal with an organizer key and open your real dashboard. Payments run in PayPal Sandbox; there are no real charges.',
@@ -167,12 +167,12 @@ export const demoCatalog = defineCatalog({
     exportCsv: 'Export CSV',
     totals: 'Totals (fictional)',
     tourAi:
-      'Describe your party in one sentence and press “Build the party with AI”: the AI drafts the invitation and you review it.',
+      'Press “Create my invitation”: the form opens and the Pana avatar helps you build it; you review.',
     tourPreview:
       'Here is the sample guest and payment table. You can sort, filter, and search without changing anything real.',
     tourPayment:
       'This button creates a fictional meal and opens the invitation so you can complete the test payment in PayPal Sandbox.',
-    tourPaypal:
-      'This panel explains how FiestaPay uses PayPal and AI: the AI prepares and explains, and only you approve.',
+    tourAvatar:
+      'Here speaks Pana, the Somos Panas avatar: she explains, drafts, and only you approve.',
   },
 });

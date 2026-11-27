@@ -19,19 +19,14 @@ vi.mock('ag-grid-react', () => ({
   ),
 }));
 
-vi.mock('../components/assistant/AssistantOrb', () => ({
-  AssistantOrb: ({ audience }: { audience: string }) => (
-    <div data-testid="assistant-orb" data-audience={audience} />
-  ),
-}));
+// NAP-F5b: sin orbe; la avatar Napster real monta en reposo sin red.
 
 const capabilities: Capabilities = {
   paypal: true,
   paypalClientId: 'sb-client',
-  chat: false,
-  voice: false,
   sandbox: true,
   email: true,
+  avatar: true,
 };
 
 function event(over: Partial<FiestaEvent> = {}): FiestaEvent {
@@ -113,10 +108,10 @@ afterEach(() => {
 });
 
 describe('product landing', () => {
-  it('shows the story, both CTAs, the sandbox note, recovery and the unified orb', async () => {
+  it('shows the story, both CTAs, the sandbox note, recovery and the Napster avatar', async () => {
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'Tu anfitrión con IA que cobra la parte de cada uno con PayPal' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Tu anfitrión que cobra la parte de cada uno con PayPal' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Crear mi invitación' }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: 'Demo para jueces' }).length).toBeGreaterThan(0);
     expect(screen.getByText('Sandbox · Sin dinero real')).toBeInTheDocument();
@@ -129,7 +124,7 @@ describe('product landing', () => {
     // The demos-only reset lives in /demo, never on the landing.
     expect(screen.queryByRole('button', { name: 'Reiniciar mis demos' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Reiniciar Demo' })).toBeNull();
-    expect(screen.getByTestId('assistant-orb')).toHaveAttribute('data-audience', 'public');
+    expect(screen.getByTestId('napster-avatar')).toBeInTheDocument();
   });
 });
 
@@ -144,8 +139,6 @@ describe('explicit PayPal payment demo', () => {
     vi.spyOn(api, 'getEventBySlug').mockResolvedValue({ event: createdEvent, guest: guest() });
     const createOrder = vi.spyOn(api, 'createOrder');
     const captureOrder = vi.spyOn(api, 'captureOrder');
-    const sendChat = vi.spyOn(api, 'sendChat');
-    const publicVoice = vi.spyOn(api, 'getPublicVoiceToken');
     const resetDemo = vi.spyOn(api, 'resetDemo');
 
     window.history.replaceState({}, '', '/demo');
@@ -172,8 +165,6 @@ describe('explicit PayPal payment demo', () => {
     expect(rsvp.mock.invocationCallOrder[0]).toBeGreaterThan(joinEvent.mock.invocationCallOrder[0]!);
     expect(createOrder).not.toHaveBeenCalled();
     expect(captureOrder).not.toHaveBeenCalled();
-    expect(sendChat).not.toHaveBeenCalled();
-    expect(publicVoice).not.toHaveBeenCalled();
     expect(resetDemo).not.toHaveBeenCalled();
     expect(await screen.findByRole('button', { name: 'Ver cuenta de prueba' })).toBeInTheDocument();
   });

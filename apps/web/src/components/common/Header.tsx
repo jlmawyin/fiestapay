@@ -69,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 900, color: 'var(--color-ink)', lineHeight: 1.1 }}>
-              FiestaPay
+              Somos Panas
             </div>
             <div style={{ fontSize: '0.725rem', color: 'var(--color-teal)', fontWeight: 700, letterSpacing: '0.02em' }}>
               {m.tagline}

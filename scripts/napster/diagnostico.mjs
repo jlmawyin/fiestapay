@@ -26,13 +26,13 @@ function normalizar(item) {
     (typeof item?.name === 'string' && item.name) ||
     [item?.firstName, item?.lastName].filter((parte) => typeof parte === 'string' && parte).join(' ') ||
     (typeof item?.displayName === 'string' ? item.displayName : '');
-  const imagen =
-    item?.imageUrl ?? item?.pictureUrl ?? item?.avatarUrl ?? item?.thumbnailUrl ?? item?.image ?? null;
   return {
     id: typeof item?.id === 'string' ? item.id : String(item?.id ?? ''),
     nombre: nombre || null,
     genero: typeof item?.gender === 'string' ? item.gender : null,
-    imagenUrl: typeof imagen === 'string' ? imagen : null,
+    ethnicity: typeof item?.ethnicity === 'string' ? item.ethnicity : null,
+    previewUrl: typeof item?.previewUrl === 'string' ? item.previewUrl : null,
+    videoLoopUrl: typeof item?.videoLoopUrl === 'string' ? item.videoLoopUrl : null,
   };
 }
 

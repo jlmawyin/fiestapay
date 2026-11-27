@@ -3,14 +3,11 @@ import { join } from 'node:path';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
-import type { CreateGeminiVoiceTokenFn } from './ai/gemini-live.js';
-import type { RespondFn } from './ai/openai.js';
 import { loadConfig, type Config } from './config.js';
 import { createSmtpEmail } from './email/smtp.js';
 import type { EmailAdapter } from './email/types.js';
 import type { Pool } from './db/pool.js';
 import { HttpError } from './errors.js';
-import { requestLocale } from './lib/locale.js';
 import {
   classifyHost,
   isHealthProbeExempt,
@@ -28,13 +25,9 @@ import { registerAccountRoutes } from './routes/accounts.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerSiteRoutes } from './routes/sites.js';
 import { registerRecoveryRoutes } from './routes/recovery.js';
-import { registerChatRoutes } from './routes/chat.js';
-import { registerSuggestRoutes } from './routes/suggest.js';
-import { registerReminderRoutes } from './routes/reminders.js';
-import { registerOrganizerAssistantRoutes } from './routes/organizer-assistant.js';
 import { registerModerationRoutes } from './routes/moderation.js';
-import { registerVoiceRoutes } from './routes/voice.js';
 import { registerAvatarSessionRoutes } from './routes/avatar-session.js';
+import { registerEventAvatarMediaRoute, registerEventAvatarRoutes } from './routes/event-avatar.js';
 import { registerPortalRoutes } from './routes/portal.js';
 import { registerCoreRoutes } from './routes/core.js';
 import { registerPaymentRoutes } from './routes/payments.js';
@@ -53,12 +46,6 @@ export interface BuildAppOptions {
    * and an unconfigured server stays on null instead of pretending mail was sent.
    */
   email?: EmailAdapter | null;
-  /** Scripted model for tests; omitted in production so the selected provider REST call is used. */
-  respond?: RespondFn;
-  /** Scripted Gemini token seam for tests; omitted in production so the SDK is used. */
-  createVoiceToken?: CreateGeminiVoiceTokenFn;
-  /** Deterministic assistant deadline for tests; production uses the 40 s constant. */
-  assistantDeadlineMs?: number;
   logger?: boolean;
   /** Test-only destination for the structured log, so a failure can be asserted verbatim. */
   logStream?: { write: (message: string) => void };
@@ -239,26 +226,12 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     return reply.code(404).send({ error: 'Ruta no encontrada' });
   });
 
-  // Both entry points share one five-drafts-per-minute bucket per client IP.
-  const draftLimit = config.rateLimitEnabled ? app.createRateLimit({ max: 5, timeWindow: '1 minute' }) : null;
+  // NAP-F5a: se retiraron los borradores de IA; no queda límite de borradores que registrar.
   const deps: RouteDeps = {
-    ...(draftLimit ? {
-      checkDraftLimit: async (req, reply) => {
-        const result = await draftLimit(req);
-        if (result.isAllowed || !result.isExceeded) return;
-        reply.header('Retry-After', String(result.ttlInSeconds));
-        throw new HttpError(429, requestLocale(req) === 'en'
-          ? 'Too many invitation drafts. Try again in a minute.'
-          : 'Demasiados borradores de invitación. Intenta de nuevo en un minuto.');
-      },
-    } : {}),
     pool,
     config,
     paypal,
     email,
-    ...(options.respond ? { respond: options.respond } : {}),
-    ...(options.createVoiceToken ? { createVoiceToken: options.createVoiceToken } : {}),
-    ...(options.assistantDeadlineMs ? { assistantDeadlineMs: options.assistantDeadlineMs } : {}),
   };
   await app.register(
     async (api) => {
@@ -268,17 +241,16 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       await registerSiteRoutes(api, deps);
       await registerRecoveryRoutes(api, deps);
       await registerPaymentRoutes(api, deps);
-      await registerChatRoutes(api, deps);
-      await registerSuggestRoutes(api, deps);
-      await registerReminderRoutes(api, deps);
-      await registerOrganizerAssistantRoutes(api, deps);
       await registerModerationRoutes(api, deps);
-      await registerVoiceRoutes(api, deps);
       await registerAvatarSessionRoutes(api, deps);
+      await registerEventAvatarRoutes(api, deps);
       await registerPortalRoutes(api, deps);
     },
     { prefix: '/api' },
   );
+
+  // NAP-F6s: la foto debe ser pública para que Napster la descargue; queda fuera del prefijo /api.
+  await registerEventAvatarMediaRoute(app, deps);
 
   if (serveWeb) {
     const fastifyStatic = (await import('@fastify/static')).default;

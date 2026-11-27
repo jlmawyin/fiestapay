@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { PRODUCT_TUTORIAL_HINTS, UI_LABELS, UI_TARGETS, type Locale, type UiTarget } from '@fiestapay/shared';
 import { useI18n, useMessages } from '../i18n/I18nContext';
-import { orbCatalog } from '../i18n/catalogs/orb';
+import { guideCatalog } from './guide-texts';
 import { demoCatalog } from '../i18n/catalogs/demo';
 import {
   GUIDE_HIDE_EVENT,
@@ -14,12 +14,10 @@ import {
   GUIDE_SHOW_EVENT,
   GUIDE_TOUR_EVENT,
   GUIDE_VISIBLE_EVENT,
-  VOICE_ACTIVITY_EVENT,
   findGuideTarget,
   type GuideShowDetail,
   type GuideTourDetail,
   type GuideVisibleDetail,
-  type VoiceActivityDetail,
 } from './showOnScreen';
 import { guideIsMobileViewport, guideStepFor, startGuideScroll } from './step-preview';
 
@@ -61,7 +59,9 @@ function tourTextFor(step: UiTarget, demo: (typeof demoCatalog)['es'], locale: L
   if (step === 'aiBuildParty') return demo.tourAi;
   if (step === 'previewPanel') return demo.tourPreview;
   if (step === 'paymentDemo') return demo.tourPayment;
-  if (step === 'paypalAiPanel') return demo.tourPaypal;
+  // NAP-F5b: el panel PayPal+IA murió; la parada conserva su id de contrato
+  // (DEMO_TOUR es compartido con el servidor) y el texto describe la avatar.
+  if (step === 'paypalAiPanel') return demo.tourAvatar;
   if (step in PRODUCT_TUTORIAL_HINTS[locale]) {
     const hints = PRODUCT_TUTORIAL_HINTS[locale];
     return hints[step as keyof typeof hints];
@@ -75,15 +75,12 @@ function defaultCaptionFor(locale: Locale, target: UiTarget, tapHere: (label: st
 
 export const GuideOverlay: React.FC = () => {
   const { locale } = useI18n();
-  const orb = useMessages(orbCatalog);
+  const guide = useMessages(guideCatalog);
   const demo = useMessages(demoCatalog);
   const reducedMotion = useReducedMotion();
   const [spot, setSpot] = useState<Spot | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [bubbleHeight, setBubbleHeight] = useState(0);
-  const [voiceActive, setVoiceActive] = useState(false);
-  const voiceActiveRef = useRef(false);
-  const voiceSpeakingRef = useRef(false);
   const spotRef = useRef<Spot | null>(null);
   spotRef.current = spot;
   const elementRef = useRef<HTMLElement | null>(null);
@@ -187,7 +184,6 @@ export const GuideOverlay: React.FC = () => {
         target: element,
         step: guideStepFor(element),
         reducedMotion,
-        previewReady: voiceActiveRef.current ? () => voiceSpeakingRef.current : undefined,
       });
     }
     const focusable = /^(A|BUTTON|INPUT|SELECT|TEXTAREA)$/.test(element.tagName) || element.hasAttribute('tabindex');
@@ -255,32 +251,15 @@ export const GuideOverlay: React.FC = () => {
     };
   }, [spot, resolveElement, close]);
 
-  // A live voice session owns the highlight lifetime: it closes when the session
-  // ends, never on a timer. Only the active→inactive transition closes, so idle
-  // panels mounting or unmounting never dismiss a highlight.
-  useEffect(() => {
-    const onVoiceActivity = (event: Event) => {
-      const detail = (event as CustomEvent<VoiceActivityDetail>).detail;
-      if (!detail) return;
-      const wasActive = voiceActiveRef.current;
-      voiceActiveRef.current = detail.active;
-      voiceSpeakingRef.current = detail.active && detail.status === 'speaking';
-      setVoiceActive(detail.active);
-      if (wasActive && !detail.active) close();
-    };
-    document.addEventListener(VOICE_ACTIVITY_EVENT, onVoiceActivity);
-    return () => document.removeEventListener(VOICE_ACTIVITY_EVENT, onVoiceActivity);
-  }, [close]);
-
-  // Auto-close 12 s after a text-label highlight only. Tour steps advance or exit
-  // explicitly, and a live voice session may keep explaining past 12 s.
+  // Auto-close 12 s after a text-label highlight only. Tour steps advance or
+  // exit explicitly. NAP-F5b: la voz propia murió; ningún evento externo
+  // alarga el resaltado.
   useEffect(() => {
     if (!spot) return;
     if (spot.tour) return;
-    if (voiceActive) return;
     const timer = window.setTimeout(close, AUTO_CLOSE_MS);
     return () => window.clearTimeout(timer);
-  }, [spot, voiceActive, close]);
+  }, [spot, close]);
 
   // Esc closes. On mobile, swiping through a tour keeps its Next and Exit controls.
   useEffect(() => {
@@ -306,7 +285,7 @@ export const GuideOverlay: React.FC = () => {
   const placement: 'top' | 'bottom' =
     rect && rect.top + rect.height / 2 < viewportHeight / 2 ? 'bottom' : 'top';
 
-  // Announce visibility + placement so the voice mini-bar parks on the other half.
+  // Anuncia visibilidad + colocación para oyentes de apoyo.
   useEffect(() => {
     if (!spot || !rect) return;
     try {
@@ -325,14 +304,11 @@ export const GuideOverlay: React.FC = () => {
   const tourIndex = spot.tour?.index;
   const tourSteps = spot.tour?.steps;
   const isTour = tourIndex !== undefined && tourSteps !== undefined;
-  // fillWithAi always uses the fixed caption: a model caption like "Filling the
-  // party details with AI" wrongly suggests the AI is already working before
-  // the person presses anything.
+  // NAP-F5b: el botón de armar con IA se reemplazó por la avatar; la rama
+  // con caption fijo de IA muere con él y el resaltado usa caption genérico.
   const body =
     (isTour && tourSteps[tourIndex] ? tourTextFor(tourSteps[tourIndex], demo, locale) : null) ??
-    (spot.target === 'fillWithAi'
-      ? orb.guideFillWithAi
-      : (spot.caption ?? defaultCaptionFor(locale, spot.target, orb.guideTapHere)));
+    (spot.caption ?? defaultCaptionFor(locale, spot.target, guide.guideTapHere));
 
   const viewportWidth = window.innerWidth || 375;
   const bubbleLeft = Math.min(
@@ -397,7 +373,7 @@ export const GuideOverlay: React.FC = () => {
                 close();
               }}
             >
-              {orb.guideNext}
+              {guide.guideNext}
             </button>
             <button
               type="button"
@@ -409,7 +385,7 @@ export const GuideOverlay: React.FC = () => {
                 close();
               }}
             >
-              {orb.guideExit}
+              {guide.guideExit}
             </button>
           </div>
         ) : null}

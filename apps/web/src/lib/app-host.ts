@@ -1,5 +1,5 @@
 /**
- * Clasifica el host del navegador en raíz Somos Panas, legado FiestaPay o sitio de grupo (SP-6).
+ * Clasifica el host del navegador en raíz Somos Panas, legado o sitio de grupo (SP-6).
  * Depende de `site-host.ts` y de `window.location.hostname`.
  */
 // NAP-F1b: tipos de `import.meta.env` sin archivo ambient adicional en web.
@@ -69,4 +69,17 @@ export function readAppHostContext(hostname: string = window.location.hostname):
   }
 
   return { kind: 'legacy', isSiteHost: false, slug: null };
+}
+
+const LEGACY_PROD_HOST = 'fiestapay.somospanas.com';
+
+/**
+ * URL de /create en el host legado (NAP-F4, demo): absoluta en producción y
+ * relativa en desarrollo, donde un solo servidor sirve todos los hosts.
+ * Entrada: hostname opcional (por defecto el visible); la vista nunca la arma.
+ */
+export function legacyCreateUrl(hostname: string = window.location.hostname): string {
+  const normalized = hostname.toLowerCase();
+  if (normalized === 'localhost' || normalized === '127.0.0.1') return '/create';
+  return `https://${LEGACY_PROD_HOST}/create`;
 }

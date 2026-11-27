@@ -6,11 +6,9 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { forbidden, notFound } from '../errors.js';
 import { currentAccount } from '../domain/accounts.js';
 import {
-  assertSiteAssistantVoiceAllowed,
   parseAndValidateSiteSettings,
   readPublicSiteSettings,
   readTenantSettingsForAdmin,
-  siteAssistantModuleEnabled,
   updateTenantSiteSettings,
 } from '../domain/tenant-settings.js';
 import type { RouteDeps } from './deps.js';
@@ -36,7 +34,7 @@ async function requireSiteAdminUser(deps: RouteDeps, req: FastifyRequest): Promi
 }
 
 /**
- * Registra GET/PUT de configuración, lectura pública de marca y stub de voz del sitio (404 hasta SP-10).
+ * Registra GET/PUT de configuración y lectura pública de marca.
  * Entrada: instancia Fastify y `RouteDeps`. Salida: void cuando las rutas quedan montadas.
  */
 export async function registerSettingsRoutes(app: FastifyInstance, deps: RouteDeps): Promise<void> {
@@ -61,15 +59,5 @@ export async function registerSettingsRoutes(app: FastifyInstance, deps: RouteDe
     const settings = parseAndValidateSiteSettings(req.body);
     const saved = await updateTenantSiteSettings(pool, hostSlug, userId, settings);
     return { settings: saved };
-  });
-
-  /**
-   * SP5-D-5: sin token efímero real hasta SP-10; la guarda del módulo sigue activa y siempre 404 después.
-   */
-  app.post('/site/voice/public/token', async (req) => {
-    const hostSlug = assertSiteHost(req);
-    const enabled = await siteAssistantModuleEnabled(pool, hostSlug);
-    assertSiteAssistantVoiceAllowed(enabled);
-    throw notFound('Ruta no encontrada');
   });
 }

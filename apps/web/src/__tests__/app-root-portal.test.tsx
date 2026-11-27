@@ -1,13 +1,14 @@
 /**
- * SP6-D-3 — en host raíz no se monta el tutorial FiestaPay al visitar /tutorial.
+ * SP6-D-3 — en host raíz no se monta el tutorial del legado al visitar /tutorial.
  */
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../i18n/I18nContext';
 import { App } from '../App';
 
-vi.mock('../lib/app-host', () => ({
-  readAppHostContext: () => ({ kind: 'somospanas-root', isSiteHost: false, slug: null }),
+vi.mock('../lib/app-host', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/app-host')>()),
+  readAppHostContext: () => ({ kind: 'somospanas-root' as const, isSiteHost: false, slug: null }),
 }));
 
 vi.mock('../api/client', async (importOriginal) => {
@@ -29,7 +30,7 @@ describe('App en host raíz Somos Panas', () => {
     window.history.pushState({}, '', '/tutorial');
   });
 
-  it('mantiene la portada C2 y no muestra TutorialView de FiestaPay', async () => {
+  it('mantiene la portada C2 y no muestra TutorialView del legado', async () => {
     render(
       <I18nProvider>
         <App />

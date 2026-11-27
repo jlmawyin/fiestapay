@@ -36,13 +36,42 @@ export const avatarSessionResponseSchema = z
     handle: z.string().uuid(),
     visitor: z.enum(AVATAR_VISITORS),
     lang: z.enum(AVATAR_LANGS),
-    agent: z.literal('default'),
+    agent: z.enum(['default', 'custom']),
     /** Solo en modo texto: URL del socket ya resuelta por el servidor desde el token. */
     socketUrl: z.string().url().optional(),
   })
   .strict();
 
 export type AvatarSessionResponse = z.infer<typeof avatarSessionResponseSchema>;
+
+export const EVENT_AVATAR_STATUSES = ['none', 'uploaded', 'generating', 'ready', 'failed'] as const;
+export type EventAvatarStatus = (typeof EVENT_AVATAR_STATUSES)[number];
+
+export const eventAvatarUploadSchema = z
+  .object({
+    consent: z.literal(true),
+    firstName: z.string().trim().min(1).max(60),
+    /** Data URL base64 de JPEG o PNG; el servidor comprueba mime, magia y tamaño. */
+    photo: z.string().min(1),
+  })
+  .strict();
+
+export type EventAvatarUpload = z.infer<typeof eventAvatarUploadSchema>;
+
+export const eventAvatarStatusSchema = z
+  .object({
+    status: z.enum(EVENT_AVATAR_STATUSES),
+    firstName: z.string().nullable(),
+    ready: z.boolean(),
+  })
+  .strict();
+
+export type EventAvatarStatusResponse = z.infer<typeof eventAvatarStatusSchema>;
+
+export const EVENT_AVATAR_ERRORS = ['avatar_upstream', 'avatar_limit', 'avatar_not_found'] as const;
+export type EventAvatarErrorCode = (typeof EVENT_AVATAR_ERRORS)[number];
+
+export const eventAvatarErrorSchema = z.object({ error: z.enum(EVENT_AVATAR_ERRORS) }).strict();
 
 /** Cierre idempotente de una sesión por su handle opaco. */
 export const avatarSessionEndSchema = z.object({ handle: z.string().uuid() }).strict();

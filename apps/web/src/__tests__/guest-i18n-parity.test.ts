@@ -14,11 +14,9 @@ describe('guest catalog ES/EN parity', () => {
   it('registers every guest-journey catalog', () => {
     expect(Object.keys(ALL_GUEST_CATALOGS).sort()).toEqual([
       'funding',
-      'guestChat',
       'invite',
       'paypal',
       'rsvp',
-      'voice',
     ]);
   });
 
@@ -58,11 +56,6 @@ describe('guest catalog ES/EN parity', () => {
       const funding = ALL_GUEST_CATALOGS.funding[side] as unknown as Record<string, (...args: any[]) => string>;
       expect(funding.confirmedPeople(2).length, `funding.${side}.confirmedPeople`).toBeGreaterThan(0);
       expect(funding.progressMin(99).length, `funding.${side}.progressMin`).toBeGreaterThan(0);
-      const chat = ALL_GUEST_CATALOGS.guestChat[side] as unknown as Record<string, (...args: any[]) => string>;
-      expect(chat.quoteLine(2).length, `guestChat.${side}.quoteLine`).toBeGreaterThan(0);
-      expect(chat.attend(2, 'x').length, `guestChat.${side}.attend`).toBeGreaterThan(0);
-      const voice = ALL_GUEST_CATALOGS.voice[side] as unknown as Record<string, (...args: any[]) => string>;
-      expect(voice.cooldownWait(15).length, `voice.${side}.cooldownWait`).toBeGreaterThan(0);
       const rsvp = ALL_GUEST_CATALOGS.rsvp[side] as unknown as Record<string, (...args: any[]) => string>;
       expect(rsvp.fullCapacity(10).length, `rsvp.${side}.fullCapacity`).toBeGreaterThan(0);
     }

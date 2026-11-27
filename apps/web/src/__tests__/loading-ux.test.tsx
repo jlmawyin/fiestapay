@@ -18,10 +18,9 @@ function deferred<T>() {
 const pendingCaps: Capabilities = {
   paypal: false,
   paypalClientId: null,
-  chat: false,
-  voice: false,
   sandbox: true,
   email: false,
+  avatar: false,
 };
 
 const createdEvent: CreatedEvent = {
@@ -79,7 +78,7 @@ afterEach(() => {
 });
 
 describe('capability ribbon pending and failure states', () => {
-  it('does not flash PayPal/Chat configuration while the capabilities GET is pending, then shows resolved false', async () => {
+  it('does not flash PayPal/avatar configuration while the capabilities GET is pending, then shows resolved false', async () => {
     const caps = deferred<Capabilities>();
     vi.spyOn(api, 'getCapabilities').mockReturnValue(caps.promise);
     vi.spyOn(api, 'getOrganizerEvents').mockResolvedValue({ events: [] });
@@ -87,21 +86,19 @@ describe('capability ribbon pending and failure states', () => {
     render(<App />);
 
     expect(screen.getByText('PAGO DE PRUEBA')).toBeInTheDocument();
-    expect(screen.getByText(/Comprobando PayPal y chat/)).toBeInTheDocument();
+    expect(screen.getByText(/Comprobando PayPal y avatar/)).toBeInTheDocument();
     expect(screen.queryByText(/No configurado/i)).toBeNull();
-    expect(screen.queryByText(/Desactivado/i)).toBeNull();
-    expect(screen.queryByText(/Configurado/i)).toBeNull();
-    expect(screen.queryByText(/gemini/i)).toBeNull();
+    expect(screen.queryByText(/Desactivad/i)).toBeNull();
+    expect(screen.queryByText(/Configurad/i)).toBeNull();
 
     await act(async () => {
       caps.resolve(pendingCaps);
     });
 
     expect(await screen.findByText('PayPal: No configurado')).toBeInTheDocument();
-    expect(screen.getByText('Chat: Desactivado')).toBeInTheDocument();
+    expect(screen.getByText('Avatar: Desactivada')).toBeInTheDocument();
     expect(screen.getByText('PAGO DE PRUEBA')).toBeInTheDocument();
-    expect(screen.queryByText(/Comprobando PayPal y chat/)).toBeNull();
-    expect(screen.queryByText(/gemini/i)).toBeNull();
+    expect(screen.queryByText(/Comprobando PayPal y avatar/)).toBeNull();
   });
 
   it('shows an unavailable ribbon with retry after capabilities failure, not a configured or unconfigured guess', async () => {
@@ -111,20 +108,19 @@ describe('capability ribbon pending and failure states', () => {
     render(<App />);
 
     expect(await screen.findByText('PayPal: No disponible')).toBeInTheDocument();
-    expect(screen.getByText('Chat: No disponible')).toBeInTheDocument();
+    expect(screen.getByText('Avatar: No disponible')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reintentar Conexión' })).toBeInTheDocument();
     expect(screen.queryByText(/No configurado/i)).toBeNull();
-    expect(screen.queryByText(/Desactivado/i)).toBeNull();
-    expect(screen.queryByText(/Configurado/i)).toBeNull();
-    expect(screen.queryByText(/gemini/i)).toBeNull();
+    expect(screen.queryByText(/Desactivad/i)).toBeNull();
+    expect(screen.queryByText(/Configurad/i)).toBeNull();
 
     const retryCaps = deferred<Capabilities>();
     getCaps.mockReturnValue(retryCaps.promise);
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
 
     expect(getCaps).toHaveBeenCalledTimes(2);
-    expect(await screen.findByText(/Comprobando PayPal y chat/)).toBeInTheDocument();
+    expect(await screen.findByText(/Comprobando PayPal y avatar/)).toBeInTheDocument();
     expect(screen.queryByText('PayPal: No disponible')).toBeNull();
 
     await act(async () => {
@@ -132,7 +128,7 @@ describe('capability ribbon pending and failure states', () => {
     });
 
     expect(await screen.findByText('PayPal: No configurado')).toBeInTheDocument();
-    expect(screen.getByText('Chat: Desactivado')).toBeInTheDocument();
+    expect(screen.getByText('Avatar: Desactivada')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reintentar' })).toBeNull();
   });
 });
@@ -141,7 +137,6 @@ describe('create event pending progress and duplicate protection', () => {
   it('shows indeterminate creating status and issues one POST under a double submit', async () => {
     const pending = deferred<CreatedEvent>();
     const createEvent = vi.spyOn(api, 'createEvent').mockReturnValue(pending.promise);
-    const sendChat = vi.spyOn(api, 'sendChat');
     const onEventCreated = vi.fn();
     const onShowToast = vi.fn();
 
@@ -164,7 +159,6 @@ describe('create event pending progress and duplicate protection', () => {
     expect(screen.queryByText(/\d+\s*%/)).toBeNull();
     expect(screen.queryByText(/paso\s+\d/i)).toBeNull();
     expect(createEvent).toHaveBeenCalledTimes(1);
-    expect(sendChat).not.toHaveBeenCalled();
     expect(onEventCreated).not.toHaveBeenCalled();
     expect(screen.queryByLabelText('Enlaces de la invitación')).toBeNull();
 
@@ -180,7 +174,6 @@ describe('create event pending progress and duplicate protection', () => {
       'Invitación creada',
     );
     expect(createEvent).toHaveBeenCalledTimes(1);
-    expect(sendChat).not.toHaveBeenCalled();
     expect(screen.queryByRole('status')).toBeNull();
   });
 

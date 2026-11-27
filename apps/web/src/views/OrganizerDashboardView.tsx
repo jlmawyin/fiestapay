@@ -4,6 +4,8 @@ import { UI_LABELS, formatEventDateTime, themePhrase, type Locale } from '@fiest
 import type { Dashboard, Capabilities, EventInput, ModerationGuest } from '../types';
 import { api, ApiError } from '../api/client';
 import { adminKeyFor, rememberAdminKey } from '../api/admin-key';
+import { NapsterAvatar } from '../components/avatar/NapsterAvatar';
+import { EventAvatarSection } from '../components/avatar/EventAvatarSection';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { dashboardCatalog } from '../i18n/messages/organizerDashboard';
 import { GuestGrid } from '../components/dashboard/GuestGrid';
@@ -15,7 +17,7 @@ import { RecoveryEmailCard } from '../components/dashboard/RecoveryEmailCard';
 import { QrShareModal } from '../components/dashboard/QrShareModal';
 import { CreateEventForm } from '../components/events/CreateEventForm';
 import { Modal } from '../components/common/Modal';
-import { OrganizerAssistant } from '../components/chat/OrganizerAssistant';
+// NAP-F5b: el chat propio murió; NapsterAvatar es el único asistente.
 import { FundingStatusPanel, formatEventInstant } from '../components/common/FundingStatusPanel';
 import { ThemeScope } from '../components/events/ThemeScope';
 import {
@@ -412,6 +414,9 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         </div>
       </div>
 
+      <NapsterAvatar eventSlug={slug} avatarEnabled={capabilities?.avatar !== false} />
+      <EventAvatarSection slug={slug} />
+
       {storedKey ? (
         <>
           <OrganizerLinkCard slug={slug} adminKey={storedKey} recoveryAvailable={capabilities?.email === true} />
@@ -609,7 +614,7 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         </p>
       </section>
 
-      <ReminderDrafts slug={slug} />
+      <ReminderDrafts />
 
       {/* Audit Trail */}
       {audit && audit.length > 0 && (
@@ -680,11 +685,6 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         </div>
       </Modal>
 
-      <OrganizerAssistant
-        slug={slug}
-        capabilities={capabilities}
-        theme={{ template: event.template, themeKey: event.theme, meal: event.meal }}
-      />
     </div>
     </ThemeScope>
   );

@@ -32,8 +32,9 @@ vi.mock('../../../../contenido/portada.json', () => ({
   },
 }));
 
-vi.mock('../lib/app-host', () => ({
-  readAppHostContext: () => ({ kind: 'somospanas-root', isSiteHost: false, slug: null }),
+vi.mock('../lib/app-host', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/app-host')>()),
+  readAppHostContext: () => ({ kind: 'somospanas-root' as const, isSiteHost: false, slug: null }),
 }));
 
 function mount(overrides?: Partial<Parameters<typeof PortalLandingView>[0]>) {
@@ -82,7 +83,7 @@ describe('PortalLandingView (SP-6)', () => {
     expect(within(screen.getByTestId('portal-footer')).getByText(portada.barra.marca.es)).toBeTruthy();
   });
 
-  it('el botón del hero lleva a la sección de pasos, no al tutorial FiestaPay (SP6-D-3)', () => {
+  it('el botón del hero lleva a la sección de pasos, no al tutorial del legado (SP6-D-3)', () => {
     mount();
     fireEvent.click(screen.getByTestId('portal-hero-tutorial'));
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled();

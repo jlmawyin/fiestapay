@@ -11,13 +11,10 @@ import { createPool, type Pool } from '../src/db/pool.js';
 import type { EmailAdapter, EmailSendResult, OutboundEmail } from '../src/email/types.js';
 import { hashPassword, hmacEmailHash, resolveEmailHmacKey } from '../src/domain/accounts.js';
 import {
-  assertSiteAssistantVoiceAllowed,
   assertSiteColorContrast,
   DEFAULT_SITE_COLORS,
   type TenantSiteSettings,
 } from '../src/domain/tenant-settings.js';
-import { HttpError } from '../src/errors.js';
-import { LEGACY_TENANT_SLUG } from '../src/lib/host.js';
 import { announceSkipWithoutDatabase, DATABASE_URL, MERCHANT, testConfig } from './harness.js';
 import { FakePayPal } from './fake-paypal.js';
 
@@ -28,7 +25,6 @@ if (!DATABASE_URL) {
 
 const ROOT_ORIGIN = 'https://somospanas.com';
 const ROOT_HOST = 'somospanas.com';
-const LEGACY_HOST = 'fiestapay.somospanas.com';
 const LEGACY_ORIGIN = 'https://fiestapay.somospanas.com';
 const PASSWORD = 'contraseña-segura-8';
 const HMAC_KEY = resolveEmailHmacKey({ NODE_ENV: 'test' });
@@ -302,48 +298,6 @@ describe('tenant-settings SP-5', () => {
     });
     expect(res.statusCode).toBe(400);
     expect(res.body).toMatch(/payment_provider/);
-  });
-
-  it('assertSiteAssistantVoiceAllowed lanza 404 cuando el módulo está apagado', () => {
-    expect(() => assertSiteAssistantVoiceAllowed(false)).toThrow(HttpError);
-    expect(() => assertSiteAssistantVoiceAllowed(true)).not.toThrow();
-  });
-
-  it('POST /api/site/voice/public/token responde 404 hasta SP-10 (SP5-D-5)', async () => {
-    const slug = `sp5v${randomBytes(3).toString('hex')}`;
-    const tenant = await seedTenant(pool, slug, 'Sin voz');
-    await pool.query(`UPDATE tenant_settings SET modulo_asistente = false WHERE tenant_id = $1`, [tenant]);
-
-    const off = await injectJson(app, 'POST', '/api/site/voice/public/token', {
-      host: `${slug}.somospanas.com`,
-      origin: `https://${slug}.somospanas.com`,
-      payload: { consent: true },
-    });
-    expect(off.statusCode).toBe(404);
-
-    await pool.query(`UPDATE tenant_settings SET modulo_asistente = true WHERE tenant_id = $1`, [tenant]);
-    const on = await injectJson(app, 'POST', '/api/site/voice/public/token', {
-      host: `${slug}.somospanas.com`,
-      origin: `https://${slug}.somospanas.com`,
-      payload: { consent: true },
-    });
-    expect(on.statusCode).toBe(404);
-  });
-
-  it('en host legado la voz pública no consulta modulo_asistente', async () => {
-    const { rows } = await pool.query<{ id: string }>(`SELECT id FROM tenants WHERE slug = $1`, [LEGACY_TENANT_SLUG]);
-    const legacyId = rows[0]?.id;
-    expect(legacyId).toBeTruthy();
-    await pool.query(`UPDATE tenant_settings SET modulo_asistente = false WHERE tenant_id = $1`, [legacyId]);
-
-    const legacyVoice = await injectJson(app, 'POST', '/api/voice/public/token', {
-      host: LEGACY_HOST,
-      origin: LEGACY_ORIGIN,
-      payload: { consent: true },
-    });
-    expect(legacyVoice.statusCode).not.toBe(404);
-
-    await pool.query(`UPDATE tenant_settings SET modulo_asistente = true WHERE tenant_id = $1`, [legacyId]);
   });
 
   it('GET /api/site/profile expone la configuración sin sesión', async () => {

@@ -34,11 +34,10 @@ afterEach(() => {
 
 const caps: Capabilities = {
   paypal: false,
-  voice: false,
   paypalClientId: null,
   sandbox: true,
-  chat: true,
   email: false,
+  avatar: true,
 };
 
 function eventOf(): FiestaEvent {
@@ -145,10 +144,6 @@ describe('moderacion en la interfaz', () => {
     sessionStorage.setItem('fiestapay_order_fiesta', JSON.stringify({ orderId: 'ORD-1', status: 'capturing', approveUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=ORD-1' }));
     vi.spyOn(api, 'getEventBySlug').mockResolvedValue({ event: eventOf(), guest });
     vi.spyOn(api, 'getOrder').mockResolvedValue({ status: 'capturing', guest });
-    vi.spyOn(api, 'getChatHistory').mockResolvedValue({
-      messages: [{ id: '88', role: 'assistant', text: 'Historial real del servidor', createdAt: '2026-10-27T15:02:00.000Z' }],
-    });
-    const send = vi.spyOn(api, 'sendChat');
 
     render(<PublicInviteView slug="fiesta" capabilities={caps} onShowToast={vi.fn()} onNavigateHome={vi.fn()} />);
 
@@ -158,13 +153,7 @@ describe('moderacion en la interfaz', () => {
     expect(await screen.findByRole('button', { name: 'Verificar Estado' })).toBeInTheDocument();
     expect(screen.queryByText(/Proveedor PayPal no configurado/)).not.toBeInTheDocument();
     expect(screen.getByText(/13,33/, { selector: 'strong' })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir Agente FiestaPay' }));
-    expect(await screen.findByText('Historial real del servidor')).toBeInTheDocument();
-    expect(screen.getByText(/El organizador revoco el acceso de esta sesion/)).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Mensaje para el asistente' })).toBeDisabled();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Mensaje para el asistente' }), { target: { value: 'sigue' } });
-    fireEvent.submit(screen.getByRole('textbox', { name: 'Mensaje para el asistente' }).closest('form')!);
-    expect(send).not.toHaveBeenCalled();
+    // NAP-F5b: sin orbe; la avatar sigue disponible para explicar el bloqueo.
+    expect(screen.getByTestId('napster-avatar')).toBeInTheDocument();
   });
 });

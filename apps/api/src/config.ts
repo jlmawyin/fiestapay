@@ -1,48 +1,5 @@
 import { join } from 'node:path';
-import {
-  GEMINI_DEFAULT_LIVE_MODEL,
-  GEMINI_DEFAULT_TEXT_MODEL,
-  type LlmProvider,
-  type VoiceProvider,
-} from '@fiestapay/shared';
 import { normalizeMailbox } from './email/address.js';
-
-/** Text provider chosen by AI_TEXT_PROVIDER. */
-export type TextProvider = 'gemini' | 'openai';
-
-/**
- * Public on-screen guide switch. Only `on` and `off` are accepted; an invalid value keeps the
- * safe default without echoing it. The warning is deliberately fixed and carries no env data.
- */
-function readScreenGuide(env: NodeJS.ProcessEnv): boolean {
-  const raw = (env.VOICE_SCREEN_GUIDE ?? '').trim().toLowerCase();
-  if (raw === '' || raw === 'on') return true;
-  if (raw === 'off') return false;
-  console.warn('VOICE_SCREEN_GUIDE invalido: se usa on');
-  return true;
-}
-
-/** Gemini's uncompressed audio-only session envelope. The provider may disconnect earlier. */
-export const GEMINI_VOICE_AUDIO_SECONDS = 15 * 60;
-
-export function voiceConfig(env: NodeJS.ProcessEnv = process.env) {
-  const bounded = (v: string | undefined, fallback: number, cap: number) => Math.min(cap, Math.max(1, Number(v) || fallback));
-  const requested = (env.VOICE_PROVIDER ?? '').trim().toLowerCase();
-  const provider: VoiceProvider = requested === 'assemblyai' ? 'assemblyai' : 'gemini';
-  const providerKey = provider === 'gemini' ? env.GEMINI_API_KEY : env.ASSEMBLYAI_API_KEY;
-  const productionGemini = env.NODE_ENV === 'production' && provider === 'gemini';
-  const configuredMax = Math.floor(bounded(env.VOICE_MAX_SECONDS, 180, 300));
-  return {
-    enabled: env.VOICE_ENABLED === 'true' && Boolean(providerKey),
-    key: env.ASSEMBLYAI_API_KEY ?? '',
-    provider,
-    // Test caps constrain scripted Gemini runs. Production uses the provider's audio envelope.
-    maxSeconds: productionGemini ? GEMINI_VOICE_AUDIO_SECONDS : provider === 'gemini' ? Math.min(configuredMax, 120) : configuredMax,
-    dailySeconds: productionGemini ? null : Math.floor(bounded(env.VOICE_DAILY_SECONDS, 1800, 3600)),
-    /** Public and guest Gemini voice may declare show_on_screen when this flag is on. */
-    screenGuide: readScreenGuide(env),
-  };
-}
 
 const SANDBOX_HOSTS = new Set(['api-m.sandbox.paypal.com', 'api.sandbox.paypal.com']);
 
@@ -54,33 +11,6 @@ export interface PayPalConfig {
   webhookId: string | null;
   timeoutMs: number;
   brandName: string;
-}
-
-export interface OpenAIConfig {
-  apiKey: string;
-  model: string;
-  baseUrl: string;
-  timeoutMs: number;
-  maxToolRounds: number;
-  maxHistoryMessages: number;
-  maxOutputTokens: number;
-  /** Fixed for the approved model; not configurable from the environment. */
-  reasoningEffort: 'low';
-}
-
-/**
- * Paid Gemini provider. `liveModel` is locked into every ephemeral voice token and
- * `textModel` is used by generateContent. Model names come from validated environment
- * values or the shared defaults; an invalid name is replaced, never echoed.
- */
-export interface GeminiConfig {
-  apiKey: string;
-  liveModel: string;
-  textModel: string;
-  timeoutMs: number;
-  maxToolRounds: number;
-  maxHistoryMessages: number;
-  maxOutputTokens: number;
 }
 
 /**
@@ -138,14 +68,6 @@ export interface Config {
   webDir: string;
   serveWeb: boolean;
   paypal: PayPalConfig | null;
-  /** Compatibility marker. The only accepted legacy value is openai. */
-  llmProvider: LlmProvider;
-  /** Provider the text assistants actually use. */
-  textProvider: TextProvider;
-  openai: OpenAIConfig | null;
-  gemini: GeminiConfig | null;
-  geminiDisabledReason: string | null;
-  voice: ReturnType<typeof voiceConfig>;
   /** Napster avatar; null when disabled or missing the API key. */
   napster: NapsterConfig | null;
   email: EmailConfig | null;
@@ -154,7 +76,6 @@ export interface Config {
   /** Reason PayPal is unavailable, for honest 503 bodies. */
   paypalDisabledReason: string | null;
   emailDisabledReason: string | null;
-  openaiDisabledReason: string | null;
 }
 
 const str = (v: string | undefined): string | null => {
@@ -166,8 +87,6 @@ const num = (v: string | undefined, fallback: number): number => {
   const n = Number(str(v) ?? '');
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 };
-
-const capped = (v: string | undefined, fallback: number, cap: number): number => Math.min(cap, num(v, fallback));
 
 const originList =(raw: string | null): string[] => {
   if (!raw) return [];
@@ -207,7 +126,7 @@ function readPayPal(env: NodeJS.ProcessEnv): { config: PayPalConfig | null; reas
       baseUrl,
       webhookId: str(env.PAYPAL_WEBHOOK_ID),
       timeoutMs: num(env.PAYPAL_TIMEOUT_MS, 12000),
-      brandName: str(env.PAYPAL_BRAND_NAME) ?? 'FiestaPay (demo sandbox)',
+      brandName: str(env.PAYPAL_BRAND_NAME) ?? 'Somos Panas (demo sandbox)',
     },
     reason: null,
   };
@@ -296,72 +215,6 @@ function readEmail(env: NodeJS.ProcessEnv, publicOrigin: string | null): { confi
   };
 }
 
-/** Compatibility only. Any value other than openai fails closed and is not echoed. */
-function readLlmProvider(env: NodeJS.ProcessEnv): LlmProvider {
-  const raw = (str(env.LLM_PROVIDER) ?? 'openai').toLowerCase();
-  if (raw === 'openai') return raw;
-  throw new Error('LLM_PROVIDER invalido: solo se admite openai');
-}
-
-const GEMINI_MODEL_RE = /^gemini-[a-z0-9.-]+$/;
-
-/** Validated model name. Anything outside the Gemini namespace is replaced silently. */
-function readGeminiModel(raw: string | undefined, fallback: string): string {
-  const value = str(raw);
-  return value && GEMINI_MODEL_RE.test(value) ? value : fallback;
-}
-
-/** AI_TEXT_PROVIDER wins; without it, a Gemini key selects Gemini and OpenAI is the fallback. */
-function readTextProvider(env: NodeJS.ProcessEnv): TextProvider {
-  const raw = (str(env.AI_TEXT_PROVIDER) ?? '').toLowerCase();
-  if (raw === 'gemini' || raw === 'openai') return raw;
-  return str(env.GEMINI_API_KEY) ? 'gemini' : 'openai';
-}
-
-function readGemini(env: NodeJS.ProcessEnv): { config: GeminiConfig | null; reason: string | null } {
-  const apiKey = str(env.GEMINI_API_KEY);
-  if (!apiKey) return { config: null, reason: 'El asistente no esta configurado: falta GEMINI_API_KEY' };
-  // GEMINI_MODEL is the retired alias and is deliberately ignored.
-  return {
-    config: {
-      apiKey,
-      liveModel: readGeminiModel(env.GEMINI_LIVE_MODEL, GEMINI_DEFAULT_LIVE_MODEL),
-      textModel: readGeminiModel(env.GEMINI_TEXT_MODEL, GEMINI_DEFAULT_TEXT_MODEL),
-      // One text round trip is never allowed to exceed the 25 s assistant call cap.
-      timeoutMs: capped(env.GEMINI_TIMEOUT_MS, 20000, 25_000),
-      maxToolRounds: capped(env.GEMINI_MAX_TOOL_ROUNDS, 4, 6),
-      maxHistoryMessages: capped(env.GEMINI_MAX_HISTORY, 24, 60),
-      maxOutputTokens: capped(env.GEMINI_MAX_OUTPUT_TOKENS, 2000, 4000),
-    },
-    reason: null,
-  };
-}
-
-function readOpenAI(env: NodeJS.ProcessEnv): { config: OpenAIConfig | null; reason: string | null } {
-  const apiKey = str(env.OPENAI_API_KEY);
-  if (!apiKey) return { config: null, reason: 'El asistente no esta configurado: falta OPENAI_API_KEY' };
-  const baseUrl = (str(env.OPENAI_BASE_URL) ?? 'https://api.openai.com/v1').replace(/\/+$/, '');
-  try {
-    if (new URL(baseUrl).protocol !== 'https:') return { config: null, reason: 'OPENAI_BASE_URL debe usar https' };
-  } catch {
-    return { config: null, reason: 'OPENAI_BASE_URL invalida' };
-  }
-  return {
-    config: {
-      apiKey,
-      model: str(env.OPENAI_MODEL) ?? 'gpt-6-luna',
-      baseUrl,
-      // One text round trip is never allowed to exceed the 25 s assistant call cap.
-      timeoutMs: capped(env.OPENAI_TIMEOUT_MS, 20000, 25_000),
-      maxToolRounds: capped(env.OPENAI_MAX_TOOL_ROUNDS, 4, 6),
-      maxHistoryMessages: capped(env.OPENAI_MAX_HISTORY, 24, 60),
-      maxOutputTokens: capped(env.OPENAI_MAX_OUTPUT_TOKENS, 2000, 4000),
-      reasoningEffort: 'low',
-    },
-    reason: null,
-  };
-}
-
 /**
  * Reads only the two dedicated Personal sandbox buyer fields. The default is no disclosure.
  * The password is preserved verbatim: trimming or normalizing it would change the credential.
@@ -391,10 +244,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
   const paypal = readPayPal(env);
   const email = readEmail(env, publicOrigin === null ? null : publicOrigin.replace(/\/+$/, ''));
-  const llmProvider = readLlmProvider(env);
-  const textProvider = readTextProvider(env);
-  const openai = readOpenAI(env);
-  const gemini = readGemini(env);
   const napster = readNapster(env);
   const webDir = str(env.WEB_DIST_DIR) ?? join(import.meta.dirname, '..', '..', 'web', 'dist');
 
@@ -416,14 +265,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     serveWeb: str(env.SERVE_WEB) !== '0',
     paypal: paypal.config,
     paypalDisabledReason: paypal.reason,
-    llmProvider,
-    textProvider,
-    openai: openai.config,
-    openaiDisabledReason: openai.reason,
-    gemini: gemini.config,
-    geminiDisabledReason: gemini.reason,
     napster,
-    voice: voiceConfig(env),
     email: email.config,
     emailDisabledReason: email.reason,
     demoBuyer: readDemoBuyer(env),

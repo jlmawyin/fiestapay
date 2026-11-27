@@ -18,10 +18,9 @@ const mockCapabilities: Capabilities = {
   paypal: false,
   paypalClientId: null,
   paymentProvider: 'paypal_sandbox',
-  chat: false,
-  voice: false,
   sandbox: true,
   email: false,
+  avatar: true,
 };
 
 const mockEvent1: FiestaEvent = {

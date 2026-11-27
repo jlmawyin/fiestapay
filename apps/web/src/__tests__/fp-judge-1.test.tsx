@@ -1,10 +1,9 @@
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { UI_LABELS } from '@fiestapay/shared';
-import type { DraftEventProposal } from '@fiestapay/shared';
 import { App } from '../App';
-import { ApiError, api } from '../api/client';
+import { api } from '../api/client';
 import { I18nProvider, useI18n } from '../i18n/I18nContext';
 import { setActiveLocale } from '../i18n/locale-store';
 import { CreateEventView } from '../views/CreateEventView';
@@ -27,19 +26,14 @@ vi.mock('ag-grid-react', () => ({
   ),
 }));
 
-vi.mock('../components/assistant/AssistantOrb', () => ({
-  AssistantOrb: ({ audience }: { audience: string }) => (
-    <div data-testid="assistant-orb" data-audience={audience} />
-  ),
-}));
+// NAP-F5b: sin orbe; la avatar Napster real monta en reposo sin red.
 
 const capabilities: Capabilities = {
   paypal: true,
   paypalClientId: 'sb-client',
-  chat: false,
-  voice: false,
   sandbox: true,
   email: true,
+  avatar: true,
 };
 
 function setBrowser(language: string, languages: string[]): void {
@@ -106,24 +100,6 @@ function dashboardFixture(): Dashboard {
       { orderId: 'ORD-1', guestName: 'TestGuest', amountCents: 1500, status: 'captured', createdAt: '2026-10-25T10:00:00Z' },
     ],
     audit: [],
-  };
-}
-
-function proposalFixture(): DraftEventProposal {
-  return {
-    template: 'comida',
-    title: 'BBQ Saturday',
-    meal: 'almuerzo',
-    date: '2026-12-19',
-    startTime: '16:00',
-    durationMinutes: 180,
-    location: 'Central Park',
-    includes: ['Grill', 'Drinks'],
-    headcount: 10,
-    budgetCents: 15000,
-    perPersonCents: 1500,
-    suggested: ['template', 'title', 'meal', 'date', 'startTime', 'durationMinutes', 'location', 'includes', 'headcount', 'budgetCents'],
-    source: 'ai',
   };
 }
 
@@ -226,35 +202,31 @@ describe.each(['es', 'en'] as const)('FP-JUDGE-1 judge landing (%s)', (locale) =
     );
   }
 
-  it('centers the headline and story on AI and keeps the judges demo visible', async () => {
+  it('centers the headline and story on Pana and keeps the judges demo visible', async () => {
     renderLanding();
     const h1 = (await screen.findAllByRole('heading', { level: 1 }))[0]!;
     expect(h1).toHaveTextContent(
       locale === 'es'
-        ? 'Tu anfitrión con IA que cobra la parte de cada uno con PayPal'
-        : "Your AI party host that collects everyone's share with PayPal"
+        ? 'Tu anfitrión que cobra la parte de cada uno con PayPal'
+        : "Your party host that collects everyone's share with PayPal"
     );
     expect(screen.getByText(
       locale === 'es'
-        ? 'Describe la fiesta en una frase y la IA la arma, el agente te guía por voz o texto y cada persona paga su parte en PayPal Sandbox.'
-        : 'Describe the party in one sentence and the AI builds it, the agent guides you by voice or text, and everyone pays their share in PayPal Sandbox.'
+        ? 'Arma la fiesta con ayuda de Pana, la avatar; cada persona confirma y paga su parte en PayPal Sandbox.'
+        : 'Build the party with Pana, the avatar; everyone confirms and pays their share in PayPal Sandbox.'
     )).toBeInTheDocument();
     expect(screen.getByText(locale === 'es' ? 'Cómo funciona' : 'How it works')).toBeInTheDocument();
     for (const step of locale === 'es'
-      ? ['Describe tu fiesta, la IA la arma', 'El agente guía a tus invitados', 'Cada uno paga su parte']
-      : ['Describe your party, the AI builds it', 'The agent guides your guests', 'Everyone pays their share']) {
+      ? ['Describe tu fiesta, Pana la arma', 'Pana guía a tus invitados', 'Cada uno paga su parte']
+      : ['Describe your party, Pana builds it', 'Pana guides your guests', 'Everyone pays their share']) {
       expect(screen.getByText(step)).toBeInTheDocument();
     }
     expect(screen.getAllByRole('button', { name: labels.judgesDemo }).length).toBeGreaterThan(0);
   });
 });
 
-describe.each(['es', 'en'] as const)('FP-JUDGE-1 demo AI step (%s)', (locale) => {
+describe.each(['es', 'en'] as const)('FP-JUDGE-1 demo build step (%s)', (locale) => {
   const labels = UI_LABELS[locale];
-  const example =
-    locale === 'es'
-      ? 'Parrillada para 10 amigos, $15 cada uno, el sábado a las 4 pm en el parque'
-      : 'BBQ for 10 friends, $15 each, Saturday 4 pm at Central Park';
 
   function renderDemo(): void {
     localStorage.setItem('fp_locale', locale);
@@ -268,17 +240,14 @@ describe.each(['es', 'en'] as const)('FP-JUDGE-1 demo AI step (%s)', (locale) =>
     );
   }
 
-  it('is the first step with the example phrase and the guide button', async () => {
+  it('is the first step with the guide button into the manual form', async () => {
     renderDemo();
     await screen.findByRole('heading', { name: labels.judgesDemo });
     const step = screen.getByRole('listitem', {
-      name: locale === 'es' ? /Describe tu fiesta y la IA la arma/ : /Describe your party/,
+      name: locale === 'es' ? /Crea tu fiesta con ayuda de la avatar/ : /Create your party with the avatar/,
     });
-    expect(step).toHaveAttribute('aria-label', `1. ${locale === 'es' ? 'Describe tu fiesta y la IA la arma' : 'Describe your party — the AI builds it'}`);
-    expect(within(step).getByLabelText(
-      locale === 'es' ? 'Tu fiesta en una frase' : 'Your party in one sentence'
-    )).toHaveValue(example);
-    const button = within(step).getByRole('button', { name: labels.aiBuildParty });
+    expect(step).toHaveAttribute('aria-label', `1. ${locale === 'es' ? 'Crea tu fiesta con ayuda de la avatar' : 'Create your party with the avatar'}`);
+    const button = within(step).getByRole('button', { name: labels.createInvitation });
     expect(button).toHaveAttribute('data-guide', 'aiBuildParty');
     expect(button).toBeEnabled();
     // The former first step is now step 2.
@@ -289,7 +258,7 @@ describe.each(['es', 'en'] as const)('FP-JUDGE-1 demo AI step (%s)', (locale) =>
   });
 });
 
-describe('FP-JUDGE-1 AI prefill into /create', () => {
+describe('FP-JUDGE-1 build step into /create', () => {
   function renderDemoEs(): void {
     localStorage.setItem('fp_locale', 'es');
     window.history.replaceState({}, '', '/demo');
@@ -302,55 +271,16 @@ describe('FP-JUDGE-1 AI prefill into /create', () => {
     );
   }
 
-  it('prefills the sentence and fires one AI fill on the demo click', async () => {
-    const draft = vi.spyOn(api, 'draftEvent').mockResolvedValue(proposalFixture());
+  it('opens the manual form with no network call on the demo click', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
     renderDemoEs();
-    fireEvent.click(await screen.findByRole('button', { name: 'Crear la fiesta con IA' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Crear mi invitación' }));
 
     expect(window.location.pathname).toBe('/create');
-    const input = (await screen.findByLabelText('Describe tu invitación en una frase')) as HTMLInputElement;
-    expect(input.value).toBe('Parrillada para 10 amigos, $15 cada uno, el sábado a las 4 pm en el parque');
-    await waitFor(() => expect(draft).toHaveBeenCalledTimes(1));
-    expect(draft).toHaveBeenCalledWith('Parrillada para 10 amigos, $15 cada uno, el sábado a las 4 pm en el parque');
-    // The proposal lands on the editable summary; nothing is published by itself.
-    expect(await screen.findByRole('heading', { name: 'Revisar y publicar' })).toBeInTheDocument();
-    expect(
-      screen.getByText(/Redacté tu invitación\. Los campos sugeridos están marcados/),
-    ).toBeInTheDocument();
-    expect(screen.getAllByText('BBQ Saturday').length).toBeGreaterThan(0);
-    await waitFor(() => expect(draft).toHaveBeenCalledTimes(1));
-  });
-
-  it('makes no AI call when /create opens without the demo click', async () => {
-    const draft = vi.spyOn(api, 'draftEvent');
-    localStorage.setItem('fp_locale', 'es');
-    window.history.replaceState({}, '', '/create');
-    vi.spyOn(api, 'getCapabilities').mockResolvedValue(capabilities);
-    vi.spyOn(api, 'getOrganizerEvents').mockResolvedValue({ events: [] });
-    render(
-      <I18nProvider>
-        <App />
-      </I18nProvider>
-    );
-
-    const input = (await screen.findByLabelText('Describe tu invitación en una frase')) as HTMLInputElement;
+    // Wizard manual: el título empieza vacío y nada se pidió a la red.
+    const input = (await screen.findByLabelText(/Título del Evento/i)) as HTMLInputElement;
     expect(input.value).toBe('');
-    expect(draft).not.toHaveBeenCalled();
-  });
-
-  it('keeps the phrase written and shows the usual message when AI fails', async () => {
-    const draft = vi.spyOn(api, 'draftEvent').mockRejectedValue(new ApiError('unavailable', 503));
-    renderDemoEs();
-    fireEvent.click(await screen.findByRole('button', { name: 'Crear la fiesta con IA' }));
-
-    const input = (await screen.findByLabelText('Describe tu invitación en una frase')) as HTMLInputElement;
-    expect(input.value).toBe('Parrillada para 10 amigos, $15 cada uno, el sábado a las 4 pm en el parque');
-    await waitFor(() => expect(draft).toHaveBeenCalledTimes(1));
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'La IA no respondió. Te dejamos la sugerencia por reglas; puedes publicar igual.'
-    );
-    expect(input.value).toBe('Parrillada para 10 amigos, $15 cada uno, el sábado a las 4 pm en el parque');
-    await waitFor(() => expect(draft).toHaveBeenCalledTimes(1));
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 
@@ -383,33 +313,17 @@ describe('FP-JUDGE-1 translated statuses', () => {
     expect(within(payments).queryByText('captured')).toBeNull();
   });
 
-  it('renders the PayPal and AI panel without raw enums in English', async () => {
-    localStorage.setItem('fp_locale', 'en');
-    window.history.replaceState({}, '', '/demo');
-    vi.spyOn(api, 'getCapabilities').mockResolvedValue(capabilities);
-    vi.spyOn(api, 'getOrganizerEvents').mockResolvedValue({ events: [] });
-    render(
-      <I18nProvider>
-        <App />
-      </I18nProvider>
-    );
-
-    const panel = await screen.findByTestId('paypal-ai-panel');
-    expect(within(panel).getByText(/pending approval/)).toBeInTheDocument();
-    expect(within(panel).queryByText(/PENDIENTE_DE_APROBACION/)).toBeNull();
-  });
+  // NAP-F5b: el panel PayPal+IA murió; el pago de prueba sigue en el paso 3.
 });
 
 describe('FP-JUDGE-1 English sampling without fixed Spanish', () => {
   /** Fixed UI copy (never person-written content) that must not leak into English. */
   const SPANISH_WITNESSES = [
-    'Tu anfitrión con IA',
-    'Describe la fiesta en una frase',
-    'Describe tu fiesta y la IA la arma',
+    'Tu anfitrión que cobra',
+    'Arma la fiesta con ayuda de Pana',
+    'Crea tu fiesta con ayuda de la avatar',
     'Cómo funciona',
-    'Parrillada para 10 amigos',
-    'Tu fiesta en una frase',
-    'Crear la fiesta con IA',
+    'Crear mi invitación',
     'Asado del Domingo',
     'Cumpleaños de Sofía',
     'Escapada a la Playa',
@@ -420,8 +334,6 @@ describe('FP-JUDGE-1 English sampling without fixed Spanish', () => {
     'Ver panel de ejemplo',
     'Prueba un pago con PayPal',
     'Crea tu próxima invitación',
-    'Describe tu invitación en una frase',
-    'Rellenar con IA',
     'Revisar invitación',
     'Publicar invitación',
     'Cuota por persona',
@@ -465,7 +377,7 @@ describe('FP-JUDGE-1 English sampling without fixed Spanish', () => {
         <App />
       </I18nProvider>
     );
-    await screen.findByRole('heading', { name: "Your AI party host that collects everyone's share with PayPal" });
+    await screen.findByRole('heading', { name: "Your party host that collects everyone's share with PayPal" });
     expectNoSpanish();
     cleanup();
     vi.restoreAllMocks();
@@ -481,7 +393,7 @@ describe('FP-JUDGE-1 English sampling without fixed Spanish', () => {
       </I18nProvider>
     );
     await screen.findByRole('heading', { name: 'Judges demo' });
-    expect(screen.getByDisplayValue('BBQ for 10 friends, $15 each, Saturday 4 pm at Central Park')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Create my invitation' })).toHaveAttribute('data-guide', 'aiBuildParty');
     expectNoSpanish();
     cleanup();
     vi.restoreAllMocks();
@@ -494,7 +406,7 @@ describe('FP-JUDGE-1 English sampling without fixed Spanish', () => {
       </I18nProvider>
     );
     expect(screen.getByText('Create your next invitation')).toBeInTheDocument();
-    expect(screen.getByLabelText('Describe your gathering in one sentence')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Event Title/i)).toBeInTheDocument();
     expectNoSpanish();
     cleanup();
     vi.restoreAllMocks();

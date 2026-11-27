@@ -15,7 +15,7 @@ import { JoinForm } from './JoinForm';
 import { RsvpForm, visibleRsvpChoice } from './RsvpForm';
 import { QuoteReviewCard } from './QuoteReviewCard';
 import { PayPalSection } from './PayPalSection';
-import { ASSISTANT_OPEN_EVENT } from '../assistant/AssistantOrb';
+import { AVATAR_OPEN_EVENT } from '../avatar/avatar-open';
 
 export type WizardStep = 1 | 2 | 3 | 4;
 
@@ -133,10 +133,9 @@ export const PaymentWizard: React.FC<PaymentWizardProps> = ({
     element?.focus?.({ preventScroll: true });
   }, [openStep]);
 
-  const openAssistantForStep = (step: WizardStep) => {
-    document.dispatchEvent(
-      new CustomEvent<{ step: WizardStep }>(ASSISTANT_OPEN_EVENT, { detail: { step } }),
-    );
+  // NAP-F5b: el orbe murió; «preguntar» abre la avatar Napster montada en la vista.
+  const openAssistantForStep = (_step: WizardStep) => {
+    document.dispatchEvent(new CustomEvent(AVATAR_OPEN_EVENT));
   };
 
   const askLink = (step: WizardStep) => (

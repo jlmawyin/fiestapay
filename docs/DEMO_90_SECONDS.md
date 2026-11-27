@@ -1,6 +1,6 @@
 # FiestaPay — 90-second demonstration draft
 
-**For the submitted video use [VIDEO_SCRIPT.md](VIDEO_SCRIPT.md). This 90-second storyboard is retained as an older, shorter option.** Target duration, not a verified benchmark or a recorded video. Updated 10 November 2026: the judges demo now starts with the public chat — **“Build a BBQ for 10 at $15 each”** → complete proposal card → **Review in Create** → one manual **Publish** — and the runtime AI is Gemini only (`gemini-3.5-flash` text, `gemini-3.8-live` voice). The [5 November evidence](internal/reviews/demo-orb-20261105.md) remains historical. Voice has been exercised with a synthetic microphone in Chromium; a physical-phone payment and voice test is still not claimed. If the recording device's microphone fails, use text and label it.
+**For the submitted video use [VIDEO_SCRIPT.md](VIDEO_SCRIPT.md). This 90-second storyboard is retained as an older, shorter option.** Target duration, not a verified benchmark or a recorded video. The current runtime AI is Napster only; the avatar can guide by text or voice. The [5 November evidence](internal/reviews/demo-orb-20261105.md) remains historical. Voice has been exercised with a synthetic microphone in Chromium; a physical-phone payment and voice test is still not claimed. If the recording device's microphone fails, use text and label it.
 
 The current demo opening is the public-chat proposal. If you use this shorter storyboard, replace the first shot with that sentence → **Review in Create** → **Publish** moment; the rest of the route below is unchanged.
 
