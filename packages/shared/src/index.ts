@@ -30,6 +30,8 @@ export {
 export * from './i18n.js';
 export * from './payments.js';
 export * from './server-errors.js';
+export * from './avatar-session.js';
+export * from './avatar-tools.js';
 
 export type TemplateKind = 'comida' | 'casa' | 'viaje' | 'evento';
 export type RsvpStatus = 'yes' | 'no' | 'maybe';

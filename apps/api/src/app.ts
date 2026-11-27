@@ -33,6 +33,7 @@ import { registerReminderRoutes } from './routes/reminders.js';
 import { registerOrganizerAssistantRoutes } from './routes/organizer-assistant.js';
 import { registerModerationRoutes } from './routes/moderation.js';
 import { registerVoiceRoutes } from './routes/voice.js';
+import { registerAvatarSessionRoutes } from './routes/avatar-session.js';
 import { registerCoreRoutes } from './routes/core.js';
 import { registerPaymentRoutes } from './routes/payments.js';
 import type { RouteDeps } from './routes/deps.js';
@@ -84,6 +85,8 @@ async function isRequestRoutable(
   if (host.kind === 'site' && host.slug) {
     const tenantId = await tenantIdForSlug(db, host.slug);
     if (!tenantId) return false;
+    // NAP-F2: la sesión de avatar también se pide desde el subdominio del sitio (creador).
+    if (pathOnly === '/api/avatar-session' || pathOnly === '/api/avatar-session/end') return true;
     return pathOnly === '/api/site' || pathOnly.startsWith('/api/site/');
   }
   return false;
@@ -267,6 +270,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       await registerOrganizerAssistantRoutes(api, deps);
       await registerModerationRoutes(api, deps);
       await registerVoiceRoutes(api, deps);
+      await registerAvatarSessionRoutes(api, deps);
     },
     { prefix: '/api' },
   );
