@@ -1,6 +1,6 @@
 import type { ModerationActionResult, ModerationMessagePage } from '@fiestapay/shared';
 import type { FastifyInstance } from 'fastify';
-import { presentedAdminKey } from '../domain/access.js';
+import { presentedAdminKey, resolveEventPortalGate } from '../domain/access.js';
 import { badRequest } from '../errors.js';
 import {
   blockConversation,
@@ -21,31 +21,38 @@ import {
   slugParamSchema,
   transcriptQuerySchema,
 } from '../lib/schemas.js';
+import { readSession } from '../lib/session.js';
 import type { RouteDeps } from './deps.js';
 
 export async function registerModerationRoutes(app: FastifyInstance, deps: RouteDeps): Promise<void> {
-  const { pool } = deps;
+  const { pool, config } = deps;
   const writeLimit = { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } };
   const readLimit = { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } };
 
+  /** SP7-D-1: cerrojo portal en todas las rutas de moderación por slug. */
+  const gateFor = async (req: Parameters<typeof readSession>[2]) => {
+    const session = await readSession(pool, config, req);
+    return resolveEventPortalGate(pool, req, session?.id ?? null);
+  };
+
   app.get('/events/:slug/moderation/guests', readLimit, async (req) => {
     const { slug } = parseOr400(slugParamSchema, req.params);
-    return listModerationGuests(pool, slug, presentedAdminKey(req));
+    return listModerationGuests(pool, slug, presentedAdminKey(req), await gateFor(req));
   });
 
   app.post('/events/:slug/guests/:guestId/block', writeLimit, async (req): Promise<ModerationActionResult> => {
     const { slug, guestId } = parseOr400(guestIdParamSchema, req.params);
-    return blockGuest(pool, slug, guestId, presentedAdminKey(req));
+    return blockGuest(pool, slug, guestId, presentedAdminKey(req), await gateFor(req));
   });
 
   app.post('/events/:slug/guests/:guestId/unblock', writeLimit, async (req): Promise<ModerationActionResult> => {
     const { slug, guestId } = parseOr400(guestIdParamSchema, req.params);
-    return unblockGuest(pool, slug, guestId, presentedAdminKey(req));
+    return unblockGuest(pool, slug, guestId, presentedAdminKey(req), await gateFor(req));
   });
 
   app.post('/events/:slug/guests/:guestId/remove', writeLimit, async (req, reply) => {
     const { slug, guestId } = parseOr400(guestIdParamSchema, req.params);
-    const result = await removeGuest(pool, slug, guestId, presentedAdminKey(req));
+    const result = await removeGuest(pool, slug, guestId, presentedAdminKey(req), await gateFor(req));
     if (!result.ok) {
       return reply.code(409).send({
         error: result.message,
@@ -60,28 +67,36 @@ export async function registerModerationRoutes(app: FastifyInstance, deps: Route
 
   app.get('/events/:slug/moderation/conversations', readLimit, async (req) => {
     const { slug } = parseOr400(slugParamSchema, req.params);
-    return listConversations(pool, slug, presentedAdminKey(req));
+    return listConversations(pool, slug, presentedAdminKey(req), await gateFor(req));
   });
 
   app.get('/events/:slug/moderation/messages', readLimit, async (req): Promise<ModerationMessagePage> => {
     const { slug } = parseOr400(slugParamSchema, req.params);
     const query = parseOr400(transcriptQuerySchema, req.query);
     if (!query.conversationId) throw badRequest('Conversacion requerida');
-    return listModerationMessages(pool, slug, presentedAdminKey(req), query.conversationId, query.limit, query.before);
+    return listModerationMessages(
+      pool,
+      slug,
+      presentedAdminKey(req),
+      query.conversationId,
+      query.limit,
+      query.before,
+      await gateFor(req),
+    );
   });
 
   app.delete('/events/:slug/moderation/messages/:messageId', writeLimit, async (req) => {
     const { slug, messageId } = parseOr400(messageIdParamSchema, req.params);
-    return deleteChatMessage(pool, slug, messageId, presentedAdminKey(req));
+    return deleteChatMessage(pool, slug, messageId, presentedAdminKey(req), await gateFor(req));
   });
 
   app.post('/events/:slug/moderation/conversations/:conversationId/block', writeLimit, async (req) => {
     const { slug, conversationId } = parseOr400(conversationIdParamSchema, req.params);
-    return blockConversation(pool, slug, conversationId, presentedAdminKey(req));
+    return blockConversation(pool, slug, conversationId, presentedAdminKey(req), await gateFor(req));
   });
 
   app.post('/events/:slug/moderation/conversations/:conversationId/unblock', writeLimit, async (req) => {
     const { slug, conversationId } = parseOr400(conversationIdParamSchema, req.params);
-    return unblockConversation(pool, slug, conversationId, presentedAdminKey(req));
+    return unblockConversation(pool, slug, conversationId, presentedAdminKey(req), await gateFor(req));
   });
 }

@@ -26,7 +26,7 @@ import {
   reserveVoiceLease,
   touchVoiceLease,
 } from '../ai/voice-lease.js';
-import { assertPrivateAccess, presentedAdminKey } from '../domain/access.js';
+import { assertPrivateAccess, presentedAdminKey, resolveEventPortalGate } from '../domain/access.js';
 import { assertSessionMayAct } from '../domain/moderation.js';
 import { assertActive } from '../domain/events.js';
 import { findGuestBySession, getEventBySlug } from '../domain/read.js';
@@ -324,7 +324,8 @@ export async function registerVoiceRoutes(app: FastifyInstance, deps: RouteDeps)
     const {slug} = parseOr400(slugParamSchema, req.params);
     const session = await requireSession(pool, config, req);
     const locale = requestLocale(req);
-    const event = await getEventBySlug(pool, slug);
+    const gate = await resolveEventPortalGate(pool, req, session.id);
+    const event = await getEventBySlug(pool, slug, gate);
     await concealExpired(pool, event);
     assertActive(event);
     await assertPrivateAccess(pool, event, session.id, presentedAdminKey(req));
@@ -379,7 +380,8 @@ export async function registerVoiceRoutes(app: FastifyInstance, deps: RouteDeps)
     const {slug} = parseOr400(slugParamSchema,req.params);
     const body = parseOr400(z.object({leaseId:z.uuid(),name:z.string().max(80),arguments:z.record(z.string(),z.unknown()).default({})}),req.body);
     const session = await requireSession(pool,config,req);
-    const event = await getEventBySlug(pool,slug);
+    const gate = await resolveEventPortalGate(pool, req, session.id);
+    const event = await getEventBySlug(pool, slug, gate);
     await concealExpired(pool, event);
     assertActive(event);
     await assertPrivateAccess(pool, event, session.id, presentedAdminKey(req));

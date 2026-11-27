@@ -8,7 +8,7 @@ import type {
   RsvpStatus,
 } from '@fiestapay/shared';
 import { sumToCents, type Pool } from '../db/pool.js';
-import { assertAdminKey } from './access.js';
+import { assertAdminKey, type EventPortalGate } from './access.js';
 import { auditTrail, PAYPAL_NOTIFICATION_PREFIX } from './audit.js';
 import {
   getEventBySlug,
@@ -89,8 +89,13 @@ function guestTotalsOf(guests: Guest[]): GuestTotals {
 }
 
 /** Organizer view. A keyed event accepts only X-Fiesta-Admin-Key, never the session cookie. */
-export async function dashboardFor(pool: Pool, slug: string, presentedKey: string | null): Promise<Dashboard> {
-  const eventRow = await getEventBySlug(pool, slug);
+export async function dashboardFor(
+  pool: Pool,
+  slug: string,
+  presentedKey: string | null,
+  gate?: EventPortalGate,
+): Promise<Dashboard> {
+  const eventRow = await getEventBySlug(pool, slug, gate);
   assertAdminKey(eventRow, presentedKey);
   await concealExpired(pool, eventRow);
 
