@@ -15,7 +15,7 @@ Private files on the host (mode 0600): `.env` for `POSTGRES_PASSWORD`, `.env.pro
 
 The26October activation of `8918866` rehearsed migration0007 against a temporary restored database first, preserved23legacy events and the USD50 capture, and verified that other containers were unchanged. It also compared private environment values in memory against the built browser assets and API logs, reporting only match counts. See [release/refund evidence](internal/reviews/refund-sandbox-20261026.md) and [current state](internal/ESTADO.md). Those are historical results, not a claim that a later release has passed the same checks.
 
-AssemblyAI uses a direct browser WebSocket; the reverse proxy preserves upgrade headers for application WebSocket routes. `VOICE_ENABLED`, maximum session seconds and daily reserved seconds bound credit consumption. Provider configuration does not prove provider availability.
+Napster avatar sessions use the provider connection created by the server; the reverse proxy preserves upgrade headers for WebSocket text sessions. Provider configuration does not prove provider availability.
 
 ## TLS
 

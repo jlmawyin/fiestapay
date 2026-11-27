@@ -1,106 +1,33 @@
-# Shared implementation contract
+# API contract (Somos Panas)
 
-## Cards/orb update
+Fastify serves JSON under `/api`. The root host is `somospanas.com`, group sites use `<slug>.somospanas.com`, and the legacy host keeps its existing event flow. Mutations require an allowed browser origin.
 
-The new home has separate demo and own-gathering cards. Payment-demo preparation calls existing create/join/RSVP endpoints only after an explicit click; quotes, human confirmation, orders and capture verification retain their existing contracts. No SQL migration is added. One frontend orb composes the existing public, guest and keyed organizer assistants; closing or switching out of voice runs the existing lease cleanup.
+## Accounts and sites
 
-`GET /api/demo/buyer` is an intentionally public disclosure endpoint for the **new dedicated fictitious Personal sandbox buyer only**. It returns `{available:false,sandbox:true}` by default. Only `PAYPAL_DEMO_BUYER_PUBLIC=true`, a complete dedicated pair and exact HTTPS PayPal sandbox configuration permit `{available:true,sandbox:true,email,password}`. Limit: 10 reads/minute/IP; `Cache-Control: no-store`. The browser fetches only on **Ver cuenta de prueba** and keeps values in component memory for copying, never storage or a URL. This explicit exception does not expose Business/API credentials and grants no organizer authority. Do not include actual values in docs, Git, bundle, logs or review payloads.
+- `POST /api/accounts/register`, `POST /api/accounts/verify`, `POST /api/accounts/login`, `POST /api/accounts/logout`, `GET /api/accounts/me`.
+- `POST /api/sites` (root, verified account): `{slug, displayName}` -> `{site, handoff}`.
+- `POST /api/sites/handoff` (site host): redeems the one-use handoff code.
+- `GET /api/site/profile`, `GET /api/site/settings`, `PUT /api/site/settings` (site admin).
+- `PATCH /api/site/events/:slug/visibility` (site admin): `{visibility}`.
+- `GET /api/site/events/:slug` (site admin): private event of that site.
 
-The existing deployment evidence below is historical; the cards/orb [release report](internal/reviews/demo-orb-20261105.md) records its own source and runtime results.
+## Public directory and events
 
-Current deployment and release history are tracked in [HISTORY.md](HISTORY.md); the runtime contracts below reflect the current Gemini integration. The earlier Root QA [4 November live acceptance](internal/reviews/jury-ready-20261104.md) used Playwright Edge mobile emulation at 390×844, not a physical phone: one existing reserved order produced one USD 50 sandbox capture, two paid people, one distinct capture row and no refund; `✓ Confirmar Realización` returned HTTP 200 with `confirmed: true`. Three fixed deterministic FAQ requests returned HTTP 200 with the typing indicator, zero new voice leases and zero upstream model calls. Those results are historical, not current status.
+- `GET /api/portal/events` (root): public events only.
+- `POST /api/events`, `GET /api/events/:slug`, `POST /api/events/:slug/join`, `POST /api/events/:slug/rsvp`, `POST /api/events/:slug/unlock`.
+- `POST /api/events/:slug/quote`, `POST /api/events/:slug/orders`, `POST /api/orders/:orderId/capture`, `GET /api/orders/:orderId`.
+- `GET /api/events/:slug/dashboard`, `POST /api/events/:slug/confirm`, `POST /api/events/:slug/close`, `POST /api/demo`, `POST /api/demo/reset`.
+- `POST /api/paypal/webhook` verifies the PayPal signature before applying a capture or refund.
+- Moderation, recovery and reminder-draft routes remain limited to the organizer and keep the existing event access checks.
 
-## Current public voice contract — 4 November
+## Napster avatar
 
-Public informational voice is available before creating or joining an event. It uses a session cookie only and exposes no event, guest or tool authority.
+- `POST /api/avatar-session` body `{lang, intent?, eventSlug?, mode?}` -> `{token, handle, visitor, lang, agent, socketUrl?}`.
+  - `mode:'video'` (default) creates a WebRTC connection; `mode:'text'` creates a WebSocket text session and returns the server-decoded socket URL.
+  - The server decides `visitor` from the host, account and event access rules. It returns only the short-lived token and an opaque handle.
+- `POST /api/avatar-session/end` body `{handle}` -> 204, idempotent.
+- `GET /api/capabilities` reports `paypal`, `paymentProvider`, `avatar` and `email`; it never announces an unconfigured provider.
 
-- `POST /api/voice/public/token` body `{consent:true}` -> `{token,sessionConfig,maxSeconds,leaseId,audience:"public"}`. Consent in the selected language is required before any token or lease is created. No event, guest or private event tool is attached; public voice exposes only `show_on_screen`.
-- `POST /api/voice/lease/release` body `{leaseId,reason?}` -> `{ok:true,...}`. Owning cookie only; idempotent.
-- `POST /api/voice/lease/activity` body `{leaseId}` -> `{ok:true,active}`. Records real user interaction only and cannot extend `expires_at`.
-- Lease expiry: `expires_at` is initially `created_at + maxSeconds + 60`. The extra 60 seconds is a technical grace window, not additional conversational audio. The owner can release earlier; the server rejects idle activity after 60 seconds and the UI ends an idle session. Activity cannot extend expiry.
-- Limits: one unique active/reserved lease shared across public, guest and organizer roles; 200 AI queries/day in total and 60 per session; voice at most 120 seconds per session; 25 seconds per call and 40 seconds per query; release on stop, page exit, WebSocket disconnect or unmount.
-- Configuration: `maxSeconds` is 120 seconds of conversational audio/reserved duration per session. These are configured limits, not a measured runtime, account entitlement or physical-phone audio proof.
+## Shared shapes and limits
 
-## AI creation and reminder drafts — 9 November
-
-Both routes use the selected text provider (Gemini `gemini-3.5-flash` in production) behind the existing injectable `respond` seam, reserve the shared AI budget once per request before the model call, and answer `Cache-Control: no-store`. Provider failures or unusable JSON fall back to deterministic rules; neither route returns 5xx for a provider error.
-
-- `POST /api/ai/draft-event` body `{text}` (3–400 chars) -> `DraftEventProposal`. It only pre-fills the creation assistant: it never creates an event or writes event/guest/payment rows. The model answer is strict JSON; unknown keys are discarded. The server accepts only a valid `template`, a non-empty `title` (≤80), a real `YYYY-MM-DD` date in America/Guayaquil that is not past, `HH:MM`, `headcount` 1–500, integer `budgetCents` 0–10,000,000 and at most 8 `includes` of 60 chars. The server keeps an unambiguous share per person from the request, or computes `ceil(budgetCents / headcount)` when the request uses a group budget. A model-supplied per-person amount is ignored. `suggested` identifies fields to review; `source` is `ai` or `rules`. The form and public chat share a five-drafts-per-minute limit per IP. The AI daily and per-session caps also return HTTP 429.
-- `POST /api/events/:slug/reminders/draft` body `{tone:"amable"|"divertido"|"formal"}` -> `ReminderDraftResult`. Requires the current `X-Fiesta-Admin-Key` on an active event: a missing key or another event's key returns 403, and an archived/purged event returns 410. Only guests with `status='yes'` and a positive balance are included; the balance comes from the same SQL cents calculation as the organizer dashboard. At most 20 drafts are returned and `truncated:true` marks more owing guests. The provider writes only a short tone phrase per guest without figures, money or links; the server inserts the alias, `formatMoney(dueCents)` and the canonical public invitation link `${origin}/e/${slug}` (the same path the manual wa.me share uses). Unsafe model output falls back to the tone template. The route sends nothing through WhatsApp or SMTP and writes no messages, orders or ledger rows; `source` is `ai` only when every tone phrase is used. Rate limit 5/minute.
-
-## Historical endpoint notes — October 28
-
-### Recovery candidate — independently approved, publication subsequently completed
-
-The read-only guest tool get_collection_progress now also returns funding status, deadline and registered/pending/review refund totals in server integer cents, with guidance based on the actual funding state. All existing fields remain. It returns no identity, session, admin key or provider metadata and performs no payment/refund/RSVP actions. Confirmation guidance treats closed registrations separately from funding eligibility. [Source review](internal/reviews/recovery-source-final-20261028.md).
-
-### 28 October deployed candidate — browser findings recorded at that time
-
-These additions are deployed in `6b33b4f` with schema0009–0010; source, infrastructure and preservation checks passed. The live browser campaign completed10/14points; WhatsApp preview, assistant answers and rendered contrast still require correction. See [browser findings](internal/reviews/tester-browser-20261028.md). Migration0009 adds optional public `organizerName` and a validated presentation theme; legacy values remain NULL. The organizer display name grants no authority and never exposes the creator session or administrative key. Creation still returns the public event and a separately minted organizer capability. The review screen confirms current input before publication; invitation, dashboard and WhatsApp draft show start and end times with copy appropriate to the event type. See [deployment evidence](internal/reviews/tester-deployment-20261028.md).
-
-Migration0010 adds organizer-only conversation storage and a voice-lease audience. All organizer assistant routes below require the current `X-Fiesta-Admin-Key`, including history and voice tool requests. A creator cookie or public invitation alone does not grant organizer assistant access.
-
-- `POST /api/events/:slug/organizer-chat` accepts `{message}` and returns guidance based on authorized server facts. It cannot confirm, cancel, refund, edit or collect money.
-- `GET /api/events/:slug/organizer-chat/history` reads the organizer transcript for this event and browser session. Guest conversation history remains separate, including when both roles use the same browser cookie.
-- `POST /api/events/:slug/organizer-voice/token` accepts microphone consent and reserves a role-bound lease against the same session/global allowances as guest voice.
-- `POST /api/events/:slug/organizer-voice/tool` accepts the lease and an allowed read-only tool call. The event, session, audience, expiry and current key are checked before access; authority is checked again after asynchronous provider/tool work.
-
-The organizer tool can return a bounded attendee list and payment information already visible in that panel, not private recovery contacts, IP addresses, access codes, session identifiers or keys. Deleting/expiring an event clears its organizer display name and organizer transcript while preserving financial references. Guest and organizer text share existing request budgets. Both voice roles share duration reservations; switching roles does not create another allowance. Text runs on Gemini `gemini-3.5-flash`; voice runs on Gemini Live `gemini-3.8-live` with single-use ephemeral tokens.
-
-Both assistants stay within the invitation and FiestaPay context. PayPal capture credits the single Business sandbox recipient immediately; organizer confirmation changes the gathering's status and does not release escrow or execute Payouts. Buyer Protection depends on PayPal eligibility and terms. A refund explanation must reflect the actual event deadline and funding state, rather than promise a refund for legacy events without an active deadline.
-
-### October 25 contracts — retained where not superseded
-
-The October 25 P0–P6 request supersedes incompatible historic P1 rules below. The public invitation is `/e/:slug`; the organizer entry is `/e/:slug/admin?k=:adminKey`. The browser captures the key into localStorage and removes it from the query. The server stores only its SHA-256 digest and compares fixed-length digests with `timingSafeEqual`. Keyed organizer operations require `X-Fiesta-Admin-Key`; the creator cookie alone does not authorize these operations.
-
-- Create/demo/reset return `CreatedEvent` (`{event, adminKey}`); a newly minted key contains 32 random bytes. An existing demo can return a null key. Never put an organizer key into the public invitation or a guest API request.
-- `PUT /api/events/:slug` validates the complete event input and requires the organizer key.
-- `POST /api/events/:slug/close`, `DELETE /api/events/:slug`, dashboard and confirmation require the organizer key. Closed events remain readable, with new RSVP/quotes/orders rejected.
-- `POST /api/events/:slug/admin/key` is a one-time migration path for legacy rows with no key hash, restricted to the original creator session. It cannot rotate or recover a keyed event.
-- `POST /api/events/:slug/unlock` accepts `{code}` and establishes private-event access for the browser session. Missing/wrong proof returns 403 on protected public routes. Changing/clearing the code revokes existing unlocks. A valid admin key can authorize private organizer operations.
-- `endsAt` and positive capacity are required. Expired events return 410 immediately at `endsAt + 72 hours`, including before the periodic sweep. Startup and a 15-minute loop remove public/personal content through a tombstone, preserving financial references for reconciliation. An organizer delete uses the same tombstone policy.
-- Request logs omit query strings and credential headers. API responses use `Cache-Control: no-store`; pages use `Referrer-Policy: no-referrer`.
-
-The access/retention routes passed restart/permission checks through the HTTPS origin. Release `2d7c542` includes independently reviewed SMTP recovery and migration0006. On25Oct the owner completed private SMTP configuration; the API was recreated with the same image and a DNS-client override limited to that service, preserving other containers. Public DNS/HTTPS are restored. Real verification and recovery messages reached the authorized inbox, the previous key returned403, and the new panel request returned200; see [live acceptance](internal/reviews/smtp-live-20261025.md). The consumed email link was reopened and rejected with400, confirmed by Jorge and server logs; isolated expiry/replay/concurrency cases retain the earlier PostgreSQL review. Automatic funding refunds and moderation are subsequent packages. The runtime assistant now uses Gemini `gemini-3.5-flash` for text and `gemini-3.8-live` for voice; OpenAI and AssemblyAI are rollback-only. A missing key or provider failure leaves the manual forms available.
-
-## Verified optional email recovery
-
-- `GET /api/events/:slug/recovery` requires the organizer key and returns availability and masked contact status.
-- `PUT /api/events/:slug/recovery/contact` requires that key and `{email}`. It sends a verification message through the configured Banahosting SMTP adapter. It does not block event creation. A new/replaced mailbox is unverified until proof is consumed.
-- `DELETE /api/events/:slug/recovery/contact` requires that key and removes the contact and existing proof tokens.
-- `POST /api/recovery/request` accepts `{slug,email}` without an admin header. Valid requests return the same `{status:'accepted'}` for unknown, mismatched, unverified and matching contacts. This means the request was accepted; it does not prove SMTP or inbox delivery. An unavailable mail service returns the same503 across contacts.
-- `POST /api/recovery/consume` accepts `{token}`. Tokens have distinct verify/recover purposes, are random32bytes, stored only as hashes, expire within15minutes and allow one transactional consumer. Recovery returns the new key once; the previous key immediately loses authority.
-- `/recover#t=...` strips the fragment into memory and requires a confirmation click. It supports a new fragment in the same tab and ignores outdated async results. Query tokens are discarded. Public recovery requests never attach the organizer header.
-- Shared PostgreSQL counters constrain IP/event windows and daily send attempts across instances and cookies. Changing/removing contact or tombstoning the event invalidates tokens and clears contact data. Financial references remain intact.
-- SMTP configuration is server-only: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`. Port465 uses TLS;587 requires STARTTLS; certificate validation remains enabled. Acceptance by the outbound server is distinct from receipt/spam; the [operator protocol](EMAIL_SETUP.md) records both for the real test. Future API recreation must include `deploy/compose.smtp-runtime.yml` alongside the base Compose file while this DNS-client configuration is active.
-
-## Historic baseline and unchanged payment contracts
-
-P1 only: one USD sandbox merchant, fixed-price full payment, four templates, fixed local illustrations. No uploads, Payouts, deposits, open fund, Google or live payments. All amounts integer cents. The UI labels captured minus refunded amount `Recaudado` with `antes de comisiones`.
-
-Same-origin JSON API under `/api`. Errors `{error: string}` with proper HTTP status. Browser uses HttpOnly SameSite=Lax cookie. Server checks Origin on mutations, fixes merchant server-side, never trusts browser amounts. Demo identities contain no required email/phone. Public invitation is slug; organizer and guest permissions are separate. Provider credentials never enter responses. One-time minted organizer keys and short-lived voice tokens are intentional browser capabilities.
-
-- `GET /api/health` -> `{ok:true}`.
-- `GET /api/capabilities` -> Capabilities, providers false unless configured; never fake successful payment/audio/AI.
-- `POST /api/demo` -> `{event:FiestaEvent}`; creates organizer cookie and seeded Comida USD25, target100/min50.
-- `GET /api/events` -> `{events:FiestaEvent[]}` organizer owned only.
-- `POST /api/events` body EventInput -> `{event}`.
-- `GET /api/events/:slug` -> `{event,guest:Guest|null}` public event + guest only for that cookie.
-- `POST /api/events/:slug/join` body `{name:string}` -> `{guest}`; guest cookie capability, no organizer authority gained from public slug.
-- `POST /api/events/:slug/rsvp` body `{status:RsvpStatus,companions:number}` -> `{guest,event}`. All-or-none capacity and serialize with quote/capture.
-- `POST /api/events/:slug/quote` -> `{quote:Quote}`. Server calculated, expires, immutable quote version, prior captured amount deducted.
-- `POST /api/events/:slug/orders` body `{quoteId:string,confirmed:true}` -> OrderResult. Confirmation human UI before request; one active order/obligation, stable PayPal-Request-Id. Missing PayPal config returns503.
-- `POST /api/orders/:orderId/capture` -> `{status:string,guest:Guest}` authenticated owning guest; order capture verified before paid state.
-- `GET /api/orders/:orderId` -> `{status,guest}` owner-only reconciliation.
-- `POST /api/paypal/webhook` verifies signature with PayPal API before applying completed capture/refund idempotently.
-- `GET /api/events/:slug/dashboard` -> Dashboard for the organizer. Includes the latest 100 verified ledger entries for the event and up to 50 signed PayPal notifications reconciled to the event after this feature was enabled. The dashboard exposes the capture reference, amount in cents, movement type and time. Notifications expose only type and receipt time.
-- `POST /api/events/:slug/confirm` -> `{event}` organizer only, minimum reached required when configured.
-- `POST /api/demo/reset` -> `{event}` new generation only for organizer, archived invitations cannot create new payments; preserve old refs and reconcile late captures to old generation.
-- `POST /api/events/:slug/chat` body `{message:string}` -> ChatResult. Text + quote card, never executes payment from LLM. The runtime text model is Gemini `gemini-3.5-flash` with the same authorized backend tools; `LLM_PROVIDER=openai` remains a compatibility value only. Every write must be reviewed/confirmed by human UI. If the key is missing or the provider fails, the UI keeps forms and explains availability.
-- `POST /api/events/:slug/voice/token` body `{consent:true}` -> short-lived `{token,sessionConfig,maxSeconds,leaseId}`. Event-scoped guest voice requires a joined guest; the public pre-event contract above is separate and has no event, guest or tool authority. Reserves the maximum duration against the shared limits before minting a single-use Gemini ephemeral token; failed requests still consume the reservation.
-- `POST /api/events/:slug/voice/tool` body `{leaseId,name,arguments}` -> authorized read/proposal tool result. The lease must belong to this session and event and remain unexpired. No tool captures money or saves RSVP without human confirmation.
-- Chat has a shared daily request budget and a per-session cap. New cookies and demo reset do not reset global voice/chat allowances. Provider configuration is not proof of availability; forms remain usable when a provider fails.
-
-Shared TypeScript shapes in packages/shared. UI and server may NOT independently rename routes/shapes; propose changes to Codex. Backend serves apps/web/dist in production with SPA fallback excluding API. Development Vite proxies /api to localhost:3000.
-
-Production requires PostgreSQL via DATABASE_URL and persistent sessions/state; no in-memory production fallback. Test provider fakes are test-only and cannot be enabled by browser input. Secrets .env excluded. Tests must cover payments not duplicated, capacity, authorization and reset.
+Amounts are integer cents computed on the server. The quote and order contracts live in `packages/shared`. Tests use fake payment and avatar adapters; browser input cannot select them. Missing PayPal or Napster configuration keeps the manual flows available and reports the corresponding capability as false.

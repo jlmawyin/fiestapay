@@ -21,7 +21,7 @@ La avatar solo explica y guía. Las acciones finales (publicar, confirmar, aprob
 
 ## Decisiones de Jorge
 
-- **La única IA del producto es Napster**, en todo lo posible. Se retiran Gemini, OpenAI y AssemblyAI: código, dependencias, configuración, documentación pública y textos. También desaparece «FiestaPay» del texto visible y de los datos de demo.
+- **La única IA del producto es Napster**, en todo lo posible. Se retiran los proveedores anteriores: código, dependencias, configuración, documentación pública y textos. También desaparece «FiestaPay» del texto visible y de los datos de demo.
 - El sitio legado `fiestapay.somospanas.com` también pasa a Napster.
 - La invitación desde una frase y los recordatorios pasan a ser **tools de la avatar**. Rellenan el formulario y la persona revisa y publica.
 - Hay **dos agentes Napster, `es` y `en`**, con el mismo avatar, conocimiento y tools. La app elige el agente según el idioma de la página.

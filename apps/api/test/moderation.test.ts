@@ -172,14 +172,7 @@ describeDb('moderacion de sesion, cupo y chat', () => {
     expect((await client.post(`/api/events/${event.slug}/rsvp`, { status: 'no', companions: 0 })).statusCode).toBe(403);
     expect((await client.post(`/api/events/${event.slug}/quote`)).statusCode).toBe(403);
     expect((await client.post(`/api/events/${event.slug}/orders`, { quoteId: randomUUID(), confirmed: true })).statusCode).toBe(403);
-    const chat = await client.post(`/api/events/${event.slug}/chat`, { message: 'hola' });
-    expect(chat.statusCode).toBe(403);
-    expect(body<{ error: string }>(chat).error).toBe(REVOKED_MESSAGE);
-    const voice = await client.post(`/api/events/${event.slug}/voice/token`, { consent: true });
-    expect(voice.statusCode).toBe(403);
-    expect(body<{ error: string }>(voice).error).toBe(REVOKED_MESSAGE);
-    expect(await count('SELECT COUNT(*)::int AS n FROM ai_requests WHERE event_id = $1', [before.event_id])).toBe(0);
-    expect(await count('SELECT COUNT(*)::int AS n FROM voice_leases WHERE event_id = $1', [before.event_id])).toBe(0);
+    // NAP-F5a: las rutas de chat y voz ya no existen; la moderación sigue bloqueando el resto.
     expect(fake.captureCalls.length).toBe(capturesBefore);
     expect(fake.createCalls.length).toBe(createsBefore);
 
@@ -353,7 +346,7 @@ describeDb('moderacion de sesion, cupo y chat', () => {
 
   it('guarda ids del servidor, pagina, borra sin perder la fila y descarta un turno si la revision cambio', async () => {
     const { client: org, event } = await organizer();
-    const { client } = await join(event.slug, 'Dina Chat');
+    await join(event.slug, 'Dina Chat');
     const guest = await guestRow(event.slug, 'Dina Chat');
     const secret = 'tool-secret-set_rsvp';
     const user = await appendChatTurn(pool, guest.event_id, guest.session_id, 'user', [
@@ -361,18 +354,6 @@ describeDb('moderacion de sesion, cupo y chat', () => {
     ]);
     const model = await appendChatTurn(pool, guest.event_id, guest.session_id, 'model', [
       { text: 'Respuesta visible' },
-      { functionCall: { name: 'set_rsvp', args: { status: 'yes', secret } } },
-      {
-        openai: {
-          type: 'function_call',
-          call_id: 'call_moderation',
-          name: 'set_rsvp',
-          arguments: `{"secret":"${secret}"}`,
-        },
-      },
-    ], user.revision);
-    await appendChatTurn(pool, guest.event_id, guest.session_id, 'function', [
-      { functionResponse: { name: 'set_rsvp', response: { secret } } },
     ], user.revision);
     for (const text of ['uno', 'dos', 'tres']) {
       await appendChatTurn(pool, guest.event_id, guest.session_id, 'user', [{ text }], user.revision);
@@ -419,10 +400,6 @@ describeDb('moderacion de sesion, cupo y chat', () => {
     );
     expect(older.messages[0]?.id).not.toBe(firstPage.messages[0]?.id);
 
-    const own = body<{ messages: { id: string; text: string }[] }>(await client.get(`/api/events/${event.slug}/chat/history?limit=50`));
-    expect(own.messages.some((message) => message.text === '<script>alert(1)</script>')).toBe(true);
-    expect(JSON.stringify(own)).not.toContain(secret);
-
     const deleted = await org.delete(`/api/events/${event.slug}/moderation/messages/${user.id}`);
     expect(deleted.statusCode).toBe(200);
     expect(body<{ alreadyDeleted: boolean; id: string }>(deleted)).toEqual({ ok: true, id: user.id, alreadyDeleted: false });
@@ -432,8 +409,6 @@ describeDb('moderacion de sesion, cupo y chat', () => {
       await org.get(`/api/events/${event.slug}/moderation/messages?conversationId=${conversation!.id}&limit=50`),
     );
     expect(reloaded.messages.map((message) => message.id)).not.toContain(user.id);
-    const ownAfter = body<{ messages: { id: string }[] }>(await client.get(`/api/events/${event.slug}/chat/history?limit=50`));
-    expect(ownAfter.messages.map((message) => message.id)).not.toContain(user.id);
     expect(await count('SELECT COUNT(*)::int AS n FROM chat_messages WHERE id = $1::bigint AND deleted_at IS NOT NULL', [user.id])).toBe(1);
 
     await expect(

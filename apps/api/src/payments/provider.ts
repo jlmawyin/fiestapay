@@ -200,12 +200,9 @@ export function capabilitiesForHost(
   return {
     paypal: siteAllowsPayPalCheckout(paymentProvider, paypalConfigured),
     paymentProvider,
-    voice: config.voice.enabled,
+    avatar: config.napster !== null && Boolean(config.napster.agentIdEs) && Boolean(config.napster.agentIdEn),
     paypalClientId: paymentProvider === 'paypal_sandbox' ? config.paypal?.clientId ?? null : null,
     sandbox: true,
-    chat: config.textProvider === 'gemini' ? config.gemini !== null : config.openai !== null,
-    llmProvider: config.textProvider === 'gemini' ? 'gemini' : 'openai',
-    voiceProvider: config.voice.provider,
     email: emailConfigured,
   };
 }

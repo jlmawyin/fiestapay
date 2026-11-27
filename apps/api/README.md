@@ -1,8 +1,8 @@
 # @fiestapay/api
 
-Fastify (Node 24, TypeScript, ESM) API for FiestaPay P1: fixed per-person fee, one USD PayPal
-**sandbox** receiver, PostgreSQL persistence, hashed cookie sessions, and an OpenAI text
-assistant whose tools can read state and quote but can never move money.
+Fastify (Node 24, TypeScript, ESM) API for Somos Panas: fixed per-person fee, one USD PayPal
+**sandbox** receiver, PostgreSQL persistence, hashed cookie sessions, and the Napster avatar
+session endpoint whose tools can read state and prepare drafts but can never move money.
 
 Routes follow `docs/API.md` exactly; shapes come from `packages/shared/src/index.ts`.
 
@@ -15,7 +15,7 @@ npm run start -w @fiestapay/api      # node dist/index.js
 npm run migrate -w @fiestapay/api    # apply SQL migrations only
 ```
 
-`src/index.ts` is the process entry point; `buildApp({ pool, config?, paypal?, respond? })`
+`src/index.ts` is the process entry point; `buildApp({ pool, config?, paypal?, email? })`
 from `src/app.ts` is the testable factory. Migrations run on boot unless `MIGRATE_ON_BOOT=0`.
 
 ## Configuration
@@ -32,11 +32,10 @@ from `src/app.ts` is the testable factory. Migrations run on boot unless `MIGRAT
 | `PAYPAL_WEBHOOK_ID` | no | — | Required for `/api/paypal/webhook`; without it the route answers 503. |
 | `PAYPAL_BASE_URL` | no | `https://api-m.sandbox.paypal.com` | Rejected unless it is a PayPal sandbox host. |
 | `PAYPAL_TIMEOUT_MS` | no | `12000` | |
-| `LLM_PROVIDER` | no | `openai` | Compatibility only. Any value other than `openai` is rejected. |
-| `OPENAI_API_KEY` | no | — | Server only. Missing key disables chat with 503. |
-| `OPENAI_MODEL` | no | `gpt-6-luna` | Responses API with fixed low reasoning. |
-| `OPENAI_TIMEOUT_MS` / `OPENAI_MAX_TOOL_ROUNDS` / `OPENAI_MAX_HISTORY` | no | `20000` / `4` / `24` | Capped at 60000 / 6 / 60. |
-| `OPENAI_MAX_OUTPUT_TOKENS` | no | `2000` | Capped at 4000; includes reasoning output. |
+| `NAPSTER_ENABLED` | no | `false` | Enables the avatar session endpoint. |
+| `NAPSTER_API_KEY` | no | — | Server only; never reaches the browser. |
+| `NAPSTER_API_BASE` | no | `https://napster-api.napster.com` | Provider base URL. |
+| `NAPSTER_AGENT_ID_ES` / `NAPSTER_AGENT_ID_EN` | no | — | Agent IDs per language. |
 | `QUOTE_TTL_SECONDS` | no | `900` | Quote lifetime. |
 | `SESSION_COOKIE_NAME` / `SESSION_TTL_SECONDS` | no | `fp_session` / 30 days | |
 | `BODY_LIMIT_BYTES` | no | `65536` | |
@@ -67,13 +66,13 @@ dependent route answers `503` with the reason. Nothing is ever faked as a succes
 - Every mutation (session creation included) requires an allowed `Origin`; there is no CORS.
   The webhook is exempt and authenticated by its PayPal signature instead.
 
-## Assistant boundary
+## Avatar boundary
 
-`POST /api/events/:slug/chat` runs OpenAI Responses with function calling
-(`gpt-6-luna`, low reasoning, `store:false`). Tools
-are read-only or produce a server-computed quote; `propose_rsvp` writes nothing and only returns
-a proposal. The UI confirmation is the payment boundary: the assistant can present a quote, and
-the person approves it in the interface and then in PayPal.
+`POST /api/avatar-session` creates a short-lived Napster connection and returns only the token,
+an opaque handle and (for text mode) the socket URL. The server decides the visitor type from
+the host, account and event access rules. The avatar uses the closed tool list in
+`packages/shared/src/avatar-tools.ts`; it prepares drafts and highlights controls, and the person
+presses the final control.
 
 ## Tests
 

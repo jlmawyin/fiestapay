@@ -12,7 +12,7 @@ Informe para **cualquier agente nuevo** que retome el proyecto sin historial pre
 
 Un request se clasifica por el encabezado **`Host`** (SP-2). La cookie `fp_session` no lleva `Domain`: raíz y cada subdominio tienen sesiones distintas. Importes en **centavos enteros** en servidor; el libro PayPal solo en legado (SP-8).
 
-**Arquitectura (una línea):** navegador → Nginx → Fastify (`apps/api`) + React/Vite (`apps/web`) → PostgreSQL 16; Gemini para IA del producto legado; Somos Panas no exige llamadas reales a proveedores para cerrar etapas.
+**Arquitectura (una línea):** navegador → Nginx → Fastify (`apps/api`) + React/Vite (`apps/web`) → PostgreSQL 16; Napster es la única IA del producto; Somos Panas no exige llamadas reales a proveedores para cerrar etapas.
 
 Diagrama y tablas en [somospanas/PLAN.md](somospanas/PLAN.md). Estado de etapas en [somospanas/PROGRESO.md](somospanas/PROGRESO.md).
 
