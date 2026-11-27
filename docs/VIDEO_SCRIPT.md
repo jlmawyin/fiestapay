@@ -1,98 +1,51 @@
-# FiestaPay — video script (2:45 maximum)
+# Video script — 3:00 maximum
 
-Recorded in English, on the deployed app, with English UI (`/demo?lang=en`). The total target is **2:40**, leaving five seconds of margin under the three-minute limit. Record the real sequence: if PayPal login takes longer, cut only dead waiting time; never edit an unverified result into a success.
+Format: screen recording with the Napster avatar visible. Speak in Spanish; show English subtitles on screen. Keep each shot moving; no slide deck.
 
-## 0:00–0:12 — Cold open: the agent navigates, but does not press
+## 0:00–0:20 — Hook
 
-**On screen:** `/demo?lang=en`, the FiestaPay orb open, **Talk** selected before recording. The cursor is visible.
+**Show:** quick cuts of the avatar greeting, a group space, a guest invitation and the organizer's photo avatar.
 
-**You press:** **Talk** → accept microphone consent → say **“Take me to the judges demo.”** The app navigates to the demo and highlights **Try a PayPal payment**. Hold on the highlight.
+**Say (ES):** «Organizar un plan con tus panas no debería perderse en el chat. Somos Panas le da a cada grupo su espacio, y una avatar de Napster recibe a todos con cara y voz.»
 
-**Narration (word for word):**
+**Subtitle (EN):** “Planning with your friends shouldn’t get lost in chat. Somos Panas gives every group its space, and a Napster avatar welcomes everyone with a face and a voice.”
 
-> This is FiestaPay. I asked its voice agent to take me to the judges demo. It navigated and highlighted the next button — but it did not press it.
+## 0:20–0:50 — Public greeting
 
-## 0:12–0:38 — One sentence builds the party
+**Show:** `https://somospanas.com`. Start the avatar. It introduces Somos Panas and offers public events and creating a space. Show it highlighting one allowed control.
 
-**On screen:** the judges demo hero, the public chat proposal card, then the creation wizard.
+**Say (ES):** «Soy la guía de Somos Panas. Puedo mostrarte los eventos públicos o acompañarte a crear tu espacio. Yo explico y señalo; tú decides y pulsas.»
 
-**You press:** open the public chat → type **“Build a BBQ for 10 at $15 each”** → wait for the complete proposal card → **Review in Create**. Let the pre-filled fields appear. Review them; press **Publish** once, manually. Do not skip the human review.
+**Subtitle (EN):** “I’m the Somos Panas guide. I can show you public events or help you create your space. I explain and point; you decide and press.”
 
-**Narration:**
+## 0:50–1:35 — Creator greeting
 
-> FiestaPay is an AI party host that collects everyone's share with PayPal. In the public chat I say: build a BBQ for ten at fifteen each. The agent returns a complete proposal — ten people, the share per person, date and place. Review in Create opens the whole proposal, and I publish it myself after checking every field. The server — not the model — calculates each person's share in integer cents.
+**Show:** the legacy `/create` page. Start the avatar and dictate: *«Cena para ocho el sábado a las siete, quince dólares por persona.»* The avatar fills the draft with `fill_event_draft`. Review the fields; press **Publish** yourself. Open the organizer panel and ask for a reminder; show the drafted text.
 
-## 0:38–1:00 — A guest joins; attendance is not payment
+**Say (ES):** «La avatar escucha el plan y rellena el borrador. Reviso, corrijo y publico yo. También me prepara el recordatorio, pero el mensaje lo envío yo.»
 
-**On screen:** the demo meal and the public invitation.
+**Subtitle (EN):** “The avatar listens and fills the draft. I review, edit and publish. It also prepares the reminder, but I send the message.”
 
-**You press:** **Try a PayPal payment** → join as **Demo Guest** → add one companion → confirm attendance. Show **2 people attending** and the separate payment state.
+## 1:35–2:10 — Guest greeting
 
-**Narration:**
+**Show:** open the invitation link. The avatar says the event name. Show the event details and the highlighted RSVP/payment control. For the demo, press **Try a PayPal payment**, join as **Demo Guest**, show the server quote and the **Approve in PayPal** button.
 
-> For the payment, the judges demo creates a fictional meal. I join as Demo Guest and add one companion. Two people are attending. Notice that attendance is separate from payment: saying yes does not mark anyone paid.
+**Say (ES):** «Al invitado lo recibe por el nombre de su evento. Lo lleva a confirmar o a revisar su aporte, sin presionar. El pago se aprueba en PayPal Sandbox; no se mueve dinero real.»
 
-## 1:00–1:28 — The guest agent prepares the quote
+**Subtitle (EN):** “The guest is greeted by the event name and guided to RSVP or review their contribution, without pressure. Payment is approved in PayPal Sandbox; no real money moves.”
 
-**On screen:** the guest assistant, the agent reply, and the **Approve in PayPal** card.
+## 2:10–2:40 — Wow: the organizer's face
 
-**You press:** open the guest assistant → **Talk** (or **Type** if the room is noisy) → say **“How much do I have to pay? Please prepare my payment.”** Show the tool activity and the resulting card.
+**Show:** organizer settings, choose a photo, tick “this is my photo”, enter the first name. Show the generating state, then the event page with the custom avatar. If it is still generating, say so and show the general avatar continuing to work.
 
-**Narration:**
+**Say (ES):** «El organizador sube su foto con consentimiento. Napster crea su avatar v1 y, cuando está listo, sus invitados son recibidos por su propia cara. La foto se borra de nuestra base de datos al terminar.»
 
-> Now I ask the guest agent: how much do I have to pay, and please prepare my payment. The agent calls the event, my status and the quote tools. The server returns the quote in integer cents, pending approval. The screen shows Approve in PayPal with that exact amount. The agent can prepare a quote, but it can never approve it or charge a card.
+**Subtitle (EN):** “The organizer uploads their photo with consent. Napster creates a v1 avatar and, when ready, guests are welcomed by their own face. The photo is deleted from our database when generation finishes.”
 
-## 1:28–1:58 — Approval in PayPal, verification on the server
+## 2:40–3:00 — Architecture in 15 seconds
 
-**On screen:** FiestaPay checkout, the PayPal Sandbox login, PayPal approval, the return to FiestaPay, then **Paid**.
+**Show:** short diagram: Browser → Fastify → Napster; token only in the browser; tools validated in the web; person presses the final button.
 
-**You press:** **Confirm and Create Payment** → **Show test account** (copy email/password off camera) → sign in to PayPal Sandbox → review and **approve personally** → return to FiestaPay → **Check / Continue Capture** if needed → wait for **Paid**. Never show the password or API credentials.
+**Say (ES):** «El servidor crea la sesión de Napster y guarda la clave. El navegador solo recibe un token temporal. Ocho herramientas con listas cerradas preparan el siguiente paso, y la persona siempre da el último clic.»
 
-**Narration:**
-
-> I approve personally inside PayPal Sandbox. Back in FiestaPay, the server verifies the capture: the amount, the currency, the order reference and the receiver. Signed webhooks reconcile duplicate notifications and retries. Only after that check does the status change to Paid. An approved order on its own is never a payment.
-
-## 1:58–2:18 — Organizer dashboard in AG Grid
-
-**On screen:** the organizer dashboard and the read-only judges grid.
-
-**You press:** quick search for a guest → toggle **Pending only** → sort a column → **Export CSV** → point at the highlighted rows and the totals row.
-
-**Narration:**
-
-> The organizer sees the collection in AG Grid: quick search, Pending only, CSV export, highlighted rows, and a totals row calculated by the server. Paid and unpaid guests are visible at a glance.
-
-## 2:18–2:32 — An AI-drafted reminder the organizer sends
-
-**On screen:** the reminder composer and the WhatsApp draft.
-
-**You press:** **Draft reminder** → choose **Friendly** → show the generated text → **Copy** → open the WhatsApp draft → close it without sending.
-
-**Narration:**
-
-> For anyone still pending, the AI drafts a reminder in a friendly, funny or formal tone. The organizer copies it, or opens WhatsApp and sends it personally. FiestaPay never messages anyone on its own.
-
-## 2:32–2:45 — Why this is different, and where to try it
-
-**On screen:** a clean end card with the product name, the live URL and the judges-demo URL.
-
-**You press:** nothing. Let the end card hold.
-
-**Narration:**
-
-> SarafuPay centers the conversation on WhatsApp and also has a web checkout. Partiful verifies Ticket Sales, while its Chip In asks the organizer to confirm receipt. FiestaPay connects the AI conversation to a server-verified PayPal Sandbox capture: the agent guides and prepares; people approve in PayPal; only a server-verified capture counts as paid. Try it at fiestapay dot somospanas dot com slash demo.
-
-## Preparation checklist
-
-- **Sandbox buyer:** open **Try a PayPal payment → Show test account** and verify the shared buyer can sign in to PayPal Sandbox before recording. Keep the password off camera and out of the final cut.
-- **Language:** use `https://fiestapay.somospanas.com/demo?lang=en`. If the browser language overrides the URL, switch English in the header or use a clean English browser profile.
-- **Clean window:** use a private window, close personal tabs and notifications, and press **Reset my demos** so the demo starts from a known state. Do not show organizer keys, recovery links, cookies, `.env` files or API keys.
-- **Voice:** test the microphone and consent flow first. Start the voice session close to its line; sessions are capped at 120 seconds. If the session ends, reopen the orb and continue — do not fake the response.
-- **Payment realism:** use the demo meal and the shared sandbox buyer. Keep the same order through quote, approval, capture and dashboard. If login is slow, cut only the waiting; keep the real steps. Record the order/capture reference privately alongside the video.
-- **Reminder:** demonstrate **Copy** and the WhatsApp draft without sending. No third party should receive a message.
-- **Capture:** record at 1080p or higher, with clear cursor movement and readable text. No music. Burn in or upload English captions from this script.
-- **Publish:** keep the final video under three minutes, upload it as a public YouTube video, and use that URL for `[[VIDEO_URL]]` in the README and Devpost draft.
-
-## What the script deliberately does not claim
-
-No real-money payment, automatic WhatsApp sending, new physical-phone payment test, published video or completed Devpost submission. All payments are PayPal Sandbox. Measured AI draft quality: 10/10 drafts (5 EN, 5 ES), 43 of 44 expected fields correct (97.7 %), median ≈ 2.0 s, p90 ≈ 3.0 s. Guest-chat evaluation returned 8 exact quotes in 10 turns on an isolated demo, with a median of 3.83 s across all turns.
+**Subtitle (EN):** “The server creates the Napster session and keeps the key. The browser only receives a short-lived token. Eight closed tools prepare the next step, and the person always makes the final click.”
