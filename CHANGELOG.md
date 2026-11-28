@@ -12,6 +12,7 @@ Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, 
 
 - 2026-11-28 NAP-U3: entrevista en /create (avatar a la izquierda, pasos a la derecha con dorado activo), fila de avatares con avatarId, `fill_event_draft` con step, pantalla final con QRs/correo/compartir y panel `none` sin PayPal.
 - 2026-11-28 NAP-U5: sugeridas por tag, anfitriona con cambio (PUT avatar-choice), ?subdominio=, tarjeta pre-inicio con foto/saludo/dorado, previa en modo colecta y resumen del borrador al reiniciar.
+- 2026-11-28 NAP-U6: título de la pestaña con el lema actual («Organiza como panas»/«Plan it like friends do») en docTitle ES/EN, `<title>` inicial y prueba ES/EN de document.title.
 
 ## 2026-11-27 — NAP-F6w · «Tu avatar con tu foto» en el panel del organizador
 
