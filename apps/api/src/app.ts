@@ -9,14 +9,15 @@ import type { EmailAdapter } from './email/types.js';
 import type { Pool } from './db/pool.js';
 import { HttpError } from './errors.js';
 import {
-  classifyHost,
   isHealthProbeExempt,
-  isHostRoutable,
   isOriginAllowedForHost,
   isPayPalWebhookHost,
   type HostClassification,
 } from './lib/host.js';
-import { tenantIdForSlug } from './domain/access.js';
+import { findEventBySubdomain } from './domain/subdomains.js';
+import { legacyRedirectTarget } from './lib/legacy-redirect.js';
+import { resolveHost } from './lib/resolve-host.js';
+import { renderIndexWithMeta } from './lib/spa-meta.js';
 import { requestLogger } from './lib/redact.js';
 import { PayPalSandboxClient } from './paypal/client.js';
 import type { PayPalAdapter } from './paypal/types.js';
@@ -61,27 +62,42 @@ declare module 'fastify' {
 }
 
 /**
- * SP4-D-3: en host `site` solo entran `/api/site/*` (y el health); el API de invitaciones queda en raíz/legado.
- * Sin fila en `tenants`, el subdominio sigue respondiendo 404.
+ * Enrutado por host (NAP-S2): raíz y legado atienden todo el API; un sitio solo lo suyo; un host
+ * de evento atiende el API de ESE evento; un host libre/reservado solo `host-info`. Las páginas
+ * no-API se sirven como SPA en sitio, evento, libre y reservado.
  */
 async function isRequestRoutable(
   method: string,
   pathOnly: string,
   host: HostClassification,
-  db: Pool,
+  _db: Pool,
 ): Promise<boolean> {
   if (isHealthProbeExempt(method, pathOnly)) return true;
-  if (isHostRoutable(host)) return true;
-  if (host.kind === 'site' && host.slug) {
-    const tenantId = await tenantIdForSlug(db, host.slug);
-    if (!tenantId) return false;
+  if (host.kind === 'invalid') return false;
+  if (host.kind === 'root' || host.kind === 'legacy') return true;
+  if (!pathOnly.startsWith('/api')) return true;
+
+  const getOrHead = method === 'GET' || method === 'HEAD';
+  if (pathOnly === '/api/host-info') return getOrHead;
+
+  if (host.kind === 'site') {
     // NAP-F2: la sesión de avatar también se pide desde el subdominio del sitio (creador).
     if (pathOnly === '/api/avatar-session' || pathOnly === '/api/avatar-session/end') return true;
-    // NAP-S1: el catálogo de avatares es público también en el subdominio del sitio.
-    if (pathOnly === '/api/avatars') return true;
+    if (pathOnly === '/api/avatars') return getOrHead;
     if (pathOnly === '/api/sites/handoff') return true;
     return pathOnly === '/api/site' || pathOnly.startsWith('/api/site/');
   }
+
+  if (host.kind === 'event') {
+    if (pathOnly === '/api/capabilities' || pathOnly === '/api/avatars') return getOrHead;
+    if (pathOnly === '/api/avatar-session' || pathOnly === '/api/avatar-session/end') return true;
+    if (pathOnly === '/api/recovery/request' || pathOnly === '/api/recovery/consume') return true;
+    if (pathOnly.startsWith('/api/orders/')) return true;
+    const ownEvent = /^\/api\/events\/([^/]+)(?:\/|$)/.exec(pathOnly);
+    return ownEvent?.[1] === host.slug;
+  }
+
+  // free/reserved: el API solo expone host-info.
   return false;
 }
 
@@ -146,13 +162,25 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
    */
   app.addHook('onRequest', async (req, reply) => {
     // Solo `Host`: no confiar en X-Forwarded-Host con trustProxy (ver cabecera en host.ts).
-    const hostClassification = classifyHost(req.headers.host, { env: config.env });
+    const hostClassification = await resolveHost(pool, req.headers.host, { env: config.env });
     req.hostClassification = hostClassification;
 
     reply.header('Referrer-Policy', 'no-referrer');
     const pathOnly = req.url.split('?')[0] ?? req.url;
     const method = req.method.toUpperCase();
     if (pathOnly === '/api' || pathOnly.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
+
+    // NAP-S2: la dirección vieja deja de usarse para páginas; API, webhook y media siguen vivos.
+    if (
+      config.legacyHostRedirect &&
+      hostClassification.kind === 'legacy' &&
+      (method === 'GET' || method === 'HEAD') &&
+      pathOnly !== '/api' &&
+      !pathOnly.startsWith('/api/') &&
+      !pathOnly.startsWith('/media/avatar/')
+    ) {
+      return reply.redirect(await legacyRedirectTarget(pool, req.url), 301);
+    }
 
     // D-1: el healthcheck interno usa 127.0.0.1/local sin tratar esos Host como legado en producción.
     if (!(await isRequestRoutable(method, pathOnly, hostClassification, pool))) {
@@ -191,6 +219,35 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   const webIndex = join(config.webDir, 'index.html');
   const serveWeb = config.serveWeb && existsSync(webIndex);
 
+  /** NAP-S2: index con Open Graph del evento cuando la SPA se sirve en su host. */
+  const renderIndex = async (req: FastifyRequest, html: string): Promise<string> => {
+    const host = req.hostClassification ?? { kind: 'invalid', hostname: '' };
+    const event = host.kind === 'event' && host.subdomain ? await findEventBySubdomain(pool, host.subdomain) : null;
+    return renderIndexWithMeta(html, host, event);
+  };
+
+  if (serveWeb) {
+    // El plugin estático registra `/` e `/index.html`; se transforman al vuelo, sin duplicar rutas.
+    app.addHook('onSend', async (req, reply, payload) => {
+      const contentType = String(reply.getHeader('content-type') ?? '');
+      let html: string | null = null;
+      if (typeof payload === 'string') html = payload;
+      else if (Buffer.isBuffer(payload)) html = payload.toString('utf8');
+      else if (contentType.includes('text/html') && payload) {
+        const posible = payload as { [Symbol.asyncIterator]?: unknown };
+        if (typeof posible[Symbol.asyncIterator] !== 'function') return payload;
+        // @fastify/static entrega el index como stream; se consume para inyectar el OG.
+        const trozos: Buffer[] = [];
+        for await (const trozo of payload as AsyncIterable<Uint8Array>) trozos.push(Buffer.from(trozo));
+        html = Buffer.concat(trozos).toString('utf8');
+      }
+      if (html === null || !/^\s*(?:<!doctype html|<html)/i.test(html)) return payload;
+      reply.removeHeader('content-length');
+      reply.removeHeader('etag');
+      return renderIndex(req, html);
+    });
+  }
+
   // Both handlers are installed before any route is registered: child scopes inherit the
   // handlers present when they are created, and every error must render as {error}.
   app.setErrorHandler(async (err: unknown, req, reply) => {
@@ -223,7 +280,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       return reply.code(404).send({ error: 'Ruta no encontrada' });
     }
     if (serveWeb && (req.method === 'GET' || req.method === 'HEAD')) {
-      // SPA fallback for client-side routes such as /e/<slug>.
+      // SPA fallback for client-side routes such as /e/<slug>; onSend añade el OG del host.
       return reply.type('text/html').sendFile('index.html');
     }
     return reply.code(404).send({ error: 'Ruta no encontrada' });

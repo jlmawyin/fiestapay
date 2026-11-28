@@ -13,6 +13,8 @@ export interface AvatarCatalogEntry {
   gender: 'female' | 'male';
   companionId: string;
   previewUrl: string;
+  /** NAP-S2: videoLoopUrl del catálogo napster-stock; null si no se conoce. */
+  loopUrl: string | null;
   voice: string;
   agentIdEs: string | null;
   agentIdEn: string | null;
@@ -24,6 +26,7 @@ export interface PublicAvatar {
   firstName: string;
   gender: 'female' | 'male';
   previewUrl: string;
+  loopUrl: string | null;
   default: boolean;
 }
 
@@ -63,6 +66,7 @@ export function publicAvatar(entrada: AvatarCatalogEntry): PublicAvatar {
     firstName: entrada.firstName,
     gender: entrada.gender,
     previewUrl: entrada.previewUrl,
+    loopUrl: entrada.loopUrl ?? null,
     default: entrada.default,
   };
 }

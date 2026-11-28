@@ -183,6 +183,12 @@ export const SERVER_ERROR_EN: Readonly<Record<string, string>> = {
   // Somos Panas — alta de sitios (SP-7).
   'Slug invalido o reservado': 'That subdomain is not valid or is reserved.',
   'Ese subdominio ya esta en uso': 'That subdomain is already in use.',
+  'Direccion invalida': 'That address is not valid.',
+  'Direccion de reunion invalida': 'That meetup address is not valid.',
+  'No se pudo asignar una direccion unica para la reunion':
+    'We could not assign a unique address for the meetup.',
+  'No se pudo generar una direccion unica para la reunion':
+    'We could not generate a unique address for the meetup.',
   'Codigo invalido o vencido': 'That code is not valid or has expired.',
   'Demasiados intentos. Espera antes de volver a intentar.':
     'Too many attempts. Wait before trying again.',

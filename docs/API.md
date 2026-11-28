@@ -1,6 +1,13 @@
 # API contract (Somos Panas)
 
-Fastify serves JSON under `/api`. The root host is `somospanas.com`, group sites use `<slug>.somospanas.com`, and the legacy host keeps its existing event flow. Mutations require an allowed browser origin.
+Fastify serves JSON under `/api`. The root host is `somospanas.com`, group sites use `<slug>.somospanas.com`, every meetup has `https://<subdomain>.somospanas.com`, and the legacy host keeps only its historical API and webhook. Mutations require an allowed browser origin.
+
+## Host discovery (NAP-S2)
+
+- `GET /api/host-info` on every host returns exactly one of `{kind:'root'}`, `{kind:'legacy'}`, `{kind:'site',slug}`, `{kind:'event',slug,subdomain}`, `{kind:'free',label}` or `{kind:'reserved',label}`.
+- On an event host, `/api` only exposes that event's public/organizer routes, plus `/api/host-info`, `/api/capabilities`, `/api/avatar-session*` and `/api/avatars`. Another event slug returns 404.
+- A free or reserved host serves the SPA and `/api/host-info`; no other API route is exposed.
+- With `LEGACY_HOST_REDIRECT=true`, GET/HEAD pages on the legacy host answer 301 to `https://somospanas.com`; `/e/<slug>` with a subdomain goes to the meetup address. `/api`, `/api/paypal/webhook` and `/media/avatar` are not redirected.
 
 ## Accounts and sites
 
@@ -14,7 +21,8 @@ Fastify serves JSON under `/api`. The root host is `somospanas.com`, group sites
 ## Public directory and events
 
 - `GET /api/portal/events` (root): public events only.
-- `POST /api/events`, `GET /api/events/:slug`, `POST /api/events/:slug/join`, `POST /api/events/:slug/rsvp`, `POST /api/events/:slug/unlock`.
+- `POST /api/events` (root) also accepts optional `preferredSubdomain`; the server assigns `subdomain` (with suffix 2, 3… when reserved or taken) and returns `subdomain`/`publicUrl` in the event and dashboard. New root meetups use provider `none`: quote/order/capture answer 409 and attendance still works. The legacy host keeps `paypal_sandbox`.
+- `GET /api/events/:slug`, `POST /api/events/:slug/join`, `POST /api/events/:slug/rsvp`, `POST /api/events/:slug/unlock`.
 - `POST /api/events/:slug/quote`, `POST /api/events/:slug/orders`, `POST /api/orders/:orderId/capture`, `GET /api/orders/:orderId`.
 - `GET /api/events/:slug/dashboard`, `POST /api/events/:slug/confirm`, `POST /api/events/:slug/close`, `POST /api/demo`, `POST /api/demo/reset`.
 - `POST /api/paypal/webhook` verifies the PayPal signature before applying a capture or refund.
@@ -22,11 +30,14 @@ Fastify serves JSON under `/api`. The root host is `somospanas.com`, group sites
 
 ## Napster avatar
 
-- `POST /api/avatar-session` body `{lang, intent?, eventSlug?, mode?}` -> `{token, handle, visitor, lang, agent, socketUrl?}`.
+- `POST /api/avatar-session` body `{lang, intent?, eventSlug?, avatarId?, mode?}` -> `{token, handle, visitor, lang, agent, avatar?, socketUrl?}`.
+  - `avatarId` must be a ready catalog id; unknown ids return `400 avatar_unknown`. On an event host the event comes from the Host and any other `eventSlug` is 404.
+  - The response `avatar` is `{id, firstName, previewUrl}`; for an event photo it is `{id:'event', firstName, previewUrl:null}`.
   - `mode:'video'` (default) creates a WebRTC connection; `mode:'text'` creates a WebSocket text session and returns the server-decoded socket URL.
   - The server decides `visitor` from the host, account and event access rules. It returns only the short-lived token and an opaque handle.
   - When the event has a ready custom avatar, `agent` is `"custom"`; otherwise `"default"`.
 - `POST /api/avatar-session/end` body `{handle}` -> 204, idempotent.
+- `GET /api/avatars` returns ready catalog entries `{id, firstName, gender, previewUrl, loopUrl, default}` without agent ids; it is public on root, legacy, site and event hosts.
 - `GET /api/capabilities` reports `paypal`, `paymentProvider`, `avatar` and `email`; it never announces an unconfigured provider.
 
 ## Organizer photo avatar (legacy host only)
@@ -37,7 +48,7 @@ These routes require `X-Fiesta-Admin-Key` for the event.
 - `GET /api/events/:slug/avatar` returns `{status, firstName, ready}`. While `generating`, it checks Napster at most once every 10 seconds; when ready it creates the event's two agents, clears the photo and returns `ready`.
 - `DELETE /api/events/:slug/avatar` deletes the event agents and the row, returning to the general avatar.
 - `GET /media/avatar/:token` serves the JPEG/PNG only while it exists, with `Cache-Control: no-store`; afterwards it returns 404.
-- The custom-avatar cap is 40 events; exceeding it returns `409 avatar_limit`.
+- The custom-avatar cap is 35 events; exceeding it returns `409 avatar_limit`.
 
 ## Shared shapes and limits
 

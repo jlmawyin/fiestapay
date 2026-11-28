@@ -13,12 +13,39 @@
   "hero": {
     "ojo": { "es": "SOMOSPANAS.COM", "en": "SOMOSPANAS.COM" },
     "titulo": {
-      "es": "Un espacio para cada grupo de panas",
-      "en": "A space for every group of friends"
+      "es": "Organiza como panas: un agente te guía de principio a fin",
+      "en": "Plan it like friends do, like a pana"
     },
     "texto": {
-      "es": "Organiza reuniones, invita amigos y junta fondos con las cuentas claras. El tutorial te guía por voz o por texto. Desde aquí ves los eventos que su dueño marcó públicos y las recaudaciones abiertas.",
-      "en": "Organize meetups, invite friends, and pool funds with clear accounts. The tutorial guides you by voice or text. From here you see events marked public by their owner and open fundraisers."
+      "es": "Tu guía arma la invitación contigo; tú revisas y compartes.",
+      "en": "Your guide builds the invitation with you; you review and share."
+    },
+    "botonConversar": { "es": "Conversa como pana", "en": "Talk like a pana" },
+    "enlaceIdioma": { "es": "Prefer English?", "en": "¿Prefieres español?" },
+    "notaPana": { "es": "Entre panas nos entendemos.", "en": "pana = friend in Ecuador" },
+    "saludo": { "es": "¡Hola! Soy tu guía de Somos Panas.", "en": "Hi! I'm your Somos Panas guide." },
+    "pasosTitulo": { "es": "En tres pasos", "en": "In three steps" },
+    "muestraTitulo": { "es": "Lo que obtienes", "en": "What you get" },
+    "pasos": [
+      {
+        "titulo": { "es": "Conversa", "en": "Talk" },
+        "texto": { "es": "Cuéntale tu plan a tu guía por video o por texto.", "en": "Tell your guide your plan by video or text." }
+      },
+      {
+        "titulo": { "es": "Revisa", "en": "Review" },
+        "texto": { "es": "Mira la invitación que arma contigo y cambia lo que quieras.", "en": "Look at the invitation it builds with you and change anything." }
+      },
+      {
+        "titulo": { "es": "Comparte", "en": "Share" },
+        "texto": { "es": "Publica y pasa el enlace con QR a tus panas.", "en": "Publish and pass the link with QR to your friends." }
+      }
+    ],
+    "muestra": {
+      "titulo": { "es": "Cumple de María", "en": "María's birthday" },
+      "fecha": { "es": "Sábado 12 de diciembre · 7:00 p. m.", "en": "Saturday, December 12 · 7:00 PM" },
+      "lugar": { "es": "Casa de María · Quito", "en": "María's place · Quito" },
+      "url": { "es": "https://cumpledemaria.somospanas.com/", "en": "https://cumpledemaria.somospanas.com/" },
+      "qrPie": { "es": "Escanéalo y confirma", "en": "Scan it and RSVP" }
     },
     "botonTutorial": {
       "es": "Ver tutorial guiado (voz y texto)",

@@ -186,7 +186,11 @@ export async function groupPrivateEventHiddenOnPortal(
   accountUserId: string | null,
 ): Promise<boolean> {
   if (hostKind !== 'root' && hostKind !== 'legacy') return false;
-  const { rows } = await db.query<{ tenant_kind: string; tenant_id: string; visibility: 'private' | 'public' }>(
+  const { rows } = await db.query<{
+    tenant_kind: string;
+    tenant_id: string;
+    visibility: 'private' | 'public';
+  }>(
     `SELECT t.kind AS tenant_kind, e.tenant_id, e.visibility
        FROM events e
        JOIN tenants t ON t.id = e.tenant_id

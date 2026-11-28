@@ -2,11 +2,18 @@
  * Tokens de diseño Somos Panas — único lugar de colores, tipografía y espaciados
  * para la portada y los sitios de grupo. La web legada puede seguir en index.css
  * hasta que SP-6 conecte la portada raíz a estos valores.
+ * NAP-U2: los colores tienen variante de día (abajo, primero) y de noche
+ * (`html[data-tema="noche"]`). El atributo lo fija un script en <head> antes
+ * del primer pintado, desde lo guardado o prefers-color-scheme.
  */
 
 :root {
-  /* Colores de marca (paleta FiestaPay / Somos Panas) */
-  --sp-color-cloudwhite: #F7FAFC;
+  /* El navegador adapta la IU nativa (barras, controles) al esquema usado. */
+  color-scheme: light dark;
+
+  /* Día: fondo claro y cálido, texto oscuro (primera declaración: la leen las
+     pruebas de contraste y el render sin atributo). */
+  --sp-color-cloudwhite: #FAF7F1;
   --sp-color-ink: #12263A;
   --sp-color-ink-muted: #4A5D73;
   --sp-color-ink-light: #7E90A3;
@@ -63,6 +70,84 @@
   --sp-viewport-desktop-height: 960px;
   --sp-viewport-mobile: var(--sp-viewport-mobile-width);
   --sp-viewport-desktop: var(--sp-viewport-desktop-width);
+}
+
+/* NAP-U2: día explícito (el script de <head> deja el atributo siempre puesto
+   cuando hay JS; sin JS, manda el bloque de sistema de abajo). */
+html[data-tema="dia"] {
+  color-scheme: light;
+}
+
+/* NAP-U2: en la raíz el body acompaña al tema para no enmarcar la portada.
+   Solo con .portal-body (lo pone PortalLandingView): el legado no se toca. */
+html[data-tema="dia"] body.portal-body {
+  background: #FAF7F1;
+}
+
+html[data-tema="noche"] body.portal-body {
+  background: #0A1930;
+}
+
+/* NAP-U2: noche, azul oscuro y dorado. Todos los pares texto/fondo cumplen AA;
+   portal-visual.test.ts lo comprueba en navegador en los dos modos. */
+html[data-tema="noche"] {
+  color-scheme: dark;
+
+  --sp-color-cloudwhite: #0A1930;
+  --sp-color-ink: #F8F4EB;
+  --sp-color-ink-muted: #C2CDE0;
+  --sp-color-ink-light: #8FA0B8;
+  --sp-color-blue: #7AA8FF;
+  --sp-color-blue-hover: #9CC0FF;
+  --sp-color-blue-tint: #1B3355;
+  --sp-color-teal: #4FD1C5;
+  --sp-color-teal-hover: #7FE3D6;
+  --sp-color-teal-tint: #123B3D;
+  --sp-color-yellow: #FFC85A;
+  --sp-color-yellow-dark: #FFD58A;
+  --sp-color-yellow-tint: #3A2C12;
+  --sp-color-coral: #FF8A75;
+  --sp-color-coral-hover: #FFAA99;
+  --sp-color-coral-tint: #47231F;
+
+  --sp-color-border: #2A3F5C;
+  --sp-color-border-dark: #3D5A85;
+  --sp-color-surface: #12263F;
+  --sp-color-surface-subtle: #1B3355;
+
+  --sp-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --sp-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.45), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --sp-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.45);
+}
+
+/* NAP-U2: sin JS no hay atributo y la noche la decide el sistema. Repite la
+   paleta nocturna porque CSS no permite compartir el bloque con el de arriba. */
+@media (prefers-color-scheme: dark) {
+  html:not([data-tema]) {
+    color-scheme: dark;
+
+    --sp-color-cloudwhite: #0A1930;
+    --sp-color-ink: #F8F4EB;
+    --sp-color-ink-muted: #C2CDE0;
+    --sp-color-ink-light: #8FA0B8;
+    --sp-color-blue: #7AA8FF;
+    --sp-color-blue-hover: #9CC0FF;
+    --sp-color-blue-tint: #1B3355;
+    --sp-color-teal: #4FD1C5;
+    --sp-color-teal-hover: #7FE3D6;
+    --sp-color-teal-tint: #123B3D;
+    --sp-color-yellow: #FFC85A;
+    --sp-color-yellow-dark: #FFD58A;
+    --sp-color-yellow-tint: #3A2C12;
+    --sp-color-coral: #FF8A75;
+    --sp-color-coral-hover: #FFAA99;
+    --sp-color-coral-tint: #47231F;
+
+    --sp-color-border: #2A3F5C;
+    --sp-color-border-dark: #3D5A85;
+    --sp-color-surface: #12263F;
+    --sp-color-surface-subtle: #1B3355;
+  }
 }
 
 /* Demostración mínima de aplicación de tokens (usada por pruebas de render) */

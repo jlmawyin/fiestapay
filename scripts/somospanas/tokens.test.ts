@@ -34,11 +34,18 @@ const TOKENS_OBLIGATORIOS = [
 
 /** Valores canónicos declarados en tokens.css (hex/rgb esperados al aplicar). */
 const ESPERADO = {
-  cloudwhite: 'rgb(247, 250, 252)',
+  cloudwhite: 'rgb(250, 247, 241)',
   ink: 'rgb(18, 38, 58)',
   blue: 'rgb(18, 95, 230)',
   paddingMd: '16px',
   paddingXl: '32px',
+} as const;
+
+/** NAP-U2: variante noche, azul oscuro y dorado. */
+const ESPERADO_NOCHE = {
+  cloudwhite: 'rgb(10, 25, 48)',
+  ink: 'rgb(248, 244, 235)',
+  blue: 'rgb(122, 168, 255)',
 } as const;
 
 let browser: Browser | null = null;
@@ -106,4 +113,43 @@ describe('estilos/tokens.css (Playwright · estilos computados)', () => {
       }
     },
   );
+
+  it('aplica la paleta noche con data-tema="noche" (NAP-U2)', async () => {
+    expect(browser).toBeTruthy();
+    const page = await browser!.newPage();
+    try {
+      await page.setViewportSize({ width: 1440, height: 960 });
+      await page.goto(MUESTRA_URL);
+      await page.evaluate(() => {
+        document.documentElement.setAttribute('data-tema', 'noche');
+      });
+      const estilos = await page.locator('[data-testid="tokens-muestra"]').evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { backgroundColor: s.backgroundColor, color: s.color };
+      });
+      expect(estilos.backgroundColor).toBe(ESPERADO_NOCHE.cloudwhite);
+      expect(estilos.color).toBe(ESPERADO_NOCHE.ink);
+      const acento = await page.locator('.sp-accent').evaluate((el) => getComputedStyle(el).color);
+      expect(acento).toBe(ESPERADO_NOCHE.blue);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it('sin atributo sigue al sistema en noche (NAP-U2)', async () => {
+    expect(browser).toBeTruthy();
+    const page = await browser!.newPage({ colorScheme: 'dark' });
+    try {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(MUESTRA_URL);
+      const estilos = await page.locator('[data-testid="tokens-muestra"]').evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { backgroundColor: s.backgroundColor, color: s.color };
+      });
+      expect(estilos.backgroundColor).toBe(ESPERADO_NOCHE.cloudwhite);
+      expect(estilos.color).toBe(ESPERADO_NOCHE.ink);
+    } finally {
+      await page.close();
+    }
+  });
 });

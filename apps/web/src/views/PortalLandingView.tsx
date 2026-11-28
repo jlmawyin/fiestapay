@@ -1,22 +1,23 @@
 /**
- * Portada C2 de somospanas.com: secciones ordenadas por `contenido/paginas.json` (SP-6).
- * Depende de `contenido/portada.json`, `contenido/tutorial.json`, `contenido/preguntas.json`,
- * tokens en `estilos/tokens.css` y listado `GET /api/portal/events`.
+ * Portada de somospanas.com (NAP-U2): una presentación con un solo foco, «aquí
+ * un agente te guía de principio a fin». Secciones ordenadas por
+ * `contenido/paginas.json`. Depende de `contenido/portada.json`, tokens en
+ * `estilos/tokens.css` y listado `GET /api/portal/events` (si no hay eventos,
+ * la sección no se muestra). Sin menús: el único camino es el botón dorado.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import '../../../../estilos/tokens.css';
 import '../styles/portal-landing.css';
 import portada from '../../../../contenido/portada.json';
 import paginas from '../../../../contenido/paginas.json';
-import tutorial from '../../../../contenido/tutorial.json';
-import preguntas from '../../../../contenido/preguntas.json';
-import { normalizeSiteSlugInput, validateSiteSlug } from '@fiestapay/shared';
-import { NapsterAvatar } from '../components/avatar/NapsterAvatar';
 import { legacyCreateUrl } from '../lib/app-host';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { avatarCatalog } from '../i18n/messages/avatar';
-import { LanguageSelector } from '../i18n/LanguageSelector';
-import { ApiError, api, type PortalListedEvent, type CreateSiteResult } from '../api/client';
+import { api, type PortalListedEvent } from '../api/client';
+import { SiteLogo } from '../components/brand/SiteLogo';
+import { ThemeToggle } from '../components/theme/ThemeToggle';
+import { AvatarSpotlight } from '../components/portal/AvatarSpotlight';
+import { SampleInviteCard } from '../components/demo/SampleInviteCard';
 
 type LocaleKey = 'es' | 'en';
 type SectionId = (typeof paginas.portadaRaiz.secciones)[number]['id'];
@@ -24,16 +25,13 @@ type SectionId = (typeof paginas.portadaRaiz.secciones)[number]['id'];
 export interface PortalLandingViewProps {
   onNavigateRegister: () => void;
   onNavigateLogin: () => void;
+  /**
+   * NAP-U2: el botón dorado va a /create y arranca la avatar con el mismo clic
+   * (App lo cablea). Opcional para no romper montajes sueltos: sin cableado
+   * navega a /create con recarga.
+   */
+  onNavigateCreate?: () => void;
 }
-
-/** Anclas reales en el DOM (`portal-section-*`); no incluye ids de barra/pie como `tutorial`. */
-type ScrollSectionId =
-  | 'como-funciona'
-  | 'eventos-publicos'
-  | 'donaciones'
-  | 'compositor'
-  | 'hero'
-  | 'preguntas';
 
 function pick<T extends Record<LocaleKey, string>>(block: T, locale: LocaleKey): string {
   return block[locale] ?? block.es;
@@ -51,33 +49,58 @@ function formatEventWhen(startsAt: string, locale: LocaleKey): string {
   }
 }
 
-type CreateSpaceState = 'idle' | 'loading' | 'unavailable' | 'done';
+const defaultNavigateCreate = (): void => {
+  try {
+    window.location.assign('/create');
+  } catch {
+    // Sin navegación el botón no hace nada.
+  }
+};
+
+/** Textos de pasos y muestra con tipos del JSON (claves nuevas NAP-U2). */
+interface PasoPortada {
+  titulo: Record<LocaleKey, string>;
+  texto: Record<LocaleKey, string>;
+}
+
+interface MuestraPortada {
+  titulo: Record<LocaleKey, string>;
+  fecha: Record<LocaleKey, string>;
+  lugar: Record<LocaleKey, string>;
+  url: Record<LocaleKey, string>;
+  qrPie: Record<LocaleKey, string>;
+}
 
 /**
  * Vista principal de la raíz: monta bloques según `paginas.json` sin copiar textos en el componente.
  */
-export const PortalLandingView: React.FC<PortalLandingViewProps> = ({ onNavigateRegister, onNavigateLogin }) => {
-  const { locale } = useI18n();
+export const PortalLandingView: React.FC<PortalLandingViewProps> = ({
+  onNavigateRegister,
+  onNavigateLogin,
+  onNavigateCreate = defaultNavigateCreate,
+}) => {
+  const { locale, setLocale } = useI18n();
   const lang = (locale === 'en' ? 'en' : 'es') as LocaleKey;
   const avatarTexts = useMessages(avatarCatalog);
 
   const [listedEvents, setListedEvents] = useState<PortalListedEvent[]>([]);
-  const [eventsError, setEventsError] = useState<string | null>(null);
-  const [slugDraft, setSlugDraft] = useState('');
-  const [displayNameDraft, setDisplayNameDraft] = useState('');
-  const [createState, setCreateState] = useState<CreateSpaceState>('idle');
-  const [createMessage, setCreateMessage] = useState<string | null>(null);
-  const [createResult, setCreateResult] = useState<CreateSiteResult | null>(null);
-  const [slugError, setSlugError] = useState<string | null>(null);
+  const [activeStep, setActiveStep] = useState(0);
+  const pasos = (portada.hero as { pasos?: PasoPortada[] }).pasos ?? [];
+  const muestra = (portada.hero as { muestra?: MuestraPortada }).muestra;
+  const pasosTitulo = (portada.hero as { pasosTitulo?: Record<LocaleKey, string> }).pasosTitulo;
+  const muestraTitulo = (portada.hero as { muestraTitulo?: Record<LocaleKey, string> }).muestraTitulo;
+  const botonConversar = (portada.hero as { botonConversar?: Record<LocaleKey, string> }).botonConversar;
+  const enlaceIdioma = (portada.hero as { enlaceIdioma?: Record<LocaleKey, string> }).enlaceIdioma;
+  const notaPana = (portada.hero as { notaPana?: Record<LocaleKey, string> }).notaPana;
+  const saludo = (portada.hero as { saludo?: Record<LocaleKey, string> }).saludo;
 
   const loadEvents = useCallback(async () => {
-    setEventsError(null);
     try {
       const res = await api.getPortalEvents();
       setListedEvents(res.events);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'No se pudo cargar el listado';
-      setEventsError(message);
+    } catch {
+      // Sin listado no hay sección de eventos; la portada sigue intacta.
+      setListedEvents([]);
     }
   }, []);
 
@@ -85,67 +108,21 @@ export const PortalLandingView: React.FC<PortalLandingViewProps> = ({ onNavigate
     void loadEvents();
   }, [loadEvents]);
 
-  const scrollTo = useCallback((id: ScrollSectionId) => {
+  // NAP-U2: el body acompaña al tema solo en la raíz (tokens.css lo tiñe).
+  useEffect(() => {
     try {
-      document.getElementById(`portal-section-${id}`)?.scrollIntoView({ behavior: 'smooth' });
+      document.body.classList.add('portal-body');
     } catch {
-      /* el ancla es opcional */
+      // Sin DOM no hay marco que teñir.
     }
+    return () => {
+      try {
+        document.body.classList.remove('portal-body');
+      } catch {
+        // El DOM ya se fue con la vista.
+      }
+    };
   }, []);
-
-  /** SP6-D-2: los ids de barra/pie no siempre coinciden con secciones del DOM (p. ej. tutorial → pasos). */
-  const handleBarLink = useCallback(
-    (linkId: string) => {
-      if (linkId === 'iniciar-sesion') {
-        onNavigateLogin();
-        return;
-      }
-      if (linkId === 'tutorial' || linkId === 'como-funciona') {
-        scrollTo('como-funciona');
-        return;
-      }
-      if (linkId === 'eventos-publicos' || linkId === 'donaciones') {
-        scrollTo(linkId);
-        return;
-      }
-    },
-    [onNavigateLogin, scrollTo],
-  );
-
-  const handleCreateSpace = useCallback(async () => {
-    const slug = normalizeSiteSlugInput(slugDraft);
-    const displayName = displayNameDraft.trim() || slug;
-    const validation = validateSiteSlug(slug);
-    setSlugError(null);
-    if (validation === 'empty') return;
-    if (validation === 'invalid') {
-      setSlugError(pick(portada.compositorSubdominio.errorSlugInvalido, lang));
-      return;
-    }
-    if (validation === 'reserved') {
-      setSlugError(pick(portada.compositorSubdominio.errorSlugReservado, lang));
-      return;
-    }
-    setCreateState('loading');
-    setCreateMessage(null);
-    try {
-      const res = await api.createSiteSpace({ slug, displayName });
-      setCreateResult(res);
-      setCreateState('done');
-      setCreateMessage(pick(portada.compositorSubdominio.estadoListo, lang));
-    } catch (err: unknown) {
-      if (err instanceof ApiError && err.status === 404) {
-        setCreateState('unavailable');
-        setCreateMessage(pick(portada.compositorSubdominio.estadoNoDisponible, lang));
-        return;
-      }
-      const message = err instanceof Error ? err.message : pick(portada.compositorSubdominio.estadoNoDisponible, lang);
-      setCreateState('idle');
-      setCreateMessage(message);
-    }
-  }, [displayNameDraft, lang, slugDraft]);
-
-  const sampleBadge = portada.eventosPublicos.ejemplos[0]?.badgeEjemplo ?? { es: 'Ejemplo', en: 'Sample' };
 
   const sectionOrder = paginas.portadaRaiz.secciones;
 
@@ -153,277 +130,153 @@ export const PortalLandingView: React.FC<PortalLandingViewProps> = ({ onNavigate
     const map: Partial<Record<SectionId, React.ReactNode>> = {
       barra: (
         <header className="portal-bar portal-wrap" data-testid="portal-bar">
-          <p className="portal-brand">{pick(portada.barra.marca, lang)}</p>
-          <nav className="portal-nav" aria-label={lang === 'en' ? 'Main' : 'Principal'}>
-            {portada.barra.enlaces.map((enlace) => (
-              <a
-                key={enlace.id}
-                href={
-                  enlace.id === 'iniciar-sesion'
-                    ? '#portal-login'
-                    : enlace.id === 'tutorial'
-                      ? '#portal-section-como-funciona'
-                      : `#portal-section-${enlace.id}`
-                }
-                data-testid={`portal-bar-link-${enlace.id}`}
-                onClick={(event) => {
-                  event.preventDefault();
-                  handleBarLink(enlace.id);
-                }}
-              >
-                {pick(enlace, lang)}
-              </a>
-            ))}
-            <button type="button" className="portal-btn" onClick={() => scrollTo('compositor')}>
-              {pick(portada.barra.botonCrearEspacio, lang)}
-            </button>
-            <div className="portal-bar-lang" data-testid="portal-language-selector">
-              <LanguageSelector />
-            </div>
-          </nav>
+          <SiteLogo />
+          <ThemeToggle />
         </header>
       ),
       hero: (
         <section className="portal-hero portal-wrap" id="portal-section-hero" data-testid="portal-hero">
-          <p className="portal-hero-kicker">{pick(portada.hero.ojo, lang)}</p>
-          <h1>{pick(portada.hero.titulo, lang)}</h1>
-          <p className="portal-hero-text">{pick(portada.hero.texto, lang)}</p>
-          <div className="portal-hero-actions">
-            <button
-              type="button"
-              className="portal-btn portal-btn-secondary"
-              data-testid="portal-hero-tutorial"
-              onClick={() => scrollTo('como-funciona')}
-            >
-              {pick(portada.hero.botonTutorial, lang)}
-            </button>
-            <button type="button" className="portal-btn" onClick={() => scrollTo('compositor')}>
-              {pick(portada.hero.botonCrearEspacio, lang)}
-            </button>
-            <a className="portal-btn portal-btn-secondary" data-testid="portal-organize-meeting" href={legacyCreateUrl()}>
-              {avatarTexts.organizeMeeting}
-            </a>
+          <div className="portal-hero-copy">
+            <h1>{pick(portada.hero.titulo, lang)}</h1>
+            <p className="portal-hero-text">{pick(portada.hero.texto, lang)}</p>
+            {lang === 'en' && notaPana ? <p className="portal-pana-note">{notaPana.en}</p> : null}
+            <div className="portal-hero-actions">
+              {botonConversar ? (
+                <button
+                  type="button"
+                  className="portal-btn-gold"
+                  data-testid="portal-hero-create"
+                  onClick={onNavigateCreate}
+                >
+                  {pick(botonConversar, lang)}
+                </button>
+              ) : null}
+              {enlaceIdioma ? (
+                <button
+                  type="button"
+                  className="portal-lang-link"
+                  data-testid="portal-language-link"
+                  onClick={() => setLocale(lang === 'en' ? 'es' : 'en')}
+                >
+                  {pick(enlaceIdioma, lang)}
+                </button>
+              ) : null}
+            </div>
           </div>
-          <NapsterAvatar />
-          <p className="portal-hero-auth">
-            <button type="button" className="portal-btn-secondary portal-btn" onClick={onNavigateRegister}>
+          <div className="portal-hero-avatar">
+            {saludo ? <AvatarSpotlight saludo={pick(saludo, lang)} previewAlt={avatarTexts.previewAlt} /> : null}
+            <p className="portal-powered" data-testid="portal-powered">
+              {avatarTexts.poweredBy}
+            </p>
+          </div>
+        </section>
+      ),
+      pasos: (
+        <section className="portal-section portal-wrap" id="portal-section-pasos" data-testid="portal-steps">
+          {pasosTitulo ? <h2>{pick(pasosTitulo, lang)}</h2> : null}
+          <ol className="portal-steps">
+            {pasos.map((paso, index) => (
+              <li key={paso.titulo.es}>
+                <button
+                  type="button"
+                  className={index === activeStep ? 'portal-step portal-step-active' : 'portal-step'}
+                  aria-current={index === activeStep ? 'step' : undefined}
+                  data-testid={`portal-step-${index}`}
+                  onClick={() => setActiveStep(index)}
+                >
+                  <span className="portal-step-num" aria-hidden="true">
+                    {index + 1}
+                  </span>
+                  <span className="portal-step-title">{pick(paso.titulo, lang)}</span>
+                  <span className="portal-step-text">{pick(paso.texto, lang)}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ),
+      ejemplo: muestra ? (
+        <section className="portal-section portal-wrap" id="portal-section-ejemplo" data-testid="portal-sample">
+          {muestraTitulo ? <h2>{pick(muestraTitulo, lang)}</h2> : null}
+          <SampleInviteCard
+            titulo={pick(muestra.titulo, lang)}
+            fecha={pick(muestra.fecha, lang)}
+            lugar={pick(muestra.lugar, lang)}
+            url={pick(muestra.url, lang)}
+            qrPie={pick(muestra.qrPie, lang)}
+          />
+        </section>
+      ) : undefined,
+      'eventos-publicos':
+        listedEvents.length > 0 ? (
+          <section
+            className="portal-section portal-wrap"
+            id="portal-section-eventos-publicos"
+            data-testid="portal-events"
+          >
+            <h2>
+              {pick(
+                portada.barra.enlaces.find((e) => e.id === 'eventos-publicos') ?? {
+                  es: 'Eventos públicos',
+                  en: 'Public events',
+                },
+                lang,
+              )}
+            </h2>
+            <div className="portal-cards">
+              {listedEvents.map((event) => (
+                <article key={event.slug} className="portal-card" data-testid={`portal-listed-event-${event.slug}`}>
+                  <h3>{event.title}</h3>
+                  <p className="portal-muted">{formatEventWhen(event.startsAt, lang)}</p>
+                  {event.location ? <p className="portal-muted">{event.location}</p> : null}
+                  <p className="portal-muted">
+                    {event.siteName} ({event.siteSlug}.somospanas.com)
+                  </p>
+                  <a href={event.url}>{event.url}</a>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : undefined,
+      pie: (
+        <footer className="portal-footer portal-wrap" id="portal-section-pie" data-testid="portal-footer">
+          <SiteLogo size="sm" />
+          <p className="portal-footer-actions">
+            <button type="button" className="portal-footer-link" onClick={onNavigateRegister}>
               {pick(portada.hero.enlaceRegistro, lang)}
             </button>
-            <button type="button" className="portal-btn-secondary portal-btn" onClick={onNavigateLogin}>
+            <button type="button" className="portal-footer-link" onClick={onNavigateLogin}>
               {pick(portada.hero.enlaceIniciarSesion, lang)}
             </button>
-          </p>
-          <p className="portal-muted">{pick(portada.hero.notaSubdominio, lang)}</p>
-        </section>
-      ),
-      'foto-ambiente': (
-        <section className="portal-section portal-wrap" id="portal-section-foto-ambiente">
-          <div className="portal-ambient" role="img" aria-label={pick(portada.fotoAmbiente.pie, lang)}>
-            {pick(portada.fotoAmbiente.pie, lang)}
-          </div>
-        </section>
-      ),
-      compositor: (
-        <section className="portal-section portal-wrap" id="portal-section-compositor" data-testid="portal-compositor">
-          <div className="portal-compositor">
-            <label className="portal-muted" htmlFor="portal-slug">
-              {pick(portada.compositorSubdominio.campoPlaceholder, lang)}
-            </label>
-            <div className="portal-compositor-row">
-              <span>{portada.compositorSubdominio.prefijo}</span>
-              <input
-                id="portal-slug"
-                data-testid="portal-slug-input"
-                value={slugDraft}
-                onChange={(e) => setSlugDraft(e.target.value)}
-                placeholder={pick(portada.compositorSubdominio.campoPlaceholder, lang)}
-                autoComplete="off"
-              />
-              <span>{portada.compositorSubdominio.sufijo}</span>
-            </div>
-            <label className="portal-muted" htmlFor="portal-display-name">
-              {pick(portada.compositorSubdominio.campoNombreGrupo, lang)}
-            </label>
-            <div className="portal-compositor-row">
-              <input
-                id="portal-display-name"
-                data-testid="portal-display-name-input"
-                value={displayNameDraft}
-                onChange={(e) => setDisplayNameDraft(e.target.value)}
-                placeholder={pick(portada.compositorSubdominio.placeholderNombreGrupo, lang)}
-                autoComplete="organization"
-              />
-            </div>
-            {slugError ? (
-              <p className="portal-status-warn" data-testid="portal-slug-error" role="alert">
-                {slugError}
-              </p>
-            ) : null}
-            <button
-              type="button"
-              className="portal-btn"
-              data-testid="portal-create-space"
-              disabled={createState === 'loading' || !slugDraft.trim()}
-              onClick={() => void handleCreateSpace()}
+            <a
+              className="portal-footer-link"
+              data-testid="portal-organize-meeting"
+              href={legacyCreateUrl()}
             >
-              {createState === 'loading'
-                ? pick(portada.compositorSubdominio.estadoCreando, lang)
-                : pick(portada.compositorSubdominio.boton, lang)}
-            </button>
-            {createState === 'unavailable' ? (
-              <p className="portal-status-warn" data-testid="portal-create-unavailable" role="status">
-                {createMessage}
-              </p>
-            ) : null}
-            {createState === 'done' && createResult ? (
-              <p data-testid="portal-create-success" role="status">
-                {createMessage}{' '}
-                <a href={createResult.site.url}>{createResult.site.url}</a>
-              </p>
-            ) : null}
-            {createState === 'idle' && createMessage ? (
-              <p className="portal-status-warn" role="alert">
-                {createMessage}
-              </p>
-            ) : null}
-          </div>
-        </section>
-      ),
-      'como-funciona': (
-        <section className="portal-section portal-wrap" id="portal-section-como-funciona" data-testid="portal-steps">
-          <h2>{pick(tutorial.titulo, lang)}</h2>
-          <p className="portal-muted">{pick(tutorial.intro, lang)}</p>
-          <div className="portal-steps">
-            {tutorial.pasos.map((paso) => (
-              <article key={paso.numero} className="portal-step">
-                <p className="portal-step-num">{paso.numero}</p>
-                <h3>{pick(paso.titulo, lang)}</h3>
-                <p>{pick(paso.texto, lang)}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-      ),
-      'eventos-publicos': (
-        <section className="portal-section portal-wrap" id="portal-section-eventos-publicos" data-testid="portal-events">
-          <h2>
-            {pick(
-              portada.barra.enlaces.find((e) => e.id === 'eventos-publicos') ?? {
-                es: 'Eventos públicos',
-                en: 'Public events',
-              },
-              lang,
-            )}
-          </h2>
-          <p className="portal-muted">{pick(portada.eventosPublicos.aviso, lang)}</p>
-          <div className="portal-cards">
-            {portada.eventosPublicos.ejemplos.map((ejemplo) => (
-              <article key={ejemplo.id} className="portal-card" data-testid={`portal-sample-event-${ejemplo.id}`}>
-                <span className="portal-badge">{pick(ejemplo.badgeEjemplo, lang)}</span>
-                <span className="portal-badge portal-badge-public">{pick(ejemplo.badgeEvento, lang)}</span>
-                <h3>{pick(ejemplo.titulo, lang)}</h3>
-              </article>
-            ))}
-            {listedEvents.map((event) => (
-              <article key={event.slug} className="portal-card" data-testid={`portal-listed-event-${event.slug}`}>
-                {event.listingKind === 'example' ? (
-                  <span className="portal-badge" data-testid={`portal-listed-badge-example-${event.slug}`}>
-                    {pick(sampleBadge, lang)}
-                  </span>
-                ) : null}
-                <span className="portal-badge portal-badge-public">
-                  {lang === 'en' ? 'Public event' : 'Evento público'}
-                </span>
-                <h3>{event.title}</h3>
-                <p className="portal-muted">{formatEventWhen(event.startsAt, lang)}</p>
-                {event.location ? <p className="portal-muted">{event.location}</p> : null}
-                <p className="portal-muted">
-                  {event.siteName} ({event.siteSlug}.somospanas.com)
-                </p>
-                <a href={event.url}>{event.url}</a>
-              </article>
-            ))}
-          </div>
-          {eventsError ? (
-            <p className="portal-status-warn" role="alert">
-              {eventsError}
-            </p>
-          ) : null}
-        </section>
-      ),
-      donaciones: (
-        <section className="portal-section portal-wrap" id="portal-section-donaciones" data-testid="portal-donations">
-          <h2>{pick(portada.donaciones.tituloSeccion, lang)}</h2>
-          <p className="portal-muted">{pick(portada.donaciones.aviso, lang)}</p>
-          <div className="portal-cards">
-            {portada.donaciones.ejemplos.map((ejemplo) => (
-              <article key={ejemplo.id} className="portal-card" data-testid={`portal-sample-donation-${ejemplo.id}`}>
-                <h3>{pick(ejemplo.titulo, lang)}</h3>
-                <div className="portal-progress" aria-hidden="true">
-                  <span />
-                </div>
-                <p className="portal-muted">{pick(ejemplo.leyendaBarra, lang)}</p>
-              </article>
-            ))}
-          </div>
-          <p className="portal-muted">{pick(portada.donaciones.leyendaReal, lang)}</p>
-        </section>
-      ),
-      preguntas: (
-        <section className="portal-section portal-wrap portal-faq" id="portal-section-preguntas" data-testid="portal-faq">
-          {preguntas.preguntas.map((item) => (
-            <details key={item.id}>
-              <summary>{pick(item.pregunta, lang)}</summary>
-              <p>{pick(item.respuesta, lang)}</p>
-            </details>
-          ))}
-        </section>
-      ),
-      pie: (
-        <footer className="portal-section portal-wrap" id="portal-section-pie" data-testid="portal-footer">
-          <p className="portal-brand">{pick(portada.barra.marca, lang)}</p>
-          <p className="portal-muted">{pick(portada.pie.fraseFotos, lang)}</p>
-          <nav className="portal-nav">
-            {portada.barra.enlaces.map((enlace) => (
-              <a
-                key={enlace.id}
-                href={
-                  enlace.id === 'iniciar-sesion'
-                    ? '#portal-login'
-                    : enlace.id === 'tutorial'
-                      ? '#portal-section-como-funciona'
-                      : `#portal-section-${enlace.id}`
-                }
-                data-testid={`portal-footer-link-${enlace.id}`}
-                onClick={(event) => {
-                  event.preventDefault();
-                  handleBarLink(enlace.id);
-                }}
-              >
-                {pick(enlace, lang)}
-              </a>
-            ))}
-          </nav>
+              {avatarTexts.organizeMeeting}
+            </a>
+          </p>
         </footer>
       ),
     };
     return map;
   }, [
-    createMessage,
-    createResult,
-    createState,
-    displayNameDraft,
-    eventsError,
-    handleCreateSpace,
+    activeStep,
+    avatarTexts,
+    botonConversar,
+    enlaceIdioma,
     lang,
     listedEvents,
-  handleBarLink,
+    muestra,
+    muestraTitulo,
+    notaPana,
+    onNavigateCreate,
     onNavigateLogin,
     onNavigateRegister,
-    sampleBadge,
-    scrollTo,
-    slugDraft,
-    slugError,
+    pasos,
+    pasosTitulo,
+    saludo,
+    setLocale,
   ]);
 
   return (

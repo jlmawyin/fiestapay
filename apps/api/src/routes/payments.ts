@@ -1,7 +1,7 @@
 import type { PayPalNotificationItem } from '@fiestapay/shared';
 import type { Guest, OrderResult } from '@fiestapay/shared';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { badRequest, notFound, unavailable } from '../errors.js';
+import { badRequest, conflict, notFound, unavailable } from '../errors.js';
 import { presentedAdminKey, resolveEventPortalGate } from '../domain/access.js';
 import { audit, PAYPAL_NOTIFICATION_PREFIX } from '../domain/audit.js';
 import {
@@ -13,13 +13,14 @@ import {
 } from '../domain/orders.js';
 import {
   buildPaymentProvider,
+  NONE_UNAVAILABLE,
   paymentProviderIdForEventId,
   paymentProviderIdForEventSlug,
   paypalAdapterOf,
   requireOnlinePayment,
 } from '../payments/provider.js';
 import { convergeCapture, convergeRefund, isApplied, type CaptureOutcome } from '../domain/payments.js';
-import { findOrderByAnyId, getEventBySlug } from '../domain/read.js';
+import { findOrderByAnyId, getEventBySlug, findEventById } from '../domain/read.js';
 import { captureIdFromRefund } from '../paypal/verify.js';
 import { assertNoClientMoneyState, orderIdParamSchema, orderSchema, parseOr400, slugParamSchema } from '../lib/schemas.js';
 import { requireSession } from '../lib/session.js';
@@ -98,8 +99,13 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
       const { quoteId } = parseOr400(orderSchema, req.body);
       const session = await requireSession(pool, config, req);
       const gate = await resolveEventPortalGate(pool, req, session.id);
-      await getEventBySlug(pool, slug, gate);
+      const event = await getEventBySlug(pool, slug, gate);
       const tenantProviderId = await paymentProviderIdForEventSlug(pool, slug);
+      // NAP-S2: una dirección nueva sin PayPal no crea órdenes (409); el legado histórico sigue en 503.
+      if (tenantProviderId === 'none') {
+        if (event.subdomain) throw conflict(NONE_UNAVAILABLE);
+        throw unavailable(NONE_UNAVAILABLE);
+      }
       const payment = requireOnlinePayment(config, deps.paypal, tenantProviderId);
       return createOrderForSession(pool, payment, session.id, slug, quoteId, presentedAdminKey(req), gate);
     },
@@ -113,7 +119,15 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
       const session = await requireSession(pool, config, req);
       const orderHead = await findOrderByAnyId(pool, orderId);
       if (!orderHead) throw notFound('Orden no encontrada');
+      // NAP-S2: el host de una reunión no expone órdenes de otra.
+      const host = req.hostClassification;
+      if (host?.kind === 'event') {
+        const orderEvent = await findEventById(pool, orderHead.event_id);
+        if (!orderEvent || orderEvent.slug !== host.slug) throw notFound('Orden no encontrada');
+      }
       const tenantProviderId = await paymentProviderIdForEventId(pool, orderHead.event_id);
+      // NAP-S2: una orden de una reunión sin PayPal no se captura aunque exista una fila histórica.
+      if (tenantProviderId === 'none') throw conflict(NONE_UNAVAILABLE);
       const payment = requireOnlinePayment(config, deps.paypal, tenantProviderId);
       return captureOwnOrder(pool, payment, session.id, orderId, presentedAdminKey(req));
     },
@@ -127,6 +141,13 @@ export async function registerPaymentRoutes(app: FastifyInstance, deps: RouteDep
     async (req): Promise<{ status: string; guest: Guest }> => {
       const { orderId } = parseOr400(orderIdParamSchema, req.params);
       const session = await requireSession(pool, config, req);
+      const host = req.hostClassification;
+      if (host?.kind === 'event') {
+        const head = await findOrderByAnyId(pool, orderId);
+        if (!head) throw notFound('Orden no encontrada');
+        const orderEvent = await findEventById(pool, head.event_id);
+        if (!orderEvent || orderEvent.slug !== host.slug) throw notFound('Orden no encontrada');
+      }
       let payment: ReturnType<typeof requireOnlinePayment> | null = null;
       if (config.paypal && deps.paypal) {
         const orderHead = await findOrderByAnyId(pool, orderId);
