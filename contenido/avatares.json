@@ -1,0 +1,15 @@
+{
+  "avatars": [
+    {
+      "id": "elena",
+      "firstName": "Elena",
+      "gender": "female",
+      "companionId": "0e943b3c-81a4-4a81-9005-08a7c51f2d72",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/0e943b3c-81a4-4a81-9005-08a7c51f2d72/9pBBKYn2wXaMCVuySi6hdKLwelPEfFiSaXuTUIHFaD3HIEjUA.jpg",
+      "voice": "marin",
+      "agentIdEs": null,
+      "agentIdEn": null,
+      "default": true
+    }
+  ]
+}

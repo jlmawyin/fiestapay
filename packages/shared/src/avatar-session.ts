@@ -24,10 +24,29 @@ export const avatarSessionRequestSchema = z
       .optional(),
     /** NAP-F4s: 'text' usa WebSocket + modality text; 'video' mantiene WebRTC (por defecto). */
     mode: z.enum(['video', 'text']).default('video'),
+    /** NAP-S1: avatar elegida del catálogo cerrado; sin campo se usa la default. */
+    avatarId: z
+      .string()
+      .trim()
+      .min(1)
+      .max(40)
+      .regex(/^[a-z0-9-]+$/, 'Avatar invalido')
+      .optional(),
   })
   .strict();
 
 export type AvatarSessionRequest = z.infer<typeof avatarSessionRequestSchema>;
+
+/** NAP-S1: presentación mínima de la avatar en uso; nunca incluye agentId. */
+export const avatarSessionAvatarSchema = z
+  .object({
+    id: z.string().regex(/^[a-z0-9-]+$/),
+    firstName: z.string().min(1),
+    previewUrl: z.string().url().nullable(),
+  })
+  .strict();
+
+export type AvatarSessionAvatar = z.infer<typeof avatarSessionAvatarSchema>;
 
 /** Respuesta pública: ni connectionId, ni perfil, ni clave. */
 export const avatarSessionResponseSchema = z
@@ -37,6 +56,8 @@ export const avatarSessionResponseSchema = z
     visitor: z.enum(AVATAR_VISITORS),
     lang: z.enum(AVATAR_LANGS),
     agent: z.enum(['default', 'custom']),
+    /** NAP-S1: opcional para no romper clientes que aún no la leen. */
+    avatar: avatarSessionAvatarSchema.optional(),
     /** Solo en modo texto: URL del socket ya resuelta por el servidor desde el token. */
     socketUrl: z.string().url().optional(),
   })
@@ -84,6 +105,7 @@ export const AVATAR_SESSION_ERRORS = [
   'avatar_no_credits',
   'avatar_upstream',
   'event_not_found',
+  'avatar_unknown',
 ] as const;
 
 export type AvatarSessionErrorCode = (typeof AVATAR_SESSION_ERRORS)[number];

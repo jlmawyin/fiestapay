@@ -65,10 +65,18 @@ function eventRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** Pool mínimo: responde la lectura por slug y el tenant del evento. */
-function fakePool(event = eventRow(), tenant: { tenant_id: string | null; visibility: string } = { tenant_id: null, visibility: 'public' }) {
+/** Pool mínimo: responde la lectura por slug, el tenant y, si se pide, un avatar custom listo. */
+function fakePool(
+  event = eventRow(),
+  tenant: { tenant_id: string | null; visibility: string } = { tenant_id: null, visibility: 'public' },
+  customAvatar: { es: string; en: string; firstName: string } | null = null,
+) {
   return {
     query: vi.fn(async (sql: string) => {
+      if (customAvatar && sql.includes('FROM event_avatars a')) {
+        if (sql.includes('a.first_name')) return { rows: [{ first_name: customAvatar.firstName }] };
+        return { rows: [{ agent_id_es: customAvatar.es, agent_id_en: customAvatar.en }] };
+      }
       if (sql.includes('FROM events WHERE slug')) return { rows: [event] };
       if (sql.includes('SELECT tenant_id, visibility FROM events')) return { rows: [tenant] };
       return { rows: [] };
@@ -191,6 +199,7 @@ describe('POST /api/avatar-session (NAP-F2)', () => {
     const esBody = es.json<Record<string, unknown>>();
     expect(esBody.visitor).toBe('public');
     expect(esBody.agent).toBe('default');
+    expect(esBody.avatar).toMatchObject({ id: 'elena', firstName: 'Elena' });
     expect(typeof esBody.token).toBe('string');
     expect(typeof esBody.handle).toBe('string');
     expect(es.body).not.toContain('connectionId');
@@ -204,6 +213,67 @@ describe('POST /api/avatar-session (NAP-F2)', () => {
     const en = await post(app, '/api/avatar-session', { lang: 'en' });
     expect(en.statusCode).toBe(200);
     expect(String(fake.mock.calls[1]![0])).toContain('/agents/agent-en/connections');
+    await app.close();
+  });
+
+  it('NAP-S1: un avatarId válido usa sus agentes y devuelve el nombre de la avatar', async () => {
+    const fake = successfulFetch();
+    vi.stubGlobal('fetch', fake);
+    const app = await appWith(fakePool());
+    const response = await post(app, '/api/avatar-session', { lang: 'es', avatarId: 'elena' });
+    expect(response.statusCode).toBe(200);
+    expect(String(fake.mock.calls[0]![0])).toContain('/agents/agent-es/connections');
+    const body = response.json<{
+      avatar: { id: string; firstName: string; previewUrl: string };
+      agent: string;
+    }>();
+    expect(body.avatar).toMatchObject({ id: 'elena', firstName: 'Elena' });
+    expect(body.avatar.previewUrl).toMatch(/^https:\/\//);
+    expect(body.agent).toBe('default');
+    const sent = JSON.parse(String((fake.mock.calls[0]![1] as RequestInit).body)) as { initialSpeech: string };
+    expect(sent.initialSpeech).toContain('Elena');
+    expect(sent.initialSpeech).not.toContain('soy Pana');
+    await app.close();
+  });
+
+  it('NAP-S1: un avatarId desconocido responde 400 avatar_unknown sin llamar a Napster', async () => {
+    const fetchMock = successfulFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    const app = await appWith(fakePool());
+    const response = await post(app, '/api/avatar-session', { lang: 'es', avatarId: 'no-existe' });
+    expect(response.statusCode).toBe(400);
+    expect(response.json<{ error: string }>().error).toBe('avatar_unknown');
+    expect(fetchMock).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it('NAP-S1: el avatar propio listo del evento gana a la elección y usa el nombre del organizador', async () => {
+    const fake = successfulFetch('conn-event');
+    vi.stubGlobal('fetch', fake);
+    const event = eventRow({ slug: 'fiesta-privada', access_code_hash: null });
+    const pool = fakePool(event, { tenant_id: null, visibility: 'public' }, {
+      es: 'agent-event-es',
+      en: 'agent-event-en',
+      firstName: 'Ana',
+    });
+    const app = await appWith(pool);
+    const response = await post(
+      app,
+      '/api/avatar-session',
+      { lang: 'es', eventSlug: 'fiesta-privada', avatarId: 'elena' },
+      LEGACY_HOST,
+      LEGACY_ORIGIN,
+    );
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{
+      agent: string;
+      avatar: { id: string; firstName: string; previewUrl: null };
+    }>();
+    expect(body.agent).toBe('custom');
+    expect(body.avatar).toEqual({ id: 'event', firstName: 'Ana', previewUrl: null });
+    expect(String(fake.mock.calls[0]![0])).toContain('/agents/agent-event-es/connections');
+    const sent = JSON.parse(String((fake.mock.calls[0]![1] as RequestInit).body)) as { initialSpeech: string };
+    expect(sent.initialSpeech).toContain('Ana');
     await app.close();
   });
 
