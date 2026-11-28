@@ -10,6 +10,8 @@ interface RsvpFormProps {
   event: FiestaEvent;
   onSaveRsvp: (status: RsvpStatus, companions: number) => Promise<void>;
   isLoading: boolean;
+  /** NAP-U4: en una colecta el botón final dice «Confirmar asistencia». */
+  submitLabel?: string;
 }
 
 const explicitKey = (guestId: string): string => `fp_rsvp_explicit_${guestId}`;
@@ -26,7 +28,7 @@ export function visibleRsvpChoice(guest: Pick<Guest, 'id' | 'status' | 'companio
   return null;
 }
 
-export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, isLoading }) => {
+export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, isLoading, submitLabel }) => {
   const [status, setStatus] = useState<RsvpStatus | null>(() => visibleRsvpChoice(guest));
   const [companions, setCompanions] = useState<number>(guest.companions || 0);
   const [error, setError] = useState<string | null>(null);
@@ -234,7 +236,7 @@ export const RsvpForm: React.FC<RsvpFormProps> = ({ guest, event, onSaveRsvp, is
 
       {/* Save Button */}
       <button type="submit" className="btn btn-teal" style={{ width: '100%' }} disabled={isLoading}>
-        {isLoading ? m.saving : labels.saveAndContinue}
+        {isLoading ? m.saving : (submitLabel ?? labels.saveAndContinue)}
       </button>
     </form>
   );

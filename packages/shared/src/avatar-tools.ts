@@ -3,6 +3,7 @@
  * Depende de `ui-guide.ts` para los ids de pantalla. El modelo solo nombra tools e ids de estas listas;
  * la web valida antes de actuar y nunca acepta URLs ni selectores generados por el modelo.
  */
+import { AVATAR_TAG_IDS } from './avatar-tags.js';
 import { ROOT_UI_TARGETS, UI_TARGET_IDS } from './ui-guide.js';
 
 export const AVATAR_TOOL_NAMES = [
@@ -14,6 +15,7 @@ export const AVATAR_TOOL_NAMES = [
   'draft_reminder',
   'show_event_details',
   'open_avatar_settings',
+  'suggest_avatars',
 ] as const;
 
 export type AvatarToolName = (typeof AVATAR_TOOL_NAMES)[number];
@@ -190,6 +192,25 @@ export const AVATAR_TOOLS = {
       'Opens the site settings so the admin can review the avatar; it changes nothing on its own.',
     parameters: sinParametros,
   },
+  suggest_avatars: {
+    name: 'suggest_avatars',
+    description_es:
+      'Resalta las avatares del catálogo que encajan con una etiqueta para que la persona elija; nunca elige por ella.',
+    description_en:
+      'Highlights the catalog avatars that match one tag so the person can choose; it never chooses for them.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tag: {
+          type: 'string',
+          enum: [...AVATAR_TAG_IDS],
+          description: 'Etiqueta cerrada del tipo de reunión.',
+        },
+      },
+      required: ['tag'],
+      additionalProperties: false,
+    },
+  },
 } as const satisfies Record<AvatarToolName, AvatarToolDefinition>;
 
 export const AVATAR_TOOLS_BY_VISITOR = {
@@ -201,6 +222,7 @@ export const AVATAR_TOOLS_BY_VISITOR = {
     'show_on_screen',
     'open_avatar_settings',
     'list_open_events',
+    'suggest_avatars',
   ],
   guest: ['show_event_details', 'show_on_screen', 'list_open_events'],
 } as const satisfies Record<'public' | 'creator' | 'guest', readonly AvatarToolName[]>;

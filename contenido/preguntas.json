@@ -205,8 +205,8 @@
         "en": "What can the avatar do?"
       },
       "respuesta": {
-        "es": "Explica Somos Panas, responde dudas, lista eventos públicos, abre uno de la última lista, prepara un espacio, resalta elementos, rellena el borrador de un evento, redacta recordatorios y muestra detalles o ajustes. En la entrevista pregunta una por una el tipo de reunión, fecha, hora, lugar, cuántos van y cuota, y confirma cada sección. Se presenta con el nombre de la avatar elegida, nunca como «Pana».",
-        "en": "It explains Somos Panas, answers questions, lists public events, opens one from the last list, prepares a space, highlights elements, fills an event draft, writes reminders, and shows details or settings. In the interview it asks one at a time for meetup type, date, time, place, how many are coming, and share, confirming each section. It introduces itself with the name of the chosen avatar, never as “Pana”."
+        "es": "Explica Somos Panas, responde dudas, lista eventos públicos, abre uno de la última lista, prepara un espacio, resalta elementos, rellena el borrador de un evento, redacta recordatorios y muestra detalles o ajustes. Puede sugerir avatares por etiqueta para que elijas con quién conversar y quién recibirá a tus invitados. En la entrevista pregunta una por una el tipo de reunión, fecha, hora, lugar, cuántos van y cuota, y confirma cada sección. Se presenta con el nombre de la avatar elegida, nunca como «Pana».",
+        "en": "It explains Somos Panas, answers questions, lists public events, opens one from the last list, prepares a space, highlights elements, fills an event draft, writes reminders, and shows details or settings. It can suggest avatars by tag so you choose who to talk with and who will receive your guests. In the interview it asks one at a time for meetup type, date, time, place, how many are coming, and share, confirming each section. It introduces itself with the name of the chosen avatar, never as “Pana”."
       }
     },
     {

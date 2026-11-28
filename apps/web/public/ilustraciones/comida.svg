@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 200" role="img" aria-label="Comida compartida">
+  <rect width="500" height="200" rx="18" style="fill:var(--color-cloudwhite,#FFF8F1)"/>
+  <circle cx="380" cy="58" r="74" style="fill:var(--color-yellow,#FFC85A)" opacity=".28"/>
+  <circle cx="130" cy="112" r="62" style="fill:none;stroke:var(--color-ink,#2A2118);stroke-width:4"/>
+  <circle cx="130" cy="112" r="40" style="fill:none;stroke:var(--color-coral,#E85D4A);stroke-width:3"/>
+  <circle cx="130" cy="112" r="10" style="fill:var(--color-coral,#E85D4A)"/>
+  <circle cx="110" cy="96" r="5" style="fill:var(--color-teal,#0B8075)"/>
+  <circle cx="150" cy="128" r="5" style="fill:var(--color-teal,#0B8075)"/>
+  <rect x="250" y="66" width="8" height="92" rx="4" style="fill:var(--color-ink,#2A2118)"/>
+  <rect x="268" y="66" width="8" height="92" rx="4" style="fill:var(--color-ink,#2A2118)" opacity=".55"/>
+  <path d="M340 150a30 30 0 0 1 60 0Z" style="fill:var(--color-blue,#125FE6)" opacity=".85"/>
+  <rect x="330" y="150" width="80" height="7" rx="3.5" style="fill:var(--color-ink,#2A2118)"/>
+</svg>

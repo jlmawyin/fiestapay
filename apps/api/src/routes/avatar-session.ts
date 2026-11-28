@@ -71,6 +71,15 @@ async function readyEventAvatarFirstName(pool: RouteDeps['pool'], eventSlug: str
   return rows[0]?.first_name ?? null;
 }
 
+/** NAP-S3: avatar elegida por el organizador para esa reunión. */
+async function eventAvatarChoice(pool: RouteDeps['pool'], eventSlug: string): Promise<string | null> {
+  const { rows } = await pool.query<{ avatar_id: string | null }>(
+    'SELECT avatar_id FROM events WHERE slug = $1 LIMIT 1',
+    [eventSlug],
+  );
+  return rows[0]?.avatar_id ?? null;
+}
+
 export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: RouteDeps): Promise<void> {
   const { config, pool } = deps;
   // NAP-F2-D1: un solo cliente por app conserva la serialización de 1 conexión/s entre peticiones.
@@ -144,17 +153,31 @@ export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: Ro
     }
 
     // NAP-S1: prioridad (a) avatar del evento listo, (b) avatarId elegido, (c) default.
-    let agentId = avatarAgentId(seleccionada, body.lang, baseAgents);
+    // NAP-S3: para un invitado, (a) foto propia, (b) events.avatar_id, (c) default; el avatarId
+    // del cliente no cambia la avatar del invitado.
+    const seleccionadaEfectiva = decision.visitor === 'guest' ? defaultAvatarEntry() : seleccionada;
+    let agentId = avatarAgentId(seleccionadaEfectiva, body.lang, baseAgents);
     let agentKind: 'default' | 'custom' = 'default';
-    let avatar: AvatarSessionAvatar = avatarPresentation(seleccionada);
+    let avatar: AvatarSessionAvatar = avatarPresentation(seleccionadaEfectiva);
+    let customListo = false;
     if (effectiveBody.eventSlug) {
       const custom = await readyEventAvatarAgents(pool, effectiveBody.eventSlug);
       const customId = body.lang === 'es' ? custom?.es : custom?.en;
       if (customId) {
-        const firstName = (await readyEventAvatarFirstName(pool, effectiveBody.eventSlug)) ?? seleccionada.firstName;
+        const firstName =
+          (await readyEventAvatarFirstName(pool, effectiveBody.eventSlug)) ?? seleccionadaEfectiva.firstName;
         agentId = customId;
         agentKind = 'custom';
         avatar = { id: 'event', firstName, previewUrl: null };
+        customListo = true;
+      }
+    }
+    if (!customListo && decision.visitor === 'guest' && effectiveBody.eventSlug) {
+      const elegida = await eventAvatarChoice(pool, effectiveBody.eventSlug);
+      const entrada = elegida ? findAvatarById(elegida) : null;
+      if (entrada && avatarIsReady(entrada)) {
+        agentId = avatarAgentId(entrada, body.lang, baseAgents);
+        avatar = avatarPresentation(entrada);
       }
     }
     if (!agentId) return responderError(reply, 503, 'avatar_disabled');

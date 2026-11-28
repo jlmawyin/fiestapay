@@ -53,6 +53,8 @@ export interface EventRow {
   theme?: string | null;
   /** NAP-S2: dirección propia de la reunión; null en eventos históricos. */
   subdomain?: string | null;
+  /** NAP-S3: avatar del catálogo que recibe a los invitados. */
+  avatar_id?: string | null;
 }
 
 export interface GuestRow {
@@ -72,7 +74,7 @@ export const EVENT_COLUMNS = `id, slug, organizer_session_id, generation, archiv
   description, starts_at, location, includes, agenda, price_cents, capacity, goal_cents, minimum_cents,
   confirmed, created_at, ends_at, closed_at, purged_at, is_demo, admin_key_hash, access_code_hash,
   funding_deadline_at, funding_status, funding_decided_at, funding_basis_cents,
-  organizer_name, theme, subdomain`;
+  organizer_name, theme, subdomain, avatar_id`;
 
 export const GUEST_COLUMNS =
   'id, event_id, session_id, name, status, companions, obligation_version, blocked_at, removed_at';
@@ -268,6 +270,7 @@ export function toFiestaEvent(
     isDemo: row.is_demo,
     subdomain: row.subdomain ?? null,
     publicUrl: eventPublicUrl(row.subdomain),
+    avatarId: row.avatar_id ?? null,
     ...(paymentProvider ? { paymentProvider } : {}),
   };
 }

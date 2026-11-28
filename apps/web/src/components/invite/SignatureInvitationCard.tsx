@@ -35,6 +35,8 @@ export interface SignatureInvitationCardProps {
   locale: Locale;
   onSelectStyle?: (style: InvitationCardStyle) => void;
   compact?: boolean;
+  /** NAP-U4: sin PayPal; la cuota es una colecta entre panas. */
+  collecta?: boolean;
 }
 
 function formatCardDate(isoOrLocal: string, locale: Locale): string {
@@ -196,6 +198,7 @@ export const SignatureInvitationCard: React.FC<SignatureInvitationCardProps> = (
   locale,
   onSelectStyle,
   compact = false,
+  collecta = false,
 }) => {
   const activeStyle = resolveInvitationStyle(template, theme);
   const displayTitle =
@@ -251,6 +254,11 @@ export const SignatureInvitationCard: React.FC<SignatureInvitationCardProps> = (
         : locale === 'en'
           ? 'Confirm your attendance and lock in your share with PayPal!'
           : '¡Confirma tu asistencia y asegura tu parte con PayPal!';
+  const safeClosing = collecta
+    ? locale === 'en'
+      ? 'Confirm your attendance and save your spot!'
+      : '¡Confirma tu asistencia y guarda tu lugar!'
+    : closingLine;
 
   const memories = polaroidsForEvent(displayTitle, displayOrganizer, locale);
   const validAgenda = (agenda ?? []).filter((item) => item.time.trim() && item.title.trim());
@@ -369,7 +377,13 @@ export const SignatureInvitationCard: React.FC<SignatureInvitationCardProps> = (
                 {displayShare}
               </strong>
               <span className="sig-invite-card__cell-sub">
-                {locale === 'en' ? 'Fixed cover via PayPal' : 'Cuota fija con PayPal'}
+                {collecta
+                  ? locale === 'en'
+                    ? 'Collection among friends'
+                    : 'Colecta entre panas'
+                  : locale === 'en'
+                    ? 'Fixed cover via PayPal'
+                    : 'Cuota fija con PayPal'}
               </span>
             </div>
           </div>
@@ -383,7 +397,13 @@ export const SignatureInvitationCard: React.FC<SignatureInvitationCardProps> = (
 
           <div className="sig-invite-card__share-box">
             <p className="sig-invite-card__share-title">
-              {locale === 'en' ? 'What Your Share Covers & PayPal' : 'Lo que incluye tu cuota y pago con PayPal'}
+              {collecta
+                ? locale === 'en'
+                  ? 'What Your Share Covers'
+                  : 'Lo que incluye tu cuota'
+                : locale === 'en'
+                  ? 'What Your Share Covers & PayPal'
+                  : 'Lo que incluye tu cuota y pago con PayPal'}
             </p>
             {includes.length > 0 ? (
               <ul className="sig-invite-card__includes">
@@ -402,13 +422,13 @@ export const SignatureInvitationCard: React.FC<SignatureInvitationCardProps> = (
               </div>
             ) : null}
             <div className="sig-invite-card__paypal-row">
-              <span>{locale === 'en' ? 'Collection method' : 'Recaudación oficial'}</span>
-              <strong>PayPal · {displayShare}</strong>
+              <span>{collecta ? (locale === 'en' ? 'Collection' : 'Colecta') : locale === 'en' ? 'Collection method' : 'Recaudación oficial'}</span>
+              <strong>{collecta ? (locale === 'en' ? 'Among friends' : 'Entre panas') : `PayPal · ${displayShare}`}</strong>
             </div>
           </div>
 
           <footer className="sig-invite-card__footer">
-            <p className="sig-invite-card__closing">{closingLine}</p>
+            <p className="sig-invite-card__closing">{safeClosing}</p>
             <div className="sig-invite-card__signature">
               <span className="sig-invite-card__signature-line" />
               <span>{displayOrganizer}</span>

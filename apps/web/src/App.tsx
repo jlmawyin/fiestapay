@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { TriangleAlert } from 'lucide-react';
-import { DEMO_GUEST_NAME, type UiPage } from '@fiestapay/shared';
+import { DEMO_GUEST_NAME, type HostInfo, type UiPage } from '@fiestapay/shared';
 // NAP-U2: tokens día/noche para todo el sitio (el atributo data-tema los elige).
 import '../../../estilos/tokens.css';
 import { GuideOverlay } from './guide/GuideOverlay';
 import { registerGuideNavigator } from './guide/showOnScreen';
 import type { Capabilities, FiestaEvent, ToastMessage } from './types';
 import { api, ApiError } from './api/client';
+import { fetchHostInfo, shouldReadHostInfo } from './api/host-info';
 import { adminKeyFor, captureAdminKeyFromLocation, rememberAdminKey } from './api/admin-key';
 import { useI18n, useMessages } from './i18n/I18nContext';
 import { appCatalog } from './i18n/catalogs/app';
@@ -17,6 +18,7 @@ import { LandingView } from './views/LandingView';
 import { PortalLandingView } from './views/PortalLandingView';
 import { CreateEventView } from './views/CreateEventView';
 import { PublicInviteView } from './views/PublicInviteView';
+import { FreeAddressView } from './views/FreeAddressView';
 import { OrganizerDashboardView } from './views/OrganizerDashboardView';
 import { OrganizerRecoveryView } from './views/OrganizerRecoveryView';
 import { JudgePreviewView } from './views/JudgePreviewView';
@@ -60,6 +62,7 @@ type ViewMode =
   | { mode: 'demo'; quick?: boolean }
   | { mode: 'create' }
   | { mode: 'invite'; slug: string }
+  | { mode: 'free'; label: string }
   | { mode: 'dashboard'; slug: string }
   | { mode: 'recover' }
   | { mode: 'tutorial' }
@@ -108,11 +111,17 @@ export const App: React.FC = () => {
   const [isResettingDemo, setIsResettingDemo] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [currentView, setCurrentView] = useState<ViewMode>({ mode: 'home' });
+  // NAP-U4: host-info decide reunión/dirección libre/reservada sin cambiar el enrutado previo.
+  const [hostInfo, setHostInfo] = useState<HostInfo | null>(null);
+  const needsHostInfo = shouldReadHostInfo();
+  const [hostInfoResolved, setHostInfoResolved] = useState(!needsHostInfo);
   // NAP-F5b: el paso IA de la demo y el orbe se retiraron con la IA propia.
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [demoPaymentSlug, setDemoPaymentSlug] = useState<string | null>(() => readDemoPaymentSlug());
   const currentViewRef = useRef<ViewMode>(currentView);
   currentViewRef.current = currentView;
+  // NAP-U4: host-info decide reunión/dirección libre/reservada sin cambiar el enrutado previo.
+  const hostInfoRef = useRef<HostInfo | null>(null);
   const demoCreationRef = useRef<Promise<void> | null>(null);
   const paymentDemoRef = useRef<Promise<void> | null>(null);
   const paymentDemoSlugRef = useRef<string | null>(null);
@@ -189,6 +198,22 @@ export const App: React.FC = () => {
   // Parse path on initial load & popstate
   const handleLocationChange = useCallback(() => {
     const path = window.location.pathname;
+    const hostInfo = hostInfoRef.current;
+    if (path === '/' || path === '') {
+      // NAP-U4: el mismo «/» es la invitación en el host de una reunión y la vista libre si no existe.
+      if (hostInfo?.kind === 'event') {
+        setCurrentView({ mode: 'invite', slug: hostInfo.slug });
+        return;
+      }
+      if (hostInfo?.kind === 'free') {
+        setCurrentView({ mode: 'free', label: hostInfo.label });
+        return;
+      }
+      if (hostInfo?.kind === 'reserved') {
+        setCurrentView({ mode: 'not-found' });
+        return;
+      }
+    }
     if (IS_SOMOSPANAS_ROOT && (path === '/demo' || path === '/demo/' || path === '/tutorial' || path === '/tutorial/')) {
       setCurrentView({ mode: 'home' });
       return;
@@ -298,12 +323,42 @@ export const App: React.FC = () => {
   }, [initSiteProfile]);
 
   useEffect(() => {
-    handleLocationChange();
+    const waitingForHost = shouldReadHostInfo();
+    if (!waitingForHost) handleLocationChange();
     initApp();
+
+    // NAP-U4: en subdominios de Somos Panas se pregunta al servidor qué es este host.
+    let active = true;
+    if (waitingForHost) {
+      void fetchHostInfo()
+        .then((info) => {
+          if (!active) return;
+          if (info) {
+            hostInfoRef.current = info;
+            setHostInfo(info);
+            if (info.kind === 'event') {
+              // NAP-U4: el host de evento sí expone capabilities; el perfil de sitio no aplica.
+              setCurrentView({ mode: 'invite', slug: info.slug });
+              void api.getCapabilities().then((caps) => active && setCapabilities(caps)).catch(() => undefined);
+            }
+          }
+          setHostInfoResolved(true);
+          // Si host-info falla, el enrutado anterior decide como hoy.
+          handleLocationChange();
+        })
+        .catch(() => {
+          if (!active) return;
+          setHostInfoResolved(true);
+          handleLocationChange();
+        });
+    }
 
     const onPopState = () => handleLocationChange();
     window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
+    return () => {
+      active = false;
+      window.removeEventListener('popstate', onPopState);
+    };
   }, [handleLocationChange, initApp]);
 
   useEffect(() => {
@@ -451,6 +506,10 @@ export const App: React.FC = () => {
   };
 
   const siteTheme = siteProfile ? siteThemeStyle(siteProfile) : undefined;
+  // NAP-U4: no decidir la vista antes de saber si el host es reunion/libre/reservado.
+  if (!hostInfoResolved) {
+    return <main className="app-container" aria-busy="true" data-host-pending="true" />;
+  }
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', ...siteTheme }}>
       {/* Sandbox Demo Ribbon */}
@@ -498,7 +557,7 @@ export const App: React.FC = () => {
 
       {/* Main Body View */}
       <main className="app-container" style={{ marginTop: '1.5rem', flex: 1 }}>
-        {APP_HOST.isSiteHost && siteProfileError && (
+        {APP_HOST.isSiteHost && hostInfo?.kind === 'site' && siteProfileError && (
           <p role="alert">{siteProfileError}</p>
         )}
         {currentView.mode === 'site-home' && siteProfile && (
@@ -590,6 +649,8 @@ export const App: React.FC = () => {
             />
           </div>
         )}
+
+        {currentView.mode === 'free' && <FreeAddressView label={currentView.label} />}
 
         {currentView.mode === 'recover' && <OrganizerRecoveryView available={capabilities?.email === true} />}
 

@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { AVATAR_DRAFT_STEPS, AVATAR_TOOLS, AVATAR_TOOL_NAMES, AVATAR_TOOLS_BY_VISITOR } from '../src/avatar-tools.js';
+import { AVATAR_TAG_IDS } from '../src/avatar-tags.js';
 import { avatarSessionRequestSchema, avatarSessionResponseSchema } from '../src/avatar-session.js';
 import { ROOT_UI_TARGETS } from '../src/ui-guide.js';
 
@@ -39,6 +40,16 @@ describe('AVATAR_TOOLS (NAP-F2)', () => {
     expect(ROOT_UI_TARGETS as readonly string[]).not.toContain('paymentDemo');
   });
 
+  it('NAP-S3: suggest_avatars es implícita, usa tags cerrados y solo la ve el creador', () => {
+    const tool = AVATAR_TOOLS.suggest_avatars;
+    const tag = tool.parameters.properties.tag as { enum: string[] };
+    expect(tool.parameters.required).toEqual(['tag']);
+    expect(tag.enum).toEqual([...AVATAR_TAG_IDS]);
+    expect(AVATAR_TOOLS_BY_VISITOR.creator).toContain('suggest_avatars');
+    expect(AVATAR_TOOLS_BY_VISITOR.public).not.toContain('suggest_avatars');
+    expect(AVATAR_TOOLS_BY_VISITOR.guest).not.toContain('suggest_avatars');
+  });
+
   it('NAP-S1: fill_event_draft acepta step opcional del enum cerrado de secciones', () => {
     const step = AVATAR_TOOLS.fill_event_draft.parameters.properties.step as { enum: string[] };
     expect(step.enum).toEqual([...AVATAR_DRAFT_STEPS]);
@@ -61,18 +72,27 @@ describe('catálogo de avatares (NAP-S1)', () => {
   it('valida contra esquemas/avatares.schema.json y tiene una sola default', () => {
     const raiz = join(import.meta.dirname, '..', '..', '..');
     const catalogo = JSON.parse(readFileSync(join(raiz, 'contenido', 'avatares.json'), 'utf8')) as {
-      avatars: Array<{ id: string; default: boolean }>;
+      avatars: Array<{ id: string; default: boolean; tags: string[] }>;
     };
     const schema = JSON.parse(readFileSync(join(raiz, 'esquemas', 'avatares.schema.json'), 'utf8')) as object;
     const ajv = new Ajv2020({ strict: false, validateSchema: false });
     const validate = ajv.compile(schema);
     expect(validate(catalogo)).toBe(true);
+    expect(catalogo.avatars).toHaveLength(26);
     expect(catalogo.avatars.filter((entrada) => entrada.default)).toHaveLength(1);
     expect(catalogo.avatars.map((entrada) => entrada.id)).toContain('elena');
+    for (const entrada of catalogo.avatars) {
+      expect(entrada.tags.length).toBeGreaterThanOrEqual(1);
+      expect(entrada.tags.length).toBeLessThanOrEqual(3);
+      expect(entrada.tags.every((tag) => AVATAR_TAG_IDS.includes(tag))).toBe(true);
+    }
     const dosDefaults = {
       avatars: [...catalogo.avatars, { ...catalogo.avatars[0], id: 'otra-default' }],
     };
     expect(validate(dosDefaults)).toBe(false);
+    const tagInvalido = structuredClone(catalogo);
+    tagInvalido.avatars[0]!.tags = ['otro'];
+    expect(validate(tagInvalido)).toBe(false);
   });
 });
 
