@@ -3,7 +3,8 @@ import { defineCatalog } from '../catalog';
 /** App shell: toasts, banners, and document title. Spanish stays identical. */
 export const appCatalog = defineCatalog({
   es: {
-    docTitle: 'Somos Panas — Fiestas organizadas, pagos resueltos',
+    // NAP-U6: lema actual de la portada; las reuniones nuevas son colecta entre panas, sin cobro en línea.
+    docTitle: 'Somos Panas — Organiza como panas',
     sessionFallback: 'No se pudo conectar con el servidor backend.',
     eventsFallback: 'No se pudieron cargar tus invitaciones.',
     retryConnection: 'Reintentar Conexión',
@@ -41,7 +42,8 @@ export const appCatalog = defineCatalog({
     notFoundHome: 'Volver a la portada',
   },
   en: {
-    docTitle: 'Somos Panas — Gatherings organized, payments settled',
+    // NAP-U6: lema actual de la portada; las reuniones nuevas son colecta entre panas, sin cobro en línea.
+    docTitle: 'Somos Panas — Plan it like friends do',
     sessionFallback: 'Could not reach the backend server.',
     eventsFallback: 'Your invitations could not be loaded.',
     retryConnection: 'Retry connection',
