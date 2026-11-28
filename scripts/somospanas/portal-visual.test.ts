@@ -32,11 +32,23 @@ const TEMAS = [
   { tema: 'noche', fondo: 'rgb(10, 25, 48)', tinta: 'rgb(248, 244, 235)' },
 ] as const;
 
-/** Garantiza apps/web/dist antes de servir; en CI fresco la construye. */
+/** Ejecuta npm con el mismo mecanismo multiplataforma en Windows y Linux. */
+function runNpm(args: string[]): void {
+  const npmCli = process.env.npm_execpath;
+  if (npmCli && existsSync(npmCli)) {
+    execFileSync(process.execPath, [npmCli, ...args], { cwd: RAIZ, stdio: 'inherit' });
+    return;
+  }
+  execFileSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', args, { cwd: RAIZ, stdio: 'inherit' });
+}
+
+/** Garantiza packages/shared compilado y, si falta, apps/web/dist antes de servir. */
 function ensureBuild(): void {
+  // NAP-U2-D2: el API importa @fiestapay/shared desde dist; se recompila siempre para no usar uno viejo.
+  runNpm(['run', 'build', '-w', '@fiestapay/shared']);
   const dist = join(RAIZ, 'apps', 'web', 'dist', 'index.html');
   if (!existsSync(dist)) {
-    execFileSync('npm', ['run', 'build', '-w', '@fiestapay/web'], { cwd: RAIZ, stdio: 'inherit' });
+    runNpm(['run', 'build', '-w', '@fiestapay/web']);
   }
   if (!existsSync(dist)) throw new Error('apps/web/dist/index.html no existe tras el build');
 }
@@ -118,6 +130,12 @@ async function startApiServer(): Promise<ChildProcess> {
     },
     stdio: 'pipe',
   });
+  // NAP-U2-D2: conserva solo stderr para diagnosticar el arranque sin volcar todo el log.
+  let stderr = '';
+  child.stderr?.on('data', (chunk: Buffer | string) => {
+    stderr += chunk.toString();
+    if (stderr.length > 40_000) stderr = stderr.slice(-40_000);
+  });
   for (let i = 0; i < 150; i += 1) {
     try {
       const res = await fetchRoot('/api/portal/events');
@@ -128,7 +146,17 @@ async function startApiServer(): Promise<ChildProcess> {
     await new Promise((r) => setTimeout(r, 200));
   }
   child.kill();
-  throw new Error('el API no respondió a tiempo');
+  const cola = stderr
+    .trim()
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .slice(-20)
+    .join('\n')
+    .replace(/postgres(?:ql)?:\/\/\S+/gi, '[db]')
+    .replace(/((?:api[_-]?key|authorization|password|secret)\s*[=:]\s*)\S+/gi, '$1[redacted]');
+  throw new Error(
+    `el API no respondió a tiempo${cola ? `\nÚltimas líneas de stderr:\n${cola}` : '\n(stderr vacío)'}`,
+  );
 }
 
 /** Contrastes AA medidos sobre estilos computados reales de la portada. */
