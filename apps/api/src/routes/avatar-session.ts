@@ -113,6 +113,12 @@ export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: Ro
     const parsed = avatarSessionRequestSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Datos invalidos' });
     const body = parsed.data;
+    // NAP-S2: en el host de una reunión el evento sale del Host; un slug distinto es 404.
+    const hostEventSlug = req.hostClassification?.kind === 'event' ? req.hostClassification.slug : undefined;
+    if (hostEventSlug && body.eventSlug && body.eventSlug !== hostEventSlug) {
+      return responderError(reply, 404, 'event_not_found');
+    }
+    const effectiveBody = hostEventSlug ? { ...body, eventSlug: hostEventSlug } : body;
 
     // NAP-S1: el id elegido debe existir en el catálogo y tener sus dos agentes listos.
     let seleccionada = defaultAvatarEntry();
@@ -131,7 +137,7 @@ export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: Ro
 
     let decision: VisitorDecision;
     try {
-      decision = await decideAvatarVisitor(pool, config, req, body);
+      decision = await decideAvatarVisitor(pool, config, req, effectiveBody);
     } catch (error) {
       if (error instanceof AvatarEventNotFoundError) return responderError(reply, 404, 'event_not_found');
       return responderError(reply, 502, 'avatar_upstream');
@@ -141,11 +147,11 @@ export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: Ro
     let agentId = avatarAgentId(seleccionada, body.lang, baseAgents);
     let agentKind: 'default' | 'custom' = 'default';
     let avatar: AvatarSessionAvatar = avatarPresentation(seleccionada);
-    if (body.eventSlug) {
-      const custom = await readyEventAvatarAgents(pool, body.eventSlug);
+    if (effectiveBody.eventSlug) {
+      const custom = await readyEventAvatarAgents(pool, effectiveBody.eventSlug);
       const customId = body.lang === 'es' ? custom?.es : custom?.en;
       if (customId) {
-        const firstName = (await readyEventAvatarFirstName(pool, body.eventSlug)) ?? seleccionada.firstName;
+        const firstName = (await readyEventAvatarFirstName(pool, effectiveBody.eventSlug)) ?? seleccionada.firstName;
         agentId = customId;
         agentKind = 'custom';
         avatar = { id: 'event', firstName, previewUrl: null };

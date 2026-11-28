@@ -6,6 +6,7 @@ import { assertPrivateAccess, type EventPortalGate } from './access.js';
 import { assertSessionMayAct } from './moderation.js';
 import { audit } from './audit.js';
 import { assertAcceptingGuests } from './events.js';
+import { NONE_UNAVAILABLE, paymentProviderIdForEventId } from '../payments/provider.js';
 import { decideFundingIfDue, fundingBlocksNewCharge, type FundingGate } from './funding.js';
 import { concealExpired } from './retention.js';
 import { assertCanOwe } from './rsvp.js';
@@ -169,6 +170,10 @@ export async function createQuoteForSession(
     const eventId = found.rows[0]?.id;
     if (!eventId) throw notFound('Evento no encontrado');
     const locked = await lockEvent(client, eventId);
+    // NAP-S2: una reunión nueva sin PayPal no cotiza para un cobro que no existe.
+    if (locked.subdomain && (await paymentProviderIdForEventId(client, locked.id)) === 'none') {
+      throw conflict(NONE_UNAVAILABLE);
+    }
     const settled = await decideFundingIfDue(client, locked);
     const blocked = fundingBlocksNewCharge(settled.event, settled.at);
     if (blocked) return { blocked };

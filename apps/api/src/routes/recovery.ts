@@ -1,6 +1,6 @@
 import type { RecoveryConsumeResult, RecoveryContactUpdate, RecoveryStatus } from '@fiestapay/shared';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { badRequest } from '../errors.js';
+import { badRequest, notFound } from '../errors.js';
 import { presentedAdminKey, resolveEventPortalGate } from '../domain/access.js';
 import {
   PUBLIC_ACCEPTED,
@@ -70,7 +70,11 @@ export async function registerRecoveryRoutes(app: FastifyInstance, deps: RouteDe
   app.post('/recovery/request', async (req): Promise<typeof PUBLIC_ACCEPTED> => {
     const session = await readSession(pool, config, req);
     const gate = await resolveEventPortalGate(pool, req, session?.id ?? null);
-    return requestRecoveryLink(pool, readSlugField(req.body), readEmailField(req.body), clientIp(req), email, limits, origin, gate);
+    const slug = readSlugField(req.body);
+    // NAP-S2: en el host de una reunión no se puede pedir recuperación de otra.
+    const host = req.hostClassification;
+    if (host?.kind === 'event' && host.slug && slug !== host.slug) throw notFound('Evento no encontrado');
+    return requestRecoveryLink(pool, slug, readEmailField(req.body), clientIp(req), email, limits, origin, gate);
   });
 
   // POST only. Opening the link is a GET of the web page and must not rotate a key.

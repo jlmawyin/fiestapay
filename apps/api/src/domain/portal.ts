@@ -6,6 +6,7 @@ import { badRequest, forbidden, notFound } from '../errors.js';
 import { assertTenantAdmin, tenantIdForSlug } from './access.js';
 import { isPastRetention } from './retention.js';
 import type { Queryable } from './read.js';
+import { EVENT_BASE_DOMAIN, ROOT_EVENTS_TENANT_SLUG } from './subdomains.js';
 
 /** `example` = sitio plantilla (muestra); `live` = grupo real (D-5). */
 export type PortalListingKind = 'live' | 'example';
@@ -34,37 +35,47 @@ export async function listPortalPublicEvents(db: Queryable, now = new Date()): P
     ends_at: Date;
     location: string;
     site_slug: string;
-    site_name: string;
+    site_name: string | null;
     tenant_kind: string;
+    tenant_slug: string;
+    subdomain: string | null;
   }>(
     `SELECT e.slug, e.title, e.starts_at, e.ends_at, COALESCE(e.location, '') AS location,
-            t.slug AS site_slug, ts.display_name AS site_name, t.kind AS tenant_kind
+            t.slug AS site_slug, ts.display_name AS site_name, t.kind AS tenant_kind,
+            t.slug AS tenant_slug, e.subdomain
        FROM events e
        INNER JOIN tenants t ON t.id = e.tenant_id
-       INNER JOIN tenant_settings ts ON ts.tenant_id = t.id
+       LEFT JOIN tenant_settings ts ON ts.tenant_id = t.id
       WHERE e.visibility = 'public'
         AND t.kind <> 'legacy'
+        AND (ts.tenant_id IS NOT NULL OR t.slug = $2)
         AND e.purged_at IS NULL
         AND e.archived = false
         AND e.ends_at + interval '72 hours' > $1::timestamptz
       ORDER BY e.starts_at ASC
       LIMIT 200`,
-    [now.toISOString()],
+    [now.toISOString(), ROOT_EVENTS_TENANT_SLUG],
   );
 
   return rows
     .filter((row) => !isPastRetention(row.ends_at, now))
-    .map((row) => ({
-      slug: row.slug,
-      title: row.title,
-      startsAt: row.starts_at.toISOString(),
-      endsAt: row.ends_at.toISOString(),
-      location: row.location,
-      siteSlug: row.site_slug,
-      siteName: row.site_name,
-      url: `https://${row.site_slug}.somospanas.com/e/${encodeURIComponent(row.slug)}`,
-      listingKind: row.tenant_kind === 'template' ? ('example' as const) : ('live' as const),
-    }));
+    .map((row) => {
+      const rootEvent = row.tenant_slug === ROOT_EVENTS_TENANT_SLUG;
+      const siteSlug = rootEvent && row.subdomain ? row.subdomain : row.site_slug;
+      return {
+        slug: row.slug,
+        title: row.title,
+        startsAt: row.starts_at.toISOString(),
+        endsAt: row.ends_at.toISOString(),
+        location: row.location,
+        siteSlug,
+        siteName: row.site_name ?? 'Somos Panas',
+        url: row.subdomain
+          ? `https://${row.subdomain}.${EVENT_BASE_DOMAIN}`
+          : `https://${row.site_slug}.somospanas.com/e/${encodeURIComponent(row.slug)}`,
+        listingKind: row.tenant_kind === 'template' ? ('example' as const) : ('live' as const),
+      };
+    });
 }
 
 type EventVisibility = 'private' | 'public';

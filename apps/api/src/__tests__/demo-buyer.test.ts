@@ -55,7 +55,7 @@ describe.skipIf(databaseUrl.length === 0)('dedicated public Personal sandbox buy
     adminPool = createPool({ connectionString: databaseUrl });
     await adminPool.query(`CREATE SCHEMA "${schemaName}"`);
     pool = createPool({ connectionString: databaseUrl, schema: schemaName });
-    await migrate(pool);
+    await migrate(pool, { schema: schemaName });
   });
 
   afterAll(async () => {

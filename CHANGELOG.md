@@ -5,6 +5,7 @@ Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, 
 - 2026-11-28 NAP-U2: portada de presentación (lema, botón dorado a /create con avatar, muestra con QR), tema día/noche, logo único, página 404 y limpieza de tarjetas de ejemplo.
 
 - 2026-11-30 — NAP-S1: catálogo `contenido/avatares.json` + esquema, `GET /api/avatars`, `avatarId` en la sesión, `setup --catalog/--list-voices`, `step` en `fill_event_draft` y límite de eventos con avatar a 35 (lint y typecheck; vitest lo corre el director).
+- 2026-11-30 — NAP-S2: migración `0017_event_subdomains.sql`, dirección por reunión con sufijos, host de evento/free/reserved, `GET /api/host-info`, eventos nuevos `none` sin PayPal, redirect del legado, OG escapado, entrevista de la avatar y `loopUrl` (lint y typecheck; vitest lo corre el director).
 
 ## 2026-11-27 — NAP-F6w · «Tu avatar con tu foto» en el panel del organizador
 

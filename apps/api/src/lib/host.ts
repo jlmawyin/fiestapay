@@ -5,7 +5,7 @@
  * `Host` con `$host`; cuando el vhost amplíe el despliegue, conviene que Nginx también fije
  * `X-Forwarded-Host` al mismo valor.
  */
-import { RESERVED_SITE_SLUGS, SITE_SLUG_PATTERN } from '@fiestapay/shared';
+import { RESERVED_SITE_SLUGS } from '@fiestapay/shared';
 import type { Pool, PoolClient } from '../db/pool.js';
 import { isAllowedOrigin, type OriginCheckInput } from './origin.js';
 
@@ -25,14 +25,19 @@ export { RESERVED_SITE_SLUGS };
 const ROOT_HOSTNAMES = new Set(['somospanas.com', 'www.somospanas.com']);
 const LEGACY_PRODUCTION_HOST = 'fiestapay.somospanas.com';
 
-const SITE_LABEL = SITE_SLUG_PATTERN;
+/** NAP-S2: el host de evento admite etiquetas DNS de hasta 40; el alta de sitios sigue en 32. */
+const HOST_LABEL = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/;
 
-export type HostKind = 'legacy' | 'root' | 'site' | 'invalid';
+export type HostKind = 'legacy' | 'root' | 'site' | 'event' | 'free' | 'reserved' | 'invalid';
 
 export interface HostClassification {
   kind: HostKind;
-  /** Slug del sitio cuando `kind === 'site'`. */
+  /** Slug del sitio cuando `kind === 'site'`; slug de la invitación cuando `kind === 'event'`. */
   slug?: string;
+  /** Etiqueta DNS del host de evento (NAP-S2). */
+  subdomain?: string;
+  /** Etiqueta de un host libre o reservado (NAP-S2). */
+  label?: string;
   /** Nombre normalizado sin puerto, en minúsculas. */
   hostname: string;
 }
@@ -116,7 +121,7 @@ export function classifyHost(rawHost: string | undefined, options: ClassifyHostO
     if (label.includes('.')) {
       return { kind: 'invalid', hostname: normalized };
     }
-    if (!SITE_LABEL.test(label) || RESERVED_SITE_SLUGS.has(label)) {
+    if (!HOST_LABEL.test(label) || RESERVED_SITE_SLUGS.has(label)) {
       return { kind: 'invalid', hostname: normalized };
     }
     return { kind: 'site', slug: label, hostname: normalized };
@@ -153,6 +158,12 @@ export function allowedOriginsForHost(
   }
   if (classification.kind === 'site' && classification.slug) {
     return [`https://${classification.slug}.somospanas.com`];
+  }
+  if (classification.kind === 'event' && classification.subdomain) {
+    return [`https://${classification.subdomain}.somospanas.com`];
+  }
+  if (classification.kind === 'free' || classification.kind === 'reserved') {
+    return [`https://${classification.hostname}`];
   }
   return [];
 }
