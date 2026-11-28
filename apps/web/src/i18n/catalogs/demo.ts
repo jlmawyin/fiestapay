@@ -11,7 +11,7 @@ export const demoCatalog = defineCatalog({
       'Recorrido guiado para jueces: todo lo que ves aquí es ficticio y PayPal está en modo Sandbox, sin dinero real.',
     aiStepTitle: 'Crea tu fiesta con ayuda de la avatar',
     aiStepText:
-      'Pulsa el botón para abrir «Crear»: la avatar Pana te ayuda a armar la invitación y tú revisas antes de publicar.',
+      'Pulsa el botón para abrir «Crear»: tu guía, la avatar, te ayuda a armar la invitación y tú revisas antes de publicar.',
     aiStepLabel: 'Tu fiesta en una frase',
     quickTitle: 'Prueba el borrador y el pago',
     quickIntro: 'Habla con la avatar y prueba el borrador. Después puedes abrir una invitación ficticia para probar PayPal Sandbox.',
@@ -59,7 +59,7 @@ export const demoCatalog = defineCatalog({
     step2Text:
       'Crea una comida ficticia, une a Invitado Demo con un acompañante y abre la invitación para que completes el pago manualmente.',
     paymentLoading: 'Preparando pago de prueba...',
-    step3Title: 'Habla con Pana, la avatar',
+    step3Title: 'Habla con tu guía, la avatar',
     step3Text: 'Pregunta a la avatar cómo funciona Somos Panas, aquí mismo en la demo.',
     privateTitle: '¿Prefieres explorar por tu cuenta?',
     privateText:
@@ -82,13 +82,13 @@ export const demoCatalog = defineCatalog({
     exportCsv: 'Exportar CSV',
     totals: 'Totales (ficticio)',
     tourAi:
-      'Pulsa «Crear mi invitación»: se abre el formulario y la avatar Pana te ayuda a armarla; tú revisas.',
+      'Pulsa «Crear mi invitación»: se abre el formulario y tu guía, la avatar, te ayuda a armarla; tú revisas.',
     tourPreview:
       'Aquí ves la tabla de invitados y pagos de ejemplo. Puedes ordenar, filtrar y buscar sin cambiar nada real.',
     tourPayment:
       'Este botón crea una comida ficticia y abre la invitación para que completes el pago de prueba en PayPal Sandbox.',
     tourAvatar:
-      'Aquí habla Pana, la avatar de Somos Panas: explica, prepara borradores y solo tú apruebas.',
+      'Aquí habla tu guía, la avatar de Somos Panas: explica, prepara borradores y solo tú apruebas.',
   },
   en: {
     banner: 'Fictional data · Sandbox · No real money',
@@ -96,7 +96,7 @@ export const demoCatalog = defineCatalog({
       'Guided tour for judges: everything you see here is fictional and PayPal runs in Sandbox mode, with no real money.',
     aiStepTitle: 'Create your party with the avatar',
     aiStepText:
-      'Press the button to open “Create”: the Pana avatar helps you build the invitation and you review before publishing.',
+      'Press the button to open “Create”: your guide, the avatar, helps you build the invitation and you review before publishing.',
     aiStepLabel: 'Your party in one sentence',
     quickTitle: 'Try the draft and the payment',
     quickIntro: 'Talk to the avatar and try the draft. Then open a fictional invitation to try PayPal Sandbox.',
@@ -144,7 +144,7 @@ export const demoCatalog = defineCatalog({
     step2Text:
       'Create a fictional meal, join Demo Guest with one companion, and open the invitation so you can complete the payment manually.',
     paymentLoading: 'Preparing the test payment...',
-    step3Title: 'Talk to Pana, the avatar',
+    step3Title: 'Talk to your guide, the avatar',
     step3Text: 'Ask the avatar how Somos Panas works, right here in the demo.',
     privateTitle: 'Prefer to explore on your own?',
     privateText:
@@ -167,12 +167,12 @@ export const demoCatalog = defineCatalog({
     exportCsv: 'Export CSV',
     totals: 'Totals (fictional)',
     tourAi:
-      'Press “Create my invitation”: the form opens and the Pana avatar helps you build it; you review.',
+      'Press “Create my invitation”: the form opens and your guide, the avatar, helps you build it; you review.',
     tourPreview:
       'Here is the sample guest and payment table. You can sort, filter, and search without changing anything real.',
     tourPayment:
       'This button creates a fictional meal and opens the invitation so you can complete the test payment in PayPal Sandbox.',
     tourAvatar:
-      'Here speaks Pana, the Somos Panas avatar: she explains, drafts, and only you approve.',
+      'Here speaks your guide, the Somos Panas avatar: she explains, drafts, and only you approve.',
   },
 });

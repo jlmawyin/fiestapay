@@ -69,7 +69,7 @@ describe('avatar gating por capabilities.avatar (NAP-F5b)', () => {
     );
 
     expect(screen.getByTestId('napster-avatar')).toBeInTheDocument();
-    expect(screen.getByText('Hola, soy Pana, tu guía de Somos Panas')).toBeInTheDocument();
+    expect(screen.getByText('Hola, soy tu guía de Somos Panas')).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 

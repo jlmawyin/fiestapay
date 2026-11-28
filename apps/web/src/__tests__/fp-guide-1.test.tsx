@@ -587,7 +587,7 @@ describe('FP-GUIDE-1 reduced motion and dismissal', () => {
     render(<GuideOverlay />);
     addFixture('previewPanel', 'section', 'Panel');
     addFixture('paymentDemo', 'button', 'Pago');
-    addFixture('paypalAiPanel', 'section', 'Avatar Pana');
+    addFixture('paypalAiPanel', 'section', 'Avatar guía');
     act(() => {
       startGuidedTour();
     });
@@ -616,7 +616,7 @@ describe('FP-GUIDE-1 never presses anything', () => {
     const payment = addFixture('paymentDemo', 'button', 'Probar pago con PayPal');
     const create = addFixture('privateDemo', 'button', 'Crear mi demo privada');
     addFixture('previewPanel', 'section', 'Panel');
-    addFixture('paypalAiPanel', 'section', 'Avatar Pana');
+    addFixture('paypalAiPanel', 'section', 'Avatar guía');
     payment.addEventListener('click', paymentClicks);
     create.addEventListener('click', createClicks);
 
@@ -630,7 +630,7 @@ describe('FP-GUIDE-1 never presses anything', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     expect(await screen.findByTestId('guide-bubble')).toHaveTextContent('comida ficticia');
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
-    expect(await screen.findByTestId('guide-bubble')).toHaveTextContent('Aquí habla Pana');
+    expect(await screen.findByTestId('guide-bubble')).toHaveTextContent('Aquí habla tu guía');
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     expect(screen.queryByTestId('guide-bubble')).toBeNull();
 

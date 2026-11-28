@@ -202,7 +202,7 @@ describe.each(['es', 'en'] as const)('FP-JUDGE-1 judge landing (%s)', (locale) =
     );
   }
 
-  it('centers the headline and story on Pana and keeps the judges demo visible', async () => {
+  it('centers the headline and story on the guide and keeps the judges demo visible', async () => {
     renderLanding();
     const h1 = (await screen.findAllByRole('heading', { level: 1 }))[0]!;
     expect(h1).toHaveTextContent(
@@ -212,13 +212,13 @@ describe.each(['es', 'en'] as const)('FP-JUDGE-1 judge landing (%s)', (locale) =
     );
     expect(screen.getByText(
       locale === 'es'
-        ? 'Arma la fiesta con ayuda de Pana, la avatar; cada persona confirma y paga su parte en PayPal Sandbox.'
-        : 'Build the party with Pana, the avatar; everyone confirms and pays their share in PayPal Sandbox.'
+        ? 'Arma la fiesta con ayuda de tu guía, la avatar; cada persona confirma y paga su parte en PayPal Sandbox.'
+        : 'Build the party with help from your guide, the avatar; everyone confirms and pays their share in PayPal Sandbox.'
     )).toBeInTheDocument();
     expect(screen.getByText(locale === 'es' ? 'Cómo funciona' : 'How it works')).toBeInTheDocument();
     for (const step of locale === 'es'
-      ? ['Describe tu fiesta, Pana la arma', 'Pana guía a tus invitados', 'Cada uno paga su parte']
-      : ['Describe your party, Pana builds it', 'Pana guides your guests', 'Everyone pays their share']) {
+      ? ['Describe tu fiesta, tu guía la arma', 'Tu guía acompaña a tus invitados', 'Cada uno paga su parte']
+      : ['Describe your party, your guide builds it', 'Your guide helps your guests', 'Everyone pays their share']) {
       expect(screen.getByText(step)).toBeInTheDocument();
     }
     expect(screen.getAllByRole('button', { name: labels.judgesDemo }).length).toBeGreaterThan(0);
@@ -320,7 +320,7 @@ describe('FP-JUDGE-1 English sampling without fixed Spanish', () => {
   /** Fixed UI copy (never person-written content) that must not leak into English. */
   const SPANISH_WITNESSES = [
     'Tu anfitrión que cobra',
-    'Arma la fiesta con ayuda de Pana',
+    'Arma la fiesta con ayuda de tu guía',
     'Crea tu fiesta con ayuda de la avatar',
     'Cómo funciona',
     'Crear mi invitación',

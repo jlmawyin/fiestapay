@@ -58,24 +58,61 @@ export function retryDelayMs(retryAfterSec?: number): number {
 }
 
 /**
- * Agrega un mensaje acotando el historial. Un `delta` o un `completed` con
- * texto se acumulan al mensaje en curso del mismo rol; `completed` lo cierra.
+ * NAP-U1: el SDK no trae ids de mensaje (`EventMessage.message` solo trae
+ * action/content/role), así que la deduplicación es del lado del cliente.
  */
-function appendMessage(
+function looksLikeJson(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return false;
+  try {
+    JSON.parse(trimmed);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Agrega un mensaje humano acotando el historial. Se ignoran los vacíos, el
+ * JSON (salidas de función como {"events": []}) y los duplicados consecutivos
+ * idénticos (eco del usuario, doble `completed`). Un `completed` con el texto
+ * completo sustituye lo acumulado; si trae solo el resto, se suma.
+ */
+function appendCleanMessage(
   prev: NapsterCaption[],
   id: number,
   role: NapsterCaption['role'],
   text: string,
   delta: boolean,
 ): NapsterCaption[] {
+  if (text.trim().length === 0 || looksLikeJson(text)) return prev;
   const last = prev[prev.length - 1];
   if (last && !last.done && last.role === role) {
     const next = [...prev];
+    if (text === last.text) {
+      // Mismo contenido reenviado: el delta se ignora, el final lo cierra.
+      if (delta) return prev;
+      next[next.length - 1] = { ...last, done: true };
+      return next;
+    }
+    if (!delta && (text.includes(last.text) || last.text.includes(text))) {
+      // El final trae el texto completo: sustituye, no suma.
+      next[next.length - 1] = {
+        ...last,
+        text: text.length >= last.text.length ? text : last.text,
+        done: true,
+      };
+      return next;
+    }
     next[next.length - 1] = { ...last, text: last.text + text, done: !delta };
     return next;
   }
+  if (!delta && last && last.done && last.role === role && last.text === text) return prev;
   return [...prev, { id, role, text, done: !delta }].slice(-MAX_CAPTIONS);
 }
+
+/** NAP-U1: estados del botón del micrófono en el video. */
+export type NapsterMicState = 'ready' | 'listening' | 'processing' | 'denied' | 'error';
 
 export interface UseNapsterSessionOptions {
   lang: AvatarLang;
@@ -102,6 +139,16 @@ export interface UseNapsterSession {
   degradedToPublic: boolean;
   /** NAP-F6w: agente de la sesión ('custom' → avatar con foto del organizador). */
   agent: string | null;
+  /** NAP-U1: nombre de la avatar si la sesión lo trae (`avatar.firstName`). */
+  firstName: string | null;
+  /** NAP-U1: estado del botón del micrófono (video). */
+  mic: NapsterMicState;
+  /** NAP-U1: micrófono silenciado por la persona (muteMic del SDK). */
+  muted: boolean;
+  /** NAP-U1: silencia o reactiva el micrófono del video. */
+  toggleMute: () => void;
+  /** NAP-U1: reintenta la sesión de video (denegado o error). */
+  micRetry: () => void;
   /** Solo el clic en «Conversar» lo llama; sin clic no hay sesión. */
   start: () => void;
   /** Terminar visible: destruye el widget o el socket y cierra el handle. */
@@ -128,6 +175,11 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
   const [degradedToPublic, setDegradedToPublic] = useState(false);
   /** NAP-F6w: 'custom' cuando el evento tiene avatar con la foto del organizador. */
   const [agent, setAgent] = useState<string | null>(null);
+  /** NAP-U1: nombre opcional de la avatar para el título. */
+  const [firstName, setFirstName] = useState<string | null>(null);
+  /** NAP-U1: estado del micrófono; denegado y error quedan fijos hasta reintentar. */
+  const [mic, setMic] = useState<NapsterMicState>('ready');
+  const [muted, setMuted] = useState(false);
 
   const langRef = useRef(options.lang);
   langRef.current = options.lang;
@@ -145,9 +197,75 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
   const textReadyRef = useRef(false);
   const mintErrorRef = useRef<AvatarSessionError | null>(null);
   const captionIdRef = useRef(0);
+  // NAP-U1: espejos para decidir dentro de callbacks y del sondeo del micrófono.
+  const micRef = useRef<NapsterMicState>('ready');
+  const mutedRef = useRef(false);
+  const streamingRef = useRef(false);
+  const [videoAttempt, setVideoAttempt] = useState(0);
   const ownRouterRef = useRef<AvatarToolRouter | null>(null);
   if (!ownRouterRef.current) ownRouterRef.current = createAvatarToolRouter({ visitor });
   const router = options.router ?? ownRouterRef.current;
+
+  const setMicState = useCallback((next: NapsterMicState): void => {
+    micRef.current = next;
+    setMic(next);
+  }, []);
+
+  const resetMic = useCallback((): void => {
+    streamingRef.current = false;
+    mutedRef.current = false;
+    setMuted(false);
+    setMicState('ready');
+  }, [setMicState]);
+
+  /** NAP-U1: silencia o reactiva el micrófono del video (muteMic del SDK). */
+  const toggleMute = useCallback((): void => {
+    const instance = instanceRef.current as unknown as {
+      muteMic?: () => void;
+      unmuteMic?: () => void;
+    } | null;
+    if (!instance) return;
+    try {
+      if (mutedRef.current) instance.unmuteMic?.();
+      else instance.muteMic?.();
+    } catch {
+      // Si el SDK no responde, el botón conserva su estado anterior.
+      return;
+    }
+    mutedRef.current = !mutedRef.current;
+    setMuted(mutedRef.current);
+  }, []);
+
+  /** NAP-U1: reintenta la sesión de video tras denegado o error. */
+  const micRetry = useCallback((): void => {
+    resetMic();
+    if (!requestedRef.current) {
+      requestedRef.current = true;
+      textRequestedRef.current = false;
+      setTextRequested(false);
+      setStatus('connecting');
+      setRequested(true);
+      return;
+    }
+    setStatus('connecting');
+    setVideoAttempt((n) => n + 1);
+  }, [resetMic]);
+
+  /**
+   * NAP-U1: otro encargo agregará `avatar.firstName` a la respuesta de la
+   * sesión; lectura defensiva para dejar el título listo sin romper el
+   * contrato actual. (Aviso: el cliente valida con zod estricto, así que ese
+   * encargo también debe aceptar el campo en `api/client.ts`.)
+   */
+  const applySessionIdentity = useCallback((session: AvatarSessionResponse): void => {
+    setAgent(typeof session.agent === 'string' ? session.agent : null);
+    const avatar = (session as unknown as { avatar?: { firstName?: unknown } }).avatar;
+    setFirstName(
+      typeof avatar?.firstName === 'string' && avatar.firstName.trim().length > 0
+        ? avatar.firstName.trim().slice(0, 60)
+        : null,
+    );
+  }, []);
 
   const sendCommand = useCallback(
     (command: Parameters<NapsterCompanionApiInstance['sendCommand']>[0]): void => {
@@ -192,12 +310,14 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
     if (!message || typeof message !== 'object') return;
     const record = message as { action?: unknown; content?: unknown; role?: unknown };
     if (typeof record.content !== 'string' || record.content.length === 0) return;
+    // NAP-U1: solo voces humanas; sistema y salidas internas no se muestran.
+    if (record.role !== undefined && record.role !== 'user' && record.role !== 'assistant') return;
     const role: NapsterCaption['role'] = record.role === 'user' ? 'user' : 'assistant';
     const delta = record.action === 'delta';
     const text = record.content;
     captionIdRef.current += 1;
     const id = captionIdRef.current;
-    setCaptions((prev) => appendMessage(prev, id, role, text, delta));
+    setCaptions((prev) => appendCleanMessage(prev, id, role, text, delta));
   }, []);
 
   const pushTextMessage = useCallback(
@@ -205,7 +325,7 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
       if (text.length === 0) return;
       captionIdRef.current += 1;
       const id = captionIdRef.current;
-      setTextMessages((prev) => appendMessage(prev, id, role, text, delta));
+      setTextMessages((prev) => appendCleanMessage(prev, id, role, text, delta));
     },
     [],
   );
@@ -253,7 +373,7 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
         const session = await attempt(true);
         if (mode !== 'text') clearCreateIntent();
         router.setVisitor(session.visitor);
-        setAgent(typeof session.agent === 'string' ? session.agent : null);
+        applySessionIdentity(session);
         return session;
       } catch (error) {
         // NAP-F4w: 404 con slug → se cae al saludo público sin revelar nada.
@@ -268,13 +388,13 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
           const session = await attempt(false);
           if (mode !== 'text') clearCreateIntent();
           router.setVisitor(session.visitor);
-          setAgent(typeof session.agent === 'string' ? session.agent : null);
+          applySessionIdentity(session);
           return session;
         }
         throw error;
       }
     },
-    [router],
+    [router, applySessionIdentity],
   );
 
   const start = useCallback((): void => {
@@ -286,9 +406,11 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
     setDegradedToPublic(false);
     setCaptions([]);
     setAgent(null);
+    setFirstName(null);
+    resetMic();
     setStatus('connecting');
     setRequested(true);
-  }, []);
+  }, [resetMic]);
 
   const stop = useCallback((): void => {
     requestedRef.current = false;
@@ -297,8 +419,10 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
     setTextRequested(false);
     setTextReady(false);
     setAgent(null);
+    // NAP-U1: el nombre se conserva para la bienvenida de vuelta.
+    resetMic();
     setStatus('idle');
-  }, []);
+  }, [resetMic]);
 
   /** NAP-F4w: «Prefiero leer» abre el chat de texto con la misma avatar. */
   const startTextMode = useCallback((): void => {
@@ -308,9 +432,10 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
     setRequested(false);
     setTextMessages([]);
     setTextReady(false);
+    resetMic();
     setStatus('text');
     setTextRequested(true);
-  }, []);
+  }, [resetMic]);
 
   const readInstead = startTextMode;
 
@@ -401,9 +526,27 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
       if (cancelled) return;
       const data = (event?.data ?? {}) as Record<string, unknown>;
       switch (event?.event) {
-        case 'message_received':
+        case 'message_received': {
           pushCaption(data.message);
+          // NAP-U1: el habla de la avatar marca «procesando» hasta el final.
+          const incoming = data.message as { action?: unknown; content?: unknown; role?: unknown } | null;
+          const isAssistantVoice =
+            !!incoming &&
+            typeof incoming === 'object' &&
+            typeof incoming.content === 'string' &&
+            incoming.content.length > 0 &&
+            (incoming.role === 'assistant' || incoming.role === undefined);
+          if (isAssistantVoice && micRef.current !== 'denied' && micRef.current !== 'error') {
+            if (incoming.action === 'delta') {
+              streamingRef.current = true;
+              setMicState('processing');
+            } else {
+              streamingRef.current = false;
+              if (micRef.current === 'processing') setMicState('ready');
+            }
+          }
           break;
+        }
         case 'function_implicitly_called':
           void handleToolCall(data);
           break;
@@ -433,10 +576,19 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
           if (ready !== false) markLive();
         },
         onSessionStatusChange: (sessionStatus) => {
-          // Micrófono denegado: chat de texto en vez del video.
-          if (sessionStatus === 'permissionBlocked') toText();
+          // NAP-U1: sin permiso se muestra el estado denegado con ayuda y
+          // reintento; la persona elige «Prefiero leer» si quiere solo texto.
+          if (sessionStatus === 'permissionBlocked' || sessionStatus === 'permissionDismissed') {
+            if (!cancelled) setMicState('denied');
+          }
         },
         onError: () => {
+          // NAP-U1: un fallo con la sesión viva se muestra en el micrófono
+          // con reintento; antes de vivir se conserva la navegación anterior.
+          if (!cancelled && readyRef.current) {
+            setMicState('error');
+            return;
+          }
           toFallbackFromMintError();
         },
       }).then(
@@ -475,7 +627,8 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
     };
     // NAP-F3: la sesión vive por `requested`; idioma y contenedor viajan por
     // refs para que un cambio de idioma no reinicie la llamada en curso.
-  }, [requested]);
+    // NAP-U1: `videoAttempt` reabre la sesión en el reintento del micrófono.
+  }, [requested, videoAttempt]);
 
   useEffect(() => {
     if (!textRequested) return;
@@ -526,6 +679,8 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
       switch (envelope.event) {
         case 'message_received': {
           const message = data.message as { action?: unknown; content?: unknown; role?: unknown } | undefined;
+          // NAP-U1: solo voces humanas; sistema y salidas internas no se muestran.
+          if (message?.role !== undefined && message.role !== 'user' && message.role !== 'assistant') break;
           if (typeof message?.content === 'string' && message.content.length > 0) {
             pushTextMessage(message.role === 'user' ? 'user' : 'assistant', message.content, message.action === 'delta');
           }
@@ -614,6 +769,29 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
     // NAP-F4w: el chat vive por `textRequested`, igual que el video por `requested`.
   }, [textRequested]);
 
+  // NAP-U1: el SDK no expone un evento «escuchando»; solo trae banderas para
+  // sondear (`isUserTalking`/`isAvatarSpeaking` de la instancia). Se aproximan
+  // por sondeo cada medio segundo mientras el video está vivo; denegado y
+  // error quedan fijos hasta reintentar o terminar.
+  useEffect(() => {
+    if (status !== 'live') return undefined;
+    const timer = window.setInterval(() => {
+      if (micRef.current === 'denied' || micRef.current === 'error') return;
+      const instance = instanceRef.current as unknown as {
+        isUserTalking?: unknown;
+        isAvatarSpeaking?: unknown;
+      } | null;
+      if (instance?.isUserTalking === true) {
+        setMicState('listening');
+      } else if (instance?.isAvatarSpeaking === true || streamingRef.current) {
+        setMicState('processing');
+      } else if (micRef.current !== 'ready') {
+        setMicState('ready');
+      }
+    }, 500);
+    return () => window.clearInterval(timer);
+  }, [status, setMicState]);
+
   useEffect(() => {
     const onPageHide = (): void => {
       const instance = instanceRef.current;
@@ -651,6 +829,11 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
     textReady,
     degradedToPublic,
     agent,
+    firstName,
+    mic,
+    muted,
+    toggleMute,
+    micRetry,
     start,
     stop,
     readInstead,
