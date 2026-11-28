@@ -4,7 +4,7 @@
  * Postgres real (DATABASE_URL) y Chromium propio de Playwright.
  * Depende de: @playwright/test, express (API), pg, vitest.
  */
-import { execSync, spawn, type ChildProcess } from 'node:child_process';
+import { execFileSync, execSync, spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { get as httpGet } from 'node:http';
 import { join } from 'node:path';
