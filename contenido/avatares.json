@@ -1,0 +1,428 @@
+{
+  "avatars": [
+    {
+      "id": "elena",
+      "firstName": "Elena",
+      "displayName": "Elena Navarro",
+      "gender": "female",
+      "companionId": "0e943b3c-81a4-4a81-9005-08a7c51f2d72",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/0e943b3c-81a4-4a81-9005-08a7c51f2d72/9pBBKYn2wXaMCVuySi6hdKLwelPEfFiSaXuTUIHFaD3HIEjUA.jpg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "eventos",
+        "fiesta"
+      ],
+      "agentIdEs": null,
+      "agentIdEn": null,
+      "default": true
+    },
+    {
+      "id": "alba-fiore",
+      "firstName": "Alba Fiore",
+      "displayName": "Alba Fiore",
+      "gender": "female",
+      "companionId": "1c552cd9-7f7d-4f56-99ae-9823fb1d2cde",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/1c552cd9-7f7d-4f56-99ae-9823fb1d2cde/compressed/companion_seed.jpeg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "estudio"
+      ],
+      "agentIdEs": "955b35ed-03c0-4798-8012-d0915c853023",
+      "agentIdEn": "7caab1ce-0815-40c5-abfa-aab2f767de90",
+      "default": false
+    },
+    {
+      "id": "ruby-mae-tucker",
+      "firstName": "Ruby Mae",
+      "displayName": "Ruby Mae Tucker",
+      "gender": "female",
+      "companionId": "af0f8988-a851-44e3-bedc-54eaae6d040c",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/af0f8988-a851-44e3-bedc-54eaae6d040c/compressed/image-1763384223.jpeg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "karaoke"
+      ],
+      "agentIdEs": "d239b6f5-464b-4798-87bd-d9fd3e501dd4",
+      "agentIdEn": "a7a4f6bb-2653-49df-9229-9e03987064ed",
+      "default": false
+    },
+    {
+      "id": "infernal-bloom",
+      "firstName": "Infernal Bloom",
+      "displayName": "Infernal Bloom",
+      "gender": "female",
+      "companionId": "b5801ff7-0fb5-4b9a-904e-cf33617ef71b",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/b5801ff7-0fb5-4b9a-904e-cf33617ef71b/compressed/image-1759870104.jpeg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "karaoke",
+        "musica"
+      ],
+      "agentIdEs": "43f15d86-294f-4a7b-bfb7-9722efb4ec70",
+      "agentIdEn": "0d0261e3-8390-4d44-914b-8f4a0bc6b4d9",
+      "default": false
+    },
+    {
+      "id": "amara-nguyen",
+      "firstName": "Amara Nguyen",
+      "displayName": "Amara Nguyen",
+      "gender": "female",
+      "companionId": "e0b55cd6-87cb-4b38-84ca-dcc57e3048c2",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/e0b55cd6-87cb-4b38-84ca-dcc57e3048c2/8m3bcfb79tShZaE32wGrPiUHclAiV74le38IXlvhEfWyUWDpA.jpg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "viajes"
+      ],
+      "agentIdEs": "3e6f231a-5dfe-40ca-9f02-b433073c85e3",
+      "agentIdEn": "2328159f-9eed-4ca3-8253-fe9ad3e7431c",
+      "default": false
+    },
+    {
+      "id": "milagros-ferreyra",
+      "firstName": "Milagros Ferreyra",
+      "displayName": "Milagros Ferreyra",
+      "gender": "female",
+      "companionId": "1b8fa07a-db0e-4008-bb6c-15ab72d97b35",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/1b8fa07a-db0e-4008-bb6c-15ab72d97b35/compressed/companion_seed.jpeg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "cultura",
+        "reunion"
+      ],
+      "agentIdEs": "867f6a75-e0c9-4892-87e3-17d97e382031",
+      "agentIdEn": "3c8daa42-1364-4f52-8740-37cb79fe304c",
+      "default": false
+    },
+    {
+      "id": "sienna-rush",
+      "firstName": "Sienna Rush",
+      "displayName": "Sienna Rush",
+      "gender": "female",
+      "companionId": "4df62f26-2274-4501-9dd4-67187d12d8e2",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/4df62f26-2274-4501-9dd4-67187d12d8e2/compressed/image-1763038665.jpeg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "musica",
+        "fiesta"
+      ],
+      "agentIdEs": "f85f5f66-1673-4b62-9351-2416bce1265c",
+      "agentIdEn": "80467151-fec7-4364-a7e9-1c006fa473c1",
+      "default": false
+    },
+    {
+      "id": "azure-echoes",
+      "firstName": "Azure Echoes",
+      "displayName": "Azure Echoes",
+      "gender": "female",
+      "companionId": "8327fae9-9b20-4af0-99eb-889fdad5bdf4",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/8327fae9-9b20-4af0-99eb-889fdad5bdf4/compressed/0814491b779132d17443a119e3b7833a-AzureEchoes2.jpeg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "playa",
+        "fiesta"
+      ],
+      "agentIdEs": "828a4981-0db0-4461-8056-c87ef70ddac6",
+      "agentIdEn": "c3c6879d-9b38-4406-b86b-c54ffca5ae85",
+      "default": false
+    },
+    {
+      "id": "maya-fernandez",
+      "firstName": "Maya Fernandez",
+      "displayName": "Maya Fernandez",
+      "gender": "female",
+      "companionId": "8840e9fb-7033-473c-b323-847628a711e6",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/8840e9fb-7033-473c-b323-847628a711e6/Lw6GZcaWuvI5Cp1erRGwp30o9e9nvVSPtariOz63EOBMXIkUA.jpg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "ejercicio"
+      ],
+      "agentIdEs": "a76d1e50-9779-409f-b5e5-5b831beda921",
+      "agentIdEn": "841cdc36-9d67-406e-994f-51ea5fce34f6",
+      "default": false
+    },
+    {
+      "id": "sofia-hernandez",
+      "firstName": "Sofia Hernandez",
+      "displayName": "Sofia Hernandez",
+      "gender": "female",
+      "companionId": "a26c3658-b52f-4432-b11c-fe0e9ea61b3e",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/a26c3658-b52f-4432-b11c-fe0e9ea61b3e/JAGDjHBBLnLsLFLuCQEbFAVDro1cbY2XH9xtM6TrwANmFxIF.jpg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "deportes"
+      ],
+      "agentIdEs": "b671d257-03b7-4ce3-86ee-4595978eccbb",
+      "agentIdEn": "bb3d27ad-44cf-4486-a136-59b550698bd3",
+      "default": false
+    },
+    {
+      "id": "anita-fernandez",
+      "firstName": "Anita Fernandez",
+      "displayName": "Anita Fernandez",
+      "gender": "female",
+      "companionId": "3afd71a6-6991-4617-b00f-2d5a9b6ca7e0",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/3afd71a6-6991-4617-b00f-2d5a9b6ca7e0/md2LJwwk6GInF5qXhMwk8ESPIUCnZbHHfhfPZFpyUQAylxhUA.jpg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "recaudacion"
+      ],
+      "agentIdEs": "c485a731-9dac-41d9-8efa-f7df1a562dce",
+      "agentIdEn": "2cb4c051-e206-426b-b783-6c44008dd6d9",
+      "default": false
+    },
+    {
+      "id": "kenji-takamura",
+      "firstName": "Kenji Takamura",
+      "displayName": "Kenji Takamura",
+      "gender": "male",
+      "companionId": "b366f8c6-8f29-4e3b-9a2d-caeb27946cf9",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/b366f8c6-8f29-4e3b-9a2d-caeb27946cf9/4qWmMe4wqsUbWyrHLEKrKK50CH5wZz6yy1593yMuUQUZiqfVA.jpg",
+      "loopUrl": null,
+      "voice": "cedar",
+      "tags": [
+        "deportes"
+      ],
+      "agentIdEs": "5d4babbf-b061-4ece-91d0-9f3b816048c6",
+      "agentIdEn": "4e4b9f9e-abda-45f4-923e-392e604d0655",
+      "default": false
+    },
+    {
+      "id": "valeria-azevedo",
+      "firstName": "Valéria Azevedo",
+      "displayName": "Valéria Azevedo",
+      "gender": "female",
+      "companionId": "58a27524-1664-456a-8b66-fd422a2843f9",
+      "previewUrl": "https://mentordata-acazgce6cvdzgng9.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/58a27524-1664-456a-8b66-fd422a2843f9/compressed/35604ef8-fecb-4224-b70f-a5117fd3d409.jpeg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "comida"
+      ],
+      "agentIdEs": "1cf85674-4946-4e87-bdd2-817338624171",
+      "agentIdEn": "323c185d-8651-4740-b0c2-7ad95bb2801e",
+      "default": false
+    },
+    {
+      "id": "isaiah-nguyen",
+      "firstName": "Isaiah Nguyen",
+      "displayName": "Isaiah Nguyen",
+      "gender": "male",
+      "companionId": "eb97e5f1-5b1d-4ec9-944a-a9d56f7432cc",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/eb97e5f1-5b1d-4ec9-944a-a9d56f7432cc/XmU56PeafRk1WUEoCIKp5dU3evAOa9Lfn2bGYsnrBMAKBpGSB.jpg",
+      "loopUrl": null,
+      "voice": "cedar",
+      "tags": [
+        "estudio"
+      ],
+      "agentIdEs": "d7a504f8-ad72-4c91-a1d2-2eee4bb43589",
+      "agentIdEn": "c91f745e-044f-46b9-952c-7a47743390bf",
+      "default": false
+    },
+    {
+      "id": "anjali-kumar",
+      "firstName": "Anjali Kumar",
+      "displayName": "Anjali Kumar",
+      "gender": "female",
+      "companionId": "58e01165-3afb-4ad7-bd2b-18e1fba5a088",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/58e01165-3afb-4ad7-bd2b-18e1fba5a088/DXxuo3vG9Y7GLxAkQUdnveshIUj8RiibevZzazwRbbeam6DpA.jpg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "reunion"
+      ],
+      "agentIdEs": "581c7de5-a099-4686-9643-736aee54ca06",
+      "agentIdEn": "4f1ad1b1-69ea-40ff-ac2f-763120f71d32",
+      "default": false
+    },
+    {
+      "id": "amit-pillai",
+      "firstName": "Amit Pillai",
+      "displayName": "Amit Pillai",
+      "gender": "male",
+      "companionId": "3b7a8c51-9a67-4447-88db-fabefae5a4c2",
+      "previewUrl": "https://mentordata-acazgce6cvdzgng9.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/3b7a8c51-9a67-4447-88db-fabefae5a4c2/compressed/d4bf4618-3959-4c5a-9ae4-15484e86a7d9.jpeg",
+      "loopUrl": null,
+      "voice": "cedar",
+      "tags": [
+        "comida"
+      ],
+      "agentIdEs": "e2b2420f-f799-4419-b32d-0c291dab35ee",
+      "agentIdEn": "8cd75ec0-36a9-4f34-9d63-c57fa973d832",
+      "default": false
+    },
+    {
+      "id": "anjali-sharma",
+      "firstName": "Anjali Sharma",
+      "displayName": "Anjali Sharma",
+      "gender": "female",
+      "companionId": "246f81c7-f886-41bb-8a47-48538234932c",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/246f81c7-f886-41bb-8a47-48538234932c/LJeEQJRrlERUBKQCkJWESqHzwC3yCYyr9qYUZetCcbf3l6DpA.jpg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "reunion",
+        "ejercicio"
+      ],
+      "agentIdEs": "d9fcdb09-e85e-4554-9183-31cc195f4dd5",
+      "agentIdEn": "9d303925-901d-4be7-afea-38d7f01a4ae7",
+      "default": false
+    },
+    {
+      "id": "rude-wave",
+      "firstName": "Rude Wave",
+      "displayName": "Rude Wave",
+      "gender": "male",
+      "companionId": "6c402fae-5904-4680-ba67-e41e5e39bfa7",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/6c402fae-5904-4680-ba67-e41e5e39bfa7/cfdb92b99b0e2316b071fad6894e2d46-RudeWave_Cropped_ElevatedCam.png",
+      "loopUrl": null,
+      "voice": "cedar",
+      "tags": [
+        "fiesta",
+        "musica"
+      ],
+      "agentIdEs": "cec3a02f-d42e-4dec-a89d-5094ab93a24e",
+      "agentIdEn": "52fa34fe-a285-4b16-81a8-4dbceffb0de0",
+      "default": false
+    },
+    {
+      "id": "holly-marlowe",
+      "firstName": "Holly Marlowe",
+      "displayName": "Holly Marlowe",
+      "gender": "female",
+      "companionId": "88a9479c-2582-472d-862f-26b774daa193",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/88a9479c-2582-472d-862f-26b774daa193/compressed/companion_seed.jpeg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "navidad"
+      ],
+      "agentIdEs": "dbf8ec37-3f0d-4c3d-85c6-792323e0ea30",
+      "agentIdEn": "21b7cbce-e7ee-44fc-84b5-b7c82e84d3e3",
+      "default": false
+    },
+    {
+      "id": "aarav-chakrabarti",
+      "firstName": "Aarav Chakrabarti",
+      "displayName": "Aarav Chakrabarti",
+      "gender": "male",
+      "companionId": "a1ef907f-e256-4c42-9c13-03b1da397fb9",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/a1ef907f-e256-4c42-9c13-03b1da397fb9/vdcCMSOZf1xqZyU6AbXyi88LMdfwefxbgqp0MfhqteMct2VIF.jpg",
+      "loopUrl": null,
+      "voice": "cedar",
+      "tags": [
+        "estudio"
+      ],
+      "agentIdEs": "9f4750fc-016e-4de9-8056-431534668354",
+      "agentIdEn": "157ec1ee-ed7d-46f4-a8cb-ef85d435bacd",
+      "default": false
+    },
+    {
+      "id": "lena-carmichael",
+      "firstName": "Lena Carmichael",
+      "displayName": "Lena Carmichael",
+      "gender": "female",
+      "companionId": "e54682d5-5313-45b8-a716-d9c3424dfb5a",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/e54682d5-5313-45b8-a716-d9c3424dfb5a/oY8HIta5gVJgMRb7toB6lDlhnysFILbyAsY7quJGkjjwnyMF.jpg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "cultura"
+      ],
+      "agentIdEs": "1e475cd3-a825-42c4-a652-d4e8a4f3fffb",
+      "agentIdEn": "69189e00-257d-4c20-8b46-c165bd4db127",
+      "default": false
+    },
+    {
+      "id": "halian-starbird",
+      "firstName": "Halian Starbird",
+      "displayName": "Halian Starbird",
+      "gender": "male",
+      "companionId": "33dd789c-07ac-450a-89ae-160f18fa9682",
+      "previewUrl": "https://mentordata-acazgce6cvdzgng9.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/33dd789c-07ac-450a-89ae-160f18fa9682/compressed/28835d75-90ad-4f99-98d4-49ed68f06f5e.jpeg",
+      "loopUrl": null,
+      "voice": "cedar",
+      "tags": [
+        "eventos"
+      ],
+      "agentIdEs": "02801a87-9223-49ab-8c5f-555b666e8335",
+      "agentIdEn": "9a637716-833a-40b8-801c-52f38b42a1aa",
+      "default": false
+    },
+    {
+      "id": "mila-hawthorne",
+      "firstName": "Mila Hawthorne",
+      "displayName": "Mila Hawthorne",
+      "gender": "female",
+      "companionId": "483b9ee7-f6be-47ff-875d-74a9b34a7b3a",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/483b9ee7-f6be-47ff-875d-74a9b34a7b3a/8jv1V80SK76pNFurWqj6k02WHjOIe4gqs8sBWhBz8JX2ajZKA.jpg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "viajes"
+      ],
+      "agentIdEs": "1dd26d2e-afe3-40d9-a328-6b3d46282f6b",
+      "agentIdEn": "3e20f665-88aa-4d90-b585-778b9b1e28c3",
+      "default": false
+    },
+    {
+      "id": "nathalie-beaumont",
+      "firstName": "Nathalie Beaumont",
+      "displayName": "Nathalie Beaumont",
+      "gender": "female",
+      "companionId": "b0841688-150a-45a5-b6a3-87195fbb0ad3",
+      "previewUrl": "https://mentordata-acazgce6cvdzgng9.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/b0841688-150a-45a5-b6a3-87195fbb0ad3/compressed/bb54fff0-d8ad-4ab4-87bb-4acb95fcebe6.jpeg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "comida"
+      ],
+      "agentIdEs": "701ec135-da3f-4ea5-ae08-41c2056ef1b0",
+      "agentIdEn": "e286be7a-7e77-4416-9028-d9f7a96a42a7",
+      "default": false
+    },
+    {
+      "id": "mariola-ksiazek",
+      "firstName": "Mariola Książek",
+      "displayName": "Mariola Książek",
+      "gender": "female",
+      "companionId": "2b7715d1-402d-427b-8103-12eb68ff092c",
+      "previewUrl": "https://mentordata-acazgce6cvdzgng9.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/2b7715d1-402d-427b-8103-12eb68ff092c/compressed/4d989f9e-b200-456e-9e82-d901763e258a.jpeg",
+      "loopUrl": null,
+      "voice": "marin",
+      "tags": [
+        "comida"
+      ],
+      "agentIdEs": "533f25af-4967-4efa-a5c3-aea8d623ea2a",
+      "agentIdEn": "5e1bc0dd-a7a6-4f3f-a248-d7b05bec5eb5",
+      "default": false
+    },
+    {
+      "id": "adrian-gomez",
+      "firstName": "Adrian Gomez",
+      "displayName": "Adrian Gomez",
+      "gender": "male",
+      "companionId": "460fe2d7-45e8-43b5-b60b-bf5980021f75",
+      "previewUrl": "https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/460fe2d7-45e8-43b5-b60b-bf5980021f75/dRxl1fr62x1tcKby9GERsG31aTzm8CO7w9IwRxFwpSyOxbdKA.jpg",
+      "loopUrl": null,
+      "voice": "cedar",
+      "tags": [
+        "karaoke",
+        "musica"
+      ],
+      "agentIdEs": "c1034bb5-2dce-48e0-893f-05a9129770d6",
+      "agentIdEn": "acc115e5-75b0-43e9-a862-6c7a6f6c9578",
+      "default": false
+    }
+  ]
+}

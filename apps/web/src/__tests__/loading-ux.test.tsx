@@ -18,10 +18,9 @@ function deferred<T>() {
 const pendingCaps: Capabilities = {
   paypal: false,
   paypalClientId: null,
-  chat: false,
-  voice: false,
   sandbox: true,
   email: false,
+  avatar: false,
 };
 
 const createdEvent: CreatedEvent = {
@@ -49,24 +48,23 @@ const createdEvent: CreatedEvent = {
   adminKey: 'admin-key-1',
 };
 
-function saveWizardStep() {
-  fireEvent.click(screen.getByRole('button', { name: 'Guardar y seguir' }));
-}
-
+/**
+ * NAP-U3: la creación es la entrevista. Rellena los pasos obligatorios
+ * (fecha y hora ya traen valores futuros) y deja Revisar abierto.
+ */
 function fillCreateForm() {
-  fireEvent.change(screen.getByLabelText(/Título del Evento/i), { target: { value: 'Fiesta de prueba' } });
-  saveWizardStep();
-  saveWizardStep();
-  fireEvent.change(screen.getByLabelText(/Lugar o Dirección/i), { target: { value: 'Parque' } });
-  saveWizardStep();
-  fireEvent.change(screen.getByLabelText(/Cuota por persona/i), { target: { value: '25.00' } });
-  fireEvent.change(screen.getByLabelText(/Capacidad máxima/i), { target: { value: '10' } });
-  saveWizardStep();
-  saveWizardStep();
+  fireEvent.change(screen.getByTestId('interview-title'), { target: { value: 'Fiesta de prueba' } });
+  fireEvent.click(screen.getByTestId('interview-step-4'));
+  fireEvent.change(screen.getByTestId('interview-location'), { target: { value: 'Parque' } });
+  fireEvent.click(screen.getByTestId('interview-step-5'));
+  fireEvent.change(screen.getByTestId('interview-capacity'), { target: { value: '10' } });
+  fireEvent.click(screen.getByTestId('interview-step-6'));
+  fireEvent.change(screen.getByTestId('interview-price'), { target: { value: '25.00' } });
+  fireEvent.click(screen.getByTestId('interview-step-7'));
 }
 
 function submitCreate() {
-  const publish = screen.queryByRole('button', { name: 'Publicar invitación' });
+  const publish = screen.queryByTestId('interview-publish');
   if (publish) fireEvent.click(publish);
 }
 
@@ -79,7 +77,7 @@ afterEach(() => {
 });
 
 describe('capability ribbon pending and failure states', () => {
-  it('does not flash PayPal/Chat configuration while the capabilities GET is pending, then shows resolved false', async () => {
+  it('does not flash PayPal/avatar configuration while the capabilities GET is pending, then shows resolved false', async () => {
     const caps = deferred<Capabilities>();
     vi.spyOn(api, 'getCapabilities').mockReturnValue(caps.promise);
     vi.spyOn(api, 'getOrganizerEvents').mockResolvedValue({ events: [] });
@@ -87,21 +85,19 @@ describe('capability ribbon pending and failure states', () => {
     render(<App />);
 
     expect(screen.getByText('PAGO DE PRUEBA')).toBeInTheDocument();
-    expect(screen.getByText(/Comprobando PayPal y chat/)).toBeInTheDocument();
+    expect(screen.getByText(/Comprobando PayPal y avatar/)).toBeInTheDocument();
     expect(screen.queryByText(/No configurado/i)).toBeNull();
-    expect(screen.queryByText(/Desactivado/i)).toBeNull();
-    expect(screen.queryByText(/Configurado/i)).toBeNull();
-    expect(screen.queryByText(/gemini/i)).toBeNull();
+    expect(screen.queryByText(/Desactivad/i)).toBeNull();
+    expect(screen.queryByText(/Configurad/i)).toBeNull();
 
     await act(async () => {
       caps.resolve(pendingCaps);
     });
 
     expect(await screen.findByText('PayPal: No configurado')).toBeInTheDocument();
-    expect(screen.getByText('Chat: Desactivado')).toBeInTheDocument();
+    expect(screen.getByText('Avatar: Desactivada')).toBeInTheDocument();
     expect(screen.getByText('PAGO DE PRUEBA')).toBeInTheDocument();
-    expect(screen.queryByText(/Comprobando PayPal y chat/)).toBeNull();
-    expect(screen.queryByText(/gemini/i)).toBeNull();
+    expect(screen.queryByText(/Comprobando PayPal y avatar/)).toBeNull();
   });
 
   it('shows an unavailable ribbon with retry after capabilities failure, not a configured or unconfigured guess', async () => {
@@ -111,20 +107,19 @@ describe('capability ribbon pending and failure states', () => {
     render(<App />);
 
     expect(await screen.findByText('PayPal: No disponible')).toBeInTheDocument();
-    expect(screen.getByText('Chat: No disponible')).toBeInTheDocument();
+    expect(screen.getByText('Avatar: No disponible')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reintentar Conexión' })).toBeInTheDocument();
     expect(screen.queryByText(/No configurado/i)).toBeNull();
-    expect(screen.queryByText(/Desactivado/i)).toBeNull();
-    expect(screen.queryByText(/Configurado/i)).toBeNull();
-    expect(screen.queryByText(/gemini/i)).toBeNull();
+    expect(screen.queryByText(/Desactivad/i)).toBeNull();
+    expect(screen.queryByText(/Configurad/i)).toBeNull();
 
     const retryCaps = deferred<Capabilities>();
     getCaps.mockReturnValue(retryCaps.promise);
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
 
     expect(getCaps).toHaveBeenCalledTimes(2);
-    expect(await screen.findByText(/Comprobando PayPal y chat/)).toBeInTheDocument();
+    expect(await screen.findByText(/Comprobando PayPal y avatar/)).toBeInTheDocument();
     expect(screen.queryByText('PayPal: No disponible')).toBeNull();
 
     await act(async () => {
@@ -132,7 +127,7 @@ describe('capability ribbon pending and failure states', () => {
     });
 
     expect(await screen.findByText('PayPal: No configurado')).toBeInTheDocument();
-    expect(screen.getByText('Chat: Desactivado')).toBeInTheDocument();
+    expect(screen.getByText('Avatar: Desactivada')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reintentar' })).toBeNull();
   });
 });
@@ -141,7 +136,6 @@ describe('create event pending progress and duplicate protection', () => {
   it('shows indeterminate creating status and issues one POST under a double submit', async () => {
     const pending = deferred<CreatedEvent>();
     const createEvent = vi.spyOn(api, 'createEvent').mockReturnValue(pending.promise);
-    const sendChat = vi.spyOn(api, 'sendChat');
     const onEventCreated = vi.fn();
     const onShowToast = vi.fn();
 
@@ -155,7 +149,7 @@ describe('create event pending progress and duplicate protection', () => {
     );
 
     fillCreateForm();
-    const publish = screen.getByRole('button', { name: 'Publicar invitación' });
+    const publish = screen.getByTestId('interview-publish');
     fireEvent.click(publish);
     fireEvent.click(publish);
 
@@ -164,15 +158,14 @@ describe('create event pending progress and duplicate protection', () => {
     expect(screen.queryByText(/\d+\s*%/)).toBeNull();
     expect(screen.queryByText(/paso\s+\d/i)).toBeNull();
     expect(createEvent).toHaveBeenCalledTimes(1);
-    expect(sendChat).not.toHaveBeenCalled();
     expect(onEventCreated).not.toHaveBeenCalled();
-    expect(screen.queryByLabelText('Enlaces de la invitación')).toBeNull();
+    expect(screen.queryByTestId('interview-public-url')).toBeNull();
 
     await act(async () => {
       pending.resolve(createdEvent);
     });
 
-    expect(await screen.findByLabelText('Enlaces de la invitación')).toBeInTheDocument();
+    expect(await screen.findByTestId('interview-public-url')).toBeInTheDocument();
     expect(localStorage.getItem('fp_admin_fiesta-nueva')).toBe('admin-key-1');
     expect(onShowToast).toHaveBeenCalledWith(
       'success',
@@ -180,8 +173,7 @@ describe('create event pending progress and duplicate protection', () => {
       'Invitación creada',
     );
     expect(createEvent).toHaveBeenCalledTimes(1);
-    expect(sendChat).not.toHaveBeenCalled();
-    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.queryByTestId('interview-creating')).toBeNull();
   });
 
   it('clears creating status on error without fake success, and ignores a late result after unmount', async () => {
@@ -199,7 +191,7 @@ describe('create event pending progress and duplicate protection', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Servidor ocupado');
     expect(onShowToast).toHaveBeenCalledWith('error', 'Servidor ocupado', 'Error al crear');
     expect(screen.queryByRole('status')).toBeNull();
-    expect(screen.queryByLabelText('Enlaces de la invitación')).toBeNull();
+    expect(screen.queryByTestId('interview-public-url')).toBeNull();
     expect(onEventCreated).not.toHaveBeenCalled();
     expect(localStorage.getItem('fp_admin_fiesta-nueva')).toBeNull();
     expect(createEvent).toHaveBeenCalledTimes(1);
@@ -233,7 +225,7 @@ describe('create event pending progress and duplicate protection', () => {
 
     expect(onEventCreatedLate).not.toHaveBeenCalled();
     expect(onShowToastLate).not.toHaveBeenCalled();
-    expect(screen.queryByLabelText('Enlaces de la invitación')).toBeNull();
+    expect(screen.queryByTestId('interview-public-url')).toBeNull();
     expect(localStorage.getItem('fp_admin_fiesta-nueva')).toBe('admin-key-1');
   });
 });

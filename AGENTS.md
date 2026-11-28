@@ -1,11 +1,13 @@
 # FiestaPay implementation rules
 
+> **Napster API Ignite (27 Nov 2026, Jorge):** the only runtime AI is **Napster** (avatar agents over WebRTC, text over WebSocket, tools, knowledge, FAQ). Gemini, OpenAI and AssemblyAI are being removed from code, dependencies, config and visible text, including the legacy host. Read [docs/ENCARGO-somospanas-napster.md](docs/ENCARGO-somospanas-napster.md) and [docs/internal/PLAN-NAPSTER-IGNITE.md](docs/internal/PLAN-NAPSTER-IGNITE.md) first. Where a section below says Gemini, AGY or Grok, those two documents prevail. Deadline: 30 Nov 2026 23:59 PT.
+
 Updated by Jorge's request on 10 Nov 2026 for the final hackathon stretch (Devpost deadline 12 Nov 2026 15:00 ECT; judges test 1–15 Dec 2026). These rules supersede the October plans (docs/internal/ENCARGO_2026-10-28.md, docs/internal/PLAN_DIARIO.md), which stay as history.
 
 ## Product direction
 
 - FiestaPay is an **AI party host that collects everyone's share with PayPal**. AI belongs in the main path: one sentence builds the invitation, the agent explains and guides by voice or text, prepares the payment and drafts reminders.
-- Runtime AI is **Gemini (Gemini Developer API, prepaid key)**: `gemini-3.5-flash` for text and `gemini-3.8-live` for real-time voice through single-use ephemeral tokens minted by the server (see docs/GEMINI.md). The key never reaches the browser. OpenAI and AssemblyAI remain only as configuration rollbacks. The Google Cloud USD 300 trial credit does not cover the Gemini Developer API; Vertex AI is not used (Live ephemeral tokens do not exist there).
+- Runtime AI is **Napster only** (since 27 Nov 2026): the server calls `POST /public/agents/{id}/connections` with `X-Api-Key` and returns only the single-use token to the browser; the Web SDK `@touchcastllc/napster-companion-api` renders the avatar. The key never reaches the browser. No Gemini, OpenAI or AssemblyAI fallback; if video fails, fall back to Napster text mode, then to the fixed script in `contenido/tutorial.json`. (The previous Gemini setup in docs/GEMINI.md is history and is being removed.)
 - The interface is bilingual (Spanish/English) and follows `?lang`, then the saved preference, then the browser language.
 
 ## What agents may do in the product
@@ -25,7 +27,7 @@ Updated by Jorge's request on 10 Nov 2026 for the final hackathon stretch (Devpo
 ## Testing, secrets and spending
 
 - Tests for money, permissions and concurrency are required. Maximum three evaluated deliveries per defect across providers; then evidence and a new hypothesis.
-- Real-provider tests only within Jorge's approved budget (Gemini: USD 10 total, logged in .local/coord/GEMINI-GASTO.md); measuring product metrics (accuracy, latency, cost per event) is an approved use of that budget. Sandbox only: no live funds or cards. No real WhatsApp or SMTP sends during tests without Jorge's explicit approval. Use isolated fixtures and preserve historical payments and Jorge's tester event.
+- Real-provider tests only within Jorge's approved budget (Napster: USD 40 of the USD 150 credits for development tests, logged in .local/coord/NAPSTER-GASTO.md; only the director makes real calls; automated tests use a fake); measuring product metrics (accuracy, latency, cost per event) is an approved use of that budget. Sandbox only: no live funds or cards. No real WhatsApp or SMTP sends during tests without Jorge's explicit approval. Use isolated fixtures and preserve historical payments and Jorge's tester event.
 - Production data is deleted or archived only with Jorge's explicit approval of the exact items, after a backup; prefer archiving to permanent deletion.
 - Keys, prepaid AI balance and daily AI limits must stay active through the judging period (until 15 Dec 2026).
 - No secrets in Git, logs, browser, reports or reviewer prompts. No real judge data.
@@ -40,5 +42,56 @@ Updated by Jorge's request on 10 Nov 2026 for the final hackathon stretch (Devpo
 
 ## Agent routing (dirigir-agentes)
 
-- One active director (Claude or Codex). Builders: Muse and DSH, at most two construction fronts with disjoint ownership; AGY Gemini Flash verifies independently; AGY Gemini 4 Argon handles recovery. Grok is retired. OpenCode free usage is exhausted and its paid balance is reserved for emergencies; do not migrate DSH to a paid API automatically.
+- One active director (Claude, skill director-claude, since 27 Nov 2026). Builders: Muse and DSH, at most two construction fronts with disjoint ownership; Codex (highest Sol) verifies independently in read-only mode and handles recovery. AGY and Grok are retired. OpenCode paid balance is reserved for second opinions; do not migrate DSH to a paid API automatically.
 - Workers never commit or push, never revert others and never edit outside their assigned paths. Changing providers does not reset attempt counters (see dirigir-agentes/references/deepseek.md for DSH).
+
+## Somos Panas — lectura obligatoria al empezar
+
+El programa multiinquilino (**somospanas/plan**) quedó **en pausa** el 21-nov-2026. Antes de tocar código en esa línea:
+
+1. [docs/TRASPASO.md](docs/TRASPASO.md) — traspaso para agentes nuevos (arquitectura, comandos, siguiente paso, plantillas).
+2. [docs/somospanas/PROGRESO.md](docs/somospanas/PROGRESO.md) — qué etapas están fusionadas, PRs abiertos y orden de trabajo.
+3. [docs/somospanas/PLAN.md](docs/somospanas/PLAN.md) — criterios de la etapa SP-n que vayas a hacer.
+4. [docs/somospanas/METODO.md](docs/somospanas/METODO.md) — niveles de cambio; casi todo SP-1…SP-10 es **nivel 4** (no fusionar sin Jorge y veredicto independiente).
+
+**Resumen de reglas Somos Panas:** rama de integración `somospanas/plan` (no `main` sin OK de Jorge); migraciones `0001`–`0015` inmutables una vez fusionadas; comentarios en español con cabecera, funciones importantes y id de defecto en arreglos; `npm run verificar` con Postgres 16 y **0 pruebas omitidas**; `ACCOUNTS_EMAIL_HMAC_KEY` en producción antes de desplegar cuentas; un encargo = un objetivo y solo los archivos que el PLAN asigna a esa etapa.
+
+Las reglas de producto FiestaPay (Gemini, PayPal, hackathon) de las secciones anteriores siguen vigentes en el **sitio legado**; no las contradigas al trabajar tenants nuevos con proveedor `none`.
+
+## Somos Panas — mapa de edición (contenido y diseño)
+
+Método completo: [docs/somospanas/METODO.md](docs/somospanas/METODO.md). Cada cambio de contenido o tokens termina con `npm run verificar` (validación de JSON + pruebas + `npm run check`). La vista previa local de la app es `npm run dev`.
+
+| Quiero cambiar… | Archivo | Prueba |
+| --- | --- | --- |
+| Sitios, cuentas, visibilidad y tenant legado en la base | `apps/api/src/db/migrations/0013_tenants.sql` + alta en `apps/api/src/domain/events.ts` | `apps/api/test/tenants-migration.test.ts` |
+| Proveedor de pago por sitio (`none` vs `paypal_sandbox` en legado) | `packages/shared/src/payments.ts`, `apps/api/src/payments/provider.ts`, dominio/rutas en `orders`/`funding`/`payments`, `PayPalSection.tsx` | `apps/api/test/payment-provider.test.ts`, `apps/web/src/__tests__/payment-provider-none.test.tsx`, `payment-races`, `funding`, `webhook-header` |
+| Clasificación raíz / legado / sitio por `Host` (`legacyTenantId`) | `apps/api/src/lib/host.ts` + hook en `apps/api/src/app.ts` | `apps/api/test/host.test.ts` |
+| Registro, sesión, verificación de correo y roles por sitio | `apps/api/src/domain/accounts.ts`, `apps/api/src/routes/accounts.ts`, membresías en `apps/api/src/domain/access.ts`, vistas en `apps/web/src/views/Account*.tsx`, textos en `contenido/cuentas.json` | `apps/api/test/accounts.test.ts`, `apps/web/src/__tests__/accounts-form.test.tsx` |
+| Configuración del sitio (nombre, colores, módulos) | `apps/api/src/domain/tenant-settings.ts`, `apps/api/src/routes/settings.ts`, `esquemas/sitio.schema.json`, pantallas `apps/web/src/views/Site*.tsx`, `apps/web/src/styles/site-shell.css`, textos en `contenido/sitio.json`, tokens base en `estilos/tokens.css` | `apps/api/test/tenant-settings.test.ts`, `apps/web/src/__tests__/site-settings-view.test.tsx`, `site-home-view.test.tsx` |
+| Plantilla `muestra`, alta `POST /api/sites` (raíz, cuenta verificada) y canje `POST /api/sites/handoff` en el subdominio | `apps/api/src/domain/sites.ts`, `apps/api/src/routes/sites.ts`, semilla `ensureMuestraTemplate`, migración `0015_site_create_limits.sql`, corte de host en `apps/api/src/app.ts` | `apps/api/test/clone-site.test.ts` |
+| Texto de la portada (hero, pasos, muestra) | `contenido/portada.json` | `scripts/somospanas/portada.test.ts` |
+| Portada de presentación en la raíz y listado público (NAP-U2) | `apps/web/src/views/PortalLandingView.tsx`, `apps/web/src/App.tsx`, `apps/api/src/domain/portal.ts`, `apps/api/src/routes/portal.ts` | `apps/api/test/portal-listing.test.ts`, `apps/web/src/__tests__/portal-landing.test.tsx`, `scripts/somospanas/portal-visual.test.ts` |
+| Avatar Napster en la portada | `apps/web/src/components/avatar/*`, catálogo `apps/web/src/i18n/messages/avatar.ts`, estilos `apps/web/src/styles/napster-avatar.css`, foto/loop con saludo en `apps/web/src/components/portal/AvatarSpotlight.tsx` (la sesión vive en `/create`) | `apps/web/src/__tests__/napster-avatar.test.tsx`, `napster-tool-router.test.ts`, `napster-avatar-session.test.ts` |
+| Página de no encontrado (NAP-U2) | `apps/web/src/components/notfound/NotFoundView.tsx`, ruta en `apps/web/src/App.tsx`, textos en `apps/web/src/i18n/catalogs/app.ts` | `apps/web/src/__tests__/not-found.test.tsx` |
+| Avatar Napster de invitado, creador y modo texto | `apps/web/src/components/avatar/*` (sesión video+texto, tools, prefills), montaje en `PublicInviteView.tsx` y `OrganizerDashboardView.tsx`, relleno en `CreateWizard.tsx` y `ReminderDrafts.tsx` | `apps/web/src/__tests__/napster-text-mode.test.tsx`, `napster-visitors.test.tsx`, `napster-tool-router-f4w.test.ts`, `napster-avatar-session-text.test.ts` |
+| Retiro de IA propia, avatar único y marca Somos Panas (NAP-F5b) | Voz/chat/orbes/entrevista/panel IA borrados de `apps/web/src`, `NapsterAvatar` en portada raíz, `/create`, legado, invitación, panel, demo y tutorial; `Capabilities` extendida con `avatar?` en `apps/web/src/types.ts`; `UI_LABELS` rebrandeados | `apps/web/src/__tests__/napster-f5b.test.tsx`, suite web reescrita sin IA |
+| Directorio `GET /api/portal/events` y visibilidad al publicar | `apps/api/src/domain/portal.ts`, `apps/api/src/routes/portal.ts` | `apps/api/test/portal-listing.test.ts` |
+| Pasos del tutorial | `contenido/tutorial.json` | `scripts/somospanas/tutorial.test.ts` |
+| Tipos de evento (catálogo / formulario) | `contenido/tipos-evento.json` + `esquemas/evento.schema.json` | `scripts/somospanas/tipos-evento.test.ts` |
+| Colores, tipografía y espaciados; tema día/noche (NAP-U2) | `estilos/tokens.css` (`html[data-tema]`), script sin parpadeo en `apps/web/index.html`, botón en `apps/web/src/components/theme/ThemeToggle.tsx` | `scripts/somospanas/tokens.test.ts`, `scripts/somospanas/portal-visual.test.ts` (390×844 y 1440×960, día y noche), `apps/web/src/__tests__/theme-toggle.test.tsx` |
+| Orden de secciones en la portada | `contenido/paginas.json` | `scripts/somospanas/portada.test.ts` |
+| Preguntas frecuentes | `contenido/preguntas.json` | validación en `npm run verificar` |
+| Avatar Napster: sesión video/texto, saludos e instrucciones | `packages/shared/src/avatar-session.ts`, `apps/api/src/routes/avatar-session.ts`, `apps/api/src/napster/**`, `contenido/avatar.json` | `apps/api/test/avatar-session.test.ts`, `packages/shared/test/avatar-tools.test.ts` |
+| Catálogo de avatares y elección por sesión (NAP-S1) | `contenido/avatares.json`, `esquemas/avatares.schema.json`, `apps/api/src/napster/catalog.ts`, `apps/api/src/routes/avatars.ts`, `scripts/napster/setup.mjs --catalog`, `packages/shared/src/avatar-session.ts` y `avatar-tools.ts` | `apps/api/test/avatars.test.ts`, `avatar-session.test.ts`, `avatar-setup.test.ts` |
+| Dirección propia por reunión y host de evento (NAP-S2) | `apps/api/src/db/migrations/0017_event_subdomains.sql`, `apps/api/src/domain/subdomains.ts`, `lib/resolve-host.ts`, `lib/spa-meta.ts`, `lib/legacy-redirect.ts`, `apps/api/src/app.ts`, `domain/events.ts`, `payments/provider.ts`, `contenido/avatar.json`, `contenido/conocimiento/**` | `apps/api/test/subdomains.test.ts`, `avatar-session.test.ts`, `payment-provider.test.ts` |
+| Catálogo de 26 avatares, sugerencia y avatar de la reunión (NAP-S3) | `contenido/avatares.json`, `esquemas/avatares.schema.json`, `packages/shared/src/avatar-tags.ts`, `packages/shared/src/avatar-tools.ts`, `apps/api/src/napster/catalog.ts`, `apps/api/src/db/migrations/0018_event_avatar_choice.sql`, `apps/api/src/routes/avatar-session.ts`, `apps/api/src/routes/core.ts` | `apps/api/test/avatars.test.ts`, `avatar-session.test.ts`, `avatar-setup.test.ts`, `packages/shared/test/avatar-tools.test.ts` |
+| Avatar con foto del organizador (legado) | `apps/api/src/db/migrations/0016_event_avatars.sql`, `apps/api/src/domain/event-avatars.ts`, `apps/api/src/routes/event-avatar.ts` | `apps/api/test/event-avatar.test.ts` |
+| Avatar con foto del organizador (web, NAP-F6w) | `apps/web/src/components/avatar/EventAvatarSection.tsx` montada en `OrganizerDashboardView.tsx`, saludo «Te recibe…» en `PublicInviteView.tsx` con `agent:'custom'`, `open_avatar_settings` resalta la sección, rutas en `apps/web/src/api/client.ts` | `apps/web/src/__tests__/napster-event-avatar.test.tsx` |
+| Conocimiento publicado de la avatar (es/en) | `contenido/conocimiento/**` + copia en `apps/web/public/conocimiento/**` | `npm run napster:setup -- --knowledge-base-url …` (director) |
+| Diagnóstico y configuración de Napster (functions, FAQ, agentes, canal) | `scripts/napster/**` | `apps/api/test/avatar-setup.test.ts`, `npm run napster:diagnostico` (director) |
+| Validación del JSON guardado por el admin del sitio | `esquemas/sitio.schema.json` | `apps/api/test/tenant-settings.test.ts` y `npm run verificar` |
+| Textos de la pantalla de ajustes del sitio | `contenido/sitio.json` | `apps/web/src/__tests__/site-settings-view.test.tsx` |
+| Qué bloque usa cada sección | `bloques/LEEME.md` | — |
+
+Historial de pedidos: `CHANGELOG.md`.

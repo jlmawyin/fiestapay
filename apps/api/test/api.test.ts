@@ -3,13 +3,12 @@ import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { usd, type Capabilities, type Dashboard, type FiestaEvent, type Guest, type OrderResult, type Quote } from '@fiestapay/shared';
+import { type Capabilities, type Dashboard, type FiestaEvent, type Guest, type OrderResult, type Quote } from '@fiestapay/shared';
 import type { FastifyInstance } from 'fastify';
-import { runTool } from '../src/ai/tools.js';
 import { buildApp } from '../src/app.js';
 import { migrate } from '../src/db/migrate.js';
 import { createPool, type Pool } from '../src/db/pool.js';
-import { findGuestBySession, getEventBySlug } from '../src/domain/read.js';
+import { getEventBySlug } from '../src/domain/read.js';
 import { FakePayPal } from './fake-paypal.js';
 import {
   announceSkipWithoutDatabase,
@@ -109,11 +108,8 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
       expect(caps.paypal).toBe(true);
       expect(caps.paypalClientId).toBe('sandbox-client-id');
       expect(caps.sandbox).toBe(true);
-      // No AI key and no voice routes in this server: both must report false.
-      expect(caps).not.toHaveProperty('gemini');
-      expect(caps.chat).toBe(false);
-      expect(caps.llmProvider).toBe('openai');
-      expect(caps.voice).toBe(false);
+      // NAP-F5a: sin Napster configurado, la avatar se declara apagada.
+      expect(caps.avatar).toBe(false);
       expect(caps.email).toBe(false);
     });
 
@@ -197,13 +193,16 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
   describe('asistencia y cupo atomico', () => {
     async function eventWithCapacity(capacity: number): Promise<{ client: Client; event: FiestaEvent }> {
       const client = new Client(app);
+      const startsAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+      startsAt.setUTCMinutes(0, 0, 0);
+      const endsAt = new Date(startsAt.getTime() + 4 * 60 * 60 * 1000);
       const res = await client.post('/api/events', {
         title: 'Charla con cupo',
         template: 'evento',
         meal: 'cena',
         description: 'Cupo limitado',
-        startsAt: '2026-11-20T23:00:00.000Z',
-        endsAt: '2026-11-21T03:00:00.000Z',
+        startsAt: startsAt.toISOString(),
+        endsAt: endsAt.toISOString(),
         location: 'Auditorio demo',
         includes: ['Entrada'],
         priceCents: 2500,
@@ -813,38 +812,11 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
       expect(event.goalCents).toBe(10000);
       const guest = await guestOn(event.slug, 'Zoe', 1); // 2 personas: debe exactamente 5000
 
-      // Read only: the guest session the chat/voice routes would resolve from the cookie.
-      const { rows: sesion } = await pool.query<{ session_id: string }>(
-        `SELECT g.session_id FROM guests g JOIN events e ON e.id = g.event_id
-          WHERE e.slug = $1 AND g.name = 'Zoe'`,
-        [event.slug],
-      );
-      const guestSessionId = sesion[0]!.session_id;
-
       /**
-       * Recaudado must agree, to the cent, across the organizer dashboard, the public invitation
-       * and the shared tool handler behind chat and voice. The tool runs first so the confirmed
-       * flag read afterwards also proves the assistant never confirms the event.
+       * Recaudado must agree, to the cent, across the organizer dashboard and the public
+       * invitation. The assistant was removed in NAP-F5a; this check only uses non-AI routes.
        */
       async function progreso(expectedCents: number, minimumReached: boolean, confirmed: boolean) {
-        const row = await getEventBySlug(pool, event.slug);
-        const toolGuest = await findGuestBySession(pool, row.id, guestSessionId);
-        expect(toolGuest).not.toBeNull();
-        const tool = await runTool(
-          { pool, sessionId: guestSessionId, event: row, guest: toolGuest, quoteTtlSeconds: testConfig().quoteTtlSeconds },
-          'get_collection_progress',
-          {},
-        );
-        // A read: no quote card and no proposed action, let alone a payment or a confirmation.
-        expect(tool.quote).toBeUndefined();
-        expect(tool.actions).toBeUndefined();
-        expect(tool.response.recaudado_bruto_centavos).toBe(expectedCents);
-        expect(tool.response.recaudado_bruto).toBe(usd(expectedCents));
-        expect(tool.response.minimo_alcanzado).toBe(minimumReached);
-        expect(tool.response.minimo).toBe(usd(5000));
-        expect(tool.response.meta).toBe(usd(10000));
-        expect(String(tool.response.nota)).toContain('antes de comisiones');
-
         const dash = body<Dashboard>(await org.get(`/api/events/${event.slug}/dashboard`));
         const publico = body<{ event: FiestaEvent; guest: Guest | null }>(
           await new Client(app).get(`/api/events/${event.slug}`),
@@ -1028,7 +1000,7 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
       const caps = body<Capabilities>(await client.get('/api/capabilities'));
       expect(caps.paypal).toBe(false);
       expect(caps.paypalClientId).toBeNull();
-      expect(caps).not.toHaveProperty('gemini');
+      expect(caps.avatar).toBe(false);
 
       const { event } = body<{ event: FiestaEvent }>(await client.post('/api/demo'));
       const guest = new Client(bare);
@@ -1041,10 +1013,6 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
 
       const webhook = await guest.post('/api/paypal/webhook', { id: 'WH-X', event_type: 'PAYMENT.CAPTURE.COMPLETED' });
       expect(webhook.statusCode).toBe(503);
-
-      const chat = await guest.post(`/api/events/${event.slug}/chat`, { message: 'Que incluye?' });
-      expect(chat.statusCode).toBe(503);
-      expect(body<{ error: string }>(chat).error).toMatch(/asistente/);
     });
   });
 
@@ -1111,22 +1079,6 @@ describeDb('API FiestaPay sobre PostgreSQL', () => {
       } finally {
         await limited.close();
       }
-    });
-  });
-
-  describe('asistente de texto sin clave configurada', () => {
-    it('devuelve 503 y la UI conserva los formularios', async () => {
-      const { event } = await organizer();
-      const guest = await guestOn(event.slug, 'Chat', 0);
-      const res = await guest.post(`/api/events/${event.slug}/chat`, { message: 'Cuanto debo?' });
-      expect(res.statusCode).toBe(503);
-    });
-
-    it('acota el tamano del mensaje', async () => {
-      const { event } = await organizer();
-      const guest = await guestOn(event.slug, 'ChatLargo', 0);
-      const res = await guest.post(`/api/events/${event.slug}/chat`, { message: 'x'.repeat(2000) });
-      expect(res.statusCode).toBe(400);
     });
   });
 });

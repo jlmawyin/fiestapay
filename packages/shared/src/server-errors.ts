@@ -25,6 +25,10 @@ export const SERVER_ERROR_EN: Readonly<Record<string, string>> = {
   // Events, access and funding.
   'Clave de organizador invalida': 'The organizer key is not valid.',
   'Codigo de acceso requerido': 'An access code is required.',
+  'No se puede marcar público un evento con código de acceso. Quita el código antes de publicarlo en la portada.':
+    'A public listing is not allowed while an access code is set. Remove the access code before marking the event public.',
+  'Un evento publico no puede tener codigo de acceso. Marcalo privado antes de anadir el codigo.':
+    'A public event cannot have an access code. Mark it private before adding a code.',
   'Este evento ya no esta disponible': 'This invitation is no longer available.',
   'Esta invitacion fue archivada por un reinicio de demo': 'This invitation was archived when the demo was reset.',
   'Esta invitacion fue archivada por un reinicio de demo; no se inician pagos nuevos':
@@ -176,37 +180,31 @@ export const SERVER_ERROR_EN: Readonly<Record<string, string>> = {
     'The delivery did not confirm in time. If it does not arrive, request another link.',
   'No se pudo enviar el correo de verificacion': 'We could not send the verification email.',
 
-  // Assistant (text and voice) budgets and providers.
-  'El asistente no esta configurado': 'The assistant is not configured.',
-  'El asistente no respondio a tiempo; usa los formularios de la pagina':
-    'The assistant did not answer in time. Use the forms on the page.',
-  'El asistente devolvio una respuesta ilegible': 'The assistant returned an unreadable answer.',
-  'El asistente no pudo completar la respuesta; usa los formularios de la pagina':
-    'The assistant could not complete the answer. Use the forms on the page.',
-  'El agente tardó demasiado en responder. Tu pregunta no se procesó; puedes reintentar.':
-    'The agent took too long to respond. Your question was not processed; you can try again.',
-  'Se alcanzó el límite de consultas IA; continúa con el formulario':
-    'The AI request limit was reached. Continue with the form.',
-  'Alcanzaste el limite de mensajes del asistente en este evento':
-    'You reached the assistant message limit for this event.',
-  'El chat público no está disponible en este momento. Tu pregunta no obtuvo respuesta. Puedes reintentar manualmente o continuar con los formularios y el panel; la recuperación del organizador sigue disponible cuando está configurada.':
-    'The public chat is not available right now. Your question did not get an answer. You can retry manually or continue with the forms and the dashboard; organizer recovery stays available when it is configured.',
-  'La voz no está habilitada': 'Voice is not enabled.',
-  'Únete con un alias antes de iniciar la voz': 'Join with an alias before starting voice.',
-  'Herramienta o sesión de voz no autorizada': 'That voice tool or session is not authorized.',
-  'Reserva de voz inválida': 'The voice reservation is not valid.',
-  'Duración de voz inválida': 'The voice duration is not valid.',
-  'Ya tienes una sesión de voz activa. Espera a que termine o pulsa Detener.':
-    'You already have an active voice session. Wait for it to end or press Stop.',
-  'Has iniciado demasiadas sesiones de voz. Espera un minuto antes de intentarlo otra vez.':
-    'You started too many voice sessions. Wait a minute before trying again.',
-  'Se alcanzó el límite diario de voz; continúa por texto.': 'The daily voice limit was reached. Continue by text.',
-  'Sesión de voz no encontrada': 'We could not find that voice session.',
-  'No se pudo iniciar la voz. Continúa por texto': 'Voice could not start. Continue by text.',
-  'El proveedor de voz no está disponible': 'The voice provider is not available.',
-  'El proveedor no entregó una sesión de voz': 'The voice provider did not return a voice session.',
+  // Somos Panas — alta de sitios (SP-7).
+  'Slug invalido o reservado': 'That subdomain is not valid or is reserved.',
+  'Ese subdominio ya esta en uso': 'That subdomain is already in use.',
+  'Direccion invalida': 'That address is not valid.',
+  'Direccion de reunion invalida': 'That meetup address is not valid.',
+  'No se pudo asignar una direccion unica para la reunion':
+    'We could not assign a unique address for the meetup.',
+  'No se pudo generar una direccion unica para la reunion':
+    'We could not generate a unique address for the meetup.',
+  'avatar_unknown': 'That avatar is not available.',
+  'Avatar invalido': 'Invalid avatar.',
+  'Codigo invalido o vencido': 'That code is not valid or has expired.',
+  'Demasiados intentos. Espera antes de volver a intentar.':
+    'Too many attempts. Wait before trying again.',
+
+  // NAP-F5: las traducciones del asistente/voz propios murieron con ellos.
+  'Campo "displayName": se esperaba minLength 1 (esquema esquemas/sitio.schema.json)':
+    'Field "displayName": expected minLength 1 (schema esquemas/sitio.schema.json).',
+  'Se requiere consentimiento': 'Consent is required.',
+  'Datos inválidos (esquema esquemas/sitio.schema.json)': 'Invalid data (schema esquemas/sitio.schema.json).',
 
   // PayPal webhook and configuration reasons.
+  'El cobro en linea no esta disponible en este sitio; el organizador coordina el pago por fuera de la app':
+    'Online checkout is not available on this site; the organizer coordinates payment outside the app.',
+  'Sitio no encontrado': 'Site not found.',
   'PayPal no esta configurado en este servidor': 'PayPal is not configured on this server.',
   'PAYPAL_WEBHOOK_ID no esta configurado': 'PAYPAL_WEBHOOK_ID is not configured.',
   'Cuerpo vacio': 'The request body is empty.',
@@ -221,20 +219,6 @@ export const SERVER_ERROR_EN: Readonly<Record<string, string>> = {
   'SMTP_USER invalido': 'SMTP_USER is not valid.',
   'SMTP_PASS invalido': 'SMTP_PASS is not valid.',
   'EMAIL_FROM invalido': 'EMAIL_FROM is not valid.',
-  'El asistente no esta configurado: falta OPENAI_API_KEY':
-    'The assistant is not configured: OPENAI_API_KEY is missing.',
-  'El asistente no esta configurado: falta GEMINI_API_KEY':
-    'The assistant is not configured: GEMINI_API_KEY is missing.',
-  'El asistente no esta configurado: falta GEMINI_API_KEY o VERTEX_API_KEY':
-    'The assistant is not configured: GEMINI_API_KEY or VERTEX_API_KEY is missing.',
-  'GEMINI_TEXT_BACKEND invalido: solo se admite developer o vertex':
-    'GEMINI_TEXT_BACKEND is not valid: only developer or vertex is accepted.',
-  'VERTEX_LOCATION invalida: usa solo minusculas, numeros y guiones':
-    'VERTEX_LOCATION is not valid: use only lowercase letters, numbers and hyphens.',
-  'VERTEX_PROJECT_ID invalido: usa un id de proyecto o un numero de proyecto de Google Cloud':
-    'VERTEX_PROJECT_ID is not valid: use a Google Cloud project id or project number.',
-  'OPENAI_BASE_URL debe usar https': 'OPENAI_BASE_URL must use https.',
-  'OPENAI_BASE_URL invalida': 'OPENAI_BASE_URL is not valid.',
 
   // Webhook retry reasons (logged; kept translated so they never leak Spanish if surfaced).
   'notificacion de captura sin referencia de orden': 'capture notification without an order reference',
@@ -249,13 +233,19 @@ export interface ServerErrorPattern {
 
 export const SERVER_ERROR_PATTERNS_EN: readonly ServerErrorPattern[] = [
   {
+    pattern:
+      /^Color "([^"]+)" sobre "([^"]+)" no alcanza contraste (\d+(?:\.\d+)?):1 \(tiene (\d+(?:\.\d+)?):1; esquema (.+)\)$/,
+    to: (match) =>
+      `Color "${match[1]}" on "${match[2]}" does not meet contrast ${match[3]}:1 (got ${match[4]}:1; schema ${match[5]}).`,
+  },
+  {
+    pattern: /^Campo "([^"]*)": se esperaba (.+) \(esquema (.+)\)$/,
+    to: (match) => `Field "${match[1]}": expected ${match[2]} (schema ${match[3]}).`,
+  },
+  {
     // Seat counts change per request; the field path may be prefixed by parseOr400.
     pattern: /^(?:[\w.]+: )?Cupo insuficiente: quedan (\d+) plazas y pediste (\d+)$/,
     to: (match) => `Not enough seats: ${match[1]} left and you requested ${match[2]}.`,
-  },
-  {
-    pattern: /^El asistente no esta disponible \(proveedor respondio (\d+)\)$/,
-    to: (match) => `The assistant is not available right now (provider answered ${match[1]}).`,
   },
   {
     // Environment variable names are dynamic and must stay visible verbatim.

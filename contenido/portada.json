@@ -1,0 +1,154 @@
+{
+  "barra": {
+    "marca": { "es": "somos panas", "en": "somos panas" },
+    "enlaces": [
+      { "id": "como-funciona", "es": "Cómo funciona", "en": "How it works" },
+      { "id": "eventos-publicos", "es": "Eventos públicos", "en": "Public events" },
+      { "id": "donaciones", "es": "Donaciones", "en": "Donations" },
+      { "id": "tutorial", "es": "Tutorial guiado", "en": "Guided tutorial" },
+      { "id": "iniciar-sesion", "es": "Iniciar sesión", "en": "Sign in" }
+    ],
+    "botonCrearEspacio": { "es": "Crear espacio", "en": "Create space" }
+  },
+  "hero": {
+    "ojo": { "es": "SOMOSPANAS.COM", "en": "SOMOSPANAS.COM" },
+    "titulo": {
+      "es": "Organiza como panas: un agente te guía de principio a fin",
+      "en": "Plan it like friends do, like a pana"
+    },
+    "texto": {
+      "es": "Tu guía arma la invitación contigo; tú revisas y compartes.",
+      "en": "Your guide builds the invitation with you; you review and share."
+    },
+    "botonConversar": { "es": "Conversa como pana", "en": "Talk like a pana" },
+    "enlaceIdioma": { "es": "Prefer English?", "en": "¿Prefieres español?" },
+    "notaPana": { "es": "Entre panas nos entendemos.", "en": "pana = friend in Ecuador" },
+    "saludo": { "es": "¡Hola! Soy tu guía de Somos Panas.", "en": "Hi! I'm your Somos Panas guide." },
+    "pasosTitulo": { "es": "En tres pasos", "en": "In three steps" },
+    "muestraTitulo": { "es": "Lo que obtienes", "en": "What you get" },
+    "pasos": [
+      {
+        "titulo": { "es": "Conversa", "en": "Talk" },
+        "texto": { "es": "Cuéntale tu plan a tu guía por video o por texto.", "en": "Tell your guide your plan by video or text." }
+      },
+      {
+        "titulo": { "es": "Revisa", "en": "Review" },
+        "texto": { "es": "Mira la invitación que arma contigo y cambia lo que quieras.", "en": "Look at the invitation it builds with you and change anything." }
+      },
+      {
+        "titulo": { "es": "Comparte", "en": "Share" },
+        "texto": { "es": "Publica y pasa el enlace con QR a tus panas.", "en": "Publish and pass the link with QR to your friends." }
+      }
+    ],
+    "muestra": {
+      "titulo": { "es": "Cumple de María", "en": "María's birthday" },
+      "fecha": { "es": "Sábado 12 de diciembre · 7:00 p. m.", "en": "Saturday, December 12 · 7:00 PM" },
+      "lugar": { "es": "Casa de María · Quito", "en": "María's place · Quito" },
+      "url": { "es": "https://cumpledemaria.somospanas.com/", "en": "https://cumpledemaria.somospanas.com/" },
+      "qrPie": { "es": "Escanéalo y confirma", "en": "Scan it and RSVP" }
+    },
+    "botonTutorial": {
+      "es": "Ver tutorial guiado (voz y texto)",
+      "en": "Watch guided tutorial (voice and text)"
+    },
+    "botonCrearEspacio": {
+      "es": "Crear un nuevo espacio",
+      "en": "Create a new space"
+    },
+    "enlaceRegistro": { "es": "Registrarse", "en": "Sign up" },
+    "enlaceIniciarSesion": { "es": "Iniciar sesión", "en": "Sign in" },
+    "notaSubdominio": {
+      "es": "El espacio se crea desde la raíz, en un subdominio de somospanas.com.",
+      "en": "The space is created from the root site, on a somospanas.com subdomain."
+    }
+  },
+  "fotoAmbiente": {
+    "pie": {
+      "es": "Las fotos de la portada son de muestra.",
+      "en": "Homepage photos are sample illustrations."
+    }
+  },
+  "compositorSubdominio": {
+    "prefijo": "https://",
+    "campoPlaceholder": { "es": "tu-grupo", "en": "your-group" },
+    "campoNombreGrupo": { "es": "Nombre del grupo", "en": "Group name" },
+    "placeholderNombreGrupo": { "es": "Tu grupo", "en": "Your group" },
+    "sufijo": ".somospanas.com",
+    "boton": { "es": "Crear un nuevo espacio", "en": "Create a new space" },
+    "estadoNoDisponible": {
+      "es": "Crear espacio no está disponible todavía. Vuelve pronto.",
+      "en": "Create space is not available yet. Check back soon."
+    },
+    "estadoCreando": { "es": "Creando espacio…", "en": "Creating space…" },
+    "estadoListo": {
+      "es": "Espacio creado. Abre el enlace para terminar la configuración.",
+      "en": "Space created. Open the link to finish setup."
+    },
+    "errorSlugInvalido": {
+      "es": "Usa solo letras minúsculas, números y guiones (por ejemplo tu-grupo).",
+      "en": "Use only lowercase letters, numbers, and hyphens (for example your-group)."
+    },
+    "errorSlugReservado": {
+      "es": "Ese nombre está reservado. Elige otro subdominio.",
+      "en": "That name is reserved. Choose another subdomain."
+    }
+  },
+  "eventosPublicos": {
+    "aviso": {
+      "es": "Solo entran los eventos que su dueño marcó públicos. Las dos tarjetas siguientes son de muestra.",
+      "en": "Only events marked public by their owner are listed. The two cards below are samples."
+    },
+    "ejemplos": [
+      {
+        "id": "ejemplo-terraza",
+        "titulo": { "es": "Los jueves en la terraza", "en": "Thursdays on the terrace" },
+        "badgeEjemplo": { "es": "Ejemplo", "en": "Sample" },
+        "badgeEvento": { "es": "Evento público", "en": "Public event" }
+      },
+      {
+        "id": "ejemplo-casa",
+        "titulo": { "es": "Noche de panas en casa", "en": "Friends' night at home" },
+        "badgeEjemplo": { "es": "Ejemplo", "en": "Sample" },
+        "badgeEvento": { "es": "Evento público", "en": "Public event" }
+      }
+    ]
+  },
+  "donaciones": {
+    "tituloSeccion": {
+      "es": "Donaciones y recaudaciones abiertas",
+      "en": "Donations and open fundraisers"
+    },
+    "aviso": {
+      "es": "Las barras de las tarjetas de muestra no son un avance real ni una cifra.",
+      "en": "Sample card progress bars are not real progress or amounts."
+    },
+    "ejemplos": [
+      {
+        "id": "ejemplo-olla",
+        "titulo": { "es": "Olla común después del partido", "en": "Potluck after the match" },
+        "leyendaBarra": {
+          "es": "Barra de ejemplo · sin cifra real",
+          "en": "Sample bar · no real amount"
+        }
+      },
+      {
+        "id": "ejemplo-viaje",
+        "titulo": { "es": "Fondo para el viaje del grupo", "en": "Group trip fund" },
+        "leyendaBarra": {
+          "es": "Barra de ejemplo · sin cifra real",
+          "en": "Sample bar · no real amount"
+        }
+      }
+    ],
+    "leyendaReal": {
+      "es": "La suma la anotó el grupo; no es un cobro verificado por un procesador.",
+      "en": "The total was noted by the group; it is not a processor-verified charge."
+    }
+  },
+  "pie": {
+    "fraseFotos": {
+      "es": "Las fotos de la portada son de muestra.",
+      "en": "Homepage photos are sample illustrations."
+    }
+  }
+}

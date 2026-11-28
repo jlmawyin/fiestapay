@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { TriangleAlert } from 'lucide-react';
-import { DEMO_GUEST_NAME, type AssistantContext, type UiPage } from '@fiestapay/shared';
+import { DEMO_GUEST_NAME, type HostInfo, type UiPage } from '@fiestapay/shared';
+// NAP-U2: tokens día/noche para todo el sitio (el atributo data-tema los elige).
+import '../../../estilos/tokens.css';
 import { GuideOverlay } from './guide/GuideOverlay';
 import { registerGuideNavigator } from './guide/showOnScreen';
 import type { Capabilities, FiestaEvent, ToastMessage } from './types';
 import { api, ApiError } from './api/client';
+import { fetchHostInfo, shouldReadHostInfo } from './api/host-info';
 import { adminKeyFor, captureAdminKeyFromLocation, rememberAdminKey } from './api/admin-key';
 import { useI18n, useMessages } from './i18n/I18nContext';
 import { appCatalog } from './i18n/catalogs/app';
@@ -12,15 +15,27 @@ import { DemoRibbon } from './components/common/DemoRibbon';
 import { Header } from './components/common/Header';
 import { ToastContainer } from './components/common/Toast';
 import { LandingView } from './views/LandingView';
+import { PortalLandingView } from './views/PortalLandingView';
 import { CreateEventView } from './views/CreateEventView';
 import { PublicInviteView } from './views/PublicInviteView';
+import { FreeAddressView } from './views/FreeAddressView';
 import { OrganizerDashboardView } from './views/OrganizerDashboardView';
 import { OrganizerRecoveryView } from './views/OrganizerRecoveryView';
 import { JudgePreviewView } from './views/JudgePreviewView';
 import { TutorialView } from './views/TutorialView';
-import { AssistantOrb } from './components/assistant/AssistantOrb';
+import { AccountRegisterView } from './views/AccountRegisterView';
+import { AccountLoginView } from './views/AccountLoginView';
+import { AccountVerifyView } from './views/AccountVerifyView';
+import { SiteHomeView } from './views/SiteHomeView';
+import { SiteSettingsView } from './views/SiteSettingsView';
+import sitioTextos from '../../../contenido/sitio.json';
+import { readAppHostContext } from './lib/app-host';
+import { siteThemeStyle } from './lib/site-theme';
+import type { TenantSiteSettings } from './lib/site-types';
 import { DemoBuyerAccountCard } from './components/demo/DemoBuyerAccountCard';
-import { parseCreatePath, type CreatePath } from './lib/create-interview';
+import { NotFoundView } from './components/notfound/NotFoundView';
+import { openAvatar } from './components/avatar/avatar-open';
+// NAP-F5b: lib/create-interview eliminado con los caminos de IA.
 
 const DEMO_PAYMENT_SLUG_KEY = 'fp_demo_payment_slug';
 
@@ -45,11 +60,18 @@ function rememberDemoPaymentSlug(slug: string): void {
 type ViewMode =
   | { mode: 'home' }
   | { mode: 'demo'; quick?: boolean }
-  | { mode: 'create'; path?: CreatePath }
+  | { mode: 'create' }
   | { mode: 'invite'; slug: string }
+  | { mode: 'free'; label: string }
   | { mode: 'dashboard'; slug: string }
   | { mode: 'recover' }
-  | { mode: 'tutorial' };
+  | { mode: 'tutorial' }
+  | { mode: 'register' }
+  | { mode: 'login' }
+  | { mode: 'verify' }
+  | { mode: 'site-home' }
+  | { mode: 'site-settings' }
+  | { mode: 'not-found' };
 
 /** Guide pages are the public routes; invite/dashboard are not guide pages. */
 function viewToGuidePage(view: ViewMode): UiPage | null {
@@ -58,6 +80,9 @@ function viewToGuidePage(view: ViewMode): UiPage | null {
   if (view.mode === 'create') return 'create';
   if (view.mode === 'recover') return 'recover';
   if (view.mode === 'tutorial') return 'tutorial';
+  if (view.mode === 'register') return 'landing';
+  if (view.mode === 'login') return 'landing';
+  if (view.mode === 'verify') return 'landing';
   return null;
 }
 
@@ -69,10 +94,16 @@ function guidePageToView(page: UiPage): ViewMode {
   return { mode: 'home' };
 }
 
+const APP_HOST = readAppHostContext();
+const IS_SOMOSPANAS_ROOT = APP_HOST.kind === 'somospanas-root';
+const IS_LEGACY_HOST = APP_HOST.kind === 'legacy';
+
 export const App: React.FC = () => {
   captureAdminKeyFromLocation();
   const { locale } = useI18n();
   const m = useMessages(appCatalog);
+  const [siteProfile, setSiteProfile] = useState<TenantSiteSettings | null>(null);
+  const [siteProfileError, setSiteProfileError] = useState<string | null>(null);
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
   const [events, setEvents] = useState<FiestaEvent[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
@@ -80,14 +111,17 @@ export const App: React.FC = () => {
   const [isResettingDemo, setIsResettingDemo] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [currentView, setCurrentView] = useState<ViewMode>({ mode: 'home' });
-  /** One-shot AI prefill for /create, set only by the judges-demo AI step. */
-  const [aiDraftRequest, setAiDraftRequest] = useState<{ text: string; id: number } | null>(null);
-  const aiDraftIdRef = useRef(0);
+  // NAP-U4: host-info decide reunión/dirección libre/reservada sin cambiar el enrutado previo.
+  const [hostInfo, setHostInfo] = useState<HostInfo | null>(null);
+  const needsHostInfo = shouldReadHostInfo();
+  const [hostInfoResolved, setHostInfoResolved] = useState(!needsHostInfo);
+  // NAP-F5b: el paso IA de la demo y el orbe se retiraron con la IA propia.
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [demoPaymentSlug, setDemoPaymentSlug] = useState<string | null>(() => readDemoPaymentSlug());
-  const [orbOpenSignal, setOrbOpenSignal] = useState<number | undefined>(undefined);
   const currentViewRef = useRef<ViewMode>(currentView);
   currentViewRef.current = currentView;
+  // NAP-U4: host-info decide reunión/dirección libre/reservada sin cambiar el enrutado previo.
+  const hostInfoRef = useRef<HostInfo | null>(null);
   const demoCreationRef = useRef<Promise<void> | null>(null);
   const paymentDemoRef = useRef<Promise<void> | null>(null);
   const paymentDemoSlugRef = useRef<string | null>(null);
@@ -113,8 +147,8 @@ export const App: React.FC = () => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // URL Routing helper. Keep unrelated query parameters and the bounded create
-  // path so deep links such as /create?path=interview survive locale changes.
+  // URL Routing helper. Keep unrelated query parameters so deep links survive
+  // locale changes. NAP-F5b: /create?path=… murió con los caminos de IA.
   const navigate = useCallback((view: ViewMode, push = true) => {
     setCurrentView(view);
     let path = '/';
@@ -122,14 +156,18 @@ export const App: React.FC = () => {
     else if (view.mode === 'demo') path = '/demo';
     else if (view.mode === 'recover') path = '/recover';
     else if (view.mode === 'tutorial') path = '/tutorial';
+    else if (view.mode === 'register') path = '/register';
+    else if (view.mode === 'login') path = '/login';
+    else if (view.mode === 'verify') path = '/verify';
+    else if (view.mode === 'site-settings') path = '/settings';
     else if (view.mode === 'invite') path = `/e/${view.slug}`;
     else if (view.mode === 'dashboard') path = `/e/${view.slug}/admin`;
+    else if (view.mode === 'not-found') path = window.location.pathname;
 
     const params = new URLSearchParams(window.location.search);
     params.delete('path');
     params.delete('quick');
     if (view.mode === 'demo' && view.quick) params.set('quick', '1');
-    if (view.mode === 'create' && view.path) params.set('path', view.path);
     const query = params.toString();
     const url = query ? `${path}?${query}` : path;
 
@@ -137,6 +175,13 @@ export const App: React.FC = () => {
       window.history.pushState(view, '', url);
     }
   }, []);
+
+  // NAP-U2: el botón dorado de la raíz pide crear con la avatar arrancada.
+  const pendingAvatarStartRef = useRef(false);
+  const goToCreateWithAvatar = useCallback(() => {
+    pendingAvatarStartRef.current = true;
+    navigate({ mode: 'create' });
+  }, [navigate]);
 
   /** Header entry: landing plus a scroll to the visitor's own invitations. */
   const goToOwnInvitations = useCallback(() => {
@@ -153,6 +198,26 @@ export const App: React.FC = () => {
   // Parse path on initial load & popstate
   const handleLocationChange = useCallback(() => {
     const path = window.location.pathname;
+    const hostInfo = hostInfoRef.current;
+    if (path === '/' || path === '') {
+      // NAP-U4: el mismo «/» es la invitación en el host de una reunión y la vista libre si no existe.
+      if (hostInfo?.kind === 'event') {
+        setCurrentView({ mode: 'invite', slug: hostInfo.slug });
+        return;
+      }
+      if (hostInfo?.kind === 'free') {
+        setCurrentView({ mode: 'free', label: hostInfo.label });
+        return;
+      }
+      if (hostInfo?.kind === 'reserved') {
+        setCurrentView({ mode: 'not-found' });
+        return;
+      }
+    }
+    if (IS_SOMOSPANAS_ROOT && (path === '/demo' || path === '/demo/' || path === '/tutorial' || path === '/tutorial/')) {
+      setCurrentView({ mode: 'home' });
+      return;
+    }
     if (path === '/demo' || path === '/demo/') {
       setCurrentView({ mode: 'demo', quick: new URLSearchParams(window.location.search).get('quick') === '1' });
       return;
@@ -163,6 +228,22 @@ export const App: React.FC = () => {
     }
     if (path === '/tutorial' || path === '/tutorial/') {
       setCurrentView({ mode: 'tutorial' });
+      return;
+    }
+    if (path === '/register' || path === '/register/') {
+      setCurrentView({ mode: 'register' });
+      return;
+    }
+    if (path === '/login' || path === '/login/') {
+      setCurrentView({ mode: 'login' });
+      return;
+    }
+    if (path === '/verify' || path === '/verify/') {
+      setCurrentView({ mode: 'verify' });
+      return;
+    }
+    if (APP_HOST.isSiteHost && (path === '/settings' || path === '/settings/')) {
+      setCurrentView({ mode: 'site-settings' });
       return;
     }
     const dashboardMatch = path.match(/^\/e\/([^/]+)\/(?:admin|dashboard)\/?$/);
@@ -176,16 +257,49 @@ export const App: React.FC = () => {
       return;
     }
     if (path === '/create') {
-      const rawPath = new URLSearchParams(window.location.search).get('path');
-      setCurrentView({ mode: 'create', path: rawPath === null ? undefined : parseCreatePath(rawPath) });
+      setCurrentView({ mode: 'create' });
       return;
     }
-    setCurrentView({ mode: 'home' });
+    if (path === '/' || path === '') {
+      setCurrentView(APP_HOST.isSiteHost ? { mode: 'site-home' } : { mode: 'home' });
+      return;
+    }
+    // NAP-U2: las rutas desconocidas muestran la página de no encontrado.
+    setCurrentView({ mode: 'not-found' });
+  }, []);
+
+  /** Carga la marca del subdominio (SP-5); no llama rutas del legado. */
+  const initSiteProfile = useCallback(async () => {
+    setSiteProfileError(null);
+    try {
+      const res = await fetch('/api/site/profile', { credentials: 'include' });
+      const data = (await res.json()) as { settings?: TenantSiteSettings; error?: string };
+      const fallo =
+        localeRef.current === 'en'
+          ? sitioTextos.errores.cargarSitio.en
+          : sitioTextos.errores.cargarSitio.es;
+      if (!res.ok || !data.settings) {
+        setSiteProfileError(data.error ?? fallo);
+        return;
+      }
+      setSiteProfile(data.settings);
+    } catch {
+      setSiteProfileError(
+        localeRef.current === 'en' ? sitioTextos.errores.cargarSitio.en : sitioTextos.errores.cargarSitio.es,
+      );
+    }
   }, []);
 
   // Initialize capabilities and restore organizer session. Both reads are bounded by the
   // API client timeout, so the home loader cannot stay pending forever.
   const initApp = useCallback(async () => {
+    if (APP_HOST.isSiteHost) {
+      await initSiteProfile();
+      return;
+    }
+    if (IS_SOMOSPANAS_ROOT) {
+      return;
+    }
     setSessionError(null);
     setIsLoadingEvents(true);
     setEventsError(null);
@@ -206,20 +320,60 @@ export const App: React.FC = () => {
       })
       .finally(() => setIsLoadingEvents(false));
     await Promise.allSettled([capabilitiesTask, eventsTask]);
-  }, []);
+  }, [initSiteProfile]);
 
   useEffect(() => {
-    handleLocationChange();
+    const waitingForHost = shouldReadHostInfo();
+    if (!waitingForHost) handleLocationChange();
     initApp();
+
+    // NAP-U4: en subdominios de Somos Panas se pregunta al servidor qué es este host.
+    let active = true;
+    if (waitingForHost) {
+      void fetchHostInfo()
+        .then((info) => {
+          if (!active) return;
+          if (info) {
+            hostInfoRef.current = info;
+            setHostInfo(info);
+            if (info.kind === 'event') {
+              // NAP-U4: el host de evento sí expone capabilities; el perfil de sitio no aplica.
+              setCurrentView({ mode: 'invite', slug: info.slug });
+              void api.getCapabilities().then((caps) => active && setCapabilities(caps)).catch(() => undefined);
+            }
+          }
+          setHostInfoResolved(true);
+          // Si host-info falla, el enrutado anterior decide como hoy.
+          handleLocationChange();
+        })
+        .catch(() => {
+          if (!active) return;
+          setHostInfoResolved(true);
+          handleLocationChange();
+        });
+    }
 
     const onPopState = () => handleLocationChange();
     window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
+    return () => {
+      active = false;
+      window.removeEventListener('popstate', onPopState);
+    };
   }, [handleLocationChange, initApp]);
 
   useEffect(() => {
     document.title = m.docTitle;
   }, [m]);
+
+  // NAP-U2: al llegar a /create desde el botón dorado se arranca la avatar con
+  // el mismo clic (el gesto sigue vigente para el audio). Los efectos de la
+  // vista hija corren antes, así que la tarjeta ya escucha el aviso.
+  useEffect(() => {
+    if (currentView.mode === 'create' && pendingAvatarStartRef.current) {
+      pendingAvatarStartRef.current = false;
+      openAvatar();
+    }
+  }, [currentView]);
 
   // FP-GUIDE-1: the guide service navigates through the app router (no reload).
   useEffect(() => {
@@ -351,48 +505,31 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleTalkToAssistant = useCallback(() => {
-    setOrbOpenSignal((prev) => (prev ?? 0) + 1);
-  }, []);
-
-  /**
-   * Judges-demo AI step. The person's click is the consent to run one AI
-   * fill: /create mounts with the phrase prefilled and fires "Rellenar con
-   * IA" exactly once. The request is consumed on mount, so any later manual
-   * visit to /create starts with an empty phrase and no AI call.
-   */
-  const handleBuildPartyWithAi = useCallback((phrase: string) => {
-    aiDraftIdRef.current += 1;
-    setAiDraftRequest({ text: phrase, id: aiDraftIdRef.current });
-    navigate({ mode: 'create' });
-  }, [navigate]);
-
-  const consumeAiDraftRequest = useCallback(() => {
-    setAiDraftRequest(null);
-  }, []);
-
-  const publicContext: AssistantContext = currentView.mode === 'demo' ? 'demo' : 'landing';
-
+  const siteTheme = siteProfile ? siteThemeStyle(siteProfile) : undefined;
+  // NAP-U4: no decidir la vista antes de saber si el host es reunion/libre/reservado.
+  if (!hostInfoResolved) {
+    return <main className="app-container" aria-busy="true" data-host-pending="true" />;
+  }
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', ...siteTheme }}>
       {/* Sandbox Demo Ribbon */}
-      <DemoRibbon
+      {IS_LEGACY_HOST ? <DemoRibbon
         capabilities={capabilities}
         status={capabilities ? 'ready' : sessionError ? 'unavailable' : 'loading'}
         onRetry={capabilities || !sessionError ? undefined : initApp}
-      />
+      /> : null}
 
       {/* Global Navigation Header */}
-      <Header
+      {IS_LEGACY_HOST ? <Header
         onNavigateHome={goToOwnInvitations}
         onNavigateCreate={() => navigate({ mode: 'create' })}
         onNavigateDemo={() => navigate({ mode: 'demo' })}
         onNavigateTutorial={() => navigate({ mode: 'tutorial' })}
         hasActiveEvent={events.length > 0}
-      />
+      /> : null}
 
       {/* Expired Session / Connection Recovery Banner */}
-      {sessionError && (
+      {IS_LEGACY_HOST && sessionError && (
         <div
           style={{
             backgroundColor: 'var(--color-coral-tint)',
@@ -420,22 +557,50 @@ export const App: React.FC = () => {
 
       {/* Main Body View */}
       <main className="app-container" style={{ marginTop: '1.5rem', flex: 1 }}>
-        {currentView.mode === 'home' && (
+        {APP_HOST.isSiteHost && hostInfo?.kind === 'site' && siteProfileError && (
+          <p role="alert">{siteProfileError}</p>
+        )}
+        {currentView.mode === 'site-home' && siteProfile && (
+          <SiteHomeView
+            settings={siteProfile}
+            onNavigateSettings={() => navigate({ mode: 'site-settings' })}
+          />
+        )}
+        {currentView.mode === 'site-settings' && siteProfile && (
+          <SiteSettingsView
+            initial={siteProfile}
+            onSaved={(settings) => {
+              setSiteProfile(settings);
+              navigate({ mode: 'site-home' });
+            }}
+            onBack={() => navigate({ mode: 'site-home' })}
+          />
+        )}
+
+        {currentView.mode === 'home' && IS_SOMOSPANAS_ROOT ? (
+          <PortalLandingView
+            onNavigateRegister={() => navigate({ mode: 'register' })}
+            onNavigateLogin={() => navigate({ mode: 'login' })}
+            onNavigateCreate={goToCreateWithAvatar}
+          />
+        ) : null}
+
+        {currentView.mode === 'home' && IS_LEGACY_HOST ? (
           <LandingView
             events={events}
             isLoading={isLoadingEvents}
             capabilities={capabilities}
             eventsError={eventsError}
             onRetryEvents={initApp}
-            onNavigateCreate={(path) => navigate({ mode: 'create', ...(path ? { path } : {}) })}
+            onNavigateCreate={() => navigate({ mode: 'create' })}
             onNavigateInvite={(slug) => navigate({ mode: 'invite', slug })}
             onNavigateDashboard={(slug) => navigate({ mode: 'dashboard', slug })}
             onNavigateDemo={(quick) => navigate({ mode: 'demo', quick })}
             onNavigateRecover={() => navigate({ mode: 'recover' })}
           />
-        )}
+        ) : null}
 
-        {currentView.mode === 'demo' && (
+        {currentView.mode === 'demo' && IS_LEGACY_HOST && (
           <JudgePreviewView
             events={events}
             isLoading={isLoadingEvents}
@@ -444,9 +609,8 @@ export const App: React.FC = () => {
             onRetryEvents={initApp}
             onCreateDemo={handleCreateDemo}
             quickPath={currentView.quick}
-            onBuildPartyWithAi={handleBuildPartyWithAi}
+            onNavigateCreate={() => navigate({ mode: 'create' })}
             onStartPaymentDemo={handleStartPaymentDemo}
-            onTalkToAssistant={handleTalkToAssistant}
             onResetDemo={handleResetDemo}
             isResetting={isResettingDemo}
             onNavigateInvite={(slug) => navigate({ mode: 'invite', slug })}
@@ -458,11 +622,7 @@ export const App: React.FC = () => {
 
         {currentView.mode === 'create' && (
           <CreateEventView
-            draftRequest={aiDraftRequest}
-            onConsumeDraftRequest={consumeAiDraftRequest}
             recoveryAvailable={capabilities?.email === true}
-            createPath={currentView.path}
-            onSelectCreatePath={(path) => navigate({ mode: 'create', path })}
             onEventCreated={(slug) => {
               initApp();
               // The create response already stored the organizer key. A missing key stays public.
@@ -490,15 +650,36 @@ export const App: React.FC = () => {
           </div>
         )}
 
+        {currentView.mode === 'free' && <FreeAddressView label={currentView.label} />}
+
         {currentView.mode === 'recover' && <OrganizerRecoveryView available={capabilities?.email === true} />}
 
-        {currentView.mode === 'tutorial' && (
+        {currentView.mode === 'tutorial' && IS_LEGACY_HOST && (
           <TutorialView
+            capabilities={capabilities}
             onNavigateDemo={() => navigate({ mode: 'demo' })}
             onNavigateCreate={() => navigate({ mode: 'create' })}
             onNavigateInvitations={goToOwnInvitations}
             onNavigateRecover={() => navigate({ mode: 'recover' })}
           />
+        )}
+
+        {currentView.mode === 'register' && (
+          <AccountRegisterView
+            onNavigateLogin={() => navigate({ mode: 'login' })}
+            onRegistered={() => navigate({ mode: 'login' })}
+          />
+        )}
+
+        {currentView.mode === 'login' && (
+          <AccountLoginView
+            onNavigateRegister={() => navigate({ mode: 'register' })}
+            onLoggedIn={() => navigate({ mode: 'home' })}
+          />
+        )}
+
+        {currentView.mode === 'verify' && (
+          <AccountVerifyView onVerified={() => navigate({ mode: 'login' })} />
         )}
 
         {currentView.mode === 'dashboard' && (
@@ -512,24 +693,13 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/*
-          Cross-front contract: builder B supplies the unified orb. Public home/demo/create/
-          recovery get one launcher; invite and dashboard keep their own role-scoped orb.
-          Landing and demo keep separate public conversations by context.
-        */}
-        {(currentView.mode === 'home' ||
-          currentView.mode === 'demo' ||
-          currentView.mode === 'create' ||
-          currentView.mode === 'recover' ||
-          currentView.mode === 'tutorial') && (
-          <AssistantOrb
-            audience="public"
-            capabilities={capabilities}
-            onShowToast={showToast}
-            context={publicContext}
-            openSignal={orbOpenSignal}
+        {currentView.mode === 'not-found' && (
+          <NotFoundView
+            onNavigateHome={() => navigate(APP_HOST.isSiteHost ? { mode: 'site-home' } : { mode: 'home' })}
           />
         )}
+
+        {/* NAP-F5b: el orbe se retiró; la avatar Napster vive en cada vista. */}
       </main>
 
       {/* Global Toast Notifications */}

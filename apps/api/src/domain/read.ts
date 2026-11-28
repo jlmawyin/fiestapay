@@ -1,7 +1,19 @@
-import type { AgendaItem, FiestaEvent, FundingStatus, Guest, RefundSummary, RsvpStatus, TemplateKind } from '@fiestapay/shared';
+import type {
+  AgendaItem,
+  FiestaEvent,
+  FundingStatus,
+  Guest,
+  PaymentProviderId,
+  RefundSummary,
+  RsvpStatus,
+  TemplateKind,
+} from '@fiestapay/shared';
+import { paymentProviderIdForEventId } from '../payments/provider.js';
 import { normalizeOrganizerName, resolveTheme } from '@fiestapay/shared';
 import { sumToCents, type Pool, type PoolClient } from '../db/pool.js';
+import { assertGroupPrivateEventOnPortalHost, type EventPortalGate } from './access.js';
 import { notFound } from '../errors.js';
+import { eventPublicUrl } from './subdomains.js';
 
 export type Queryable = Pool | PoolClient;
 
@@ -39,6 +51,10 @@ export interface EventRow {
   organizer_name?: string | null;
   /** Null on rows created before presentation metadata. */
   theme?: string | null;
+  /** NAP-S2: dirección propia de la reunión; null en eventos históricos. */
+  subdomain?: string | null;
+  /** NAP-S3: avatar del catálogo que recibe a los invitados. */
+  avatar_id?: string | null;
 }
 
 export interface GuestRow {
@@ -58,7 +74,7 @@ export const EVENT_COLUMNS = `id, slug, organizer_session_id, generation, archiv
   description, starts_at, location, includes, agenda, price_cents, capacity, goal_cents, minimum_cents,
   confirmed, created_at, ends_at, closed_at, purged_at, is_demo, admin_key_hash, access_code_hash,
   funding_deadline_at, funding_status, funding_decided_at, funding_basis_cents,
-  organizer_name, theme`;
+  organizer_name, theme, subdomain, avatar_id`;
 
 export const GUEST_COLUMNS =
   'id, event_id, session_id, name, status, companions, obligation_version, blocked_at, removed_at';
@@ -87,13 +103,29 @@ export async function findEventById(db: Queryable, eventId: string): Promise<Eve
   return rows[0] ?? null;
 }
 
-export async function findEventBySlug(db: Queryable, slug: string): Promise<EventRow | null> {
+/**
+ * Carga por slug con cerrojo SP7-D-1 opcional (`gate`): en raíz/legado oculta eventos private de
+ * grupo que no sean del tenant legado (404 salvo admin del sitio). Entrada: slug y contexto HTTP.
+ */
+export async function findEventBySlug(
+  db: Queryable,
+  slug: string,
+  gate?: EventPortalGate,
+): Promise<EventRow | null> {
   const { rows } = await db.query<EventRow>(`SELECT ${EVENT_COLUMNS} FROM events WHERE slug = $1`, [slug]);
-  return rows[0] ?? null;
+  const row = rows[0] ?? null;
+  if (row && gate) {
+    await assertGroupPrivateEventOnPortalHost(db, slug, gate.hostKind, gate.accountUserId);
+  }
+  return row;
 }
 
-export async function getEventBySlug(db: Queryable, slug: string): Promise<EventRow> {
-  const row = await findEventBySlug(db, slug);
+/**
+ * Igual que `findEventBySlug` pero lanza 404 si falta la fila (o si el cerrojo la oculta).
+ * Entrada: slug y cerrojo opcional. Salida: fila del evento.
+ */
+export async function getEventBySlug(db: Queryable, slug: string, gate?: EventPortalGate): Promise<EventRow> {
+  const row = await findEventBySlug(db, slug, gate);
   if (!row) throw notFound('Evento no encontrado');
   return row;
 }
@@ -199,7 +231,11 @@ export const peopleOf = (guest: GuestRow): number => (guest.status === 'yes' ? 1
  */
 export type FiestaEventWithDemo = FiestaEvent & { isDemo: boolean };
 
-export function toFiestaEvent(row: EventRow, totals: EventTotals): FiestaEventWithDemo {
+export function toFiestaEvent(
+  row: EventRow,
+  totals: EventTotals,
+  paymentProvider?: PaymentProviderId,
+): FiestaEventWithDemo {
   const minimumCents = row.minimum_cents;
   return {
     id: row.id,
@@ -232,11 +268,26 @@ export function toFiestaEvent(row: EventRow, totals: EventTotals): FiestaEventWi
     organizerName: normalizeOrganizerName(row.organizer_name),
     theme: resolveTheme(row.template, row.theme).key,
     isDemo: row.is_demo,
+    subdomain: row.subdomain ?? null,
+    publicUrl: eventPublicUrl(row.subdomain),
+    avatarId: row.avatar_id ?? null,
+    ...(paymentProvider ? { paymentProvider } : {}),
   };
 }
 
 export async function loadFiestaEvent(db: Queryable, row: EventRow): Promise<FiestaEventWithDemo> {
-  return toFiestaEvent(row, await eventTotals(db, row.id));
+  const paymentProvider = await paymentProviderIdForEventId(db, row.id);
+  return toFiestaEvent(row, await eventTotals(db, row.id), paymentProvider);
+}
+
+/** SP8-D-2: toda respuesta HTTP con evento incluye el proveedor del tenant. */
+export async function eventForClient(
+  db: Queryable,
+  row: EventRow,
+  totals: EventTotals,
+): Promise<FiestaEventWithDemo> {
+  const paymentProvider = await paymentProviderIdForEventId(db, row.id);
+  return toFiestaEvent(row, totals, paymentProvider);
 }
 
 export function toGuestWithPrice(row: GuestRow, priceCents: number, paidCents: number): Guest {

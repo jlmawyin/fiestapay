@@ -1,8 +1,8 @@
 /**
  * FP-GUIDE-1 — the agent opens pages and highlights elements; it never presses anything.
  *
- * Single service behind quoted labels in text answers, the /demo guided tour and the
- * public voice tool. The model only ever chooses ids from the shared contract
+ * Servicio único tras las etiquetas citadas en respuestas, el tour guiado /demo y
+ * las tools de la avatar Napster. El modelo solo elige ids del contrato compartido
  * (`UI_PAGES` / `UI_TARGETS`); paths and selectors live there, never in model output.
  * Anything else (unknown ids, URLs, selectors, extra keys) is rejected with
  * `{ ok:false, reason:'invalid_args' }` without navigating, scrolling or highlighting.
@@ -14,22 +14,21 @@ import {
   UI_PAGES,
   UI_TARGETS,
   UI_TARGET_IDS,
-  type DraftEventProposal,
   type ShowOnScreenArgs,
   type ShowOnScreenResult,
   type UiPage,
   type UiTarget,
-  type VoiceAudience,
 } from '@fiestapay/shared';
+import type { DraftEventProposal } from '../lib/draft-proposal';
 import { guideStepFor } from './step-preview';
 
-/** Fired synchronously once validated, so the orb minimizes before navigation paints. */
+/** Se dispara sync tras validar, antes de pintar la navegación. */
 export const GUIDE_ACTION_EVENT = 'fiestapay:guide-action' as const;
 /** Asks the overlay to highlight one element. */
 export const GUIDE_SHOW_EVENT = 'fiestapay:guide-show' as const;
 /** Asks the overlay to hide whatever it shows. */
 export const GUIDE_HIDE_EVENT = 'fiestapay:guide-hide' as const;
-/** The overlay announces a visible highlight (used to place the voice bar). */
+/** El overlay anuncia un resaltado visible para oyentes de apoyo. */
 export const GUIDE_VISIBLE_EVENT = 'fiestapay:guide-visible' as const;
 /** The overlay announces the highlight is gone, whatever closed it. */
 export const GUIDE_HIDDEN_EVENT = 'fiestapay:guide-hidden' as const;
@@ -37,15 +36,8 @@ export const GUIDE_HIDDEN_EVENT = 'fiestapay:guide-hidden' as const;
 export const GUIDE_TOUR_EVENT = 'fiestapay:guide-tour' as const;
 /** Asks /create to write the person's party sentence into the one-sentence field (no AI run). */
 export const GUIDE_PREFILL_EVENT = 'fiestapay:guide-prefill' as const;
-/** Delivers a complete public-chat draft to a mounted /create wizard, one visit only. */
+/** Entrega un borrador completo de la avatar a un wizard /create montado, una visita. */
 export const GUIDE_DRAFT_EVENT = 'fiestapay:guide-draft' as const;
-/** Voice failed for a real token/connection/provider reason; continue in text. */
-export const VOICE_FALLBACK_EVENT = 'fiestapay:voice-fallback' as const;
-/** Voice session activity for the orb (public mini-bar). */
-export const VOICE_ACTIVITY_EVENT = 'fiestapay:voice-activity' as const;
-/** The mini-bar asks the voice panel to stop through its usual Stop path. */
-export const VOICE_STOP_EVENT = 'fiestapay:voice-stop' as const;
-export const VOICE_RESUME_EVENT = 'fiestapay:voice-resume' as const;
 
 export interface GuideActionDetail {
   page?: UiPage;
@@ -81,17 +73,7 @@ export interface GuideDraftDetail {
   proposal: DraftEventProposal;
 }
 
-export interface VoiceFallbackDetail {
-  message: string;
-  audience: VoiceAudience;
-}
-
-export interface VoiceActivityDetail {
-  active: boolean;
-  status: 'listening' | 'speaking' | 'processing';
-  audience: VoiceAudience;
-  paused?: boolean;
-}
+// NAP-F5b: los detalles de voz propia murieron con sus eventos.
 
 function dispatchGuideEvent(name: string, detail: unknown): void {
   try {
@@ -147,25 +129,6 @@ export function consumeGuideDraftProposal(): DraftEventProposal | null {
   const proposal = pendingGuideDraft;
   pendingGuideDraft = null;
   return proposal;
-}
-
-/**
- * Public chat card click: hand the whole proposal to the controlled /create
- * route exactly once. A mounted wizard receives the event synchronously; a
- * wizard that mounts after the navigation reads the pending slot. No AI call,
- * no URL/storage payload and no automatic publish happen here.
- */
-export function openCreateWithDraft(proposal: DraftEventProposal): void {
-  const navigator = guideNavigator;
-  if (!navigator) return;
-  setGuideDraftProposal(proposal);
-  dispatchGuideAction({ page: 'create' });
-  if (getGuidePage() === 'create') return;
-  try {
-    navigator.navigate('create');
-  } catch {
-    consumeGuideDraftProposal();
-  }
 }
 
 /** Starts the judges-demo tour (`DEMO_TOUR` order) from the /demo button. */
@@ -292,9 +255,9 @@ export function validateShowOnScreenArgs(raw: unknown): { ok: true; args: ShowOn
 const INVITE_ALLOWED_ARG_KEYS = new Set(['target', 'caption']);
 
 /**
- * Guest voice contract for the current invitation: only one of the closed
- * INVITE_UI_TARGETS ids plus an optional caption. It accepts no page, slug,
- * URL, selector or sentence and never navigates.
+ * Contrato de la avatar invitada en la invitación actual: solo uno de los ids
+ * cerrados de INVITE_UI_TARGETS más una caption opcional. No acepta página,
+ * slug, URL, selector ni frase, y nunca navega.
  */
 export function validateInviteShowOnScreenArgs(
   raw: unknown,
@@ -374,7 +337,7 @@ export function waitForGuideTarget(id: UiTarget, timeoutMs = 3000): Promise<HTML
 export interface ShowOnScreenOptions {
   /** How long to wait for the target to mount. Tests shorten it; production waits 3 s. */
   timeoutMs?: number;
-  /** Guest voice: this session belongs to `slug`; refuse if another invitation is active. */
+  /** Avatar invitada: esta sesión es de `slug`; rechaza si hay otra invitación activa. */
   inviteSlug?: string;
 }
 

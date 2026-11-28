@@ -212,11 +212,8 @@ describe('translateServerError', () => {
     expect(translateServerError('title: Datos invalidos', 400, 'en')).toBe('title: The data is not valid.');
   });
 
-  it('traduce el plazo agotado del asistente y el 504 no cae al generico de 500', () => {
-    const assistantTimeout = 'El agente tardó demasiado en responder. Tu pregunta no se procesó; puedes reintentar.';
-    expect(translateServerError(assistantTimeout, 504, 'en')).toBe(
-      'The agent took too long to respond. Your question was not processed; you can try again.',
-    );
+  it('el 504 no cae al generico de 500', () => {
+    // NAP-F5: el plazo del asistente retirado murió con sus traducciones.
     expect(genericServerErrorEn(504)).toMatch(/took too long|timed out/i);
     expect(genericServerErrorEn(504)).not.toBe(genericServerErrorEn(500));
     expect(translateServerError('mensaje desconocido', 504, 'en')).toBe(genericServerErrorEn(504));

@@ -5,8 +5,6 @@ import type { UiPage } from '@fiestapay/shared';
 import { App } from '../App';
 import { I18nProvider } from '../i18n/I18nContext';
 import { setActiveLocale } from '../i18n/locale-store';
-import { AssistantText } from '../components/chat/AssistantText';
-import { ChatAssistant } from '../components/chat/ChatAssistant';
 import { GuideOverlay } from '../guide/GuideOverlay';
 import {
   GUIDE_ACTION_EVENT,
@@ -17,7 +15,6 @@ import {
   validateShowOnScreenArgs,
 } from '../guide/showOnScreen';
 import { startGuideScroll } from '../guide/step-preview';
-import { api } from '../api/client';
 import type { Capabilities } from '../types';
 
 vi.mock('ag-grid-react', () => ({
@@ -37,11 +34,9 @@ vi.mock('ag-grid-react', () => ({
 const capabilities: Capabilities = {
   paypal: true,
   paypalClientId: 'sb-client',
-  chat: true,
-  llmProvider: 'gemini',
-  voice: false,
   sandbox: true,
   email: true,
+  avatar: true,
 };
 
 function response(body: unknown, status = 200): Response {
@@ -414,88 +409,8 @@ describe('FP-GUIDE-1 navigation and highlight', () => {
   });
 });
 
-describe('FP-GUIDE-1 clickable labels', () => {
-  it('renders a button only for exact label matches', () => {
-    const { container } = render(
-      <AssistantText text={'Pulsa "Mis invitaciones" o "Algo inventado".'} />,
-    );
-    const action = screen.getByRole('button', { name: /Mis invitaciones/ });
-    expect(action).toHaveClass('fp-assistant-label--action');
-    expect(action.textContent).toContain('→');
-    expect(container.querySelectorAll('button.fp-assistant-label')).toHaveLength(1);
-    const plain = Array.from(container.querySelectorAll('span.fp-assistant-label')).map(
-      (node) => node.textContent,
-    );
-    expect(plain).toEqual(['Algo inventado']);
-  });
-
-  it('matches labels in the viewer language only', () => {
-    localStorage.setItem('fp_locale', 'en');
-    const { container } = render(
-      <I18nProvider>
-        <AssistantText text={'Tap "My invitations" or "Mis invitaciones".'} />
-      </I18nProvider>,
-    );
-    expect(screen.getByRole('button', { name: /My invitations/ })).toBeInTheDocument();
-    expect(container.querySelectorAll('button.fp-assistant-label')).toHaveLength(1);
-    expect(screen.getByText('Mis invitaciones')).toHaveClass('fp-assistant-label');
-    expect(screen.getByText('Mis invitaciones').tagName).toBe('SPAN');
-  });
-
-  it('keeps near matches as text', () => {
-    const { container } = render(
-      <AssistantText text={'Pulsa "mis invitaciones" o "Mis invitacion".'} />,
-    );
-    expect(container.querySelectorAll('button.fp-assistant-label')).toHaveLength(0);
-    expect(container.querySelectorAll('span.fp-assistant-label')).toHaveLength(2);
-  });
-
-  it('clicking a label highlights the element', async () => {
-    useFakeNavigator('landing');
-    render(
-      <>
-        <GuideOverlay />
-        <AssistantText text={'Pulsa "Mis invitaciones" para verlas.'} />
-      </>,
-    );
-    addFixture('myInvitations', 'button', 'Destino cabecera');
-    fireEvent.click(screen.getByRole('button', { name: /Mis invitaciones/ }));
-    expect(await screen.findByTestId('guide-ring')).toBeInTheDocument();
-    expect(screen.getByTestId('guide-bubble')).toHaveTextContent('Pulsa aquí: Mis invitaciones');
-  });
-
-  it('page scope only offers targets present on the page', () => {
-    addFixture('myInvitations', 'button', 'Mis invitaciones');
-    const { container, unmount } = render(
-      <AssistantText text={'Mira "Mis invitaciones".'} guideScope="page" />,
-    );
-    expect(container.querySelectorAll('button.fp-assistant-label')).toHaveLength(1);
-    unmount();
-    for (const fixture of fixtures) fixture.remove();
-    fixtures = [];
-    const rerendered = render(<AssistantText text={'Mira "Mis invitaciones".'} guideScope="page" />);
-    expect(rerendered.container.querySelectorAll('button.fp-assistant-label')).toHaveLength(0);
-    expect(rerendered.container.querySelector('span.fp-assistant-label')?.textContent).toBe(
-      'Mis invitaciones',
-    );
-  });
-
-  it('guest chat offers header labels and keeps demo labels as text', async () => {
-    vi.spyOn(api, 'getChatHistory').mockResolvedValue({ messages: [] });
-    vi.spyOn(api, 'sendChat').mockResolvedValue({
-      text: 'Mira "Mis invitaciones" y "Ver panel de ejemplo (AG Grid)".',
-    });
-    addFixture('myInvitations', 'button', 'Destino cabecera');
-    render(<ChatAssistant slug="fiesta" capabilities={capabilities} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir asistente IA' }));
-    const input = screen.getByRole('textbox', { name: 'Mensaje para el asistente' });
-    fireEvent.change(input, { target: { value: '¿Dónde miro?' } });
-    fireEvent.submit(input.closest('form')!);
-    expect(await screen.findByRole('button', { name: /Mis invitaciones/ })).toBeInTheDocument();
-    const panel = screen.getByText('Ver panel de ejemplo (AG Grid)');
-    expect(panel.tagName).toBe('SPAN');
-  });
-});
+// NAP-F5b: AssistantText/ChatAssistant murieron con el chat propio; las
+// etiquetas citables viven en el servidor (DSH) y la guía resalta igual.
 
 function stubAppFetch(replyText: string): void {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -511,45 +426,7 @@ function stubAppFetch(replyText: string): void {
   vi.stubGlobal('fetch', fetchMock);
 }
 
-function openOrb(): void {
-  fireEvent.click(screen.getByRole('button', { name: 'Abrir Agente FiestaPay' }));
-}
-
-function askInOrb(question: string): void {
-  const dialog = screen.getByRole('dialog', { name: 'Agente FiestaPay' });
-  const input = within(dialog).getByRole('textbox');
-  fireEvent.change(input, { target: { value: question } });
-  fireEvent.submit(input.closest('form')!);
-}
-
-describe('FP-GUIDE-1 panel minimizes and history survives', () => {
-  it('minimizes on label tap, highlights the header and restores the chat intact', async () => {
-    stubAppFetch('Pulsa "Mis invitaciones" para verlas.');
-    render(
-      <I18nProvider>
-        <App />
-      </I18nProvider>,
-    );
-    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
-
-    openOrb();
-    askInOrb('¿Dónde están mis invitaciones?');
-    const dialog = screen.getByRole('dialog', { name: 'Agente FiestaPay' });
-    const action = await within(dialog).findByRole('button', { name: /Mis invitaciones/ });
-    fireEvent.click(action);
-
-    expect(screen.queryByRole('dialog', { name: 'Agente FiestaPay' })).toBeNull();
-    expect(await screen.findByTestId('guide-ring')).toBeInTheDocument();
-    expect(screen.getByTestId('guide-bubble')).toHaveTextContent('Pulsa aquí: Mis invitaciones');
-
-    openOrb();
-    const restored = screen.getByRole('dialog', { name: 'Agente FiestaPay' });
-    expect(within(restored).getByText('¿Dónde están mis invitaciones?')).toBeInTheDocument();
-    expect(
-      within(restored).getByRole('button', { name: /Mis invitaciones/ }),
-    ).toBeInTheDocument();
-  });
-});
+// NAP-F5b: el orbe y su historial murieron; la avatar no se minimiza.
 
 describe('FP-GUIDE-1 guided tour', () => {
   async function openDemo(): Promise<void> {
@@ -571,15 +448,16 @@ describe('FP-GUIDE-1 guided tour', () => {
     expect(document.querySelector('[data-guide="aiBuildParty"]')?.closest('[data-guide-step]')).not.toBeNull();
     expect(document.querySelector('[data-guide="previewPanel"]')?.closest('[data-guide-step]')).not.toBeNull();
     expect(document.querySelector('[data-guide="paymentDemo"]')?.closest('[data-guide-step]')).not.toBeNull();
-    expect(document.querySelector('[data-guide="paypalAiPanel"]')?.closest('[data-guide-step]')).not.toBeNull();
+    // NAP-F5b: el panel PayPal+IA murió; el recorrido salta esa parada.
+    expect(document.querySelector('[data-guide="paypalAiPanel"]')).toBeNull();
   });
 
   it('walks the demo steps in order and finishes on the last Siguiente', async () => {
     await openDemo();
     fireEvent.click(screen.getByRole('button', { name: 'Recorrido guiado' }));
-    // FP-JUDGE-1: DEMO_TOUR starts at the AI build step.
+    // NAP-F5b: DEMO_TOUR starts at the avatar build step.
     expect(await screen.findByTestId('guide-bubble')).toHaveTextContent(
-      'Describe tu fiesta en una frase y pulsa «Crear la fiesta con IA»',
+      'Pulsa «Crear mi invitación»',
     );
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     expect(await screen.findByTestId('guide-bubble')).toHaveTextContent(
@@ -589,10 +467,7 @@ describe('FP-GUIDE-1 guided tour', () => {
     expect(await screen.findByTestId('guide-bubble')).toHaveTextContent(
       'Este botón crea una comida ficticia',
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
-    expect(await screen.findByTestId('guide-bubble')).toHaveTextContent(
-      'cómo FiestaPay usa PayPal e IA',
-    );
+    // The dead PayPal+IA stop is skipped instead of stalling the tour.
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     expect(screen.queryByTestId('guide-bubble')).toBeNull();
   });
@@ -611,12 +486,12 @@ describe('FP-GUIDE-1 guided tour', () => {
   });
 });
 
-describe('FiestaPay product tutorial', () => {
+describe('Somos Panas product tutorial', () => {
   it('walks through demo and own-event topics, then opens the existing recovery page', async () => {
     stubAppFetch('Hola.');
     render(<I18nProvider><App /></I18nProvider>);
-    fireEvent.click(screen.getByRole('button', { name: 'Tutorial de FiestaPay' }));
-    expect(await screen.findByRole('heading', { name: 'Tutorial de FiestaPay' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Tutorial de Somos Panas' }));
+    expect(await screen.findByRole('heading', { name: 'Tutorial de Somos Panas' })).toBeInTheDocument();
     expect(window.location.pathname).toBe('/tutorial');
     fireEvent.click(screen.getByRole('button', { name: 'Empezar recorrido' }));
     for (const hint of [/tabla|panel de ejemplo/, /revisa el borrador/, /QR de invitados/, /confirma la asistencia/, /Mis invitaciones/, /correo de recuperación verificado/]) {
@@ -633,7 +508,7 @@ describe('FiestaPay product tutorial', () => {
     stubAppFetch('Hello.');
     window.history.replaceState({}, '', '/?lang=en');
     render(<I18nProvider><App /></I18nProvider>);
-    await screen.findByRole('button', { name: 'FiestaPay tutorial' });
+    await screen.findByRole('button', { name: 'Somos Panas tutorial' });
     let action: ReturnType<typeof showOnScreen> | undefined;
     act(() => { action = showOnScreen({ target: 'tutorialShare' }); });
     await screen.findByRole('heading', { name: 'Share by link or QR code' });
@@ -712,7 +587,7 @@ describe('FP-GUIDE-1 reduced motion and dismissal', () => {
     render(<GuideOverlay />);
     addFixture('previewPanel', 'section', 'Panel');
     addFixture('paymentDemo', 'button', 'Pago');
-    addFixture('paypalAiPanel', 'section', 'PayPal e IA');
+    addFixture('paypalAiPanel', 'section', 'Avatar guía');
     act(() => {
       startGuidedTour();
     });
@@ -741,7 +616,7 @@ describe('FP-GUIDE-1 never presses anything', () => {
     const payment = addFixture('paymentDemo', 'button', 'Probar pago con PayPal');
     const create = addFixture('privateDemo', 'button', 'Crear mi demo privada');
     addFixture('previewPanel', 'section', 'Panel');
-    addFixture('paypalAiPanel', 'section', 'PayPal e IA');
+    addFixture('paypalAiPanel', 'section', 'Avatar guía');
     payment.addEventListener('click', paymentClicks);
     create.addEventListener('click', createClicks);
 
@@ -755,7 +630,7 @@ describe('FP-GUIDE-1 never presses anything', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     expect(await screen.findByTestId('guide-bubble')).toHaveTextContent('comida ficticia');
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
-    expect(await screen.findByTestId('guide-bubble')).toHaveTextContent('PayPal e IA');
+    expect(await screen.findByTestId('guide-bubble')).toHaveTextContent('Aquí habla tu guía');
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     expect(screen.queryByTestId('guide-bubble')).toBeNull();
 
@@ -809,28 +684,6 @@ describe('FP-GUIDE-1 mobile step preview', () => {
     frames.step(1600);
     expect(scrollTops(scrollTo).at(-1)).toBe(308);
     expect(frames.pending()).toBe(0);
-  });
-
-  it('holds the heading while voice is getting ready and previews once it speaks', () => {
-    setViewport(390, 800);
-    stubDocumentHeight(3000);
-    const scrollTo = stubScroll();
-    const frames = stubFrames();
-    const { step, target } = addStepFixture('myDemos', { stepTop: 320, stepHeight: 1200 });
-    let speaking = false;
-
-    startGuideScroll({ target, step, reducedMotion: false, mobile: true, previewReady: () => speaking });
-    frames.step(0);
-    frames.step(160);
-    frames.step(600);
-    expect(scrollTops(scrollTo).at(-1)).toBe(308);
-
-    speaking = true;
-    frames.step(620);
-    frames.step(950);
-    expect(Math.max(...scrollTops(scrollTo))).toBeGreaterThan(308);
-    frames.step(2100);
-    expect(scrollTops(scrollTo).at(-1)).toBe(308);
   });
 
   it('keeps mobile tour controls available when the person starts scrolling', () => {

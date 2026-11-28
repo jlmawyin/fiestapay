@@ -1,28 +1,50 @@
 # Architecture
 
-The same-origin React interface calls a Fastify API backed by PostgreSQL. Cloudflare fronts a dedicated Nginx virtual host on Contabo. The database has no published port. API and database have independent containers and persistent storage isolated from other applications.
+The same-origin React interface calls a Fastify API backed by PostgreSQL. Cloudflare fronts the Nginx virtual host on Contabo. The database has no published port. API and database run in independent containers with persistent storage isolated from other applications.
 
 ```mermaid
 flowchart LR
-  Browser[Mobile browser] --> CF[Cloudflare HTTPS]
-  CF --> Nginx[FiestaPay virtual host]
+  Browser[Browser / React SPA] --> CF[Cloudflare HTTPS]
+  CF --> Nginx[Nginx virtual host]
   Nginx --> API[Fastify API]
   API --> DB[(PostgreSQL)]
-  API --> PayPal[PayPal sandbox]
-  API --> LLM[Gemini text API]
-  Browser --> Voice[Gemini Live API]
-  Voice --> Browser
-  Browser -->|authorized tool request| API
+  API --> PayPal[Legacy PayPal sandbox only]
+  API --> Napster[Napster Omniagent]
+  Browser -->|short-lived token| Napster
 ```
 
-Sessions use an opaque HttpOnly cookie; only its hash is stored. Organizer access requires a separate secret link: the browser stores its adminKey locally and sends it as X-Fiesta-Admin-Key. The server stores only the key digest and compares fixed-length digests in constant time. The creator cookie alone does not authorize editing or dashboard access; it only supports the one-time migration of legacy events without a key. Public invitations expose event information and the caller's own attendance, never another guest's payment details. Reset archives the prior generation; payment references remain associated with the historical event. Verified optional email recovery rotates the key atomically and invalidates the previous link.
+## Napster connection flow
 
-Money is integer USD cents calculated on the server. RSVP, payment ledger and organizer confirmation are separate concepts. Event-row locks serialize capacity changes. PayPal request IDs and unique ledger entries provide retry convergence. See financial review records and tests for the current validated behavior; code availability alone does not establish acceptance.
+```mermaid
+flowchart LR
+  SPA[Web SPA] -->|POST /api/avatar-session| API[Fastify API]
+  API -->|"POST /public/agents/{id}/connections"| Napster[Napster API]
+  Napster -->|single-use token + connection id| API
+  API -->|token, handle, visitor, lang, agent, avatar| SPA
+  API -.->|connection id kept server-side| API
+  SPA -->|Web SDK init getToken| SDK[Napster Web SDK]
+  SDK <-->|WebRTC or WebSocket| Napster
+  Napster -->|implicit tool call| SPA
+  SPA -->|closed-list validation + UI action| UI[UI]
+  UI -->|final click by the person| Person[Person]
+```
 
-New events with a funding minimum have a server-owned deadline. The server makes an irreversible funding decision under the event lock; failure closes new charges and creates durable refund tasks. A task reuses its request identity, retains remote references across retries and records a refund only after provider verification. Legacy events are exempt unless a later explicitly supported migration changes that rule. Expiration hides the event after 72 hours from its end while retaining the minimal financial references needed for reconciliation. The [USD1 sandbox refund evidence](internal/reviews/refund-sandbox-20261026.md) verifies one actual automatic refund; race and failure scenarios have separate PostgreSQL tests.
+The server creates the connection with `X-Api-Key`; the browser never sees the key. Video uses WebRTC with `videoPolicy: "deferred"`; text uses WebSocket with `modality: "text"`. The Web SDK receives only a short-lived token. Implicit tool calls are validated against closed schemas and per-visitor allowlists before the UI highlights or fills anything. The person always performs the final action; the avatar never publishes, pays, confirms, deletes or sends messages.
 
-Chat and voice use the same tool dispatcher. Model output is untrusted. Tools cannot choose a merchant, alter a price, approve a PayPal transaction or confirm an event. Proposed RSVP changes and quotes require human confirmation. The voice API issues only short-lived provider tokens after consent and an atomic database reservation against the shared daily voice budget.
+## Hosts, data and access
 
-Browser audio is sent directly to Gemini Live with a single-use ephemeral token minted by the server; server keys never reach the browser. FiestaPay does not persist microphone audio. Chat history is stored per event/session. Do not enter personal information; use fictional demo aliases.
+`classifyHost` separates root, legacy, site and event hosts; `GET /api/host-info` confirms the effective kind. A site without a tenant row can resolve to an event subdomain or to a free address. Event hosts expose only that event’s public/organizer API plus sessions and the public catalog. A reserved address shows the not-found page.
 
-The runtime text model is Gemini `gemini-3.5-flash`; voice uses Gemini Live `gemini-3.8-live`. `LLM_PROVIDER=openai` is accepted for compatibility, while OpenAI and AssemblyAI remain rollback-only configuration. A missing key or provider error keeps the manual flow available. The model receives only the role-scoped context and tools; tool calls are re-checked by the server, and visible legacy history is replayed as text only.
+Sessions use an opaque HttpOnly cookie; only its hash is stored. Organizer access requires a separate secret link and the `X-Fiesta-Admin-Key` header. The server stores only the key digest and compares fixed-length digests in constant time. Group sites use their own host and cookie; the site admin role is checked from `memberships`. Private group events are hidden on the root and legacy hosts except from their own site admin.
+
+Each meetup gets a unique `events.subdomain`, generated from the title or requested as `preferredSubdomain`, with numeric suffixes inside the creation transaction and a UNIQUE retry. `events.avatar_id` stores the catalog avatar chosen by the organizer. The guest session priority is: ready organizer photo, event avatar, default.
+
+Money is integer USD cents calculated on the server. RSVP, the payment ledger and organizer confirmation are separate concepts. Event-row locks serialize capacity changes. PayPal request IDs and unique ledger entries provide retry convergence. The legacy host keeps PayPal Sandbox for historical events; new root meetups use provider `none`, where the share is a collection among friends and there is no quote, order or capture. Attendance still works.
+
+## Avatar catalog and photo
+
+`contenido/avatares.json` holds 26 avatars with `displayName`, tags, voice and one ES/EN agent pair each. `setup.mjs --catalog` copies the base agent configuration and creates the 50 catalog agents. The default avatar uses the base `NAPSTER_AGENT_ID_ES` / `NAPSTER_AGENT_ID_EN`. An optional `suggest_avatars {tag}` tool highlights catalog matches; the person chooses.
+
+The legacy organizer can attach a photo avatar. The browser sends a base64 JPEG/PNG with `consent:true`; the API validates magic bytes and size, stores the image temporarily in `event_avatars`, and exposes it at `/media/avatar/{random-token}` for Napster to fetch. Napster creates a v1 companion; the API polls its status at most every 10 seconds, then copies the base agent configuration into two event agents and clears the image bytes. The photo avatar wins over the catalog choice for guests. A delete removes both agents and the row. The current envelope is 2 base agents + 50 catalog agents + 30 photo agents = 82 of 100.
+
+Microphone use requires explicit consent and a click. The server keeps no microphone audio. Event and guest data follow the access rules in `apps/api/src/domain/access.ts`; the avatar session applies the same gate as the event page.

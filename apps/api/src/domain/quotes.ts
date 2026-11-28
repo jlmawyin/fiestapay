@@ -2,10 +2,11 @@ import { estimateOrganizerFee, fixedQuote, formatMoney, type Locale, type Quote 
 import { withTransaction, type Pool, type PoolClient } from '../db/pool.js';
 import { conflict, notFound } from '../errors.js';
 import { newId } from '../lib/ids.js';
-import { assertPrivateAccess } from './access.js';
+import { assertPrivateAccess, type EventPortalGate } from './access.js';
 import { assertSessionMayAct } from './moderation.js';
 import { audit } from './audit.js';
 import { assertAcceptingGuests } from './events.js';
+import { NONE_UNAVAILABLE, paymentProviderIdForEventId } from '../payments/provider.js';
 import { decideFundingIfDue, fundingBlocksNewCharge, type FundingGate } from './funding.js';
 import { concealExpired } from './retention.js';
 import { assertCanOwe } from './rsvp.js';
@@ -159,8 +160,9 @@ export async function createQuoteForSession(
   ttlSeconds: number,
   presentedKey: string | null = null,
   locale: Locale = 'es',
+  gate?: EventPortalGate,
 ): Promise<Quote> {
-  const visible = await findEventBySlug(pool, slug);
+  const visible = await findEventBySlug(pool, slug, gate);
   if (!visible) throw notFound('Evento no encontrado');
   await concealExpired(pool, visible);
   const outcome = await withTransaction<FundingGate<{ quote: Quote }>>(pool, async (client) => {
@@ -168,6 +170,10 @@ export async function createQuoteForSession(
     const eventId = found.rows[0]?.id;
     if (!eventId) throw notFound('Evento no encontrado');
     const locked = await lockEvent(client, eventId);
+    // NAP-S2: una reunión nueva sin PayPal no cotiza para un cobro que no existe.
+    if (locked.subdomain && (await paymentProviderIdForEventId(client, locked.id)) === 'none') {
+      throw conflict(NONE_UNAVAILABLE);
+    }
     const settled = await decideFundingIfDue(client, locked);
     const blocked = fundingBlocksNewCharge(settled.event, settled.at);
     if (blocked) return { blocked };

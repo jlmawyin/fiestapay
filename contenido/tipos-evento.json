@@ -1,0 +1,34 @@
+{
+  "tipos": [
+    {
+      "id": "reunion",
+      "nombre": { "es": "Reunión", "en": "Meetup" },
+      "descripcion": {
+        "es": "Encuentro del grupo sin tarifa fija obligatoria.",
+        "en": "A group get-together without a required fixed fee."
+      },
+      "plantilla": "evento",
+      "preguntasSugeridas": ["asistencia", "lugar-fecha"]
+    },
+    {
+      "id": "evento-social",
+      "nombre": { "es": "Evento social", "en": "Social event" },
+      "descripcion": {
+        "es": "Celebración o actividad con invitados y lugar definido.",
+        "en": "A celebration or activity with guests and a defined venue."
+      },
+      "plantilla": "evento",
+      "preguntasSugeridas": ["asistencia", "codigo-acceso"]
+    },
+    {
+      "id": "comida-compartida",
+      "nombre": { "es": "Comida compartida", "en": "Shared meal" },
+      "descripcion": {
+        "es": "Reunión con comida y cuota por persona cuando aplica cobro.",
+        "en": "A gathering with food and a per-person share when charging applies."
+      },
+      "plantilla": "comida",
+      "preguntasSugeridas": ["asistencia", "menu"]
+    }
+  ]
+}

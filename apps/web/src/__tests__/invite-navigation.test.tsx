@@ -17,10 +17,10 @@ function createDeferred<T>() {
 const mockCapabilities: Capabilities = {
   paypal: false,
   paypalClientId: null,
-  chat: false,
-  voice: false,
+  paymentProvider: 'paypal_sandbox',
   sandbox: true,
   email: false,
+  avatar: true,
 };
 
 const mockEvent1: FiestaEvent = {

@@ -1,0 +1,12 @@
+{
+  "portadaRaiz": {
+    "secciones": [
+      { "id": "barra", "bloque": "BarraMinima" },
+      { "id": "hero", "bloque": "HeroPortada" },
+      { "id": "pasos", "bloque": "PasosPortada" },
+      { "id": "ejemplo", "bloque": "MuestraInvitacion" },
+      { "id": "eventos-publicos", "bloque": "EventosPublicos" },
+      { "id": "pie", "bloque": "PiePortada" }
+    ]
+  }
+}

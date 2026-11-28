@@ -1,6 +1,7 @@
-import type { Capabilities, CreatedEvent, Dashboard, FiestaEvent, Guest, Quote } from '@fiestapay/shared';
+import type { Capabilities, CreatedEvent, Dashboard, FiestaEvent, Guest, HostInfo, Quote } from '@fiestapay/shared';
 import type { FastifyInstance } from 'fastify';
-import { assertPrivateAccess, presentedAdminKey } from '../domain/access.js';
+import { notFound } from '../errors.js';
+import { assertPrivateAccess, presentedAdminKey, resolveEventPortalGate } from '../domain/access.js';
 import { dashboardFor } from '../domain/dashboard.js';
 import {
   assertActive,
@@ -12,6 +13,7 @@ import {
   deleteEvent,
   listOwnedEvents,
   resetDemo,
+  setEventAvatarChoice,
   startDemo,
   unlockEvent,
   updateEvent,
@@ -22,6 +24,7 @@ import { concealExpired } from '../domain/retention.js';
 import { joinEvent, setRsvp } from '../domain/rsvp.js';
 import {
   assertNoClientMoneyState,
+  avatarChoiceSchema,
   demoBodySchema,
   eventInputSchema,
   joinSchema,
@@ -32,6 +35,7 @@ import {
 } from '../lib/schemas.js';
 import { requestLocale } from '../lib/locale.js';
 import { ensureSession, readSession, requireSession } from '../lib/session.js';
+import { avatarIsReady, findAvatarById } from '../napster/catalog.js';
 import type { RouteDeps } from './deps.js';
 
 const DEMO_BUYER_SANDBOX_HOSTS = new Set(['api-m.sandbox.paypal.com', 'api.sandbox.paypal.com']);
@@ -55,15 +59,25 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
 
   app.get('/health', async () => ({ ok: true as const }));
 
+  /** NAP-S2: identidad pública del host; la SPA no recibe ids internos ni datos privados. */
+  app.get('/host-info', async (req): Promise<HostInfo> => {
+    const host = req.hostClassification;
+    if (host?.kind === 'root') return { kind: 'root' };
+    if (host?.kind === 'legacy') return { kind: 'legacy' };
+    if (host?.kind === 'site' && host.slug) return { kind: 'site', slug: host.slug };
+    if (host?.kind === 'event' && host.slug && host.subdomain) {
+      return { kind: 'event', slug: host.slug, subdomain: host.subdomain };
+    }
+    if (host?.kind === 'free' && host.label) return { kind: 'free', label: host.label };
+    if (host?.kind === 'reserved' && host.label) return { kind: 'reserved', label: host.label };
+    throw notFound('Ruta no encontrada');
+  });
+
   // Capabilities are reported from real server configuration; a provider is never announced as
   // available just because the UI would like it to be.
   app.get('/capabilities', async (): Promise<Capabilities> => ({
     paypal: config.paypal !== null,
-    chat: config.textProvider === 'gemini' ? config.gemini !== null : config.openai !== null,
-    // Report the provider actually selected so the client never announces the wrong one.
-    llmProvider: config.textProvider === 'gemini' ? 'gemini' : 'openai',
-    voice: config.voice.enabled,
-    voiceProvider: config.voice.provider,
+    avatar: config.napster !== null && Boolean(config.napster.agentIdEs) && Boolean(config.napster.agentIdEn),
     paypalClientId: config.paypal?.clientId ?? null,
     sandbox: true,
     email: deps.email !== null,
@@ -110,7 +124,8 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
   app.get('/events', async (req): Promise<{ events: FiestaEventWithDemo[] }> => {
     const session = await readSession(pool, config, req);
     if (!session) return { events: [] };
-    return { events: await listOwnedEvents(pool, session.id) };
+    const gate = await resolveEventPortalGate(pool, req, session.id);
+    return { events: await listOwnedEvents(pool, session.id, gate) };
   });
 
   app.post(
@@ -120,17 +135,46 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
       const session = await ensureSession(pool, config, req, reply);
       assertNoClientMoneyState(req.body);
       const input = parseOr400(eventInputSchema, req.body);
-      return createEvent(pool, session.id, input);
+      // NAP-S3: el avatarId debe existir en el catálogo y tener sus dos agentes listos.
+      if (input.avatarId !== undefined && input.avatarId !== null) {
+        const avatar = findAvatarById(input.avatarId);
+        if (!avatar || !avatarIsReady(avatar)) {
+          return reply.code(400).send({ error: 'avatar_unknown' }) as unknown as CreatedEvent;
+        }
+      }
+      // NAP-S2: solo el legado conserva PayPal; raíz y host de evento nacen con `none`.
+      const tenantMode = req.hostClassification?.kind === 'legacy' ? 'legacy' : 'none';
+      return createEvent(pool, session.id, input, tenantMode);
+    },
+  );
+
+  /** NAP-S3: el organizador elige quién recibe a sus invitados; `null` vuelve a la default. */
+  app.put(
+    '/events/:slug/avatar-choice',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (req, reply): Promise<{ event: FiestaEvent }> => {
+      const { slug } = parseOr400(slugParamSchema, req.params);
+      const { avatarId } = parseOr400(avatarChoiceSchema, req.body);
+      if (avatarId !== null) {
+        const avatar = findAvatarById(avatarId);
+        if (!avatar || !avatarIsReady(avatar)) {
+          return reply.code(400).send({ error: 'avatar_unknown' }) as unknown as { event: FiestaEvent };
+        }
+      }
+      const session = await readSession(pool, config, req);
+      const gate = await resolveEventPortalGate(pool, req, session?.id ?? null);
+      return { event: await setEventAvatarChoice(pool, slug, presentedAdminKey(req), avatarId, gate) };
     },
   );
 
   // Public invitation. A private code or a past-retention event yields no body.
   app.get('/events/:slug', async (req): Promise<{ event: FiestaEvent; guest: Guest | null }> => {
     const { slug } = parseOr400(slugParamSchema, req.params);
-    const event = await getEventBySlug(pool, slug);
+    const session = await readSession(pool, config, req);
+    const gate = await resolveEventPortalGate(pool, req, session?.id ?? null);
+    const event = await getEventBySlug(pool, slug, gate);
     await concealExpired(pool, event);
     assertActive(event);
-    const session = await readSession(pool, config, req);
     await assertPrivateAccess(pool, event, session?.id ?? null, presentedAdminKey(req));
     const guestRow = session ? await findGuestBySession(pool, event.id, session.id) : null;
     return {
@@ -146,7 +190,8 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
       const { slug } = parseOr400(slugParamSchema, req.params);
       const { code } = parseOr400(unlockSchema, req.body);
       const session = await ensureSession(pool, config, req, reply);
-      await unlockEvent(pool, session.id, slug, code);
+      const gate = await resolveEventPortalGate(pool, req, session.id);
+      await unlockEvent(pool, session.id, slug, code, gate);
       return { ok: true };
     },
   );
@@ -157,7 +202,8 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
     async (req): Promise<{ adminKey: string }> => {
       const { slug } = parseOr400(slugParamSchema, req.params);
       const session = await requireSession(pool, config, req);
-      return { adminKey: await bootstrapAdminKey(pool, session.id, slug) };
+      const gate = await resolveEventPortalGate(pool, req, session.id);
+      return { adminKey: await bootstrapAdminKey(pool, session.id, slug, gate) };
     },
   );
 
@@ -168,7 +214,9 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
       const { slug } = parseOr400(slugParamSchema, req.params);
       assertNoClientMoneyState(req.body);
       const input = parseOr400(eventInputSchema, req.body);
-      return { event: await updateEvent(pool, slug, presentedAdminKey(req), input) };
+      const session = await readSession(pool, config, req);
+      const gate = await resolveEventPortalGate(pool, req, session?.id ?? null);
+      return { event: await updateEvent(pool, slug, presentedAdminKey(req), input, gate) };
     },
   );
 
@@ -177,7 +225,9 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
     async (req): Promise<{ event: FiestaEvent }> => {
       const { slug } = parseOr400(slugParamSchema, req.params);
-      return { event: await closeEvent(pool, slug, presentedAdminKey(req)) };
+      const session = await readSession(pool, config, req);
+      const gate = await resolveEventPortalGate(pool, req, session?.id ?? null);
+      return { event: await closeEvent(pool, slug, presentedAdminKey(req), gate) };
     },
   );
 
@@ -186,7 +236,9 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
     { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
     async (req): Promise<{ ok: true }> => {
       const { slug } = parseOr400(slugParamSchema, req.params);
-      await deleteEvent(pool, slug, presentedAdminKey(req));
+      const session = await readSession(pool, config, req);
+      const gate = await resolveEventPortalGate(pool, req, session?.id ?? null);
+      await deleteEvent(pool, slug, presentedAdminKey(req), gate);
       return { ok: true };
     },
   );
@@ -198,7 +250,8 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
       const { slug } = parseOr400(slugParamSchema, req.params);
       const { name } = parseOr400(joinSchema, req.body);
       const session = await ensureSession(pool, config, req, reply);
-      return { guest: await joinEvent(pool, session.id, slug, name, presentedAdminKey(req)) };
+      const gate = await resolveEventPortalGate(pool, req, session.id);
+      return { guest: await joinEvent(pool, session.id, slug, name, presentedAdminKey(req), gate) };
     },
   );
 
@@ -209,7 +262,8 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
       const { slug } = parseOr400(slugParamSchema, req.params);
       const change = parseOr400(rsvpSchema, req.body);
       const session = await requireSession(pool, config, req);
-      return setRsvp(pool, session.id, slug, change, presentedAdminKey(req));
+      const gate = await resolveEventPortalGate(pool, req, session.id);
+      return setRsvp(pool, session.id, slug, change, presentedAdminKey(req), gate);
     },
   );
 
@@ -219,6 +273,7 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
     async (req): Promise<{ quote: Quote }> => {
       const { slug } = parseOr400(slugParamSchema, req.params);
       const session = await requireSession(pool, config, req);
+      const gate = await resolveEventPortalGate(pool, req, session.id);
       return {
         quote: await createQuoteForSession(
           pool,
@@ -227,6 +282,7 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
           config.quoteTtlSeconds,
           presentedAdminKey(req),
           requestLocale(req),
+          gate,
         ),
       };
     },
@@ -234,7 +290,9 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
 
   app.get('/events/:slug/dashboard', async (req): Promise<Dashboard> => {
     const { slug } = parseOr400(slugParamSchema, req.params);
-    return dashboardFor(pool, slug, presentedAdminKey(req));
+    const session = await readSession(pool, config, req);
+    const gate = await resolveEventPortalGate(pool, req, session?.id ?? null);
+    return dashboardFor(pool, slug, presentedAdminKey(req), gate);
   });
 
   app.post(
@@ -242,7 +300,9 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
     async (req): Promise<{ event: FiestaEvent }> => {
       const { slug } = parseOr400(slugParamSchema, req.params);
-      return { event: await confirmEvent(pool, slug, presentedAdminKey(req)) };
+      const session = await readSession(pool, config, req);
+      const gate = await resolveEventPortalGate(pool, req, session?.id ?? null);
+      return { event: await confirmEvent(pool, slug, presentedAdminKey(req), gate) };
     },
   );
 }

@@ -7,8 +7,6 @@ import type {
   Quote,
   OrderResult,
   Dashboard,
-  ChatResult,
-  ChatTranscript,
   ModerationActionResult,
   ModerationGuest,
   ModerationConversation,
@@ -20,25 +18,27 @@ import type {
   RecoveryConsumeResult,
 } from '../types';
 import type {
-  AssistantContext,
+  AvatarLang,
+  AvatarSessionErrorCode,
+  AvatarSessionRequest,
+  AvatarSessionResponse,
+  AvatarTag,
   DemoKind,
-  DraftEventProposal,
-  PresentationSuggestion,
-  PresentationSuggestionInput,
-  ReminderDraftResult,
-  ReminderTone,
-  VoiceAudience,
-  VoiceLeaseActivityResult,
-  VoiceLeaseReleaseResult,
-  VoiceProvider,
+  EventAvatarErrorCode,
+  EventAvatarStatusResponse,
+  EventAvatarUpload,
 } from '@fiestapay/shared';
-import { LOCALE_HEADER, translateServerError } from '@fiestapay/shared';
+import {
+  AVATAR_TAG_IDS,
+  LOCALE_HEADER,
+  avatarSessionErrorSchema,
+  avatarSessionResponseSchema,
+  eventAvatarErrorSchema,
+  eventAvatarStatusSchema,
+  translateServerError,
+} from '@fiestapay/shared';
 import { getActiveLocale } from '../i18n/locale-store';
-import { adminHeaderFor } from './admin-key';
-
-export interface OrganizerChatTranscript extends ChatTranscript {
-  greeting: string;
-}
+import { adminHeaderFor, adminKeyFor } from './admin-key';
 
 export class ApiError extends Error {
   status: number;
@@ -49,10 +49,128 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Error de `POST /api/avatar-session` (NAP-F3). Conserva el código cerrado del
+ * servidor y los segundos de `Retry-After`, que `request()` descartaría.
+ */
+export class AvatarSessionError extends ApiError {
+  code: AvatarSessionErrorCode | 'unknown';
+  retryAfterSec?: number;
+  constructor(message: string, status: number, code: AvatarSessionErrorCode | 'unknown', retryAfterSec?: number) {
+    super(message, status);
+    this.name = 'AvatarSessionError';
+    this.code = code;
+    if (retryAfterSec !== undefined) this.retryAfterSec = retryAfterSec;
+  }
+}
+
+/**
+ * Error de las rutas del avatar con foto (NAP-F6w). Conserva el código
+ * cerrado del servidor (`avatar_limit`, `avatar_upstream`) para que la
+ * sección elija el mensaje amable sin adivinar por el texto.
+ */
+export class EventAvatarError extends ApiError {
+  code: EventAvatarErrorCode | 'unknown';
+  constructor(message: string, status: number, code: EventAvatarErrorCode | 'unknown') {
+    super(message, status);
+    this.name = 'EventAvatarError';
+    this.code = code;
+  }
+}
+
+/**
+ * Cabeceras del avatar con foto (NAP-F6w): la misma clave de organizador
+ * del panel viaja en la misma cabecera (localStorage).
+ */
+function eventAvatarHeaders(slug: string): Headers {
+  const headers = new Headers({ 'Content-Type': 'application/json' });
+  headers.set(LOCALE_HEADER, getActiveLocale());
+  const organizerKey = adminKeyFor(slug);
+  if (organizerKey) headers.set('X-Fiesta-Admin-Key', organizerKey);
+  return headers;
+}
+
+function toEventAvatarError(data: unknown, status: number): EventAvatarError {
+  const parsed = eventAvatarErrorSchema.safeParse(data);
+  return new EventAvatarError(
+    'No se pudo procesar el avatar del evento',
+    status,
+    parsed.success ? parsed.data.error : 'unknown',
+  );
+}
+
+/** Lee `Retry-After` como segundos; las fechas HTTP se ignoran. */
+function parseRetryAfterHeader(res: Response): number | undefined {
+  try {
+    const raw = res.headers.get('Retry-After');
+    if (raw === null) return undefined;
+    const secs = Number.parseInt(raw.trim(), 10);
+    return Number.isFinite(secs) && secs >= 0 ? secs : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Entrada pública del catálogo de avatares (NAP-U3, `GET /api/avatars`;
+ * NAP-S3: 26 con displayName y tags). Nunca trae agentIds; la `default` ya
+ * viene elegida del servidor.
+ */
+export interface AvatarCatalogItem {
+  id: string;
+  firstName: string;
+  /** NAP-U5: nombre visible en la tarjeta del selector. */
+  displayName: string;
+  gender: 'female' | 'male';
+  previewUrl: string;
+  loopUrl: string | null;
+  /** NAP-U5: etiquetas cerradas para `suggest_avatars`. */
+  tags: string[];
+  default: boolean;
+}
+
+function isAvatarCatalogItem(value: unknown): value is AvatarCatalogItem {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const item = value as Record<string, unknown>;
+  return (
+    typeof item.id === 'string' &&
+    item.id.length > 0 &&
+    typeof item.firstName === 'string' &&
+    item.firstName.length > 0 &&
+    typeof item.displayName === 'string' &&
+    item.displayName.length > 0 &&
+    (item.gender === 'female' || item.gender === 'male') &&
+    typeof item.previewUrl === 'string' &&
+    item.previewUrl.length > 0 &&
+    (item.loopUrl === null || typeof item.loopUrl === 'string') &&
+    Array.isArray(item.tags) &&
+    item.tags.every((tag) => typeof tag === 'string') &&
+    typeof item.default === 'boolean'
+  );
+}
+
+/** Fila pública del directorio en la raíz Somos Panas (SP-6). */
+export interface PortalListedEvent {
+  slug: string;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  location: string;
+  siteSlug: string;
+  siteName: string;
+  url: string;
+  listingKind: 'live' | 'example';
+}
+
+/** Contrato congelado de `POST /api/sites` (SP-7); el botón de la portada lo consume cuando exista la ruta. */
+export interface CreateSiteResult {
+  site: { slug: string; url: string };
+  handoff: { code: string; expiresAt: string };
+}
+
 export const REQUEST_TIMEOUT_MS = 30_000;
 
-/** AI routes wait longer: the model answers before 45 s and the client gives it 55 s. */
-export const AI_REQUEST_TIMEOUT_MS = 55_000;
+// NAP-F5b: AI_REQUEST_TIMEOUT_MS murió con las rutas de IA propias.
 
 export const REQUEST_TIMEOUT_MESSAGES = {
   read: 'La solicitud tardó más de 30 segundos. Revisa tu conexión e inténtalo de nuevo.',
@@ -77,7 +195,7 @@ function timeoutMessageFor(method: string, budgetMs: number = REQUEST_TIMEOUT_MS
 }
 
 export interface RequestOptions extends RequestInit {
-  /** Per-request budget in ms. AI routes pass AI_REQUEST_TIMEOUT_MS; the rest keep 30 s. */
+  /** Per-request budget in ms. NAP-F5b: sin rutas de IA, todo queda en 30 s. */
   timeoutMs?: number;
 }
 
@@ -324,57 +442,8 @@ export const api = {
     });
   },
 
-  /**
-   * Optional AI help at the end of the creation assistant. The caller sends
-   * no personal data (no organizer name, no access code); on any failure it
-   * keeps the rule-based suggestion and never blocks publishing.
-   */
-  async suggestPresentation(input: PresentationSuggestionInput): Promise<PresentationSuggestion> {
-    return request<PresentationSuggestion>('/api/ai/suggest-presentation', {
-      method: 'POST',
-      body: JSON.stringify(input),
-      timeoutMs: AI_REQUEST_TIMEOUT_MS,
-    });
-  },
-
-  /**
-   * "Describe your gathering in one sentence" (step 1 of the creation assistant).
-   * The server never creates an event from it: the proposal only pre-fills the
-   * wizard and the organizer reviews every step before creating.
-   */
-  async draftEvent(text: string): Promise<DraftEventProposal> {
-    return request<DraftEventProposal>('/api/ai/draft-event', {
-      method: 'POST',
-      body: JSON.stringify({ text }),
-      timeoutMs: AI_REQUEST_TIMEOUT_MS,
-    });
-  },
-
-  /**
-   * Organizer-only drafted payment reminders. The drafts are returned for
-   * manual review (copy or open WhatsApp); nothing is ever sent automatically.
-   * The organizer key travels in the same header as the other organizer calls.
-   */
-  async draftReminders(slug: string, tone: ReminderTone): Promise<ReminderDraftResult> {
-    return request<ReminderDraftResult>(`/api/events/${encodeURIComponent(slug)}/reminders/draft`, {
-      method: 'POST',
-      body: JSON.stringify({ tone }),
-      timeoutMs: AI_REQUEST_TIMEOUT_MS,
-    });
-  },
-
-  async sendChat(slug: string, message: string): Promise<ChatResult> {
-    return request<ChatResult>(`/api/events/${encodeURIComponent(slug)}/chat`, {
-      method: 'POST',
-      body: JSON.stringify({ message }),
-      timeoutMs: AI_REQUEST_TIMEOUT_MS,
-    });
-  },
-
-  async getChatHistory(slug: string): Promise<ChatTranscript> {
-    return request<ChatTranscript>(`/api/events/${encodeURIComponent(slug)}/chat/history`);
-  },
-
+  // NAP-F5b: la IA propia (/ai/*, /chat, /reminders/draft) se retiró; la única
+  // IA del producto es la avatar Napster (createAvatarSession, abajo).
   async getModerationGuests(slug: string): Promise<{ guests: ModerationGuest[] }> {
     return request<{ guests: ModerationGuest[] }>(`/api/events/${encodeURIComponent(slug)}/moderation/guests`);
   },
@@ -420,101 +489,211 @@ export const api = {
     );
   },
 
-  async getVoiceToken(
-    slug: string
-  ): Promise<{ token: string; sessionConfig: Record<string, unknown>; maxSeconds: number; leaseId: string; audience?: VoiceAudience; provider?: VoiceProvider }> {
-    return request<{ token: string; sessionConfig: Record<string, unknown>; maxSeconds: number; leaseId: string; audience?: VoiceAudience; provider?: VoiceProvider }>(
-      `/api/events/${encodeURIComponent(slug)}/voice/token`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ consent: true }),
-      }
-    );
+  // NAP-F5b: voz y chats propios (/voice/*, /organizer-chat, /organizer-voice)
+  // retirados; la única IA del producto es la avatar Napster.
+  /** Listado de eventos marcados públicos; solo disponible en host raíz. */
+  async getPortalEvents(): Promise<{ events: PortalListedEvent[] }> {
+    return request<{ events: PortalListedEvent[] }>('/api/portal/events');
   },
 
-  /**
-   * Public informational voice. No event and no guest are created; only the session
-   * cookie, the shared daily budget and the per-session lease are used.
-   */
-  async getPublicVoiceToken(context: AssistantContext = 'landing'): Promise<{
-    token: string;
-    sessionConfig: Record<string, unknown>;
-    maxSeconds: number;
-    leaseId: string;
-    audience?: VoiceAudience;
-    provider?: VoiceProvider;
-  }> {
-    return request('/api/voice/public/token', {
-      method: 'POST',
-      body: JSON.stringify({ consent: true, context }),
-    });
-  },
-
-  /**
-   * Idempotent release, safe from pagehide with keepalive. The server ignores ids owned by
-   * another session. A network failure is the caller's to ignore; budget is not restored.
-   */
-  async releaseVoiceLease(
-    leaseId: string,
-    reason?: string,
-    keepalive = false,
-  ): Promise<VoiceLeaseReleaseResult> {
-    return request<VoiceLeaseReleaseResult>('/api/voice/lease/release', {
-      method: 'POST',
-      body: JSON.stringify({ leaseId, ...(reason ? { reason } : {}) }),
-      ...(keepalive ? { keepalive: true } : {}),
-    });
-  },
-
-  /** Real-interaction signal. `active:false` means the client must stop resources. */
-  async markVoiceActivity(leaseId: string): Promise<VoiceLeaseActivityResult> {
-    return request<VoiceLeaseActivityResult>('/api/voice/lease/activity', {
-      method: 'POST',
-      body: JSON.stringify({ leaseId }),
-    });
-  },
-
-  async executeVoiceTool(
-    slug: string,
-    payload: { leaseId: string; name: string; arguments: Record<string, unknown> }
-  ): Promise<{ response: unknown; quote?: Quote; actions?: string[] }> {
-    return request<{ response: unknown; quote?: Quote; actions?: string[] }>(
-      `/api/events/${encodeURIComponent(slug)}/voice/tool`,
-      {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      }
-    );
-  },
-
-  async sendOrganizerChat(slug: string, message: string): Promise<ChatResult> {
-    return request<ChatResult>(`/api/events/${encodeURIComponent(slug)}/organizer-chat`, {
-      method: 'POST',
-      body: JSON.stringify({ message }),
-      timeoutMs: AI_REQUEST_TIMEOUT_MS,
-    });
-  },
-
-  async getOrganizerChatHistory(slug: string): Promise<OrganizerChatTranscript> {
-    return request<OrganizerChatTranscript>(`/api/events/${encodeURIComponent(slug)}/organizer-chat/history`);
-  },
-
-  async getOrganizerVoiceToken(
-    slug: string,
-  ): Promise<{ token: string; sessionConfig: Record<string, unknown>; maxSeconds: number; leaseId: string; provider?: VoiceProvider }> {
-    return request(`/api/events/${encodeURIComponent(slug)}/organizer-voice/token`, {
-      method: 'POST',
-      body: JSON.stringify({ consent: true }),
-    });
-  },
-
-  async executeOrganizerVoiceTool(
-    slug: string,
-    payload: { leaseId: string; name: string; arguments: Record<string, unknown> },
-  ): Promise<{ response: unknown }> {
-    return request(`/api/events/${encodeURIComponent(slug)}/organizer-voice/tool`, {
+  /** Alta de espacio en la raíz (SP-7). Responde 404 mientras la ruta no esté fusionada. */
+  async createSiteSpace(payload: { slug: string; displayName: string }): Promise<CreateSiteResult> {
+    return request<CreateSiteResult>('/api/sites', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  },
+
+  /**
+   * Sesión de avatar Napster (NAP-F3 video, NAP-F4w texto). Usa `fetch` directo
+   * en vez de `request()` para conservar el código de error y `retryAfterSec`
+   * en 429. NAP-F5: `mode`/`socketUrl` salen del contrato compartido; la web
+   * endurece además el transporte a wss/https (el esquema acepta http).
+   */
+  /**
+   * Catálogo de avatares elegibles (NAP-U3). Filtra entradas malformadas en
+   * vez de romper la fila; una lista vacía esconde el selector. NAP-U5: solo
+   * etiquetas de la lista cerrada.
+   */
+  async getAvatars(): Promise<{ avatars: AvatarCatalogItem[] }> {
+    const data = await request<{ avatars: unknown }>('/api/avatars');
+    const list = Array.isArray(data?.avatars) ? data.avatars : [];
+    return {
+      avatars: list.filter(isAvatarCatalogItem).map((item) => ({
+        ...item,
+        tags: item.tags.filter((tag): tag is string => AVATAR_TAG_IDS.includes(tag as AvatarTag)),
+      })),
+    };
+  },
+
+  /**
+   * Cambia la avatar que recibe a los invitados (NAP-U5, NAP-S3).
+   * `PUT /api/events/:slug/avatar-choice` con la clave de organizador;
+   * `null` vuelve a la default. Responde el evento actualizado.
+   */
+  async setAvatarChoice(slug: string, avatarId: string | null): Promise<{ event: FiestaEvent }> {
+    const headers = new Headers();
+    const organizerKey = adminKeyFor(slug);
+    if (organizerKey) headers.set('X-Fiesta-Admin-Key', organizerKey);
+    return request<{ event: FiestaEvent }>(`/api/events/${encodeURIComponent(slug)}/avatar-choice`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ avatarId }),
+    });
+  },
+
+  async createAvatarSession(payload: {
+    lang: AvatarLang;
+    intent?: 'create';
+    eventSlug?: string;
+    /** NAP-U3: avatar elegida del catálogo; sin campo se usa la default. */
+    avatarId?: string;
+    mode?: AvatarSessionRequest['mode'];
+  }): Promise<AvatarSessionResponse> {
+    const headers = new Headers({ 'Content-Type': 'application/json' });
+    headers.set(LOCALE_HEADER, getActiveLocale());
+    // NAP-F4: con eventSlug, la misma clave de organizador del panel viaja en
+    // la misma cabecera que las llamadas del organizador (localStorage).
+    const organizerKey = payload.eventSlug ? adminKeyFor(payload.eventSlug) : null;
+    if (organizerKey) headers.set('X-Fiesta-Admin-Key', organizerKey);
+    const res = await fetch('/api/avatar-session', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    const headerRetry = parseRetryAfterHeader(res);
+    let data: unknown;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+    if (!res.ok) {
+      const parsed = avatarSessionErrorSchema.safeParse(data);
+      const code = parsed.success ? parsed.data.error : 'unknown';
+      const retryAfterSec = parsed.success ? (parsed.data.retryAfterSec ?? headerRetry) : headerRetry;
+      throw new AvatarSessionError(
+        `No se pudo abrir la sesión de avatar (${res.status})`,
+        res.status,
+        code,
+        retryAfterSec,
+      );
+    }
+    const parsed = avatarSessionResponseSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new AvatarSessionError('Respuesta inválida de la sesión de avatar', 502, 'avatar_upstream');
+    }
+    if (parsed.data.socketUrl !== undefined && !/^(wss|https):\/\//.test(parsed.data.socketUrl)) {
+      throw new AvatarSessionError('Respuesta inválida de la sesión de avatar', 502, 'avatar_upstream');
+    }
+    return parsed.data;
+  },
+
+  /** Cierre idempotente por handle; 204 no trae cuerpo. */
+  async endAvatarSession(handle: string): Promise<void> {
+    const headers = new Headers({ 'Content-Type': 'application/json' });
+    headers.set(LOCALE_HEADER, getActiveLocale());
+    const res = await fetch('/api/avatar-session/end', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers,
+      body: JSON.stringify({ handle }),
+    });
+    if (!res.ok) {
+      throw new ApiError(`No se pudo cerrar la sesión de avatar (${res.status})`, res.status);
+    }
+  },
+
+  /**
+   * Cierre best-effort al desmontar o en `pagehide` (NAP-F3): `sendBeacon`
+   * primero y `fetch` con `keepalive` si no hay beacon o lo rechaza.
+   */
+  queueAvatarSessionEnd(handle: string): void {
+    const payload = JSON.stringify({ handle });
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+        const blob =
+          typeof Blob === 'function'
+            ? new Blob([payload], { type: 'application/json' })
+            : payload;
+        if (navigator.sendBeacon('/api/avatar-session/end', blob)) return;
+      }
+    } catch {
+      // Sin beacon: se intenta el fetch con keepalive.
+    }
+    try {
+      const pending = fetch('/api/avatar-session/end', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+        keepalive: true,
+      });
+      // NAP-F3: el rechazo también se traga; en pagehide nadie lo recogería.
+      if (pending && typeof pending.catch === 'function') pending.catch(() => undefined);
+    } catch {
+      // El cierre nunca rompe la salida de la página.
+    }
+  },
+
+  /** Estado del avatar con foto del evento (NAP-F6w). Usa `fetch` directo para conservar el código cerrado. */
+  async getEventAvatar(slug: string): Promise<EventAvatarStatusResponse> {
+    const res = await fetch(`/api/events/${encodeURIComponent(slug)}/avatar`, {
+      credentials: 'same-origin',
+      headers: eventAvatarHeaders(slug),
+    });
+    let data: unknown;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+    if (!res.ok) throw toEventAvatarError(data, res.status);
+    const parsed = eventAvatarStatusSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new EventAvatarError('Respuesta inválida del avatar del evento', 502, 'unknown');
+    }
+    return parsed.data;
+  },
+
+  /** Sube la foto propia y pide generar el avatar (NAP-F6w). */
+  async uploadEventAvatar(slug: string, upload: EventAvatarUpload): Promise<EventAvatarStatusResponse> {
+    const res = await fetch(`/api/events/${encodeURIComponent(slug)}/avatar`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: eventAvatarHeaders(slug),
+      body: JSON.stringify(upload),
+    });
+    let data: unknown;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+    if (!res.ok) throw toEventAvatarError(data, res.status);
+    const parsed = eventAvatarStatusSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new EventAvatarError('Respuesta inválida del avatar del evento', 502, 'unknown');
+    }
+    return parsed.data;
+  },
+
+  /** Borra el avatar con foto; los invitados vuelven a la avatar general (NAP-F6w). 204 sin cuerpo. */
+  async deleteEventAvatar(slug: string): Promise<void> {
+    const res = await fetch(`/api/events/${encodeURIComponent(slug)}/avatar`, {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: eventAvatarHeaders(slug),
+    });
+    if (!res.ok) {
+      let data: unknown;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+      throw toEventAvatarError(data, res.status);
+    }
   },
 };

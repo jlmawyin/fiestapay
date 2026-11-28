@@ -4,10 +4,17 @@ import { UI_LABELS, formatEventDateTime, themePhrase, type Locale } from '@fiest
 import type { Dashboard, Capabilities, EventInput, ModerationGuest } from '../types';
 import { api, ApiError } from '../api/client';
 import { adminKeyFor, rememberAdminKey } from '../api/admin-key';
+import { NapsterAvatar } from '../components/avatar/NapsterAvatar';
+import { EventAvatarSection } from '../components/avatar/EventAvatarSection';
+import { HostAvatar } from '../components/avatar/HostAvatar';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { dashboardCatalog } from '../i18n/messages/organizerDashboard';
+import { shareCatalog } from '../i18n/messages/share';
 import { GuestGrid } from '../components/dashboard/GuestGrid';
 import { PaymentActivityPanel } from '../components/dashboard/PaymentActivityPanel';
+import { EventQrCards } from '../components/share/EventQrCards';
+import { ShareButtons } from '../components/share/ShareButtons';
+import '../styles/create-interview.css';
 import { ModerationPanel } from '../components/dashboard/ModerationPanel';
 import { ReminderDrafts } from '../components/dashboard/ReminderDrafts';
 import { OrganizerLinkCard } from '../components/dashboard/OrganizerLinkCard';
@@ -15,7 +22,7 @@ import { RecoveryEmailCard } from '../components/dashboard/RecoveryEmailCard';
 import { QrShareModal } from '../components/dashboard/QrShareModal';
 import { CreateEventForm } from '../components/events/CreateEventForm';
 import { Modal } from '../components/common/Modal';
-import { OrganizerAssistant } from '../components/chat/OrganizerAssistant';
+// NAP-F5b: el chat propio murió; NapsterAvatar es el único asistente.
 import { FundingStatusPanel, formatEventInstant } from '../components/common/FundingStatusPanel';
 import { ThemeScope } from '../components/events/ThemeScope';
 import {
@@ -96,6 +103,7 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
 }) => {
   const { locale, formatMoney } = useI18n();
   const m = useMessages(dashboardCatalog);
+  const s = useMessages(shareCatalog);
   const labels = UI_LABELS[locale];
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -106,6 +114,8 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  /** NAP-U5: estado de la foto propia para la prioridad de la anfitriona. */
+  const [photoStatus, setPhotoStatus] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [showClose, setShowClose] = useState(false);
@@ -319,6 +329,17 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
   };
 
   const { event, guests, guestTotals, audit, payments, paymentActivity, paypalNotifications } = dashboard;
+  // NAP-U3: las reuniones sin PayPal (colecta entre panas) no muestran
+  // ningún texto ni botón de PayPal; llevan dirección propia, QRs y share.
+  const isNone = event.paymentProvider === 'none';
+  const ownAddress = (() => {
+    if (event.publicUrl) return event.publicUrl;
+    try {
+      return publicInviteUrl(window.location.origin, event.slug);
+    } catch {
+      return shareableInviteUrl(inviteUrl);
+    }
+  })();
   const copy = gatheringCopy(event.template, locale);
   const canConfirm = !event.minimumCents || event.minimumReached;
   const theme = resolveTheme(event.template, event.theme);
@@ -412,9 +433,52 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         </div>
       </div>
 
+      <NapsterAvatar eventSlug={slug} avatarEnabled={capabilities?.avatar !== false} />
+      <EventAvatarSection slug={slug} onStatus={setPhotoStatus} />
+      <HostAvatar
+        slug={slug}
+        currentId={event.avatarId ?? null}
+        photoStatus={photoStatus}
+        onChanged={(avatarId) =>
+          setDashboard((prev) => (prev ? { ...prev, event: { ...prev.event, avatarId } } : prev))
+        }
+      />
+
       {storedKey ? (
         <>
-          <OrganizerLinkCard slug={slug} adminKey={storedKey} recoveryAvailable={capabilities?.email === true} />
+          {isNone ? (
+            <section className="panel" aria-label={s.shareTitle} data-testid="dashboard-share">
+              <h2 style={{ fontSize: '1.15rem', marginBottom: '0.35rem' }}>{s.shareTitle}</h2>
+              <p className="interview-address" data-testid="dashboard-public-url" style={{ marginBottom: '0.85rem' }}>
+                {ownAddress}
+              </p>
+              <EventQrCards
+                guestUrl={ownAddress}
+                adminUrl={`${window.location.origin}/e/${encodeURIComponent(slug)}/admin?k=${encodeURIComponent(storedKey)}`}
+              />
+              <div style={{ marginTop: '0.85rem' }}>
+                <ShareButtons
+                  title={event.title}
+                  dateLine={whenLabel}
+                  place={event.location}
+                  url={ownAddress}
+                  shareText={buildInviteShareText({
+                    template: event.template,
+                    theme: theme.key,
+                    title: event.title,
+                    location: event.location,
+                    startsAt: event.startsAt,
+                    endsAt: event.endsAt,
+                    priceCents: event.priceCents,
+                    inviteUrl: ownAddress,
+                    organizerName: event.organizerName,
+                  }, locale)}
+                />
+              </div>
+            </section>
+          ) : (
+            <OrganizerLinkCard slug={slug} adminKey={storedKey} recoveryAvailable={capabilities?.email === true} />
+          )}
           <RecoveryEmailCard slug={slug} available={capabilities?.email === true} />
         </>
       ) : null}
@@ -446,10 +510,17 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         )}
       </section>
 
-      <PaymentActivityPanel
-        activity={paymentActivity ?? []}
-        notifications={paypalNotifications ?? []}
-      />
+      {isNone ? (
+        <section className="panel" aria-label={m.colectaTitle} data-testid="dashboard-colecta">
+          <h2 style={{ fontSize: '1.15rem', marginBottom: '0.35rem' }}>{m.colectaTitle}</h2>
+          <p style={{ fontSize: '0.875rem', color: 'var(--color-ink-muted)', margin: 0 }}>{m.colectaBody}</p>
+        </section>
+      ) : (
+        <PaymentActivityPanel
+          activity={paymentActivity ?? []}
+          notifications={paypalNotifications ?? []}
+        />
+      )}
 
       <FundingStatusPanel event={event} audience="admin" parties={parties} />
 
@@ -609,7 +680,7 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         </p>
       </section>
 
-      <ReminderDrafts slug={slug} />
+      <ReminderDrafts />
 
       {/* Audit Trail */}
       {audit && audit.length > 0 && (
@@ -680,11 +751,6 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         </div>
       </Modal>
 
-      <OrganizerAssistant
-        slug={slug}
-        capabilities={capabilities}
-        theme={{ template: event.template, themeKey: event.theme, meal: event.meal }}
-      />
     </div>
     </ThemeScope>
   );

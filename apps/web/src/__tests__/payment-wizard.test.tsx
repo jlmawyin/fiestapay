@@ -4,8 +4,14 @@ import { fileURLToPath } from 'node:url';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { UI_LABELS } from '@fiestapay/shared';
+import { NapsterCompanionApiSdk } from '@touchcastllc/napster-companion-api';
 import { PublicInviteView } from '../views/PublicInviteView';
-import { api } from '../api/client';
+
+vi.mock('@touchcastllc/napster-companion-api', () => ({
+  NapsterCompanionApiSdk: { init: vi.fn() },
+  DataChannelMessageType: { SEND_MESSAGE: 'send_message', FUNCTION_CALL_OUTPUT: 'send_function_output' },
+}));
+import { AvatarSessionError, api } from '../api/client';
 import { I18nProvider } from '../i18n/I18nContext';
 import { setActiveLocale } from '../i18n/locale-store';
 import type { Capabilities, FiestaEvent, Guest, Quote } from '../types';
@@ -15,11 +21,10 @@ const labels = UI_LABELS.es;
 const caps: Capabilities = {
   paypal: false,
   paypalClientId: null,
-  chat: true,
-  llmProvider: 'openai',
-  voice: false,
+  paymentProvider: 'paypal_sandbox',
   sandbox: true,
   email: false,
+  avatar: true,
 };
 
 function eventFixture(over: Partial<FiestaEvent> = {}): FiestaEvent {
@@ -301,23 +306,30 @@ describe('payment wizard PayPal step', () => {
     expect(window.location.search).toBe('');
   });
 
-  it('opens the assistant orb in text mode without sending or starting voice', async () => {
+  it('opens the Napster avatar session from the ask-about-step link', async () => {
     vi.spyOn(api, 'getEventBySlug').mockResolvedValue({ event: eventFixture(), guest: null });
-    vi.spyOn(api, 'getChatHistory').mockResolvedValue({ messages: [] });
-    const send = vi.spyOn(api, 'sendChat');
-    const voiceToken = vi.spyOn(api, 'getVoiceToken');
-    const publicVoiceToken = vi.spyOn(api, 'getPublicVoiceToken');
+    const avatarSession = vi
+      .spyOn(api, 'createAvatarSession')
+      .mockRejectedValue(new AvatarSessionError('avatar caído', 503, 'avatar_upstream'));
+    vi.mocked(NapsterCompanionApiSdk.init).mockImplementation(async (getToken, config) => {
+      try {
+        await getToken();
+      } catch (error) {
+        config?.onError?.(error as Error);
+        throw error;
+      }
+      return { destroy: vi.fn() } as never;
+    });
     renderInvite();
 
     await screen.findByText(labels.paymentPathTitle);
     fireEvent.click(screen.getByRole('button', { name: labels.askAboutStep }));
 
-    expect(await screen.findByRole('dialog', { name: 'Agente FiestaPay' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Escribir' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('textbox', { name: /Mensaje para el asistente/i })).toBeInTheDocument();
-    expect(send).not.toHaveBeenCalled();
-    expect(voiceToken).not.toHaveBeenCalled();
-    expect(publicVoiceToken).not.toHaveBeenCalled();
+    // El aviso arranca la avatar montada (con el slug del evento); si la
+    // sesión falla, la tarjeta cae al recorrido fijo sin romper la vista.
+    await waitFor(() => expect(avatarSession).toHaveBeenCalledTimes(1));
+    expect(avatarSession).toHaveBeenCalledWith(expect.objectContaining({ eventSlug: 'fiesta-wizard' }));
+    expect(await screen.findByTestId('napster-avatar-fallback')).toBeInTheDocument();
   });
 });
 

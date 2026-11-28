@@ -1,114 +1,92 @@
-# FiestaPay
+# Somos Panas
 
-**FiestaPay is an AI party host that collects everyone's share with PayPal.** It is for organizers of meals, house parties, trips and events who want one link to answer questions, build the invitation, prepare each guest's fixed share in integer cents and collect it through PayPal Sandbox — and for judges who want to test the whole flow without a FiestaPay account.
+**Somos Panas** gives every group of friends — *panas* — its own space to organize get-togethers, invite people and keep the plan clear. Each group gets a subdomain such as `tu-grupo.somospanas.com`; every meetup also gets its own address such as `cumpledemaria.somospanas.com`, with a numeric suffix when the name is already taken. A free address offers to create the meetup by conversation. The root portal doubles as the product presentation and supports day and night themes.
 
-- **Live demo:** https://fiestapay.somospanas.com
-- **Judges demo (English):** https://fiestapay.somospanas.com/demo?lang=en
-- **Video:** [[VIDEO_URL]] (Jorge's placeholder until recording)
-- **Devpost:** [[DEVPOST_URL]] (Jorge's placeholder until submission)
-- **Source:** https://github.com/jlmawyin/fiestapay · MIT
+A **Napster avatar** welcomes people with a face and a voice. She introduces herself with her own name — Elena Navarro is the default — and never as “Pana”, which means “friend” in Ecuador. She explains the product, answers questions and guides the next step without taking the final action for the person.
 
-**Test it without a FiestaPay account.** Open the judges demo, use a fictional name and follow **Try a PayPal payment**: **Show test account** reveals the shared fictional PayPal Sandbox buyer, so no personal PayPal account or card is needed. Gemini runs server-side, so no Gemini key or account is required; PostgreSQL stays private behind the API; AG Grid Community renders the organizer and judges tables. Everything is PayPal Sandbox, never live money.
+## The three visitors
 
-**The text flow.** In the public chat, type **“Build a BBQ for 10 at $15 each”**. The agent returns a complete proposal card (type, people, server-computed share per person, date and place); **Review in Create** hands that whole proposal to the creation wizard. The organizer reviews and edits it, then presses **Publish** once — the only publication step, always human. Voice prepares the same steps, asks for microphone consent and leaves the final button to the person; the agent never publishes, pays or confirms.
+| Visitor | Where they arrive | What the avatar does |
+| --- | --- | --- |
+| **Public** | `somospanas.com` | Introduces Somos Panas, offers public events, and suggests creating a space or a meetup. |
+| **Creator** | The root `/create` interview | Asks one question at a time (type, date, time, place, headcount, share), fills the draft with `fill_event_draft` and its `step`, and offers `suggest_avatars` by meetup tag. The person reviews and publishes. |
+| **Guest** | The meetup subdomain | Greets them by the event name, shows the details and guides them to **Confirm attendance**; the person presses the button. |
 
-**Demo funding uses the real fixed-share flow.** The guest agent prepares the quote server-side in integer cents; the person approves it and the capture is verified by the server. RSVP is a separate state from payment. The demo does not use escrow, automatic refunds triggered by a promise, a Buyer Guarantee claim or live money.
+Visitor type is decided on the server from the host, the account session and the event access rules — never from a browser-provided role.
 
-**Measured AI draft quality (10 Nov 2026).** `POST /api/ai/draft-event` answered 10/10 AI drafts (5 English, 5 Spanish), with 43 of 44 expected fields correct (97.7 %); median latency ≈ 2.0 s and p90 ≈ 3.0 s. In real Gemini Live sessions, the voice guide navigated and highlighted the target in 4 of 5 runs (the miss was a synthetic-test-audio artifact).
+## The avatar catalog
 
-**Measured guest quotes.** In 10 guest-chat turns on one isolated demo event (5 EN, 5 ES), 8 returned a quote and all 8 matched the expected cents. One reply omitted a quote and one returned HTTP 503. Median latency was 3.83 s across all turns (p90 4.60 s). Gemini usage was estimated at $0.18 for the event's 10 turns (about $0.018 per turn, 18 of 19 provider requests metered).
+`contenido/avatares.json` holds **26 eligible avatars** with a display name, gender, preview, voice and one to three closed tags. Each non-default avatar has its own Spanish and English Napster agents, created by `scripts/napster/setup.mjs --catalog`; the default uses `NAPSTER_AGENT_ID_ES` / `NAPSTER_AGENT_ID_EN`.
 
-## The judge path in 60 seconds
+- `GET /api/avatars` returns only ready entries and never agent ids.
+- `suggest_avatars {tag}` is creator-only: the web highlights matching avatars and the person chooses.
+- The organizer’s chosen avatar receives the guests. If the organizer also has a ready photo avatar, the photo wins.
+- A guest’s `avatarId` from the browser never changes the meetup avatar; the priority is organizer photo, meetup choice, default.
 
-1. Open the [Judges demo in English](https://fiestapay.somospanas.com/demo?lang=en). In the public chat, type **“Build a BBQ for 10 at $15 each”**. The agent answers with a proposal card; press **Review in Create** to carry the complete proposal into the wizard, review every field and publish manually once.
-2. Open the assistant and choose **Talk**. Accept the microphone consent, then say **“Take me to the judges demo”**: the voice agent opens the demo and highlights **Try a PayPal payment**. Describe a party and it leaves your sentence in Create for you to press **Fill with AI**. It can open pages and highlight controls, but it never clicks, publishes, pays or creates anything.
-3. Press **Try a PayPal payment** to create a fictional demo meal, join as **Demo Guest** with one companion and ask the guest agent to prepare the payment. It calls the server tools; the screen shows **Approve in PayPal $X** for the server quote. Its voice guide can highlight the quote and payment controls but never presses them.
-4. Copy the shared sandbox buyer from **Show test account**, approve personally inside PayPal Sandbox, then return and use **Check / Continue Capture**. The status changes to **Paid** only after the server verifies the capture.
-5. Open the organizer dashboard: search, **Pending only**, CSV export, highlighted rows and a server-calculated totals row in **AG Grid Community**. **PayPal activity** shows verified captures and refunds with their reference and amount. Ask for a reminder in a friendly, funny or formal tone, then copy it or open WhatsApp and send it yourself.
+## How Napster is integrated
 
-Everything on this path is PayPal Sandbox. No real money moves, no escrow or automatic promise-based refund exists, and no message is sent automatically.
+```text
+Browser                    Fastify API                     Napster
+   |  POST /api/avatar-session |                              |
+   |-------------------------->| POST /public/agents/{id}/     |
+   |                           |      connections              |
+   |<--- token + handle -------|                              |
+   |  Web SDK / WebSocket      |                              |
+   |<=================== audio, video or text ===============>|
+   |  implicit tool call ----->| validated in the browser     |
+   |  final click: the person  |                              |
+```
 
-## What the AI does
+- The API key stays on the server. The browser receives only a short-lived connection token and an opaque handle.
+- Video sessions use **WebRTC** with `videoPolicy: "deferred"`; if video is unavailable, the client falls back to a **Napster text session over WebSocket**.
+- The avatar uses **nine** implicit tools with closed argument lists: `list_open_events`, `open_event`, `start_new_space`, `show_on_screen`, `fill_event_draft`, `draft_reminder`, `show_event_details`, `open_avatar_settings` and `suggest_avatars`. The model never supplies URLs or selectors.
+- The avatar UI shows captions, microphone states, deduplicated chat messages and “Powered by Napster”.
+- The organizer can upload their own photo with explicit consent. Napster creates a v1 companion and, when it is ready, event-specific agents greet guests with that face. The photo is deleted from our database once the avatar is ready.
+- After publish, the web sends the system message `published`; the avatar reminds the organizer to save the administrator QR and offers an optional recovery email.
+- FAQ collections exist in Spanish and English; an optional Napster knowledge base uses the two Markdown files served at `/conocimiento/somospanas.{es,en}.md`.
 
-**Only Gemini runs in production.** Text uses `gemini-3.5-flash`; real-time voice uses `gemini-3.8-live` through the Gemini Live API. The server mints a single-use ephemeral token for each voice session, so the API key never reaches the browser. OpenAI and AssemblyAI remain available only as configuration rollbacks; they are not active.
+See [docs/NAPSTER.md](docs/NAPSTER.md) for every endpoint and file.
 
-- **AI builds the party.** Start with one sentence or answer a short guided interview. Both use `POST /api/ai/draft-event` and open an editable summary before publication. You can also fill in the invitation manually. **Suggest with AI** proposes a cover and theme. AI-drafted reminders come in friendly, funny or formal tones; the organizer copies them or opens WhatsApp and sends them personally.
-- **Public agent.** Text chat has one tool, `draft_invitation`, which turns the person's own sentence into a complete proposal card for **Review in Create**; it never publishes. Text replies can link to existing on-screen labels and the **Guided tour**. Voice has `show_on_screen`, which opens FiestaPay pages, highlights controls and can place the spoken party sentence in Create; the person presses **Fill with AI**.
-- **Guest agent.** Tools: `get_event_details`, `get_my_status`, `get_collection_progress`, `prepare_quote`, `propose_rsvp`. It can prepare a payment: the server computes the amount in integer cents and the screen shows **Approve in PayPal $X**. Only the person approves inside PayPal. RSVP remains a separate, on-screen confirmation.
-- **Organizer agent.** Read-only: collection progress, who still owes, and reminder drafts.
-- **Limits.** 200 AI queries per day in total and 60 per session; voice sessions last at most 120 seconds; 25 seconds per call and 40 seconds per query.
+## Payments
 
-## What PayPal guarantees
+- New meetups created from the root use provider `none`: the share is a **collection among friends**, there is no online checkout, and the guest finishes with **Confirm attendance**.
+- The legacy FiestaPay host keeps **PayPal Sandbox** for historical events and the payment demos. No real money moves.
+- Attendance and payment are separate states. The avatar never charges, refunds or confirms a payment.
 
-PayPal Orders v2 runs with intent `CAPTURE`. The person approves inside PayPal, and the server verifies the capture, currency, amount, order reference and receiver before updating an idempotent ledger. Webhooks pass PayPal's `verify-webhook-signature` check. Amounts are calculated only on the server, in integer cents.
+## Run it locally
 
-This is PayPal **Sandbox**: no real money is charged or transferred. There is no fund holding, escrow or Payouts, and Buyer Protection depends on PayPal eligibility and terms. Attendance and payment are separate states; a confirmed guest can still be unpaid.
-
-## Stack and quality
-
-React + Vite, Fastify and PostgreSQL, deployed in isolated containers behind Nginx and Cloudflare. PayPal Orders v2 and signed webhooks; Google Gemini Live and text APIs; AG Grid Community for the organizer and judges dashboards. The interface is bilingual ES/EN with a selector, `?lang=en`, and browser-language detection. Event times use America/Guayaquil and amounts are USD.
-
-CI runs the PostgreSQL integration and web suites, lint, type checks and builds.
-
-## Run locally
-
-Requirements: Node.js 24, npm, PostgreSQL 16. This app has no in-memory production database or fake-payment mode.
+Requirements: Node.js 24, npm and PostgreSQL 16.
 
 ```sh
 npm ci
 cp .env.example .env
-# Set DATABASE_URL and optional provider credentials in .env.
+# Set DATABASE_URL, PUBLIC_ORIGIN and the NAPSTER_* variables in .env.
+npm run napster:diagnostico          # checks the Napster host and saves the avatar catalog
+npm run napster:setup -- --companion <id> --voice <voice> --knowledge-base-url https://somospanas.com/conocimiento
+npm run napster:setup -- --catalog   # creates the ES/EN agents for every catalog avatar
 npm run dev
 ```
 
-Open http://localhost:5173. The API runs on port 3000 and applies versioned migrations on startup. For a production build: `npm run build`, then `npm start`.
+`npm run napster:setup -- --dry-run` prints the base plan without network calls; `--catalog --dry-run` does the same for the catalog. The web app runs at `http://localhost:5173`; the API runs on port 3000.
 
-Keep all keys server-side. `.env` and `.env.buyers` are ignored. Set `GEMINI_API_KEY` (optional `GEMINI_LIVE_MODEL`, `GEMINI_TEXT_MODEL`); the browser only ever receives a single-use ephemeral token locked to the model and configuration. `VOICE_PROVIDER=assemblyai` and `AI_TEXT_PROVIDER=openai` (with `ASSEMBLYAI_API_KEY` / `OPENAI_API_KEY`) remain as configuration rollbacks. `LLM_PROVIDER=openai` is accepted for compatibility; any other value is rejected. Missing keys or API failures leave the manual invitation flow available. Consumer chat subscriptions do not configure API access.
-
-PayPal must use one **sandbox Business merchant** and sandbox client ID/secret. Set `PAYPAL_MERCHANT_ID` to that merchant's ID and `PAYPAL_WEBHOOK_ID` to the registered webhook ID, not its URL. Register:
-
-```text
-https://fiestapay.somospanas.com/api/paypal/webhook
-CHECKOUT.ORDER.APPROVED
-CHECKOUT.ORDER.COMPLETED
-PAYMENT.CAPTURE.COMPLETED
-PAYMENT.CAPTURE.DECLINED
-PAYMENT.CAPTURE.REFUNDED
-```
-
-An approved order is not a payment. The server verifies the capture, currency, amount, order reference and receiver before updating the ledger. A webhook must pass PayPal signature verification.
-
-## Verify
+## Tests
 
 ```sh
-npm run check
-npm run providers:check
-node --env-file=.env scripts/check-webhook.mjs
+npm run verificar
 ```
 
-Database integration tests require a dedicated `DATABASE_URL` (for example, database `fiestapay_test`). They create isolated random schemas and remove only those schemas. CI supplies PostgreSQL. Tests without a database are explicitly skipped. Fake PayPal/model adapters exist only in tests and cannot be selected by browser input.
+This validates `contenido/`, runs the Somos Panas map tests and then `npm run check` (lint, typecheck, full test suite and build). Integration tests need PostgreSQL 16 through `DATABASE_URL`; CI supplies it and the suite requires zero skipped tests.
 
-`scripts/smoke-providers.mjs --chat --order --voice` is an **explicit integration probe** against a running local API. It creates demo data, may consume AI credits and creates an unapproved sandbox order. It never substitutes for buyer approval or a real human microphone test. Evidence is saved privately under `.local/`.
+## Relationship to FiestaPay
+
+FiestaPay was the base project: fixed-share events, PayPal Sandbox, guests, RSVP and the legacy demo. **The entire Napster layer and the multi-tenant Somos Panas site — root portal, group spaces, meetup subdomains, site administration, the 26-avatar catalog, avatar sessions, tools, FAQ and knowledge — are new work built during Napster API Ignite.** The legacy FiestaPay host remains as the judges’ demo for the PayPal Sandbox flow.
 
 ## Documents
 
-- [Three-minute judge walkthrough](docs/JUDGES.md)
-- [Video script (2:45 maximum)](docs/VIDEO_SCRIPT.md)
-- [Devpost submission draft](docs/DEVPOST_DRAFT.md)
-- [Project history and release evidence](docs/HISTORY.md)
-- [Gemini runtime](docs/GEMINI.md)
-- [AI contribution disclosure](docs/AI_TOOLS.md)
-- [Architecture and trust boundaries](docs/ARCHITECTURE.md)
+- [Napster integration](docs/NAPSTER.md)
+- [Five-minute judge guide](docs/JUDGES.md)
+- [Devpost draft](docs/DEVPOST_DRAFT.md)
+- [Video script](docs/VIDEO_SCRIPT.md)
+- [Architecture](docs/ARCHITECTURE.md)
 - [API contract](docs/API.md)
-- [Contabo deployment and recovery](docs/OPERATIONS.md)
-- [Approved daily plan (internal history)](docs/internal/PLAN_DIARIO.md)
-
-Deposits, open funds, collaborative expense splitting, physical contributions, discounts and beneficiary payouts are outside committed scope. No live payment processing is enabled.
-
-## Not claimed
-
-Real-money payments, escrow, automatic refunds based on a promise, a Buyer Guarantee beyond PayPal's own eligibility and terms, automatic WhatsApp sending, a new physical-phone payment test, a published video and a completed Devpost submission are not claimed.
-
-## License
-
-MIT, see [LICENSE](LICENSE). Fixed SVG covers are original project illustrations. Fonts are self-hosted through Fontsource; their package licenses are retained. AG Grid Community is used without enterprise features.
+- [AI contribution disclosure](docs/AI_TOOLS.md)

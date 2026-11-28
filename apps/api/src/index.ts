@@ -11,7 +11,7 @@ const config = loadConfig();
 // Production requires real persistence and a known public origin. There is no in-memory
 // fallback and no implicit origin allowlist: failing fast beats serving a broken demo.
 if (!config.databaseUrl) {
-  console.error('DATABASE_URL es obligatorio: FiestaPay requiere PostgreSQL.');
+  console.error('DATABASE_URL es obligatorio: Somos Panas requiere PostgreSQL.');
   process.exit(1);
 }
 if (config.allowedOrigins.length === 0) {
@@ -34,7 +34,6 @@ const stopFunding = startFundingLoop(pool, fundingPaypal, (err) => app.log.error
 });
 
 if (!config.paypal) app.log.warn(`PayPal deshabilitado: ${config.paypalDisabledReason}`);
-if (config.textProvider === 'openai' && !config.openai) app.log.warn(`Chat deshabilitado: ${config.openaiDisabledReason}`);
 
 const shutdown = async (signal: string): Promise<void> => {
   app.log.info(`cerrando por ${signal}`);

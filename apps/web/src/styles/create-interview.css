@@ -1,0 +1,563 @@
+/* Entrevista de creación (NAP-U3): avatar a la izquierda, formulario a la
+ * derecha; en el celular, apilado y sin adornos. El dorado marca solo el
+ * paso activo. Respeta reducir-movimiento en el cambio de paso. */
+
+:root {
+  --color-gold: var(--sp-color-yellow, #c9a227);
+  --color-gold-tint: var(--sp-color-yellow-tint, #fdf6e3);
+}
+
+.interview {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.interview-head h1 {
+  font-size: 1.6rem;
+  color: var(--color-ink);
+  margin: 0 0 0.25rem;
+}
+
+.interview-head p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--color-ink-muted);
+}
+
+.interview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .interview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Fila de avatares. */
+.interview-picker {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 0.9rem 1rem;
+}
+
+.interview-picker-title {
+  font-size: 0.95rem;
+  margin: 0 0 0.6rem;
+  color: var(--color-ink);
+}
+
+.interview-picker-row {
+  display: flex;
+  gap: 0.6rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.interview-pick {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 92px;
+  padding: 0.5rem;
+  background: transparent;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--color-ink);
+}
+
+.interview-pick img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.interview-pick-name {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.interview-pick-active {
+  border-color: var(--color-gold, #c9a227);
+  background: var(--color-gold-tint, #fdf6e3);
+}
+
+.interview-pick-suggested {
+  outline: 2px dashed var(--color-teal);
+  outline-offset: 2px;
+}
+
+.interview-pick-badge {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-teal);
+}
+
+.interview-pick-more {
+  justify-content: center;
+  font-weight: 700;
+  min-height: 104px;
+}
+
+.interview-photo-note {
+  display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+  margin: 0.7rem 0 0;
+  font-size: 0.875rem;
+  color: var(--color-ink-muted);
+}
+
+.interview-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(10 25 48 / 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 60;
+}
+
+.interview-dialog {
+  background: var(--color-surface, #fff);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  max-width: 640px;
+  width: 100%;
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.interview-dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.interview-dialog-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.interview-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 0.6rem;
+}
+
+/* Pasos del formulario. */
+.interview-form {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem 1.25rem 1.25rem;
+  min-width: 0;
+}
+
+.interview-steps {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.interview-step-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem 0.35rem 0.35rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-ink-muted);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.interview-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--color-surface-subtle);
+  font-weight: 800;
+  font-size: 0.875rem;
+}
+
+.interview-step-active {
+  border-color: var(--color-gold, #c9a227);
+  color: var(--color-ink);
+  background: var(--color-gold-tint, #fdf6e3);
+}
+
+.interview-step-active .interview-step-num {
+  background: var(--color-gold, #c9a227);
+  color: #12263a;
+}
+
+.interview-draft-notice {
+  margin: 0 0 0.85rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-md);
+  background: var(--color-gold-tint, #fdf6e3);
+  border: 1px solid var(--color-gold, #c9a227);
+  font-size: 0.875rem;
+  color: var(--color-ink);
+}
+
+.interview-step {
+  animation: interview-step-in 220ms ease-out;
+}
+
+@keyframes interview-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .interview-step {
+    animation: none;
+  }
+}
+
+.interview-step > h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.8rem;
+  color: var(--color-ink);
+}
+
+.interview-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.interview-fields .form-label {
+  margin-bottom: -0.25rem;
+}
+
+.interview-templates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.interview-template {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-ink);
+  font-weight: 700;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.interview-template-active {
+  border-color: var(--color-gold, #c9a227);
+  background: var(--color-gold-tint, #fdf6e3);
+}
+
+.interview-quota-note,
+.interview-hint,
+.interview-address-willbe {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-ink-muted);
+}
+
+.interview-address-willbe {
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.interview-quota-note {
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.interview-review {
+  margin: 0 0 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.interview-review-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.88rem;
+}
+
+.interview-review-row dt {
+  color: var(--color-ink-muted);
+  margin: 0;
+}
+
+.interview-review-row dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+  color: var(--color-ink);
+}
+
+.interview-publish {
+  margin-top: 0.5rem;
+  align-self: flex-start;
+}
+
+.interview-error {
+  margin: 0.8rem 0 0;
+  color: var(--color-coral);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.interview-creating {
+  margin: 0.8rem 0 0;
+  color: var(--color-ink-muted);
+  font-size: 0.9rem;
+}
+
+.interview-nav {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Pantalla final. */
+.interview-final {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  min-width: 0;
+}
+
+.interview-final h2 {
+  font-size: 1.05rem;
+  margin: 0 0 0.5rem;
+  color: var(--color-ink);
+}
+
+.interview-address {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+
+.interview-preview {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-surface, #fff);
+}
+
+.interview-preview-body {
+  padding: 0.8rem 1rem 1rem;
+}
+
+.interview-preview-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+
+.interview-preview-title {
+  margin: 0 0 0.3rem;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.interview-preview-line {
+  margin: 0.1rem 0;
+  font-size: 0.9rem;
+  color: var(--color-ink-muted);
+}
+
+/* Compartir: botones y QR. */
+.share-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.share-qr-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.share-copied {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-teal);
+  min-height: 1.2em;
+}
+
+.share-qrs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.share-qr {
+  margin: 0;
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-start;
+  flex: 1 1 260px;
+}
+
+.share-qr-box {
+  display: inline-block;
+  background: #fff;
+  padding: 0.5rem;
+  border-radius: 8px;
+}
+
+.share-qr-guest .share-qr-box {
+  border: 3px solid var(--color-teal);
+}
+
+.share-qr-admin .share-qr-box {
+  border: 3px dashed var(--color-coral);
+  background: #fff5f3;
+}
+
+.share-qr figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--color-ink-muted);
+}
+
+.share-qr figcaption strong {
+  color: var(--color-ink);
+  font-size: 0.92rem;
+}
+
+.share-qr-warning {
+  font-weight: 800;
+  color: var(--color-coral);
+}
+
+/* NAP-U5: el dorado es solo del paso activo y del botón principal. En la
+ * entrevista, la acción principal va dorada y las demás con borde fino;
+ * ningún azul llamativo compite con el dorado.
+ */
+.interview .btn-primary {
+  background: var(--color-gold, #c9a227);
+  border-color: var(--color-gold, #c9a227);
+  color: #12263a;
+}
+
+.interview .btn-primary:hover:not(:disabled) {
+  background: #eab54e;
+  border-color: #eab54e;
+}
+
+.interview .napster-btn:not(.napster-btn-gold):not(.napster-btn-secondary) {
+  background: transparent;
+  color: var(--color-ink);
+  border: 1px solid var(--color-border);
+}
+
+/* NAP-U5: sugeridas por tag, arriba de la fila y sin dorado. */
+.interview-suggested {
+  margin-bottom: 0.7rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.interview-suggested-title {
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+  color: var(--color-ink);
+}
+
+/* NAP-U5: quién recibe a los invitados (pantalla final y panel). */
+.host-avatar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+
+.host-avatar-title {
+  font-size: 1.05rem;
+  margin: 0;
+  color: var(--color-ink);
+}
+
+.host-avatar-current {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.host-avatar-current img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.host-avatar-note {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-ink-muted);
+}
+
+/* NAP-U5: foco visible en tarjetas y pasos (teclado). */
+.interview-pick:focus-visible,
+.interview-template:focus-visible,
+.interview-step-dot:focus-visible {
+  outline: 3px solid var(--color-teal);
+  outline-offset: 2px;
+}

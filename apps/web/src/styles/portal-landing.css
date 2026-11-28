@@ -1,0 +1,426 @@
+/**
+ * Portada de somospanas.com (NAP-U2): presentación con un solo foco. Solo
+ * variables `var(--sp-color-*)` y tokens SP, que cambian con data-tema.
+ * El dorado solo va en el botón principal y en el paso activo.
+ */
+.portal-page {
+  font-family: var(--sp-font-body);
+  font-size: var(--sp-font-size-base);
+  line-height: var(--sp-line-height-body);
+  color: var(--sp-color-ink);
+  background: var(--sp-color-cloudwhite);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0 0 2rem;
+}
+
+@media (min-width: 640px) {
+  .portal-page {
+    padding-bottom: 3rem;
+  }
+}
+
+.portal-wrap {
+  width: 100%;
+  max-width: 60rem;
+  margin: 0 auto;
+}
+
+/* El foco se ve en los dos modos (azul del tema sobre el fondo del tema). */
+.portal-page :focus-visible {
+  outline: 3px solid var(--sp-color-blue);
+  outline-offset: 2px;
+}
+
+.portal-page h2 {
+  font-family: var(--sp-font-display);
+  line-height: var(--sp-line-height-heading);
+  font-size: 1.5rem;
+  margin: 0 0 var(--sp-space-md);
+  color: var(--sp-color-ink);
+}
+
+.portal-muted {
+  color: var(--sp-color-ink-muted);
+  font-size: 0.875rem;
+}
+
+/* Barra mínima: logo y tema, sin menús. */
+.portal-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-space-sm);
+  padding: var(--sp-space-md) 0;
+  border-bottom: 1px solid var(--sp-color-border);
+}
+
+/* Botón de sol y luna (44 px, sin brillo). */
+.sp-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--sp-radius-md);
+  border: 1px solid var(--sp-color-border);
+  background: transparent;
+  color: var(--sp-color-ink);
+  cursor: pointer;
+}
+
+/* Primera pantalla: frase y botón a la izquierda, avatar a la derecha. */
+.portal-hero {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-space-xl);
+  padding: var(--sp-space-2xl) 0 var(--sp-space-xl);
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .portal-hero {
+    grid-template-columns: 1.1fr 0.9fr;
+  }
+}
+
+.portal-hero h1 {
+  font-family: var(--sp-font-display);
+  line-height: var(--sp-line-height-heading);
+  font-size: clamp(1.9rem, 4.5vw, 2.75rem);
+  margin: 0 0 var(--sp-space-md);
+  color: var(--sp-color-ink);
+}
+
+.portal-hero-text {
+  font-size: 1rem;
+  color: var(--sp-color-ink-muted);
+  margin: 0 0 var(--sp-space-md);
+  max-width: 34rem;
+}
+
+.portal-pana-note {
+  font-size: 0.875rem;
+  color: var(--sp-color-ink-muted);
+  margin: 0 0 var(--sp-space-lg);
+}
+
+.portal-hero-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-space-xs);
+}
+
+/* Único botón dorado: tinta oscura fija sobre dorado (10:1 en los dos modos). */
+.portal-btn-gold {
+  border: none;
+  border-radius: var(--sp-radius-md);
+  min-height: 56px;
+  padding: 0.9rem 2rem;
+  font-family: var(--sp-font-body);
+  font-size: 1.125rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: var(--sp-color-yellow);
+  color: #12263A;
+}
+
+.portal-btn-gold:hover:not(:disabled) {
+  background: #EAB54E;
+}
+
+.portal-lang-link {
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 0.25rem;
+  font-family: var(--sp-font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--sp-color-blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.portal-hero-avatar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-space-sm);
+  min-width: 0;
+}
+
+.portal-powered {
+  font-size: 0.875rem;
+  color: var(--sp-color-ink-muted);
+  margin: 0;
+}
+
+/* La avatar «hablando»: globo de subtítulo sobre foto o loop. */
+.portal-spotlight {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-space-sm);
+  min-width: 0;
+}
+
+.portal-spotlight-bubble {
+  background: var(--sp-color-surface);
+  border: 1px solid var(--sp-color-border);
+  border-radius: var(--sp-radius-lg);
+  padding: var(--sp-space-sm) var(--sp-space-md);
+  font-size: 1rem;
+  color: var(--sp-color-ink);
+  margin: 0;
+  max-width: 26rem;
+}
+
+.portal-spotlight-media {
+  width: 100%;
+  max-height: 26rem;
+  object-fit: cover;
+  border-radius: var(--sp-radius-lg);
+  border: 1px solid var(--sp-color-border);
+  background: var(--sp-color-surface-subtle);
+  aspect-ratio: 4 / 3;
+}
+
+@media (min-width: 900px) {
+  .portal-spotlight-media {
+    aspect-ratio: 4 / 5;
+  }
+}
+
+.portal-section {
+  padding: var(--sp-space-xl) 0;
+}
+
+/* Tres pasos seleccionables; el activo lleva el dorado. */
+.portal-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-space-md);
+}
+
+@media (min-width: 720px) {
+  .portal-steps {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.portal-step {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-space-xs);
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--sp-color-border);
+  border-radius: var(--sp-radius-md);
+  padding: var(--sp-space-md);
+  font-family: var(--sp-font-body);
+  color: var(--sp-color-ink);
+}
+
+.portal-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--sp-radius-full);
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--sp-color-ink-muted);
+  border: 1px solid var(--sp-color-border);
+}
+
+.portal-step-title {
+  font-family: var(--sp-font-display);
+  font-weight: 800;
+  font-size: 1.125rem;
+}
+
+.portal-step-text {
+  font-size: 1rem;
+  color: var(--sp-color-ink-muted);
+}
+
+.portal-step-active {
+  background: var(--sp-color-yellow-tint);
+  border-color: var(--sp-color-border-dark);
+}
+
+.portal-step-active .portal-step-num {
+  background: var(--sp-color-yellow);
+  border-color: var(--sp-color-yellow);
+  color: #12263A;
+}
+
+/* Miniatura de invitación terminada con QR real (caja siempre blanca). */
+.portal-sample {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-space-md);
+  align-items: start;
+}
+
+@media (min-width: 720px) {
+  .portal-sample {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+}
+
+.portal-sample-card {
+  background: var(--sp-color-surface);
+  border: 1px solid var(--sp-color-border);
+  border-radius: var(--sp-radius-lg);
+  padding: var(--sp-space-lg);
+}
+
+.portal-sample-kicker {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--sp-color-teal);
+  margin: 0 0 var(--sp-space-xs);
+}
+
+.portal-sample-title {
+  font-family: var(--sp-font-display);
+  font-weight: 800;
+  font-size: 1.5rem;
+  color: var(--sp-color-ink);
+  margin: 0 0 var(--sp-space-xs);
+}
+
+.portal-sample-line {
+  font-size: 1rem;
+  color: var(--sp-color-ink-muted);
+  margin: 0;
+}
+
+.portal-sample-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-space-xs);
+}
+
+.portal-sample-qr-box {
+  display: inline-block;
+  background: #FFFFFF;
+  border: 1px solid var(--sp-color-border);
+  border-radius: var(--sp-radius-md);
+  padding: var(--sp-space-sm);
+  line-height: 0;
+}
+
+.portal-sample-url {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--sp-color-ink);
+  margin: 0;
+}
+
+.portal-sample-caption {
+  font-size: 0.875rem;
+  color: var(--sp-color-ink-muted);
+  margin: 0;
+}
+
+/* Eventos públicos reales, solo si hay (cada tarjeta abre su enlace). */
+.portal-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-space-md);
+}
+
+@media (min-width: 720px) {
+  .portal-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.portal-card {
+  background: var(--sp-color-surface);
+  border: 1px solid var(--sp-color-border);
+  border-radius: var(--sp-radius-md);
+  padding: var(--sp-space-md);
+}
+
+.portal-card h3 {
+  margin: 0 0 var(--sp-space-xs);
+  font-family: var(--sp-font-display);
+  color: var(--sp-color-ink);
+  font-size: 1.125rem;
+}
+
+.portal-card p {
+  margin: 0 0 var(--sp-space-xs);
+}
+
+.portal-card a {
+  color: var(--sp-color-blue);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+/* Pie mínimo: marca y caminos de cuenta. */
+.portal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-space-sm);
+  padding: var(--sp-space-lg) 0 var(--sp-space-md);
+  border-top: 1px solid var(--sp-color-border);
+}
+
+.portal-footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-space-xs);
+  margin: 0;
+}
+
+.portal-footer-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--sp-space-sm);
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: var(--sp-font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--sp-color-ink-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+a.portal-footer-link {
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-page *,
+  .portal-page *::before,
+  .portal-page *::after {
+    animation: none;
+    transition: none;
+    scroll-behavior: auto;
+  }
+}

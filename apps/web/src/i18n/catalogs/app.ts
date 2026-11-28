@@ -3,7 +3,8 @@ import { defineCatalog } from '../catalog';
 /** App shell: toasts, banners, and document title. Spanish stays identical. */
 export const appCatalog = defineCatalog({
   es: {
-    docTitle: 'FiestaPay — Fiestas organizadas, pagos resueltos',
+    // NAP-U6: lema actual de la portada; las reuniones nuevas son colecta entre panas, sin cobro en línea.
+    docTitle: 'Somos Panas — Organiza como panas',
     sessionFallback: 'No se pudo conectar con el servidor backend.',
     eventsFallback: 'No se pudieron cargar tus invitaciones.',
     retryConnection: 'Reintentar Conexión',
@@ -32,9 +33,17 @@ export const appCatalog = defineCatalog({
     resetDoneTitle: 'Reinicio completado',
     resetFail: 'Error al reiniciar la demostración',
     resetFailTitle: 'Error',
+    // NAP-U2: interruptor de tema día/noche (acción a la que cambia).
+    themeToDay: 'Cambiar a modo día',
+    themeToNight: 'Cambiar a modo noche',
+    // NAP-U2: página de no encontrado.
+    notFoundTitle: 'Aquí no hay nada, pana',
+    notFoundBody: 'La dirección no existe o se movió. Vuelve a la portada y sigue desde ahí.',
+    notFoundHome: 'Volver a la portada',
   },
   en: {
-    docTitle: 'FiestaPay — Gatherings organized, payments settled',
+    // NAP-U6: lema actual de la portada; las reuniones nuevas son colecta entre panas, sin cobro en línea.
+    docTitle: 'Somos Panas — Plan it like friends do',
     sessionFallback: 'Could not reach the backend server.',
     eventsFallback: 'Your invitations could not be loaded.',
     retryConnection: 'Retry connection',
@@ -63,5 +72,12 @@ export const appCatalog = defineCatalog({
     resetDoneTitle: 'Reset complete',
     resetFail: 'Could not reset the demo',
     resetFailTitle: 'Error',
+    // NAP-U2: igual que en español, interruptor de tema.
+    themeToDay: 'Switch to light mode',
+    themeToNight: 'Switch to dark mode',
+    // NAP-U2: igual que en español, página de no encontrado.
+    notFoundTitle: 'Nothing here, friend',
+    notFoundBody: 'This address does not exist or moved. Head back home and carry on from there.',
+    notFoundHome: 'Back to home',
   },
 });

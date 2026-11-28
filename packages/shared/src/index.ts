@@ -1,4 +1,5 @@
 import type { ThemeKey } from './presentation.js';
+import type { PaymentProviderId } from './payments.js';
 
 export type { ThemeKey, ThemeDefinition, TemplateInviteCopy, ContrastPair, MealKind } from './presentation.js';
 export {
@@ -27,10 +28,22 @@ export {
   themeContrastPairs,
 } from './presentation.js';
 export * from './i18n.js';
+export * from './payments.js';
 export * from './server-errors.js';
+export * from './avatar-session.js';
+export * from './avatar-tools.js';
+export * from './avatar-tags.js';
+export {
+  SITE_SLUG_PATTERN,
+  RESERVED_SITE_SLUGS,
+  NON_CREATABLE_SITE_SLUGS,
+  MUESTRA_SITE_SLUG,
+  normalizeSiteSlugInput,
+  validateSiteSlug,
+  type SiteSlugValidation,
+} from './site-slug.js';
 
-export type TemplateKind = 'comida' | 'casa' | 'viaje' | 'evento';
-export type RsvpStatus = 'yes' | 'no' | 'maybe';
+export type TemplateKind = 'comida' | 'casa' | 'viaje' | 'evento';export type RsvpStatus = 'yes' | 'no' | 'maybe';
 export interface AgendaItem { time: string; title: string; speaker?: string }
 export interface EventInput {
   title: string; template: TemplateKind; meal: 'desayuno' | 'almuerzo' | 'cena';
@@ -43,6 +56,10 @@ export interface EventInput {
   theme?: ThemeKey;
   /** Write-only. The server stores a hash and never returns the code. */
   accessCode?: string | null;
+  /** NAP-S3: avatar del catálogo elegida para recibir a los invitados. */
+  avatarId?: string | null;
+  /** NAP-S2: etiqueta pedida para la dirección propia; el servidor aplica sufijo si está tomada. */
+  preferredSubdomain?: string;
   /**
    * Omitted on update keeps the stored deadline, including a legacy NULL.
    * Omitted on create with a minimum defaults to startsAt. Explicit null on
@@ -86,6 +103,14 @@ export interface FiestaEvent {
   theme?: ThemeKey;
   /** True for judge-demo events (events.is_demo). Absent means false. */
   isDemo?: boolean;
+  /** Procesador del sitio dueño del evento; el invitado no confía solo en el Host (SP8-D-2). */
+  paymentProvider?: PaymentProviderId;
+  /** NAP-S2: etiqueta de la dirección propia; null en eventos históricos. */
+  subdomain?: string | null;
+  /** NAP-S2: URL pública construida por el servidor, nunca desde el Host del cliente. */
+  publicUrl?: string | null;
+  /** NAP-S3: avatar del catálogo que recibe a los invitados; null usa la default. */
+  avatarId?: string | null;
 }
 export interface Guest {
   id: string;
@@ -149,90 +174,25 @@ export function estimateOrganizerFee(amountCents: number): FeeEstimate {
 }
 export interface Quote { id: string; guestId: string; people: number; unitCents: number; totalCents: number; paidCents: number; amountCents: number; summary: string; expiresAt: string; feeEstimate?: FeeEstimate }
 export interface OrderResult { orderId: string; status: string; approveUrl?: string }
-/** The only runtime chat provider. */
-export type LlmProvider = 'openai' | 'gemini';
 export interface Capabilities {
-  paypal: boolean; voice: boolean; paypalClientId: string | null; sandbox: true;
-  chat?: boolean; llmProvider?: LlmProvider;
-  /** Voice engine named in the consent notice before any token is requested. Absent = assemblyai. */
-  voiceProvider?: VoiceProvider;
+  paypal: boolean;
+  paypalClientId: string | null;
+  sandbox: true;
+  /** Procesador del sitio según `Host` o tenant; la web oculta PayPal cuando es `none`. */
+  paymentProvider?: PaymentProviderId;
+  /** Napster habilitado y con los agentes es/en configurados. */
+  avatar: boolean;
   /** True only when the server has SMTP configured. Never implies a message was accepted or delivered. */
   email: boolean;
 }
-/** Voice lease scope. Public is informational and has no event, guest or tools. */
-export type VoiceAudience = 'guest' | 'organizer' | 'public';
-import type { Locale } from './i18n.js';
-/** Voice engine behind a lease. Gemini Live is the default; AssemblyAI is a config rollback only. */
-export type VoiceProvider = 'gemini' | 'assemblyai';
-/** Default Gemini models, validated in code (see docs/GEMINI.md). */
-export const GEMINI_DEFAULT_LIVE_MODEL = 'gemini-3.8-live';
-export const GEMINI_DEFAULT_TEXT_MODEL = 'gemini-3.5-flash';
-/** The only API version that accepts ephemeral tokens (probed 9 Nov 2026). */
-export const GEMINI_LIVE_API_VERSION = 'v1beta';
-/** Prebuilt voice per locale. Native-audio models infer the language; there is no languageCode. */
-export const GEMINI_VOICE_BY_LOCALE: Record<Locale, string> = { es: 'Kore', en: 'Puck' };
-
-/** One function the browser may relay to the server tool route. Same names as the server tools. */
-export interface GeminiFunctionDeclaration {
-  name: string;
-  description: string;
-  parameters?: { type: 'OBJECT'; properties: Record<string, unknown>; required?: string[] };
-}
-
-/**
- * Exactly the LiveConnectConfig the ephemeral token was locked to. The browser passes it verbatim to
- * `ai.live.connect({ model, config: liveConfig })`; a modified copy is ignored by the API because the
- * token locks every field. The key never leaves the server.
- */
-export interface GeminiLiveConfig {
-  responseModalities: ['AUDIO'];
-  systemInstruction: string;
-  speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: string } } };
-  inputAudioTranscription: Record<string, never>;
-  outputAudioTranscription: Record<string, never>;
-  /** Empty for the public audience (no tools). */
-  tools: Array<{ functionDeclarations: GeminiFunctionDeclaration[] }>;
-}
-
-export interface GeminiVoiceSessionConfig {
-  provider: 'gemini';
-  model: string;
-  apiVersion: typeof GEMINI_LIVE_API_VERSION;
-  liveConfig: GeminiLiveConfig;
-  /** First user text the client sends with sendClientContent so the model greets in the locale. */
-  kickoff: string;
-  locale: Locale;
-}
-
-/**
- * Status a voice tool answers when it only prepared a payment: the person must approve in PayPal
- * and the server must verify the capture. The assistant never says "paid" from this.
- */
-export const VOICE_PAYMENT_PENDING = 'PENDIENTE_DE_APROBACION';
-
-/** One reservation. maxSeconds is the timebox; a released or idle lease is not reusable. */
-export interface VoiceSessionToken {
-  /** Gemini: ephemeral token name (auth_tokens/...), single use, new session within 60 s. */
-  token: string;
-  /** Gemini: GeminiVoiceSessionConfig. AssemblyAI rollback: its legacy session object. */
-  sessionConfig: Record<string, unknown>;
-  maxSeconds: number;
-  leaseId: string;
-  audience: VoiceAudience;
-  /** Absent means assemblyai (images before 9 Nov 2026). */
-  provider?: VoiceProvider;
-}
-/** Idempotent release. Repeating it keeps the first timestamp and never restores budget. */
-export interface VoiceLeaseReleaseResult {
-  ok: true;
-  released: boolean;
-  alreadyReleased: boolean;
-}
-/** Real-interaction activity. active=false means mic, WS and playback must stop. */
-export interface VoiceLeaseActivityResult {
-  ok: true;
-  active: boolean;
-}
+/** NAP-S2: la SPA decide con `GET /api/host-info` qué mostrar; nunca recibe ids internos. */
+export type HostInfo =
+  | { kind: 'root' }
+  | { kind: 'legacy' }
+  | { kind: 'site'; slug: string }
+  | { kind: 'event'; slug: string; subdomain: string }
+  | { kind: 'free'; label: string }
+  | { kind: 'reserved'; label: string };
 export type RecoveryContactState = 'none' | 'pending' | 'verified';
 export interface RecoveryContactStatus { state: RecoveryContactState; masked: string | null }
 export interface RecoveryStatus { email: boolean; contact: RecoveryContactStatus }
@@ -245,86 +205,6 @@ export interface RecoveryConsumeRecovered { purpose: 'recover'; slug: string; ad
 export type RecoveryConsumeResult = RecoveryConsumeVerified | RecoveryConsumeRecovered;
 /** adminKey is returned once, on create. Later reads omit it. */
 export interface CreatedEvent { event: FiestaEvent; adminKey: string | null }
-/**
- * Optional AI help at the end of the creation assistant (POST /api/ai/suggest-presentation).
- * Only describes the gathering; never money, dates or capacity. The server always answers with a
- * theme that belongs to the template; it falls back to deterministic rules when AI is unavailable.
- */
-export interface PresentationSuggestionInput {
-  template: TemplateKind;
-  title: string;
-  meal?: 'desayuno' | 'almuerzo' | 'cena';
-  location?: string;
-  /** Free hints such as a food style ("asado") or trip extras ("hotel"). Max 10 x 60 chars. */
-  hints?: string[];
-}
-export interface PresentationSuggestion {
-  theme: ThemeKey;
-  /** Short invitation text in the request language, or null when only rules answered. */
-  description: string | null;
-  source: 'ai' | 'rules';
-}
-/**
- * "Describe your party in one sentence" (POST /api/ai/draft-event). The server never creates an
- * event from it: the proposal only pre-fills the creation assistant and the organizer confirms.
- */
-export interface DraftEventInput {
-  /** 3..400 chars, e.g. "asado para 10 el sábado con $150". */
-  text: string;
-}
-export interface DraftEventProposal {
-  template: TemplateKind;
-  title: string;
-  meal?: 'desayuno' | 'almuerzo' | 'cena';
-  /** YYYY-MM-DD in America/Guayaquil, only when the sentence states or clearly implies it. */
-  date?: string;
-  /** HH:MM 24 h, America/Guayaquil. */
-  startTime?: string;
-  durationMinutes?: number;
-  location?: string;
-  /** What the share covers, max 8 x 60 chars. */
-  includes: string[];
-  /** People including the organizer when stated; 1..500. */
-  headcount?: number;
-  /** Total budget in integer USD cents when stated. */
-  budgetCents?: number;
-  /** Explicit share read from the request or computed from the group budget and headcount. */
-  perPersonCents?: number;
-  /** Fields the AI filled, so the UI can mark them as suggestions. */
-  suggested: Array<'template' | 'title' | 'meal' | 'date' | 'startTime' | 'durationMinutes' | 'location' | 'includes' | 'headcount' | 'budgetCents'>;
-  source: 'ai' | 'rules';
-}
-/** Organizer-only: drafted payment reminders (POST /api/events/:slug/reminders/draft). Never sent. */
-export type ReminderTone = 'amable' | 'divertido' | 'formal';
-export interface ReminderDraftRequest { tone: ReminderTone }
-export interface ReminderDraft {
-  guestId: string;
-  alias: string;
-  /** Server balance in integer cents (> 0). */
-  dueCents: number;
-  /** Full message: AI-written friendly text + amount and invitation link inserted by the server. */
-  message: string;
-}
-export interface ReminderDraftResult {
-  drafts: ReminderDraft[];
-  source: 'ai' | 'rules';
-  /** True when more guests owe money than the per-call cap returned. */
-  truncated: boolean;
-}
-export interface PublicChatResult {
-  text: string;
-  draft?: DraftEventProposal;
-}
-export interface ChatResult {
-  text: string;
-  quote?: Quote;
-  guest?: Guest;
-  actions?: string[];
-  /** Server id of the user turn just stored. Absent when the turn was refused. */
-  userMessageId?: string;
-  /** Server id of the assistant turn just stored. Absent when the reply was discarded. */
-  assistantMessageId?: string;
-}
 /** Visible chat text. Ids are the server row ids, never a client clock. */
 export interface ChatTranscriptMessage {
   id: string;

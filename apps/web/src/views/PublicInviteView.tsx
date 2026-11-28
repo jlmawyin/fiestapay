@@ -1,14 +1,16 @@
-import React, { useEffect, useState, useCallback, useLayoutEffect, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useLayoutEffect, useRef, useMemo } from 'react';
+import { siteAllowsPayPalCheckout } from '@fiestapay/shared';
+import { NapsterAvatar } from '../components/avatar/NapsterAvatar';
 import { Check, MapPin, QrCode } from 'lucide-react';
 import type { FiestaEvent, Guest, Quote, OrderResult, Capabilities, RsvpStatus, AgendaItem } from '../types';
 import { api, ApiError } from '../api/client';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { inviteCatalog } from '../i18n/messages/invite';
-import { TemplateCover } from '../components/illustrations/TemplateCover';
+import { avatarCatalog } from '../i18n/messages/avatar';
+import { InviteHeroIllustration } from '../components/invite/InviteHeroIllustration';
 import { ThemeScope } from '../components/events/ThemeScope';
 import { TicketCutout } from '../components/common/TicketCutout';
 import { PaymentWizard } from '../components/invite/PaymentWizard';
-import { AssistantOrb } from '../components/assistant/AssistantOrb';
 import { QrShareModal } from '../components/dashboard/QrShareModal';
 import { FundingStatusPanel, newGuestActivityBlocked } from '../components/common/FundingStatusPanel';
 import {
@@ -24,7 +26,6 @@ import {
   templateInviteCopy,
 } from '../lib/event-presentation';
 import { orderStatusLabel } from '../lib/order-status';
-import { showOnScreen } from '../guide/showOnScreen';
 import {
   CrestMedallion,
   PolaroidStrip,
@@ -64,13 +65,32 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const [isSavingRsvp, setIsSavingRsvp] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [showSignatureCard, setShowSignatureCard] = useState(false);
+  /** NAP-F6w: agente de la sesión ('custom' → recibe el organizador). */
+  const [avatarAgent, setAvatarAgent] = useState<string | null>(null);
   const { locale, formatMoney } = useI18n();
   const m = useMessages(inviteCatalog);
+  const avatarTexts = useMessages(avatarCatalog);
   const copyRef = useRef(m);
   copyRef.current = m;
   const localeRef = useRef(locale);
   localeRef.current = locale;
   const scopeVersion = useRef(0);
+  /** SP8-D-2: el invitado sigue el tenant del evento, no solo el Host del navegador. */
+  const inviteCapabilities = useMemo((): Capabilities | null => {
+    if (!capabilities) return null;
+    // SP8-D-2: sin proveedor explícito no se asume PayPal (fail-closed).
+    const provider = event?.paymentProvider ?? capabilities.paymentProvider;
+    const paypalOn =
+      provider === 'paypal_sandbox' && siteAllowsPayPalCheckout(provider, capabilities.paypal);
+    return {
+      ...capabilities,
+      ...(provider ? { paymentProvider: provider } : {}),
+      paypal: paypalOn,
+      paypalClientId: paypalOn ? capabilities.paypalClientId : null,
+    };
+  }, [capabilities, event?.paymentProvider]);
+  // NAP-U4: en una reunión sin procesador la cuota es una colecta y no hay PayPal.
+  const collectaMode = (event?.paymentProvider ?? capabilities?.paymentProvider) === 'none';
   useLayoutEffect(() => {
     scopeVersion.current += 1;
     return () => { scopeVersion.current += 1; };
@@ -171,6 +191,8 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   // Load quote when guest is attending and owes money
   const fetchQuote = useCallback(async () => {
     if (!guest || guest.status !== 'yes') return;
+    // NAP-U4: sin cobro en línea no se pide una cotización que el servidor rechaza.
+    if (collectaMode) return;
     if (guest.blockedAt || guest.removedAt) return;
     if (event && newGuestActivityBlocked(event)) return;
     const scope = scopeVersion.current;
@@ -185,7 +207,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
     } finally {
       if (scope === scopeVersion.current) setIsLoadingQuote(false);
     }
-  }, [slug, guest, event, onShowToast]);
+  }, [slug, guest, event, onShowToast, collectaMode]);
 
   useEffect(() => {
     if (guest?.blockedAt || guest?.removedAt) return;
@@ -223,7 +245,10 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
       const data = await api.rsvp(slug, status, companions);
       if (scope !== scopeVersion.current) return;
       setGuest(data.guest);
-      setEvent(data.event);
+      setEvent((prev) => ({
+        ...data.event,
+        paymentProvider: data.event.paymentProvider ?? prev?.paymentProvider,
+      }));
       setQuote(null);
       setActiveOrder(null); // reset prior active order if assistance changed
       try {
@@ -353,16 +378,6 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
     onShowToast('warning', msg, copyRef.current.payIncompleteTitle);
   };
 
-  /** Guest chat/voice prepared the quote: show where the server summary is reviewed. */
-  const handleApplyQuote = (nextQuote: Quote) => {
-    setQuote(nextQuote);
-    onShowToast('info', copyRef.current.assistantQuote, copyRef.current.quoteTitle);
-    if (nextQuote.amountCents > 0) {
-      void showOnScreen({ target: activeOrder ? 'openPayPal' : 'quoteReview' }, { inviteSlug: slug });
-    }
-  };
-
-
   if (isLoading) {
     return (
       <div className="panel" style={{ textAlign: 'center', padding: '4rem 1rem' }}>
@@ -436,7 +451,11 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   const copy = templateInviteCopy(event.template, locale);
   const whenLabel = formatEventRange(event.startsAt, event.endsAt, undefined, locale);
   const hostLine = organizerLine(event.organizerName, locale);
-  const greeting = namedGreeting(event.organizerName, locale);
+  // NAP-F6w: con avatar personalizado del evento, recibe el organizador.
+  const hostName = event.organizerName?.trim() || null;
+  const greeting = avatarAgent === 'custom'
+    ? (hostName ? avatarTexts.eventAvatarWelcomesYou(hostName) : avatarTexts.eventAvatarWelcomesYouGeneric)
+    : namedGreeting(event.organizerName, locale);
   const publicUrl = (() => {
     try {
       return publicInviteUrl(window.location.origin, event.slug);
@@ -472,15 +491,18 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   return (
     <ThemeScope theme={theme}>
     <div className="invite-shell" data-invite-slug={slug}>
+      <NapsterAvatar eventSlug={slug} eventTitle={event.title} avatarEnabled={capabilities?.avatar !== false} onAgent={setAvatarAgent} />
       {/* Main Signature Invitation Ticket */}
       <article className={`ticket-card ticket-card--sig-${resolvedCardStyle}`} aria-label={m.inviteAria(event.title)}>
-        {/* Cover illustration */}
-        <TemplateCover template={event.template} accent={theme.accent} height="200px" />
+        {/* NAP-U4: ilustración propia según la plantilla, sin fotos de relleno. */}
+        <InviteHeroIllustration template={event.template} locale={locale} />
 
         {/* Header Section */}
         <div style={{ padding: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <span className="badge badge-blue">{m.quotaBadge(formatMoney(event.priceCents))}</span>
+            <span className="badge badge-blue">
+              {collectaMode ? m.collectaQuotaBadge(formatMoney(event.priceCents)) : m.quotaBadge(formatMoney(event.priceCents))}
+            </span>
             {event.fundingStatus === 'failed' ? (
               <span className="badge badge-coral">{m.badgeFailed}</span>
             ) : event.confirmed ? (
@@ -523,6 +545,9 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
           <p style={{ fontSize: '0.95rem', color: 'var(--color-ink-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
             {event.description}
           </p>
+          {collectaMode ? (
+            <p className="invite-collecta-note">{m.collectaNote}</p>
+          ) : null}
 
           {/* Practical Logistics Details */}
           <div className="invite-facts">
@@ -617,6 +642,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
                 agenda={event.agenda}
                 deadlineLocal={event.fundingDeadlineAt ?? undefined}
                 locale={locale}
+                collecta={collectaMode}
               />
             </div>
           ) : null}
@@ -710,7 +736,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
             guest={guest}
             quote={quote}
             activeOrder={activeOrder}
-            capabilities={capabilities}
+            capabilities={inviteCapabilities}
             isJoining={isJoining}
             isSavingRsvp={isSavingRsvp}
             isLoadingQuote={isLoadingQuote}
@@ -728,6 +754,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
             onDismissOrder={handleDismissOrder}
             onCaptureSuccess={handleCaptureSuccess}
             onCancelOrError={handlePaymentCancelOrError}
+            collectaMode={collectaMode}
           />
         </div>
       </article>
@@ -741,19 +768,6 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
         shareText={shareText}
       />
 
-      <AssistantOrb
-        key={`guest:${slug}`}
-        audience="guest"
-        slug={slug}
-        capabilities={capabilities}
-        guest={guest}
-        theme={{ template: event.template, themeKey: event.theme, meal: event.meal }}
-        accessRevoked={sessionRevoked}
-        eventClosed={activityBlocked}
-        onApplyQuote={handleApplyQuote}
-        onConfirmRsvp={handleSaveRsvp}
-        onShowToast={onShowToast}
-      />
     </div>
     </ThemeScope>
   );

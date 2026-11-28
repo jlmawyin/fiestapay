@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portada.schema.json",
+  "title": "PortadaRaiz",
+  "type": "object",
+  "required": ["barra", "hero", "fotoAmbiente", "compositorSubdominio", "eventosPublicos", "donaciones", "pie"],
+  "additionalProperties": false,
+  "properties": {
+    "barra": {
+      "type": "object",
+      "required": ["marca", "enlaces", "botonCrearEspacio"],
+      "properties": {
+        "marca": { "$ref": "texto-bilingue.schema.json" },
+        "botonCrearEspacio": { "$ref": "texto-bilingue.schema.json" },
+        "enlaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "es", "en"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+              "es": { "type": "string", "minLength": 1 },
+              "en": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "hero": {
+      "type": "object",
+      "required": [
+        "ojo",
+        "titulo",
+        "texto",
+        "botonTutorial",
+        "botonCrearEspacio",
+        "enlaceRegistro",
+        "enlaceIniciarSesion",
+        "notaSubdominio"
+      ],
+      "properties": {
+        "ojo": { "$ref": "texto-bilingue.schema.json" },
+        "titulo": { "$ref": "texto-bilingue.schema.json" },
+        "texto": { "$ref": "texto-bilingue.schema.json" },
+        "botonTutorial": { "$ref": "texto-bilingue.schema.json" },
+        "botonCrearEspacio": { "$ref": "texto-bilingue.schema.json" },
+        "enlaceRegistro": { "$ref": "texto-bilingue.schema.json" },
+        "enlaceIniciarSesion": { "$ref": "texto-bilingue.schema.json" },
+        "notaSubdominio": { "$ref": "texto-bilingue.schema.json" }
+      }
+    },
+    "fotoAmbiente": {
+      "type": "object",
+      "required": ["pie"],
+      "properties": {
+        "pie": { "$ref": "texto-bilingue.schema.json" }
+      }
+    },
+    "compositorSubdominio": {
+      "type": "object",
+      "required": [
+        "prefijo",
+        "campoPlaceholder",
+        "campoNombreGrupo",
+        "placeholderNombreGrupo",
+        "sufijo",
+        "boton",
+        "estadoNoDisponible",
+        "estadoCreando",
+        "estadoListo",
+        "errorSlugInvalido",
+        "errorSlugReservado"
+      ],
+      "properties": {
+        "prefijo": { "type": "string" },
+        "sufijo": { "type": "string" },
+        "campoPlaceholder": { "$ref": "texto-bilingue.schema.json" },
+        "campoNombreGrupo": { "$ref": "texto-bilingue.schema.json" },
+        "placeholderNombreGrupo": { "$ref": "texto-bilingue.schema.json" },
+        "boton": { "$ref": "texto-bilingue.schema.json" },
+        "estadoNoDisponible": { "$ref": "texto-bilingue.schema.json" },
+        "estadoCreando": { "$ref": "texto-bilingue.schema.json" },
+        "estadoListo": { "$ref": "texto-bilingue.schema.json" },
+        "errorSlugInvalido": { "$ref": "texto-bilingue.schema.json" },
+        "errorSlugReservado": { "$ref": "texto-bilingue.schema.json" }
+      }
+    },
+    "eventosPublicos": {
+      "type": "object",
+      "required": ["aviso", "ejemplos"],
+      "properties": {
+        "aviso": { "$ref": "texto-bilingue.schema.json" },
+        "ejemplos": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "titulo", "badgeEjemplo", "badgeEvento"],
+            "properties": {
+              "id": { "type": "string" },
+              "titulo": { "$ref": "texto-bilingue.schema.json" },
+              "badgeEjemplo": { "$ref": "texto-bilingue.schema.json" },
+              "badgeEvento": { "$ref": "texto-bilingue.schema.json" }
+            }
+          }
+        }
+      }
+    },
+    "donaciones": {
+      "type": "object",
+      "required": ["tituloSeccion", "aviso", "ejemplos", "leyendaReal"],
+      "properties": {
+        "tituloSeccion": { "$ref": "texto-bilingue.schema.json" },
+        "aviso": { "$ref": "texto-bilingue.schema.json" },
+        "leyendaReal": { "$ref": "texto-bilingue.schema.json" },
+        "ejemplos": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "titulo", "leyendaBarra"],
+            "properties": {
+              "id": { "type": "string" },
+              "titulo": { "$ref": "texto-bilingue.schema.json" },
+              "leyendaBarra": { "$ref": "texto-bilingue.schema.json" }
+            }
+          }
+        }
+      }
+    },
+    "pie": {
+      "type": "object",
+      "required": ["fraseFotos"],
+      "properties": {
+        "fraseFotos": { "$ref": "texto-bilingue.schema.json" }
+      }
+    }
+  }
+}

@@ -27,10 +27,9 @@ const labels = UI_LABELS.en;
 const capabilities: Capabilities = {
   paypal: true,
   paypalClientId: 'sb-client',
-  chat: false,
-  voice: false,
   sandbox: true,
   email: true,
+  avatar: true,
 };
 
 function event(over: Partial<FiestaEvent> = {}, isDemo?: boolean): FiestaEvent {
@@ -76,7 +75,9 @@ function guest(over: Partial<Guest> = {}): Guest {
 const SPANISH_WITNESSES = [
   'Crear mi demo privada',
   'Probar pago con PayPal',
-  'Hablar con el asistente',
+  'Crear mi invitación',
+  'Crea tu fiesta con ayuda de la avatar',
+  'Habla con tu guía',
   'Reiniciar mis demos',
   'Datos ficticios',
   'Volver al inicio',
@@ -133,11 +134,12 @@ describe('judges demo in English', () => {
     expect(screen.getByText('Fictional data · Sandbox · No real money')).toBeInTheDocument();
     expect(screen.getByText(/Look at the sample dashboard/)).toBeInTheDocument();
     expect(screen.getByText(/Try a PayPal Sandbox payment/)).toBeInTheDocument();
-    // Step 3 reuses the assistant button label as its own title.
-    expect(screen.getAllByText(/Talk to the assistant/)).toHaveLength(2);
+    // El paso 4 incrusta la avatar Napster en vez de abrir el orbe muerto.
+    expect(screen.getByText(/Talk to your guide, the avatar/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: labels.paymentDemo })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: labels.privateDemo })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: labels.talkToAssistant })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: labels.createInvitation })).toHaveAttribute('data-guide', 'aiBuildParty');
+    expect(screen.getByTestId('napster-avatar')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: labels.resetDemos })).toBeInTheDocument();
     // Sample grid rows render without any privileged action.
     expect(screen.getByTestId('judge-grid')).toBeInTheDocument();
@@ -200,11 +202,12 @@ describe('judges demo in English', () => {
     expect(localStorage.getItem('fp_admin_demo-private')).toBe('key-priv');
   });
 
-  it('opens the assistant orb in the demo context', async () => {
+  it('embeds the Napster avatar in the demo assistant step', async () => {
     renderDemo([]);
-    fireEvent.click(await screen.findByRole('button', { name: labels.talkToAssistant }));
-    expect(await screen.findByRole('dialog', { name: 'FiestaPay agent' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: labels.textTab })).toHaveAttribute('aria-selected', 'true');
+    await screen.findByRole('heading', { name: labels.judgesDemo });
+    const step = screen.getByRole('listitem', { name: /Talk to your guide, the avatar/ });
+    expect(within(step).getByTestId('napster-avatar')).toBeInTheDocument();
+    expect(within(step).queryByRole('button', { name: labels.talkToAssistant })).toBeNull();
   });
 
   it('lists only isDemo:true rows under My demos', async () => {

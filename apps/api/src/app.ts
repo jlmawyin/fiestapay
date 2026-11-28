@@ -3,25 +3,34 @@ import { join } from 'node:path';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
-import type { CreateGeminiVoiceTokenFn } from './ai/gemini-live.js';
-import type { RespondFn } from './ai/openai.js';
 import { loadConfig, type Config } from './config.js';
 import { createSmtpEmail } from './email/smtp.js';
 import type { EmailAdapter } from './email/types.js';
 import type { Pool } from './db/pool.js';
 import { HttpError } from './errors.js';
-import { requestLocale } from './lib/locale.js';
-import { isAllowedOrigin } from './lib/origin.js';
+import {
+  isHealthProbeExempt,
+  isOriginAllowedForHost,
+  isPayPalWebhookHost,
+  type HostClassification,
+} from './lib/host.js';
+import { findEventBySubdomain } from './domain/subdomains.js';
+import { legacyRedirectTarget } from './lib/legacy-redirect.js';
+import { resolveHost } from './lib/resolve-host.js';
+import { renderIndexWithMeta } from './lib/spa-meta.js';
 import { requestLogger } from './lib/redact.js';
 import { PayPalSandboxClient } from './paypal/client.js';
 import type { PayPalAdapter } from './paypal/types.js';
+import { capabilitiesForHost } from './payments/provider.js';
+import { registerAccountRoutes } from './routes/accounts.js';
+import { registerSettingsRoutes } from './routes/settings.js';
+import { registerSiteRoutes } from './routes/sites.js';
 import { registerRecoveryRoutes } from './routes/recovery.js';
-import { registerChatRoutes } from './routes/chat.js';
-import { registerSuggestRoutes } from './routes/suggest.js';
-import { registerReminderRoutes } from './routes/reminders.js';
-import { registerOrganizerAssistantRoutes } from './routes/organizer-assistant.js';
 import { registerModerationRoutes } from './routes/moderation.js';
-import { registerVoiceRoutes } from './routes/voice.js';
+import { registerAvatarSessionRoutes } from './routes/avatar-session.js';
+import { registerAvatarsRoutes } from './routes/avatars.js';
+import { registerEventAvatarMediaRoute, registerEventAvatarRoutes } from './routes/event-avatar.js';
+import { registerPortalRoutes } from './routes/portal.js';
 import { registerCoreRoutes } from './routes/core.js';
 import { registerPaymentRoutes } from './routes/payments.js';
 import type { RouteDeps } from './routes/deps.js';
@@ -39,18 +48,58 @@ export interface BuildAppOptions {
    * and an unconfigured server stays on null instead of pretending mail was sent.
    */
   email?: EmailAdapter | null;
-  /** Scripted model for tests; omitted in production so the selected provider REST call is used. */
-  respond?: RespondFn;
-  /** Scripted Gemini token seam for tests; omitted in production so the SDK is used. */
-  createVoiceToken?: CreateGeminiVoiceTokenFn;
-  /** Deterministic assistant deadline for tests; production uses the 40 s constant. */
-  assistantDeadlineMs?: number;
   logger?: boolean;
   /** Test-only destination for the structured log, so a failure can be asserted verbatim. */
   logStream?: { write: (message: string) => void };
 }
 
 const WEBHOOK_PATH = '/api/paypal/webhook';
+
+declare module 'fastify' {
+  interface FastifyRequest {
+    hostClassification?: HostClassification;
+  }
+}
+
+/**
+ * Enrutado por host (NAP-S2): raíz y legado atienden todo el API; un sitio solo lo suyo; un host
+ * de evento atiende el API de ESE evento; un host libre/reservado solo `host-info`. Las páginas
+ * no-API se sirven como SPA en sitio, evento, libre y reservado.
+ */
+async function isRequestRoutable(
+  method: string,
+  pathOnly: string,
+  host: HostClassification,
+  _db: Pool,
+): Promise<boolean> {
+  if (isHealthProbeExempt(method, pathOnly)) return true;
+  if (host.kind === 'invalid') return false;
+  if (host.kind === 'root' || host.kind === 'legacy') return true;
+  if (!pathOnly.startsWith('/api')) return true;
+
+  const getOrHead = method === 'GET' || method === 'HEAD';
+  if (pathOnly === '/api/host-info') return getOrHead;
+
+  if (host.kind === 'site') {
+    // NAP-F2: la sesión de avatar también se pide desde el subdominio del sitio (creador).
+    if (pathOnly === '/api/avatar-session' || pathOnly === '/api/avatar-session/end') return true;
+    if (pathOnly === '/api/avatars') return getOrHead;
+    if (pathOnly === '/api/sites/handoff') return true;
+    return pathOnly === '/api/site' || pathOnly.startsWith('/api/site/');
+  }
+
+  if (host.kind === 'event') {
+    if (pathOnly === '/api/capabilities' || pathOnly === '/api/avatars') return getOrHead;
+    if (pathOnly === '/api/avatar-session' || pathOnly === '/api/avatar-session/end') return true;
+    if (pathOnly === '/api/recovery/request' || pathOnly === '/api/recovery/consume') return true;
+    if (pathOnly.startsWith('/api/orders/')) return true;
+    const ownEvent = /^\/api\/events\/([^/]+)(?:\/|$)/.exec(pathOnly);
+    return ownEvent?.[1] === host.slug;
+  }
+
+  // free/reserved: el API solo expone host-info.
+  return false;
+}
 
 /** HTTP status for a thrown error: ours, Fastify's (validation, rate limit) or 500. */
 function statusOf(err: unknown): number {
@@ -112,14 +161,55 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
    * because it is server-to-server and authenticated by its signature instead.
    */
   app.addHook('onRequest', async (req, reply) => {
+    // Solo `Host`: no confiar en X-Forwarded-Host con trustProxy (ver cabecera en host.ts).
+    const hostClassification = await resolveHost(pool, req.headers.host, { env: config.env });
+    req.hostClassification = hostClassification;
+
     reply.header('Referrer-Policy', 'no-referrer');
     const pathOnly = req.url.split('?')[0] ?? req.url;
-    if (pathOnly === '/api' || pathOnly.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
     const method = req.method.toUpperCase();
+    if (pathOnly === '/api' || pathOnly.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
+
+    // NAP-S2: la dirección vieja deja de usarse para páginas; API, webhook y media siguen vivos.
+    if (
+      config.legacyHostRedirect &&
+      hostClassification.kind === 'legacy' &&
+      (method === 'GET' || method === 'HEAD') &&
+      pathOnly !== '/api' &&
+      !pathOnly.startsWith('/api/') &&
+      !pathOnly.startsWith('/media/avatar/')
+    ) {
+      return reply.redirect(await legacyRedirectTarget(pool, req.url), 301);
+    }
+
+    // D-1: el healthcheck interno usa 127.0.0.1/local sin tratar esos Host como legado en producción.
+    if (!(await isRequestRoutable(method, pathOnly, hostClassification, pool))) {
+      reply.code(404).send({ error: 'Ruta no encontrada' });
+      return reply;
+    }
+
+    if (pathOnly === WEBHOOK_PATH && !isPayPalWebhookHost(hostClassification)) {
+      reply.code(404).send({ error: 'Ruta no encontrada' });
+      return reply;
+    }
+
+    // SP-8: credenciales de comprador demo solo en el host legado (no en raíz ni subdominios de grupo).
+    if (pathOnly === '/api/demo/buyer' && hostClassification.kind !== 'legacy') {
+      reply.code(404).send({ error: 'Ruta no encontrada' });
+      return reply;
+    }
+
+    // SP-8: capacidades según host sin duplicar la ruta de core (legado conserva PayPal sandbox).
+    if (method === 'GET' && pathOnly === '/api/capabilities') {
+      return reply.send(capabilitiesForHost(hostClassification, config, email !== null));
+    }
+
     if (method === 'GET' || method === 'HEAD') return;
     const path = req.url.split('?')[0] ?? req.url;
     if (path === WEBHOOK_PATH) return;
-    if (!isAllowedOrigin({ origin: req.headers.origin, referer: req.headers.referer, allowed: config.allowedOrigins })) {
+    if (
+      !isOriginAllowedForHost(hostClassification, { origin: req.headers.origin, referer: req.headers.referer }, config.allowedOrigins)
+    ) {
       reply.code(403).send({ error: 'Origen no permitido' });
       return reply; // stops the request lifecycle
     }
@@ -128,6 +218,35 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
   const webIndex = join(config.webDir, 'index.html');
   const serveWeb = config.serveWeb && existsSync(webIndex);
+
+  /** NAP-S2: index con Open Graph del evento cuando la SPA se sirve en su host. */
+  const renderIndex = async (req: FastifyRequest, html: string): Promise<string> => {
+    const host = req.hostClassification ?? { kind: 'invalid', hostname: '' };
+    const event = host.kind === 'event' && host.subdomain ? await findEventBySubdomain(pool, host.subdomain) : null;
+    return renderIndexWithMeta(html, host, event);
+  };
+
+  if (serveWeb) {
+    // El plugin estático registra `/` e `/index.html`; se transforman al vuelo, sin duplicar rutas.
+    app.addHook('onSend', async (req, reply, payload) => {
+      const contentType = String(reply.getHeader('content-type') ?? '');
+      let html: string | null = null;
+      if (typeof payload === 'string') html = payload;
+      else if (Buffer.isBuffer(payload)) html = payload.toString('utf8');
+      else if (contentType.includes('text/html') && payload) {
+        const posible = payload as { [Symbol.asyncIterator]?: unknown };
+        if (typeof posible[Symbol.asyncIterator] !== 'function') return payload;
+        // @fastify/static entrega el index como stream; se consume para inyectar el OG.
+        const trozos: Buffer[] = [];
+        for await (const trozo of payload as AsyncIterable<Uint8Array>) trozos.push(Buffer.from(trozo));
+        html = Buffer.concat(trozos).toString('utf8');
+      }
+      if (html === null || !/^\s*(?:<!doctype html|<html)/i.test(html)) return payload;
+      reply.removeHeader('content-length');
+      reply.removeHeader('etag');
+      return renderIndex(req, html);
+    });
+  }
 
   // Both handlers are installed before any route is registered: child scopes inherit the
   // handlers present when they are created, and every error must render as {error}.
@@ -161,47 +280,38 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       return reply.code(404).send({ error: 'Ruta no encontrada' });
     }
     if (serveWeb && (req.method === 'GET' || req.method === 'HEAD')) {
-      // SPA fallback for client-side routes such as /e/<slug>.
+      // SPA fallback for client-side routes such as /e/<slug>; onSend añade el OG del host.
       return reply.type('text/html').sendFile('index.html');
     }
     return reply.code(404).send({ error: 'Ruta no encontrada' });
   });
 
-  // Both entry points share one five-drafts-per-minute bucket per client IP.
-  const draftLimit = config.rateLimitEnabled ? app.createRateLimit({ max: 5, timeWindow: '1 minute' }) : null;
+  // NAP-F5a: se retiraron los borradores de IA; no queda límite de borradores que registrar.
   const deps: RouteDeps = {
-    ...(draftLimit ? {
-      checkDraftLimit: async (req, reply) => {
-        const result = await draftLimit(req);
-        if (result.isAllowed || !result.isExceeded) return;
-        reply.header('Retry-After', String(result.ttlInSeconds));
-        throw new HttpError(429, requestLocale(req) === 'en'
-          ? 'Too many invitation drafts. Try again in a minute.'
-          : 'Demasiados borradores de invitación. Intenta de nuevo en un minuto.');
-      },
-    } : {}),
     pool,
     config,
     paypal,
     email,
-    ...(options.respond ? { respond: options.respond } : {}),
-    ...(options.createVoiceToken ? { createVoiceToken: options.createVoiceToken } : {}),
-    ...(options.assistantDeadlineMs ? { assistantDeadlineMs: options.assistantDeadlineMs } : {}),
   };
   await app.register(
     async (api) => {
       await registerCoreRoutes(api, deps);
+      await registerAccountRoutes(api, deps);
+      await registerSettingsRoutes(api, deps);
+      await registerSiteRoutes(api, deps);
       await registerRecoveryRoutes(api, deps);
       await registerPaymentRoutes(api, deps);
-      await registerChatRoutes(api, deps);
-      await registerSuggestRoutes(api, deps);
-      await registerReminderRoutes(api, deps);
-      await registerOrganizerAssistantRoutes(api, deps);
       await registerModerationRoutes(api, deps);
-      await registerVoiceRoutes(api, deps);
+      await registerAvatarSessionRoutes(api, deps);
+      await registerAvatarsRoutes(api, deps);
+      await registerEventAvatarRoutes(api, deps);
+      await registerPortalRoutes(api, deps);
     },
     { prefix: '/api' },
   );
+
+  // NAP-F6s: la foto debe ser pública para que Napster la descargue; queda fuera del prefijo /api.
+  await registerEventAvatarMediaRoute(app, deps);
 
   if (serveWeb) {
     const fastifyStatic = (await import('@fastify/static')).default;

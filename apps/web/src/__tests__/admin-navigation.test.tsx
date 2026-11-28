@@ -7,31 +7,26 @@ vi.mock('ag-grid-react', () => ({
   AgGridReact: () => <div data-testid="guest-grid" />,
 }));
 
-vi.mock('../components/events/CreateWizard', () => ({
-  CreateWizard: ({ onSubmit, isLoading }: { onSubmit: (input: unknown) => Promise<void>; isLoading?: boolean }) => (
-    <button
-      type="button"
-      disabled={Boolean(isLoading)}
-      onClick={() => void onSubmit({
-        title: 'Actividad de prueba',
-        template: 'evento',
-        meal: 'cena',
-        description: 'Prueba de panel',
-        startsAt: '2026-12-01T18:00:00.000Z',
-        endsAt: '2026-12-01T21:00:00.000Z',
-        location: 'Quito',
-        includes: ['Acceso'],
-        priceCents: 1000,
-        capacity: 10,
-        goalCents: null,
-        minimumCents: null,
-        agenda: [],
-      })}
-    >
-      Crear actividad de prueba
-    </button>
-  ),
+vi.mock('@touchcastllc/napster-companion-api', () => ({
+  NapsterCompanionApiSdk: { init: vi.fn() },
+  DataChannelMessageType: { SEND_MESSAGE: 'send_message', FUNCTION_CALL_OUTPUT: 'send_function_output' },
 }));
+
+/**
+ * NAP-U3: la creación es la entrevista real. Rellena los pasos obligatorios
+ * (fecha y hora ya traen valores futuros) y publica desde Revisar.
+ */
+async function publishInterview(): Promise<void> {
+  fireEvent.change(await screen.findByTestId('interview-title'), { target: { value: 'Actividad de prueba' } });
+  fireEvent.click(screen.getByTestId('interview-step-4'));
+  fireEvent.change(screen.getByTestId('interview-location'), { target: { value: 'Quito' } });
+  fireEvent.click(screen.getByTestId('interview-step-5'));
+  fireEvent.change(screen.getByTestId('interview-capacity'), { target: { value: '10' } });
+  fireEvent.click(screen.getByTestId('interview-step-6'));
+  fireEvent.change(screen.getByTestId('interview-price'), { target: { value: '10' } });
+  fireEvent.click(screen.getByTestId('interview-step-7'));
+  fireEvent.click(screen.getByTestId('interview-publish'));
+}
 
 const slug = 'actividad-prueba';
 const adminKey = 'clave-panel-prueba';
@@ -64,10 +59,9 @@ const dashboard: Dashboard = { event, guests: [], audit: [] };
 const caps = {
   paypal: false,
   paypalClientId: null,
-  chat: false,
-  voice: false,
   sandbox: true,
   email: false,
+  avatar: true,
 };
 
 type Call = { url: string; method: string; adminKey: string | null };
@@ -117,7 +111,7 @@ describe('post-create organizer navigation', () => {
     render(<App />);
 
     fireEvent.click(await screen.findByRole('button', { name: '+ Nueva invitación' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Crear actividad de prueba' }));
+    await publishInterview();
     expect(await screen.findByRole('button', { name: 'Ir al panel' })).toBeInTheDocument();
     expect(localStorage.getItem(`fp_admin_${slug}`)).toBe(adminKey);
     expect(window.location.pathname).toBe('/create');
@@ -151,7 +145,7 @@ describe('post-create organizer navigation', () => {
     render(<App />);
 
     fireEvent.click(await screen.findByRole('button', { name: '+ Nueva invitación' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Crear actividad de prueba' }));
+    await publishInterview();
 
     expect(await screen.findByLabelText(/Alias del invitado/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ir al panel' })).toBeNull();

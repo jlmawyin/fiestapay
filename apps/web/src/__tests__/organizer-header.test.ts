@@ -61,37 +61,28 @@ describe('clave de admin solo en las rutas del organizador', () => {
     }
   });
 
-  it('el cliente adjunta la clave solo al llamar las rutas nuevas', async () => {
+  it('el cliente adjunta la clave a avatar-session solo con eventSlug guardado', async () => {
     rememberAdminKey(slug, key);
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
-      json: async () => ({ text: 'ok', messages: [], greeting: 'hola', token: 't', leaseId: '11111111-1111-1111-1111-111111111111', sessionConfig: {}, maxSeconds: 120, response: { ok: true } }),
+      json: async () => ({ token: 't', handle: '123e4567-e89b-12d3-a456-426614174000', visitor: 'creator', lang: 'es', agent: 'default' }),
     } as Response);
-    await api.sendOrganizerChat(slug, 'estado');
-    await api.getOrganizerChatHistory(slug);
-    await api.getOrganizerVoiceToken(slug);
-    await api.executeOrganizerVoiceTool(slug, { leaseId: '11111111-1111-1111-1111-111111111111', name: 'get_funding_progress', arguments: {} });
-    await api.sendChat(slug, 'hola');
-    await api.getChatHistory(slug);
-    await api.getVoiceToken(slug);
-    await api.executeVoiceTool(slug, { leaseId: '11111111-1111-1111-1111-111111111111', name: 'get_event_details', arguments: {} });
+    await api.createAvatarSession({ lang: 'es', eventSlug: slug });
+    await api.createAvatarSession({ lang: 'es' });
+    await api.getEventBySlug(slug);
 
     const calls = fetchSpy.mock.calls.map(([url, init]) => ({
       url: String(url),
-      method: ((init as RequestInit | undefined)?.method ?? 'GET').toUpperCase(),
       key: headerOf(init as RequestInit | undefined),
       body: String((init as RequestInit | undefined)?.body ?? ''),
     }));
-    const keyed = calls.filter((call) => call.key === key).map((call) => `${call.method} ${call.url}`);
-    expect(keyed).toEqual([
-      `/api/events/${slug}/organizer-chat`,
-      `/api/events/${slug}/organizer-chat/history`,
-      `/api/events/${slug}/organizer-voice/token`,
-      `/api/events/${slug}/organizer-voice/tool`,
-    ].map((path, index) => `${['POST', 'GET', 'POST', 'POST'][index]} ${path}`));
-    for (const call of calls.filter((item) => item.url.includes('/chat') || item.url.includes('/voice/'))) {
-      expect(call.key).toBeNull();
-    }
+    expect(calls).toHaveLength(3);
+    expect(calls[0]?.url).toBe('/api/avatar-session');
+    expect(calls[0]?.key).toBe(key);
+    expect(calls[1]?.url).toBe('/api/avatar-session');
+    expect(calls[1]?.key).toBeNull();
+    expect(calls[2]?.url).toBe(`/api/events/${slug}`);
+    expect(calls[2]?.key).toBeNull();
     expect(calls.some((call) => call.body.includes(key) || call.url.includes(key))).toBe(false);
   });
 });

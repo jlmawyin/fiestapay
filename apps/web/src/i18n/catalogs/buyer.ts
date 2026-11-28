@@ -9,7 +9,7 @@ export const buyerCatalog = defineCatalog({
     title: 'Cuenta Personal de prueba',
     badge: 'PayPal Sandbox',
     description:
-      'Acceso compartido de Sandbox. No se mueve dinero real. Esta cuenta ficticia sirve solo para probar el pago; FiestaPay no inicia sesión ni crea órdenes por ti.',
+      'Acceso compartido de Sandbox. No se mueve dinero real. Esta cuenta ficticia sirve solo para probar el pago; Somos Panas no inicia sesión ni crea órdenes por ti.',
     loadError: 'No se pudo consultar la cuenta de prueba. Inténtalo de nuevo.',
     retry: 'Reintentar cuenta de prueba',
     loading: 'Consultando la cuenta de prueba…',
@@ -28,7 +28,7 @@ export const buyerCatalog = defineCatalog({
     title: 'Personal test account',
     badge: 'PayPal Sandbox',
     description:
-      'Shared Sandbox access. No real money moves. This fictional account is only for testing the payment; FiestaPay does not log in or create orders for you.',
+      'Shared Sandbox access. No real money moves. This fictional account is only for testing the payment; Somos Panas does not log in or create orders for you.',
     loadError: 'The test account could not be loaded. Please try again.',
     retry: 'Retry test account',
     loading: 'Loading the test account…',

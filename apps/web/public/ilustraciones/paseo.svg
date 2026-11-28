@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 200" role="img" aria-label="Paseo">
+  <rect width="500" height="200" rx="18" style="fill:var(--color-cloudwhite,#FFF8F1)"/>
+  <circle cx="392" cy="52" r="34" style="fill:var(--color-yellow,#FFC85A)"/>
+  <path d="M0 164c92-52 180-52 250 0s158 52 250 0v36H0Z" style="fill:var(--color-teal,#0B8075)" opacity=".22"/>
+  <path d="M126 164c26-64 72-64 98 0" style="fill:none;stroke:var(--color-ink,#2A2118);stroke-width:4"/>
+  <path d="M276 164c26-64 72-64 98 0" style="fill:none;stroke:var(--color-ink,#2A2118);stroke-width:4"/>
+  <path d="M220 120c30-30 58-30 88 0" style="fill:none;stroke:var(--color-blue,#125FE6);stroke-width:5;stroke-dasharray:10 8"/>
+  <circle cx="220" cy="120" r="8" style="fill:var(--color-coral,#E85D4A)"/>
+  <circle cx="308" cy="120" r="8" style="fill:var(--color-coral,#E85D4A)"/>
+  <path d="M190 74l10 18 20 2-15 14 4 20-19-10-18 10 4-20-15-14 20-2Z" style="fill:var(--color-blue,#125FE6)" opacity=".75"/>
+</svg>

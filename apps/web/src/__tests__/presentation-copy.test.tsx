@@ -16,9 +16,7 @@ import { OrganizerHomeView } from '../views/OrganizerHomeView';
 import { OrganizerRecoveryView } from '../views/OrganizerRecoveryView';
 import { PublicInviteView } from '../views/PublicInviteView';
 
-vi.mock('../components/assistant/AssistantOrb', () => ({
-  AssistantOrb: () => <div data-testid="assistant-orb" />,
-}));
+// NAP-F5b: sin orbe; la avatar Napster real monta en reposo sin red.
 
 vi.mock('ag-grid-react', () => ({
   AgGridReact: ({ rowData }: { rowData: Array<{ id: string; name: string }> }) => (
@@ -45,10 +43,9 @@ afterEach(() => {
 const caps: Capabilities = {
   paypal: false,
   paypalClientId: null,
-  chat: false,
-  voice: false,
   sandbox: true,
   email: true,
+  avatar: true,
 };
 
 function event(over: Partial<FiestaEvent> = {}): FiestaEvent {
@@ -98,7 +95,7 @@ async function openDemoResetModal() {
 describe('neutral presentation copy', () => {
   it('keeps the brand and names the header actions as invitations', () => {
     render(<Header onNavigateHome={vi.fn()} onNavigateCreate={vi.fn()} />);
-    expect(screen.getByRole('button', { name: /FiestaPay/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Somos Panas/i })).toBeInTheDocument();
     const nav = screen.getByRole('navigation');
     expect(within(nav).getByRole('button', { name: 'Mis invitaciones' })).toBeInTheDocument();
     expect(within(nav).getByRole('button', { name: '+ Nueva invitación' })).toBeInTheDocument();
@@ -119,22 +116,21 @@ describe('neutral presentation copy', () => {
       <CreateEventView onEventCreated={onEventCreated} onCancel={vi.fn()} onShowToast={onShowToast} />,
     );
 
-    expect(screen.getByText('Nueva invitación')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Crea tu próxima invitación' })).toBeInTheDocument();
+    // NAP-U3: la creación es la entrevista; los encabezados neutros no
+    // nombran ningún tipo antes de publicar.
+    expect(screen.getByRole('heading', { name: 'Arma tu reunión conversando' })).toBeInTheDocument();
     expect(screen.queryByText(/fiesta/i)).toBeNull();
 
-    fireEvent.click(screen.getByRole('radio', { name: /Viaje/i }));
-    fireEvent.change(screen.getByLabelText(/Título del Evento/i), { target: { value: 'Ruta a Baños' } });
-    const save = () => fireEvent.click(screen.getByRole('button', { name: 'Guardar y seguir' }));
-    save();
-    save();
-    fireEvent.change(screen.getByLabelText(/Lugar o Dirección/i), { target: { value: 'Baños' } });
-    save();
-    fireEvent.change(screen.getByLabelText(/Cuota por persona/i), { target: { value: '25.00' } });
-    fireEvent.change(screen.getByLabelText(/Capacidad máxima/i), { target: { value: '8' } });
-    save();
-    save();
-    fireEvent.click(screen.getByRole('button', { name: 'Publicar invitación' }));
+    fireEvent.click(screen.getByTestId('interview-template-viaje'));
+    fireEvent.change(screen.getByTestId('interview-title'), { target: { value: 'Ruta a Baños' } });
+    fireEvent.click(screen.getByTestId('interview-step-4'));
+    fireEvent.change(screen.getByTestId('interview-location'), { target: { value: 'Baños' } });
+    fireEvent.click(screen.getByTestId('interview-step-5'));
+    fireEvent.change(screen.getByTestId('interview-capacity'), { target: { value: '8' } });
+    fireEvent.click(screen.getByTestId('interview-step-6'));
+    fireEvent.change(screen.getByTestId('interview-price'), { target: { value: '25.00' } });
+    fireEvent.click(screen.getByTestId('interview-step-7'));
+    fireEvent.click(screen.getByTestId('interview-publish'));
 
     expect(await screen.findByRole('status')).toHaveTextContent('Creando la invitación…');
     await act(async () => {
@@ -167,16 +163,15 @@ describe('neutral presentation copy', () => {
         isResetting={false}
       />,
     );
-    expect(screen.getByRole('heading', { name: 'Tu anfitrión con IA que cobra la parte de cada uno con PayPal' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Tu anfitrión que cobra la parte de cada uno con PayPal' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Crear mi invitación' }).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Reunión de excompañeros de colegio' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Mis invitaciones' })).toBeInTheDocument();
     expect(screen.getByText('Sandbox · Sin dinero real')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reiniciar mis demos' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Reiniciar Demo' })).toBeNull();
-    // FP-JUDGE-1: the landing headline story now centers on AI and names the
-    // party the AI builds ("Describe la fiesta en una frase y la IA la arma").
-    expect(screen.getByText(/Describe la fiesta en una frase y la IA la arma/)).toBeInTheDocument();
+    // NAP-U1: la historia de la portada nombra a tu guía, la avatar de Somos Panas.
+    expect(screen.getByText(/Arma la fiesta con ayuda de tu guía, la avatar/)).toBeInTheDocument();
   });
 
   it('prints the fresh demo title without a client amount', async () => {

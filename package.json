@@ -17,11 +17,16 @@
     "test": "npm run build -w @fiestapay/shared && vitest run",
     "lint": "eslint .",
     "check": "npm run lint && npm run typecheck && npm test && npm run build",
+    "verificar": "node scripts/verificar.mjs",
+    "napster:diagnostico": "node --env-file-if-exists=.env scripts/napster/diagnostico.mjs",
+    "napster:setup": "node --env-file-if-exists=.env scripts/napster/setup.mjs",
     "start": "node --env-file-if-exists=.env apps/api/dist/index.js",
     "test:e2e": "playwright test",
     "providers:check": "node --env-file-if-exists=.env scripts/check-providers.mjs"
   },
   "devDependencies": {
+    "ajv": "^8.20.0",
+    "playwright": "^1.56.0",
     "@eslint/js": "^10.0.0",
     "@playwright/test": "^1.56.0",
     "@types/node": "^24.0.0",
