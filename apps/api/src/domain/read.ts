@@ -13,6 +13,7 @@ import { normalizeOrganizerName, resolveTheme } from '@fiestapay/shared';
 import { sumToCents, type Pool, type PoolClient } from '../db/pool.js';
 import { assertGroupPrivateEventOnPortalHost, type EventPortalGate } from './access.js';
 import { notFound } from '../errors.js';
+import { eventPublicUrl } from './subdomains.js';
 
 export type Queryable = Pool | PoolClient;
 
@@ -50,6 +51,8 @@ export interface EventRow {
   organizer_name?: string | null;
   /** Null on rows created before presentation metadata. */
   theme?: string | null;
+  /** NAP-S2: dirección propia de la reunión; null en eventos históricos. */
+  subdomain?: string | null;
 }
 
 export interface GuestRow {
@@ -69,7 +72,7 @@ export const EVENT_COLUMNS = `id, slug, organizer_session_id, generation, archiv
   description, starts_at, location, includes, agenda, price_cents, capacity, goal_cents, minimum_cents,
   confirmed, created_at, ends_at, closed_at, purged_at, is_demo, admin_key_hash, access_code_hash,
   funding_deadline_at, funding_status, funding_decided_at, funding_basis_cents,
-  organizer_name, theme`;
+  organizer_name, theme, subdomain`;
 
 export const GUEST_COLUMNS =
   'id, event_id, session_id, name, status, companions, obligation_version, blocked_at, removed_at';
@@ -263,6 +266,8 @@ export function toFiestaEvent(
     organizerName: normalizeOrganizerName(row.organizer_name),
     theme: resolveTheme(row.template, row.theme).key,
     isDemo: row.is_demo,
+    subdomain: row.subdomain ?? null,
+    publicUrl: eventPublicUrl(row.subdomain),
     ...(paymentProvider ? { paymentProvider } : {}),
   };
 }

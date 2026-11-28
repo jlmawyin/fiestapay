@@ -19,8 +19,12 @@ import {
 import { createNapsterClient, NapsterError } from '../napster/client.js';
 import type { RouteDeps } from './deps.js';
 
-function assertLegacyHost(req: FastifyRequest): void {
-  if (req.hostClassification?.kind !== 'legacy') throw notFound('Ruta no encontrada');
+function assertEventAvatarHost(req: FastifyRequest, slug: string): void {
+  const host = req.hostClassification;
+  if (host?.kind === 'legacy') return;
+  // NAP-S2: el host de una reunión solo puede gestionar la foto de esa misma reunión.
+  if (host?.kind === 'event' && host.slug === slug) return;
+  throw notFound('Ruta no encontrada');
 }
 
 function slugDe(req: FastifyRequest): string {
@@ -37,8 +41,9 @@ export async function registerEventAvatarRoutes(app: FastifyInstance, deps: Rout
   const { pool, config } = deps;
 
   const eventoAutorizado = async (req: FastifyRequest) => {
-    assertLegacyHost(req);
-    const event = await getEventBySlug(pool, slugDe(req));
+    const slug = slugDe(req);
+    assertEventAvatarHost(req, slug);
+    const event = await getEventBySlug(pool, slug);
     assertAdminKey(event, presentedAdminKey(req));
     return event;
   };

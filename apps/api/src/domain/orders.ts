@@ -93,7 +93,11 @@ async function reserveOrderIntent(
     if (!eventId) throw notFound('Evento no encontrado');
     const locked = await lockEvent(client, eventId);
     const providerId = await paymentProviderIdForEventId(client, locked.id);
-    if (providerId === 'none') throw unavailable(NONE_UNAVAILABLE);
+    if (providerId === 'none') {
+      // NAP-S2: las direcciones nuevas responden 409; el comportamiento histórico sigue en 503.
+      if (locked.subdomain) throw conflict(NONE_UNAVAILABLE);
+      throw unavailable(NONE_UNAVAILABLE);
+    }
     const settled = await decideFundingIfDue(client, locked);
     const blocked = fundingBlocksNewCharge(settled.event, settled.at);
     if (blocked) return { blocked };

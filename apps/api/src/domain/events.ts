@@ -17,6 +17,7 @@ import { decideFundingIfDue, fundingBlocksNewCharge, fundingForNewEvent, funding
 import { legacyTenantId } from '../lib/host.js';
 import { paymentProviderIdForEventId, paymentProviderIdForTenant } from '../payments/provider.js';
 import { isPastRetention, tombstoneEvent } from './retention.js';
+import { chooseEventSubdomain, ROOT_EVENTS_TENANT_SLUG } from './subdomains.js';
 import {
   EVENT_COLUMNS,
   eventForClient,
@@ -29,6 +30,7 @@ import {
 } from './read.js';
 
 const UNIQUE_VIOLATION = '23505';
+export type EventTenantMode = 'legacy' | 'none';
 
 export const isUniqueViolation = (err: unknown): boolean =>
   typeof err === 'object' && err !== null && (err as { code?: string }).code === UNIQUE_VIOLATION;
@@ -64,24 +66,29 @@ export async function insertEvent(
   sessionId: string,
   input: EventInput,
   generation: number,
-  opts: { isDemo: boolean; adminKeyHash: Buffer; accessCodeHash: Buffer | null },
+  opts: {
+    isDemo: boolean;
+    adminKeyHash: Buffer;
+    accessCodeHash: Buffer | null;
+    /** NAP-S2: las reuniones nuevas de raíz/evento no cobran por PayPal. */
+    tenantMode?: EventTenantMode;
+  },
 ): Promise<EventRow> {
-  // Slugs are random; retry only guards against the astronomically unlikely collision.
+  // NAP-S2: reintenta si otro request ganó el mismo subdominio o el slug aleatorio.
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const slug = newSlug(input.template);
     try {
       const presentation = presentationOf(input);
-      const tenantId = await legacyTenantId(db);
+      const subdomain = await chooseEventSubdomain(db, input.title, input.preferredSubdomain);
+      const tenantId = opts.tenantMode === 'none' ? await rootEventsTenantId(db) : await legacyTenantId(db);
       const paymentProvider = await paymentProviderIdForTenant(db, tenantId);
-      // TODO(SP-futuro): insertEvent sigue fijando tenantId al legado; al crear eventos en hosts
-      // de grupo habrá que resolver el tenant del sitio y pasar su paymentProvider a fundingForNewEvent.
       const funding = fundingForNewEvent(input, fundingNow(), paymentProvider);
       const { rows } = await db.query<EventRow>(
         `INSERT INTO events (id, slug, tenant_id, organizer_session_id, generation, title, template, meal, description,
            starts_at, ends_at, location, includes, agenda, price_cents, capacity, goal_cents, minimum_cents,
            is_demo, admin_key_hash, access_code_hash, funding_deadline_at, funding_status,
-           organizer_name, theme)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
+           organizer_name, theme, subdomain)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
          RETURNING ${EVENT_COLUMNS}`,
         [
           newId(),
@@ -109,6 +116,7 @@ export async function insertEvent(
           funding.status,
           presentation.organizerName,
           presentation.theme,
+          subdomain,
         ],
       );
       return rows[0]!;
@@ -119,18 +127,32 @@ export async function insertEvent(
   throw conflict('No se pudo generar un enlace de invitacion unico');
 }
 
+/**
+ * NAP-S2: tenant interno para reuniones sin sitio; lo crea la migración 0017, no una transacción
+ * de alta. Su slug no es una etiqueta DNS válida.
+ */
+async function rootEventsTenantId(db: Queryable): Promise<string> {
+  const { rows } = await db.query<{ id: string }>('SELECT id FROM tenants WHERE slug = $1 LIMIT 1', [
+    ROOT_EVENTS_TENANT_SLUG,
+  ]);
+  if (!rows[0]) throw new Error('tenant interno de reuniones no disponible');
+  return rows[0].id;
+}
+
 async function mintAndInsert(
   client: PoolClient,
   sessionId: string,
   input: EventInput,
   generation: number,
   isDemo: boolean,
+  tenantMode: EventTenantMode = 'legacy',
 ): Promise<MintedEvent> {
   const adminKey = newAdminKey();
   const row = await insertEvent(client, sessionId, input, generation, {
     isDemo,
     adminKeyHash: sha256(adminKey),
     accessCodeHash: codeHash(input.accessCode),
+    tenantMode,
   });
   await audit(client, row.id, isDemo ? 'demo_seeded' : 'event_created');
   if (input.accessCode) await audit(client, row.id, 'access_code_set');
@@ -140,14 +162,19 @@ async function mintAndInsert(
   };
 }
 
-export async function createEvent(pool: Pool, sessionId: string, input: EventInput): Promise<MintedEvent> {
+export async function createEvent(
+  pool: Pool,
+  sessionId: string,
+  input: EventInput,
+  tenantMode: EventTenantMode = 'legacy',
+): Promise<MintedEvent> {
   return withTransaction(pool, async (client) => {
     const { rows } = await client.query<{ demo_generation: number }>(
       'SELECT demo_generation FROM sessions WHERE id = $1 FOR UPDATE',
       [sessionId],
     );
     const generation = rows[0]?.demo_generation ?? 0;
-    return mintAndInsert(client, sessionId, input, generation, false);
+    return mintAndInsert(client, sessionId, input, generation, false, tenantMode);
   });
 }
 
@@ -308,19 +335,24 @@ export async function listOwnedEvents(
   sessionId: string,
   gate?: EventPortalGate,
 ): Promise<FiestaEventWithDemo[]> {
-  const { rows } = await pool.query<EventRow>(
-    `SELECT ${EVENT_COLUMNS} FROM events
+  const { rows } = await pool.query<EventRow & { tenant_slug: string }>(
+    `SELECT ${EVENT_COLUMNS},
+            (SELECT t.slug FROM tenants t WHERE t.id = events.tenant_id) AS tenant_slug
+       FROM events
       WHERE organizer_session_id = $1 AND purged_at IS NULL
       ORDER BY created_at DESC LIMIT 100`,
     [sessionId],
   );
   const events: FiestaEventWithDemo[] = [];
   for (const row of rows) {
-    if (
-      gate &&
-      (await groupPrivateEventHiddenOnPortal(pool, row.slug, gate.hostKind, gate.accountUserId))
-    ) {
-      continue;
+    // NAP-S2: las reuniones de raíz viven en el tenant interno y no son privadas de un grupo.
+    if (row.tenant_slug !== ROOT_EVENTS_TENANT_SLUG) {
+      if (
+        gate &&
+        (await groupPrivateEventHiddenOnPortal(pool, row.slug, gate.hostKind, gate.accountUserId))
+      ) {
+        continue;
+      }
     }
     events.push(await loadFiestaEvent(pool, row));
   }

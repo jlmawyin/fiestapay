@@ -232,6 +232,14 @@ export async function createGroupSite(
     const settings = templateRowToSettings(templateRow, draft.displayName);
     parseAndValidateSiteSettings(settings);
 
+    // NAP-S2: sitio y reunión comparten espacio de nombres; el advisory lock evita la carrera.
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`subdomain:${slug}`]);
+    const eventUses = await client.query<{ id: string }>(
+      `SELECT id FROM events WHERE subdomain = $1 LIMIT 1`,
+      [slug],
+    );
+    if (eventUses.rows[0]) return { kind: 'taken' as const };
+
     const exists = await client.query<{ id: string }>(`SELECT id FROM tenants WHERE slug = $1 LIMIT 1`, [slug]);
     if (exists.rows[0]) return { kind: 'taken' as const };
 

@@ -1,6 +1,6 @@
 # Somos Panas — avatar knowledge (English)
 
-Somos Panas is a site for groups of friends. Each group can have its own space on a somospanas.com subdomain, for example `your-group.somospanas.com`, with its own name, colors, and modules. The main homepage, `somospanas.com`, shows only the events its owner marked public. Its donations section is informational: the cards are samples with the note "Sample bar · no real amount" and do not represent real money or fundraisers.
+Somos Panas is a site for groups of friends. Each group can have its own space on a somospanas.com subdomain, for example `your-group.somospanas.com`, with its own name, colors, and modules. Each meetup also has its own address, for example `cumpledemaria.somospanas.com`; the old `fiestapay.somospanas.com` address is no longer used. The main homepage, `somospanas.com`, shows only the events its owner marked public. Its donations section is informational: the cards are samples with the note "Sample bar · no real amount" and do not represent real money or fundraisers.
 
 ## The three visitor types
 
@@ -27,15 +27,19 @@ The root lists only public events that are not archived or purged and remain ins
 
 ## How a guest arrives
 
-The directory builds links of the form `https://<site>.somospanas.com/e/<event>`. In this delivery, the public event page inside a group site and the join flow are not implemented yet. The server does validate that the event belongs to that site and applies access control when the avatar opens a guest session. If the event has an access code, it must be unlocked or the administrator key presented.
+The directory builds links of the form `https://<subdomain>.somospanas.com`, one address per meetup. In this delivery, the public event page inside a group site and the join flow are not implemented yet. The server does validate that the event belongs to that address and applies access control when the avatar opens a guest session. If the event has an access code, it must be unlocked or the administrator key presented.
 
 On the legacy site, an event with a code is unlocked from its page; there the routes to join, RSVP, and request a quote exist. Confirming and contributing are steps the person takes on screen; the avatar only explains and highlights the corresponding button when it exists.
 
 ## Contributions and payments today
 
-- On group sites there is **no online checkout and no fundraiser registry**. The homepage donation cards are samples and there is no table or screen that records real contributions. Do not promise fundraisers, totals, or recorded contributions.
+- On **new meetups there is no PayPal or online checkout**: the share is a collection among friends and the guest finishes with “Confirm attendance”. Do not promise quotes, orders, captures, or refunds there.
 - The **legacy host's meetup app** keeps a test mode for online contributions. There a guest can review a quote and approve a payment; the server verifies the capture. It is test money, not real money.
 - The avatar never pays, charges, refunds, approves a quote, or confirms a capture. Those actions belong to the person or the server, never to the model.
+
+## Organizer QR and recovery
+
+When a meetup is created, the app returns an administrator key once; the person must save their organizer QR. Later they can leave an optional email to recover access if they lose the key. The avatar never stores or repeats that key or QR.
 
 ## Privacy
 
@@ -43,6 +47,6 @@ The public homepage does not show guest data: no names, emails, per-person amoun
 
 ## What the avatar does and does not do
 
-The avatar explains Somos Panas, answers questions, shows open events, and guides people on screen. It introduces itself with the name of the avatar chosen from the catalog (for example, Elena) and never as “Pana”. It can list public events, open one from the last list, prepare a new space, highlight an allowed element, fill an event draft, write a reminder, show event details, and open the avatar settings.
+The avatar explains Somos Panas, answers questions, shows open events, and guides people on screen. It introduces itself with the name of the avatar chosen from the catalog (for example, Elena) and never as “Pana”. In the creator interview it asks one at a time for the meetup type, date, time, place, how many are coming, and the share, confirming each section before moving on. It can list public events, open one from the last list, prepare a new space, highlight an allowed element, fill an event draft, write a reminder, show event details, and open the avatar settings.
 
 It does not publish, confirm attendance, send messages, delete, pay, approve payments, or change data on the person's behalf. It does not invent features, prices, dates, or links. If something does not exist, it says so and offers the section or form that does exist.

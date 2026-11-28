@@ -35,13 +35,14 @@ export * from './avatar-tools.js';
 export {
   SITE_SLUG_PATTERN,
   RESERVED_SITE_SLUGS,
+  NON_CREATABLE_SITE_SLUGS,
+  MUESTRA_SITE_SLUG,
   normalizeSiteSlugInput,
   validateSiteSlug,
   type SiteSlugValidation,
 } from './site-slug.js';
 
-export type TemplateKind = 'comida' | 'casa' | 'viaje' | 'evento';
-export type RsvpStatus = 'yes' | 'no' | 'maybe';
+export type TemplateKind = 'comida' | 'casa' | 'viaje' | 'evento';export type RsvpStatus = 'yes' | 'no' | 'maybe';
 export interface AgendaItem { time: string; title: string; speaker?: string }
 export interface EventInput {
   title: string; template: TemplateKind; meal: 'desayuno' | 'almuerzo' | 'cena';
@@ -54,6 +55,8 @@ export interface EventInput {
   theme?: ThemeKey;
   /** Write-only. The server stores a hash and never returns the code. */
   accessCode?: string | null;
+  /** NAP-S2: etiqueta pedida para la dirección propia; el servidor aplica sufijo si está tomada. */
+  preferredSubdomain?: string;
   /**
    * Omitted on update keeps the stored deadline, including a legacy NULL.
    * Omitted on create with a minimum defaults to startsAt. Explicit null on
@@ -99,6 +102,10 @@ export interface FiestaEvent {
   isDemo?: boolean;
   /** Procesador del sitio dueño del evento; el invitado no confía solo en el Host (SP8-D-2). */
   paymentProvider?: PaymentProviderId;
+  /** NAP-S2: etiqueta de la dirección propia; null en eventos históricos. */
+  subdomain?: string | null;
+  /** NAP-S2: URL pública construida por el servidor, nunca desde el Host del cliente. */
+  publicUrl?: string | null;
 }
 export interface Guest {
   id: string;
@@ -173,6 +180,14 @@ export interface Capabilities {
   /** True only when the server has SMTP configured. Never implies a message was accepted or delivered. */
   email: boolean;
 }
+/** NAP-S2: la SPA decide con `GET /api/host-info` qué mostrar; nunca recibe ids internos. */
+export type HostInfo =
+  | { kind: 'root' }
+  | { kind: 'legacy' }
+  | { kind: 'site'; slug: string }
+  | { kind: 'event'; slug: string; subdomain: string }
+  | { kind: 'free'; label: string }
+  | { kind: 'reserved'; label: string };
 export type RecoveryContactState = 'none' | 'pending' | 'verified';
 export interface RecoveryContactStatus { state: RecoveryContactState; masked: string | null }
 export interface RecoveryStatus { email: boolean; contact: RecoveryContactStatus }

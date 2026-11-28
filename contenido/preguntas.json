@@ -144,6 +144,39 @@
       }
     },
     {
+      "id": "direccion-reunion",
+      "pregunta": {
+        "es": "¿Cada reunión tiene su propia dirección?",
+        "en": "Does every meetup have its own address?"
+      },
+      "respuesta": {
+        "es": "Sí. Al crear una reunión, el servidor le asigna una dirección como cumpledemaria.somospanas.com. Si el nombre está tomado o reservado, agrega un número.",
+        "en": "Yes. When a meetup is created, the server assigns an address such as cumpledemaria.somospanas.com. If the name is taken or reserved, it adds a number."
+      }
+    },
+    {
+      "id": "colecta-reunion-nueva",
+      "pregunta": {
+        "es": "¿Cómo se paga la cuota en una reunión nueva?",
+        "en": "How is the share paid in a new meetup?"
+      },
+      "respuesta": {
+        "es": "La cuota es una colecta entre panas y no hay PayPal ni cobro en línea en las reuniones nuevas. El invitado termina con «Confirmar asistencia»; el organizador coordina la colecta por fuera de la app.",
+        "en": "The share is a collection among friends and new meetups have no PayPal or online checkout. The guest finishes with “Confirm attendance”; the organizer coordinates the collection outside the app."
+      }
+    },
+    {
+      "id": "qr-recuperacion",
+      "pregunta": {
+        "es": "¿Qué pasa si pierdo la clave de administrador?",
+        "en": "What if I lose the administrator key?"
+      },
+      "respuesta": {
+        "es": "Al crear la reunión recibes una clave de administrador una sola vez; guarda su QR. Puedes dejar un correo opcional para recuperar el acceso. La avatar nunca guarda ni repite esa clave.",
+        "en": "When you create the meetup you receive an administrator key once; save its QR. You can leave an optional email to recover access. The avatar never stores or repeats that key."
+      }
+    },
+    {
       "id": "aportes-sitios-grupo",
       "pregunta": {
         "es": "¿Puedo pagar mi aporte en un sitio de grupo?",
@@ -172,8 +205,8 @@
         "en": "What can the avatar do?"
       },
       "respuesta": {
-        "es": "Explica Somos Panas, responde dudas, lista eventos públicos, abre uno de la última lista, prepara un espacio, resalta elementos, rellena el borrador de un evento, redacta recordatorios y muestra detalles o ajustes. Se presenta con el nombre de la avatar elegida, nunca como «Pana».",
-        "en": "It explains Somos Panas, answers questions, lists public events, opens one from the last list, prepares a space, highlights elements, fills an event draft, writes reminders, and shows details or settings. It introduces itself with the name of the chosen avatar, never as “Pana”."
+        "es": "Explica Somos Panas, responde dudas, lista eventos públicos, abre uno de la última lista, prepara un espacio, resalta elementos, rellena el borrador de un evento, redacta recordatorios y muestra detalles o ajustes. En la entrevista pregunta una por una el tipo de reunión, fecha, hora, lugar, cuántos van y cuota, y confirma cada sección. Se presenta con el nombre de la avatar elegida, nunca como «Pana».",
+        "en": "It explains Somos Panas, answers questions, lists public events, opens one from the last list, prepares a space, highlights elements, fills an event draft, writes reminders, and shows details or settings. In the interview it asks one at a time for meetup type, date, time, place, how many are coming, and share, confirming each section. It introduces itself with the name of the chosen avatar, never as “Pana”."
       }
     },
     {

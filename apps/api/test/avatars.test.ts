@@ -54,7 +54,7 @@ describe('GET /api/avatars (NAP-S1)', () => {
         .map((entrada) => entrada.id);
       expect(body.avatars.map((entrada) => entrada.id).sort()).toEqual(listas.sort());
       for (const entrada of body.avatars) {
-        expect(Object.keys(entrada).sort()).toEqual(['default', 'firstName', 'gender', 'id', 'previewUrl']);
+        expect(Object.keys(entrada).sort()).toEqual(['default', 'firstName', 'gender', 'id', 'loopUrl', 'previewUrl']);
       }
       expect(response.body).not.toContain('agentId');
       expect(response.body).not.toContain('companionId');

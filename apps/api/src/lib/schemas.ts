@@ -54,6 +54,14 @@ export const eventInputSchema = z
     organizerName: z.string().trim().max(ORGANIZER_NAME_MAX).nullable().optional(),
     theme: z.string().trim().pipe(z.enum(THEME_KEYS)).optional(),
     accessCode: z.string().trim().min(4).max(64).nullable().optional(),
+    // NAP-S2: etiqueta DNS de la dirección; el servidor resuelve colisiones con sufijo.
+    preferredSubdomain: z
+      .string()
+      .trim()
+      .min(3)
+      .max(40)
+      .regex(/^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/, 'Direccion invalida')
+      .optional(),
     fundingDeadlineAt: isoDate.nullable().optional(),
   })
   .refine((v) => v.theme === undefined || themeBelongs(v.template, v.theme), {

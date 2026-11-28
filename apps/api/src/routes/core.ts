@@ -1,5 +1,6 @@
-import type { Capabilities, CreatedEvent, Dashboard, FiestaEvent, Guest, Quote } from '@fiestapay/shared';
+import type { Capabilities, CreatedEvent, Dashboard, FiestaEvent, Guest, HostInfo, Quote } from '@fiestapay/shared';
 import type { FastifyInstance } from 'fastify';
+import { notFound } from '../errors.js';
 import { assertPrivateAccess, presentedAdminKey, resolveEventPortalGate } from '../domain/access.js';
 import { dashboardFor } from '../domain/dashboard.js';
 import {
@@ -54,6 +55,20 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
   const { pool, config } = deps;
 
   app.get('/health', async () => ({ ok: true as const }));
+
+  /** NAP-S2: identidad pública del host; la SPA no recibe ids internos ni datos privados. */
+  app.get('/host-info', async (req): Promise<HostInfo> => {
+    const host = req.hostClassification;
+    if (host?.kind === 'root') return { kind: 'root' };
+    if (host?.kind === 'legacy') return { kind: 'legacy' };
+    if (host?.kind === 'site' && host.slug) return { kind: 'site', slug: host.slug };
+    if (host?.kind === 'event' && host.slug && host.subdomain) {
+      return { kind: 'event', slug: host.slug, subdomain: host.subdomain };
+    }
+    if (host?.kind === 'free' && host.label) return { kind: 'free', label: host.label };
+    if (host?.kind === 'reserved' && host.label) return { kind: 'reserved', label: host.label };
+    throw notFound('Ruta no encontrada');
+  });
 
   // Capabilities are reported from real server configuration; a provider is never announced as
   // available just because the UI would like it to be.
@@ -117,7 +132,9 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
       const session = await ensureSession(pool, config, req, reply);
       assertNoClientMoneyState(req.body);
       const input = parseOr400(eventInputSchema, req.body);
-      return createEvent(pool, session.id, input);
+      // NAP-S2: solo el legado conserva PayPal; raíz y host de evento nacen con `none`.
+      const tenantMode = req.hostClassification?.kind === 'legacy' ? 'legacy' : 'none';
+      return createEvent(pool, session.id, input, tenantMode);
     },
   );
 

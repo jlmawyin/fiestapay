@@ -67,6 +67,8 @@ export interface Config {
   rateLimitMax: number;
   webDir: string;
   serveWeb: boolean;
+  /** NAP-S2: corta las páginas GET/HEAD del host legado hacia el dominio nuevo. */
+  legacyHostRedirect: boolean;
   paypal: PayPalConfig | null;
   /** Napster avatar; null when disabled or missing the API key. */
   napster: NapsterConfig | null;
@@ -263,6 +265,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     rateLimitMax: num(env.RATE_LIMIT_MAX, 300),
     webDir,
     serveWeb: str(env.SERVE_WEB) !== '0',
+    legacyHostRedirect: (env.LEGACY_HOST_REDIRECT ?? '').trim().toLowerCase() === 'true',
     paypal: paypal.config,
     paypalDisabledReason: paypal.reason,
     napster,
