@@ -6,6 +6,7 @@ import { api, ApiError } from '../api/client';
 import { adminKeyFor, rememberAdminKey } from '../api/admin-key';
 import { NapsterAvatar } from '../components/avatar/NapsterAvatar';
 import { EventAvatarSection } from '../components/avatar/EventAvatarSection';
+import { HostAvatar } from '../components/avatar/HostAvatar';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { dashboardCatalog } from '../i18n/messages/organizerDashboard';
 import { shareCatalog } from '../i18n/messages/share';
@@ -113,6 +114,8 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  /** NAP-U5: estado de la foto propia para la prioridad de la anfitriona. */
+  const [photoStatus, setPhotoStatus] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [showClose, setShowClose] = useState(false);
@@ -431,7 +434,15 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
       </div>
 
       <NapsterAvatar eventSlug={slug} avatarEnabled={capabilities?.avatar !== false} />
-      <EventAvatarSection slug={slug} />
+      <EventAvatarSection slug={slug} onStatus={setPhotoStatus} />
+      <HostAvatar
+        slug={slug}
+        currentId={event.avatarId ?? null}
+        photoStatus={photoStatus}
+        onChanged={(avatarId) =>
+          setDashboard((prev) => (prev ? { ...prev, event: { ...prev.event, avatarId } } : prev))
+        }
+      />
 
       {storedKey ? (
         <>

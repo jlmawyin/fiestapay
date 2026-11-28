@@ -1,9 +1,11 @@
 /**
- * Fila para elegir guía (NAP-U3): foto y nombre de `GET /api/avatars`, con la
- * default ya elegida. Pensada para un catálogo de 26: unas pocas visibles más
- * «Ver todas» (rejilla en diálogo, botones nativos para el teclado). El
- * subconjunto `suggestedIds` queda listo para la futura tool suggest_avatars;
- * por ahora viaja vacío. «Usar mi foto» solo explica que se activa al publicar.
+ * Fila para elegir guía (NAP-U3, NAP-U5): tarjetas con la foto (previewUrl)
+ * y el displayName de `GET /api/avatars`, con la default ya elegida. Se ven
+ * unas pocas más «Ver todas» (rejilla en diálogo, botones nativos para el
+ * teclado y foco visible). Cuando llega `suggest_avatars{tag}` se muestra
+ * arriba «Sugeridas para tu reunión de <etiqueta>» con las de ese tag,
+ * resaltadas sin dorado (el dorado es solo del paso activo y del botón
+ * principal). «Usar mi foto» solo explica que se activa al publicar.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera } from 'lucide-react';
@@ -17,8 +19,10 @@ export const AVATAR_ROW_VISIBLE = 5;
 interface AvatarPickerProps {
   avatars: AvatarCatalogItem[];
   selectedId: string | null;
-  /** Ids sugeridos para la reunión (futura tool suggest_avatars). */
+  /** Ids del tag sugerido por la avatar (`suggest_avatars`). */
   suggestedIds?: readonly string[];
+  /** Etiqueta localizada («Fiesta») para el título de sugeridas. */
+  suggestedTagLabel?: string | null;
   /** Con sesión en curso, cambiar pide confirmación (la vista reinicia). */
   sessionActive: boolean;
   onSelect: (id: string) => void;
@@ -28,6 +32,7 @@ export const AvatarPicker: React.FC<AvatarPickerProps> = ({
   avatars,
   selectedId,
   suggestedIds = [],
+  suggestedTagLabel = null,
   sessionActive,
   onSelect,
 }) => {
@@ -35,6 +40,7 @@ export const AvatarPicker: React.FC<AvatarPickerProps> = ({
   const [open, setOpen] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const suggested = new Set(suggestedIds);
+  const suggestedAvatars = avatars.filter((item) => suggested.has(item.id));
 
   useEffect(() => {
     if (open) closeRef.current?.focus();
@@ -56,7 +62,7 @@ export const AvatarPicker: React.FC<AvatarPickerProps> = ({
     if (event.key === 'Escape') setOpen(false);
   };
 
-  const card = (item: AvatarCatalogItem) => {
+  const card = (item: AvatarCatalogItem, prefix: string) => {
     const active = item.id === selectedId;
     const marked = suggested.has(item.id);
     return (
@@ -65,7 +71,7 @@ export const AvatarPicker: React.FC<AvatarPickerProps> = ({
         type="button"
         className={`interview-pick ${active ? 'interview-pick-active' : ''} ${marked ? 'interview-pick-suggested' : ''}`}
         aria-pressed={active}
-        data-testid={open ? `avatar-pick-all-${item.id}` : `avatar-pick-${item.id}`}
+        data-testid={`${prefix}-${item.id}`}
         data-suggested={marked || undefined}
         onClick={() => choose(item)}
       >
@@ -80,7 +86,7 @@ export const AvatarPicker: React.FC<AvatarPickerProps> = ({
             event.currentTarget.style.display = 'none';
           }}
         />
-        <span className="interview-pick-name">{item.firstName}</span>
+        <span className="interview-pick-name">{item.displayName}</span>
         {marked ? <span className="interview-pick-badge">{m.pickerSuggested}</span> : null}
       </button>
     );
@@ -89,8 +95,18 @@ export const AvatarPicker: React.FC<AvatarPickerProps> = ({
   return (
     <section className="interview-picker" aria-label={m.pickerTitle} data-testid="avatar-picker">
       <h2 className="interview-picker-title">{m.pickerTitle}</h2>
+      {suggestedAvatars.length > 0 && suggestedTagLabel ? (
+        <div className="interview-suggested" data-testid="avatar-suggested">
+          <h3 className="interview-suggested-title" data-testid="avatar-suggested-title">
+            {m.pickerSuggestedFor(suggestedTagLabel)}
+          </h3>
+          <div className="interview-picker-row" role="group" aria-label={m.pickerSuggestedFor(suggestedTagLabel)}>
+            {suggestedAvatars.map((item) => card(item, 'avatar-pick-suggested'))}
+          </div>
+        </div>
+      ) : null}
       <div className="interview-picker-row" role="group" aria-label={m.pickerTitle}>
-        {avatars.slice(0, AVATAR_ROW_VISIBLE).map(card)}
+        {avatars.slice(0, AVATAR_ROW_VISIBLE).map((item) => card(item, open ? 'avatar-pick-all' : 'avatar-pick'))}
         {avatars.length > AVATAR_ROW_VISIBLE ? (
           <button
             type="button"
@@ -131,7 +147,7 @@ export const AvatarPicker: React.FC<AvatarPickerProps> = ({
                 {m.pickerClose}
               </button>
             </div>
-            <div className="interview-picker-grid">{avatars.map(card)}</div>
+            <div className="interview-picker-grid">{avatars.map((item) => card(item, 'avatar-pick-all'))}</div>
           </div>
         </div>
       ) : null}

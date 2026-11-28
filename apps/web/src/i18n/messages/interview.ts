@@ -14,6 +14,8 @@ export const interviewCatalog = defineCatalog({
     pickerDialogTitle: 'Todas las guías',
     pickerClose: 'Cerrar',
     pickerSuggested: 'Sugeridas para tu reunión',
+    // NAP-U5: título sobre las tarjetas del tag sugerido.
+    pickerSuggestedFor: (tag: string) => `Sugeridas para tu reunión de ${tag}`,
     pickerUsePhoto: 'Usar mi foto',
     pickerUsePhotoNote: 'Se activa al publicar: en la pantalla final subes tu foto y tus invitados te verán a ti.',
     pickerConfirmSwitch: (name: string) =>
@@ -54,6 +56,20 @@ export const interviewCatalog = defineCatalog({
     finalPhotoTitle: 'Tu avatar con tu foto',
     finalEmailTitle: 'Correo para recuperar tu acceso (opcional)',
     finalQuotaLine: (money: string) => `Colecta entre panas: ${money} por persona`,
+    // NAP-U5: saludo propio de la entrevista antes de empezar.
+    interviewGreeting: 'Cuéntame de tu reunión y yo voy llenando la invitación',
+    // NAP-U5: dirección pedida desde su subdominio.
+    addressWillBe: (label: string) => `Tu dirección será ${label}.somospanas.com`,
+    addressTakenNote: 'Si ya está tomada, se le agrega un número.',
+    // NAP-U5: la anfitriona que recibe a los invitados.
+    hostTitle: 'Quién recibe a tus invitados',
+    hostChange: 'Cambiar',
+    hostUseDefault: 'Usar la avatar general',
+    hostPhotoPriority: 'Tu foto tiene prioridad cuando esté lista.',
+    hostSaved: (name: string) => `Listo: ${name} recibe a tus invitados.`,
+    hostSaveFail: 'No se pudo cambiar. Inténtalo de nuevo.',
+    // NAP-U5: resumen del borrador para la nueva avatar al reiniciar.
+    resumeIntro: 'Borrador hasta ahora',
   },
   en: {
     pageTitle: 'Build your gathering by talking',
@@ -63,6 +79,7 @@ export const interviewCatalog = defineCatalog({
     pickerDialogTitle: 'All guides',
     pickerClose: 'Close',
     pickerSuggested: 'Suggested for your gathering',
+    pickerSuggestedFor: (tag: string) => `Suggested for your ${tag} gathering`,
     pickerUsePhoto: 'Use my photo',
     pickerUsePhotoNote: 'It activates when you publish: on the final screen you upload your photo and your guests will see you.',
     pickerConfirmSwitch: (name: string) =>
@@ -103,5 +120,15 @@ export const interviewCatalog = defineCatalog({
     finalPhotoTitle: 'Your avatar with your photo',
     finalEmailTitle: 'Email to recover your access (optional)',
     finalQuotaLine: (money: string) => `Chip in with friends: ${money} per person`,
+    interviewGreeting: "Tell me about your gathering and I'll fill in the invitation as we talk",
+    addressWillBe: (label: string) => `Your address will be ${label}.somospanas.com`,
+    addressTakenNote: 'If taken, a number is added.',
+    hostTitle: 'Who greets your guests',
+    hostChange: 'Change',
+    hostUseDefault: 'Use the general avatar',
+    hostPhotoPriority: 'Your photo takes over once ready.',
+    hostSaved: (name: string) => `Done: ${name} greets your guests.`,
+    hostSaveFail: 'Could not switch. Try again.',
+    resumeIntro: 'Draft so far',
   },
 });

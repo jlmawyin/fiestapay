@@ -20,6 +20,8 @@ interface ErrorState {
 
 interface EventAvatarSectionProps {
   slug: string;
+  /** NAP-U5: la vista se entera del estado de la foto propia (prioridad). */
+  onStatus?: (status: string | null) => void;
 }
 
 /**
@@ -27,7 +29,9 @@ interface EventAvatarSectionProps {
  * genera un avatar con su cara para recibir a los invitados. Nunca bloquea:
  * mientras no hay avatar listo, todos ven a la avatar general (Elena).
  */
-export const EventAvatarSection: React.FC<EventAvatarSectionProps> = ({ slug }) => {
+export const EventAvatarSection: React.FC<EventAvatarSectionProps> = ({ slug, onStatus }) => {
+  const statusRef = useRef(onStatus);
+  statusRef.current = onStatus;
   const texts = useMessages(avatarCatalog);
   const [phase, setPhase] = useState<Phase>('loading');
   const [notice, setNotice] = useState<string | null>(null);
@@ -80,6 +84,8 @@ export const EventAvatarSection: React.FC<EventAvatarSectionProps> = ({ slug }) 
   /** Aplica un estado del servidor; devuelve si hay que seguir consultando. */
   const applyStatus = useCallback(
     (status: string): boolean => {
+      // NAP-U5: informa a la vista (la foto lista tiene prioridad).
+      statusRef.current?.(status);
       if (status === 'ready') {
         setNotice(null);
         setError(null);
@@ -206,6 +212,8 @@ export const EventAvatarSection: React.FC<EventAvatarSectionProps> = ({ slug }) 
       lastUpload.current = null;
       setPhotoDataUrl(null);
       setConsent(false);
+      // NAP-U5: sin foto, la anfitriona del catálogo vuelve a mandar.
+      statusRef.current?.('none');
       toForm(texts.eventAvatarDeleted);
     } catch (err: unknown) {
       if (!mountedRef.current) return;
