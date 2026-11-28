@@ -8,6 +8,7 @@ Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, 
 - 2026-11-30 — NAP-S2: migración `0017_event_subdomains.sql`, dirección por reunión con sufijos, host de evento/free/reserved, `GET /api/host-info`, eventos nuevos `none` sin PayPal, redirect del legado, OG escapado, entrevista de la avatar y `loopUrl` (lint y typecheck; vitest lo corre el director).
 - 2026-11-30 — NAP-S3: catálogo de 26 avatares con `displayName`/`tags`, `suggest_avatars` solo para creador, `events.avatar_id` (0018), elección de avatar con clave, prioridad foto > elección > default, `GET /api/avatars` ampliado y límite de fotos propias a 15 (lint y typecheck; vitest lo corre el director).
 - 2026-11-30 — NAP-U4: enrutado SPA por `GET /api/host-info` (reunión, dirección libre, reservada), invitación sin PayPal con «Confirmar asistencia», avatar del host por `eventSlug`, ilustraciones SVG por plantilla y `og-image.png` 1200×630 reproducible (lint y typecheck; vitest lo corre el director).
+- 2026-11-30 — NAP-D1: documentación pública actualizada para Napster API Ignite (README, NAPSTER, JUDGES, ARCHITECTURE con diagrama, API, DEVPOST de 500 palabras y guion de video de 3 minutos).
 
 - 2026-11-28 NAP-U3: entrevista en /create (avatar a la izquierda, pasos a la derecha con dorado activo), fila de avatares con avatarId, `fill_event_draft` con step, pantalla final con QRs/correo/compartir y panel `none` sin PayPal.
 

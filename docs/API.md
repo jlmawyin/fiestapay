@@ -40,10 +40,10 @@ Fastify serves JSON under `/api`. The root host is `somospanas.com`, group sites
   - When the event has a ready custom avatar, `agent` is `"custom"`; otherwise `"default"`.
 - `POST /api/avatar-session/end` body `{handle}` -> 204, idempotent.
 - `GET /api/avatars` returns ready catalog entries `{id, firstName, displayName, gender, previewUrl, loopUrl, tags, default}` without agent ids; it is public on root, legacy, site and event hosts.
-- `suggest_avatars` is creator-only and takes `{tag}` from the closed `AVATAR_TAGS` list; the web highlights matches and the person chooses.
+- `suggest_avatars` is creator-only and takes `{tag}` from the closed `AVATAR_TAGS` list; the web highlights matches and the person chooses. It is one of nine implicit tools with closed schemas.
 - `GET /api/capabilities` reports `paypal`, `paymentProvider`, `avatar` and `email`; it never announces an unconfigured provider.
 
-## Organizer photo avatar (legacy host only)
+## Organizer photo avatar
 
 These routes require `X-Fiesta-Admin-Key` for the event.
 
@@ -51,7 +51,7 @@ These routes require `X-Fiesta-Admin-Key` for the event.
 - `GET /api/events/:slug/avatar` returns `{status, firstName, ready}`. While `generating`, it checks Napster at most once every 10 seconds; when ready it creates the event's two agents, clears the photo and returns `ready`.
 - `DELETE /api/events/:slug/avatar` deletes the event agents and the row, returning to the general avatar.
 - `GET /media/avatar/:token` serves the JPEG/PNG only while it exists, with `Cache-Control: no-store`; afterwards it returns 404.
-- The custom-avatar cap is 35 events; exceeding it returns `409 avatar_limit`.
+- The custom-avatar cap is 15 events; exceeding it returns `409 avatar_limit`.
 
 ## Shared shapes and limits
 

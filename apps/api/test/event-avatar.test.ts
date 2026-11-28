@@ -106,7 +106,7 @@ describeDb('avatar con foto del organizador (NAP-F6s)', () => {
   });
 
   async function createOwnedEvent(client = new Client(app)) {
-    const created = body<{ event: { id: string; slug: string }; adminKey: string }>(
+    const created = body<{ event: { id: string; slug: string; subdomain?: string }; adminKey: string }>(
       await client.post('/api/events', eventInput(`Reunión ${randomBytes(2).toString('hex')}`)),
     );
     client.authorize(created.event.slug, created.adminKey);
@@ -175,6 +175,88 @@ describeDb('avatar con foto del organizador (NAP-F6s)', () => {
     big[0] = 0xff; big[1] = 0xd8; big[2] = 0xff;
     const bigUrl = `data:image/jpeg;base64,${big.toString('base64')}`;
     expect((await client.post(path, { consent: true, firstName: 'Ana', photo: bigUrl })).statusCode).toBe(400);
+  });
+
+  it('NAP-S4: en raíz con clave, POST/GET/DELETE funcionan; sin clave se rechaza', async () => {
+    const { event, adminKey } = await createOwnedEvent();
+    const path = `/api/events/${event.slug}/avatar`;
+    const headers = {
+      host: 'somospanas.com',
+      origin: 'https://somospanas.com',
+      'x-fiesta-admin-key': adminKey,
+    };
+    const created = await app.inject({
+      method: 'POST',
+      url: path,
+      headers,
+      payload: { consent: true, firstName: 'Ana', photo: PNG_URL },
+    });
+    expect(created.statusCode).toBe(200);
+    expect(body<{ status: string }>(created).status).toBe('generating');
+
+    const read = await app.inject({
+      method: 'GET',
+      url: path,
+      headers: { host: 'somospanas.com', 'x-fiesta-admin-key': adminKey },
+    });
+    expect(read.statusCode).toBe(200);
+    expect(body<{ status: string; ready: boolean }>(read)).toMatchObject({ status: 'ready', ready: true });
+
+    const deleted = await app.inject({
+      method: 'DELETE',
+      url: path,
+      headers: { host: 'somospanas.com', origin: 'https://somospanas.com', 'x-fiesta-admin-key': adminKey },
+    });
+    expect(deleted.statusCode).toBe(204);
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: path,
+          headers: { host: 'somospanas.com', 'x-fiesta-admin-key': adminKey },
+        })
+      ).statusCode,
+    ).toBe(200);
+
+    const noKey = await app.inject({
+      method: 'POST',
+      url: path,
+      headers: { host: 'somospanas.com', origin: 'https://somospanas.com' },
+      payload: { consent: true, firstName: 'Ana', photo: PNG_URL },
+    });
+    expect(noKey.statusCode).toBe(403);
+  });
+
+  it('NAP-S4: un host site sigue dando 404', async () => {
+    const { event } = await createOwnedEvent();
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/events/${event.slug}/avatar`,
+      headers: { host: 'grupo.somospanas.com' },
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('NAP-S4: el host de la reunión solo gestiona su propio slug', async () => {
+    const own = await createOwnedEvent();
+    const other = await createOwnedEvent();
+    expect(own.event.subdomain).toBeTruthy();
+    const host = `${own.event.subdomain}.somospanas.com`;
+    const headers = { host, origin: `https://${host}`, 'x-fiesta-admin-key': own.adminKey };
+    const created = await app.inject({
+      method: 'POST',
+      url: `/api/events/${own.event.slug}/avatar`,
+      headers,
+      payload: { consent: true, firstName: 'Ana', photo: PNG_URL },
+    });
+    expect(created.statusCode).toBe(200);
+
+    const foreign = await app.inject({
+      method: 'GET',
+      url: `/api/events/${other.event.slug}/avatar`,
+      headers: { host },
+    });
+    expect(foreign.statusCode).toBe(404);
   });
 
   it('limita a 40 eventos con avatar propio', async () => {

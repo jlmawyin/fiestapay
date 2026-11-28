@@ -1,51 +1,45 @@
 # Video script — 3:00 maximum
 
-Format: screen recording with the Napster avatar visible. Speak in Spanish; show English subtitles on screen. Keep each shot moving; no slide deck.
+Format: screen recording with the Napster avatar visible, English voice-over and English on-screen captions. Keep each shot moving; no slide deck. Times are targets.
 
 ## 0:00–0:20 — Hook
 
-**Show:** quick cuts of the avatar greeting, a group space, a guest invitation and the organizer's photo avatar.
+**Show:** quick cuts of the avatar greeting on the root, the creator interview, and a guest invitation on a meetup subdomain.
 
-**Say (ES):** «Organizar un plan con tus panas no debería perderse en el chat. Somos Panas le da a cada grupo su espacio, y una avatar de Napster recibe a todos con cara y voz.»
+**Say (EN):** “Group plans get lost in chat. Somos Panas gives every group its own space and every meetup its own address — with a Napster avatar that welcomes people by face and voice.”
 
-**Subtitle (EN):** “Planning with your friends shouldn’t get lost in chat. Somos Panas gives every group its space, and a Napster avatar welcomes everyone with a face and a voice.”
+## 0:20–0:55 — Public greeting, root
 
-## 0:20–0:50 — Public greeting
+**Show:** `https://somospanas.com` in English. Toggle day and night. Start the avatar with video and voice. It introduces itself as Elena Navarro, offers public events and highlights an allowed control.
 
-**Show:** `https://somospanas.com`. Start the avatar. It introduces Somos Panas and offers public events and creating a space. Show it highlighting one allowed control.
+**Say (EN):** “This is Elena, the default Somos Panas avatar. She is not called ‘Pana’ — pana means friend in Ecuador. She explains the site, shows public events and points to the next step; I decide and press.”
 
-**Say (ES):** «Soy la guía de Somos Panas. Puedo mostrarte los eventos públicos o acompañarte a crear tu espacio. Yo explico y señalo; tú decides y pulsas.»
+**Show:** captions, microphone state and “Powered by Napster”.
 
-**Subtitle (EN):** “I’m the Somos Panas guide. I can show you public events or help you create your space. I explain and point; you decide and press.”
+## 0:55–1:45 — Creator greeting, interview and avatar suggestion
 
-## 0:50–1:35 — Creator greeting
+**Show:** `https://somospanas.com/create`. Start the creator avatar. Answer the six questions one at a time: type, date, time, place, headcount and share. After the type, show the highlighted suggestions from `suggest_avatars`; choose a different avatar. Show `fill_event_draft` highlighting the active section and the avatar asking “Does that look right? Shall I continue?”.
 
-**Show:** the legacy `/create` page. Start the avatar and dictate: *«Cena para ocho el sábado a las siete, quince dólares por persona.»* The avatar fills the draft with `fill_event_draft`. Review the fields; press **Publish** yourself. Open the organizer panel and ask for a reminder; show the drafted text.
+**Say (EN):** “The avatar asks one question at a time and fills the draft as we talk. When she knows the meetup type, she suggests avatars by tag. I can choose who will receive my guests, or keep Elena. I review everything and press Publish myself.”
 
-**Say (ES):** «La avatar escucha el plan y rellena el borrador. Reviso, corrijo y publico yo. También me prepara el recordatorio, pero el mensaje lo envío yo.»
+**Show:** the `published` system message, the final address, the administrator QR warning and the optional recovery email.
 
-**Subtitle (EN):** “The avatar listens and fills the draft. I review, edit and publish. It also prepares the reminder, but I send the message.”
+**Say (EN):** “After I publish, she reminds me to save the administrator QR and offers an optional recovery email.”
 
-## 1:35–2:10 — Guest greeting
+## 1:45–2:25 — Guest greeting, meetup subdomain
 
-**Show:** open the invitation link. The avatar says the event name. Show the event details and the highlighted RSVP/payment control. For the demo, press **Try a PayPal payment**, join as **Demo Guest**, show the server quote and the **Approve in PayPal** button.
+**Show:** open `https://cumpledemaria.somospanas.com`. Start the guest avatar. It greets the guest by the event name and shows the invitation. For a new meetup, show “Cuota por persona” as a collection among friends and finish on **Confirm attendance**.
 
-**Say (ES):** «Al invitado lo recibe por el nombre de su evento. Lo lleva a confirmar o a revisar su aporte, sin presionar. El pago se aprueba en PayPal Sandbox; no se mueve dinero real.»
+**Say (EN):** “The guest arrives at the meetup’s own address. The avatar greets them by the event name. New meetups use a collection among friends, with no online checkout; the last step is simply Confirm attendance. The legacy historical host still shows the PayPal Sandbox demo.”
 
-**Subtitle (EN):** “The guest is greeted by the event name and guided to RSVP or review their contribution, without pressure. Payment is approved in PayPal Sandbox; no real money moves.”
+## 2:25–2:50 — Wow: a photo avatar
 
-## 2:10–2:40 — Wow: the organizer's face
+**Show:** legacy organizer panel, upload a photo with consent, enter the first name, show the generating state, then the guest page received by that face. If it is still generating, show the general avatar continuing to work.
 
-**Show:** organizer settings, choose a photo, tick “this is my photo”, enter the first name. Show the generating state, then the event page with the custom avatar. If it is still generating, say so and show the general avatar continuing to work.
+**Say (EN):** “An organizer can add their own photo with consent. When the Napster companion is ready, the photo avatar receives the guests. The photo is deleted from our database after generation.”
 
-**Say (ES):** «El organizador sube su foto con consentimiento. Napster crea su avatar v1 y, cuando está listo, sus invitados son recibidos por su propia cara. La foto se borra de nuestra base de datos al terminar.»
+## 2:50–3:00 — Architecture in ten seconds
 
-**Subtitle (EN):** “The organizer uploads their photo with consent. Napster creates a v1 avatar and, when ready, guests are welcomed by their own face. The photo is deleted from our database when generation finishes.”
+**Show:** the Mermaid flow: browser → Fastify → `POST /public/agents/{id}/connections` → single-use token → Web SDK → implicit tools → UI.
 
-## 2:40–3:00 — Architecture in 15 seconds
-
-**Show:** short diagram: Browser → Fastify → Napster; token only in the browser; tools validated in the web; person presses the final button.
-
-**Say (ES):** «El servidor crea la sesión de Napster y guarda la clave. El navegador solo recibe un token temporal. Ocho herramientas con listas cerradas preparan el siguiente paso, y la persona siempre da el último clic.»
-
-**Subtitle (EN):** “The server creates the Napster session and keeps the key. The browser only receives a short-lived token. Eight closed tools prepare the next step, and the person always makes the final click.”
+**Say (EN):** “The server keeps the Napster key and creates the connection. The browser gets only a short-lived token. Nine closed tools prepare the next step, and the person always makes the final click.”
