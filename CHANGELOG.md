@@ -11,6 +11,7 @@ Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, 
 - 2026-11-30 — NAP-D1: documentación pública actualizada para Napster API Ignite (README, NAPSTER, JUDGES, ARCHITECTURE con diagrama, API, DEVPOST de 500 palabras y guion de video de 3 minutos).
 
 - 2026-11-28 NAP-U3: entrevista en /create (avatar a la izquierda, pasos a la derecha con dorado activo), fila de avatares con avatarId, `fill_event_draft` con step, pantalla final con QRs/correo/compartir y panel `none` sin PayPal.
+- 2026-11-28 NAP-U5: sugeridas por tag, anfitriona con cambio (PUT avatar-choice), ?subdominio=, tarjeta pre-inicio con foto/saludo/dorado, previa en modo colecta y resumen del borrador al reiniciar.
 
 ## 2026-11-27 — NAP-F6w · «Tu avatar con tu foto» en el panel del organizador
 

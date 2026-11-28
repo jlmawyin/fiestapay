@@ -10,13 +10,16 @@
 import {
   AVATAR_DRAFT_STEPS,
   AVATAR_SHOW_ON_SCREEN_TARGETS,
+  AVATAR_TAG_IDS,
   AVATAR_TOOLS_BY_VISITOR,
   UI_TARGET_IDS,
   normalizeSiteSlugInput,
   validateSiteSlug,
   type AvatarDraftStep,
+  type AvatarTag,
   type AvatarVisitor,
 } from '@fiestapay/shared';
+import { setAvatarSuggestion } from './avatar-suggest';
 import type { DraftEventProposal } from '../../lib/draft-proposal';
 import { guidePrefersReducedMotion, setGuideDraftProposal, showOnScreen } from '../../guide/showOnScreen';
 import { api, type PortalListedEvent } from '../../api/client';
@@ -172,6 +175,15 @@ function validateToolArgs(
       const keys = Object.keys(args);
       if (keys.length !== 1 || !('text' in args)) return { ok: false };
       if (typeof args.text !== 'string' || args.text.length < 1 || args.text.length > 500) {
+        return { ok: false };
+      }
+      return { ok: true, args };
+    }
+    case 'suggest_avatars': {
+      // NAP-U5: solo {tag}, validado contra la lista cerrada AVATAR_TAGS.
+      const keys = Object.keys(args);
+      if (keys.length !== 1 || !('tag' in args)) return { ok: false };
+      if (typeof args.tag !== 'string' || !AVATAR_TAG_IDS.includes(args.tag as AvatarTag)) {
         return { ok: false };
       }
       return { ok: true, args };
@@ -487,6 +499,16 @@ export function createAvatarToolRouter(deps: AvatarToolRouterDeps) {
    * Enruta una llamada implícita y devuelve la salida para `send_function_output`.
    * Acepta `arguments` como objeto o como JSON en texto; todo lo demás se rechaza.
    */
+  /**
+   * Resalta las avatares de una etiqueta para que la persona elija (NAP-U5,
+   * creador). La entrevista escucha el aviso y muestra las sugeridas; la
+   * tool jamás elige por ella.
+   */
+  async function suggestAvatars(args: Record<string, unknown>): Promise<AvatarToolOutput> {
+    setAvatarSuggestion(args.tag as AvatarTag);
+    return { ok: true };
+  }
+
   async function route(call: AvatarFunctionCall): Promise<AvatarToolOutput> {
     const name = typeof call.name === 'string' ? call.name : '';
     if (!visitorTools().includes(name)) return notAllowed();
@@ -516,7 +538,9 @@ export function createAvatarToolRouter(deps: AvatarToolRouterDeps) {
                     ? showEventDetails()
                     : name === 'open_avatar_settings'
                       ? openAvatarSettings()
-                      : showOnScreenTool(validated.args);
+                      : name === 'suggest_avatars'
+                        ? suggestAvatars(validated.args)
+                        : showOnScreenTool(validated.args);
       return await withToolTimeout(work, timeoutMs);
     } catch {
       return { ok: false, error: 'failed' };

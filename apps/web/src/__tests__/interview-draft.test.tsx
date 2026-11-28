@@ -17,8 +17,8 @@ vi.mock('@touchcastllc/napster-companion-api', () => ({
 
 const AVATARS = {
   avatars: [
-    { id: 'elena', firstName: 'Elena', gender: 'female', previewUrl: 'https://img/e.jpg', loopUrl: null, default: true },
-    { id: 'marco', firstName: 'Marco', gender: 'male', previewUrl: 'https://img/m.jpg', loopUrl: null, default: false },
+    { id: 'elena', firstName: 'Elena', displayName: 'Elena Navarro', gender: 'female', previewUrl: 'https://img/e.jpg', loopUrl: null, tags: ['fiesta'], default: true },
+    { id: 'marco', firstName: 'Marco', displayName: 'Marco Paz', gender: 'male', previewUrl: 'https://img/m.jpg', loopUrl: null, tags: ['karaoke'], default: false },
   ],
 };
 

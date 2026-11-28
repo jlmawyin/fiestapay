@@ -6,11 +6,14 @@
  * paso; la persona corrige a mano cuando quiere y solo ella publica. Al
  * publicar, la pantalla final muestra la invitación, la dirección propia, los
  * dos QR, el correo opcional y cómo compartirla.
+ * NAP-U5: sugeridas por tag, anfitriona que recibe invitados, ?subdominio=,
+ * saludo propio con foto y resumen del borrador al cambiar de avatar.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import type { AvatarDraftStep, TemplateKind, ThemeKey } from '@fiestapay/shared';
+import { AVATAR_TAGS, type AvatarDraftStep, type AvatarTag, type TemplateKind, type ThemeKey } from '@fiestapay/shared';
 import { api, type AvatarCatalogItem } from '../api/client';
 import { rememberAdminKey } from '../api/admin-key';
+import { preferredSubdomainFromLocation } from '../api/host-info';
 import type { FiestaEvent } from '../types';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { interviewCatalog } from '../i18n/messages/interview';
@@ -21,6 +24,11 @@ import {
   type GuideDraftDetail,
 } from '../guide/showOnScreen';
 import { isDraftEventProposal, type DraftEventProposal } from '../lib/draft-proposal';
+import {
+  AVATAR_SUGGEST_EVENT,
+  consumeAvatarSuggestion,
+  type AvatarSuggestDetail,
+} from '../components/avatar/avatar-suggest';
 import {
   buildEventInput,
   mealForHour,
@@ -36,8 +44,9 @@ import {
 import { NapsterAvatar } from '../components/avatar/NapsterAvatar';
 import { AvatarPicker } from '../components/avatar/AvatarPicker';
 import { EventAvatarSection } from '../components/avatar/EventAvatarSection';
+import { HostAvatar } from '../components/avatar/HostAvatar';
 import { TemplateIcon } from '../components/events/template-icons';
-import { TemplateCover } from '../components/illustrations/TemplateCover';
+import { SignatureInvitationCard } from '../components/invite/SignatureInvitationCard';
 import { RecoveryEmailCard } from '../components/dashboard/RecoveryEmailCard';
 import { EventQrCards } from '../components/share/EventQrCards';
 import { ShareButtons } from '../components/share/ShareButtons';
@@ -87,7 +96,7 @@ export const CreateInterviewView: React.FC<CreateInterviewViewProps> = ({
   onShowToast,
   recoveryAvailable = false,
 }) => {
-  const { formatMoney } = useI18n();
+  const { formatMoney, locale } = useI18n();
   const m = useMessages(interviewCatalog);
   const c = useMessages(createEventCatalog);
 
@@ -95,7 +104,16 @@ export const CreateInterviewView: React.FC<CreateInterviewViewProps> = ({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [restartToken, setRestartToken] = useState(0);
   const [sessionStatus, setSessionStatus] = useState<NapsterSessionStatus>('idle');
-  const sessionApiRef = useRef<{ status: NapsterSessionStatus; notifyPublished: () => void } | null>(null);
+  const sessionApiRef = useRef<{
+    status: NapsterSessionStatus;
+    textReady: boolean;
+    notifyPublished: () => void;
+    notifySystem: (message: string) => void;
+  } | null>(null);
+  /** NAP-U5: tag de `suggest_avatars`; la fila resalta las de ese tag. */
+  const [suggestedTag, setSuggestedTag] = useState<AvatarTag | null>(null);
+  /** NAP-U5: resumen del borrador para la nueva avatar al reiniciar. */
+  const pendingSummaryRef = useRef<string | null>(null);
 
   const [template, setTemplate] = useState<TemplateKind>('comida');
   const [title, setTitle] = useState('');
@@ -105,7 +123,8 @@ export const CreateInterviewView: React.FC<CreateInterviewViewProps> = ({
   const [location, setLocation] = useState('');
   const [capacity, setCapacity] = useState('');
   const [priceDollars, setPriceDollars] = useState('');
-  const [address, setAddress] = useState('');
+  // NAP-U5: pedir una dirección libre desde su subdominio la trae pedida.
+  const [address, setAddress] = useState(() => preferredSubdomainFromLocation() ?? '');
   const [activeStep, setActiveStep] = useState<InterviewStep>(1);
   const [stepError, setStepError] = useState<string | null>(null);
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
@@ -246,6 +265,24 @@ export const CreateInterviewView: React.FC<CreateInterviewViewProps> = ({
     return () => document.removeEventListener(GUIDE_DRAFT_EVENT, onDraft);
   }, []);
 
+  // NAP-U5: `suggest_avatars{tag}` resalta las de ese tag; la persona elige.
+  useEffect(() => {
+    const pending = consumeAvatarSuggestion();
+    if (pending) setSuggestedTag(pending);
+    const onSuggest = (event: Event): void => {
+      const tag = (event as CustomEvent<AvatarSuggestDetail>).detail?.tag;
+      consumeAvatarSuggestion();
+      if (tag && AVATAR_TAGS.some((entry) => entry.id === tag)) setSuggestedTag(tag);
+    };
+    document.addEventListener(AVATAR_SUGGEST_EVENT, onSuggest);
+    return () => document.removeEventListener(AVATAR_SUGGEST_EVENT, onSuggest);
+  }, []);
+
+  const suggestedIds = suggestedTag ? avatars.filter((item) => item.tags.includes(suggestedTag)).map((item) => item.id) : [];
+  const suggestedTagLabel = suggestedTag
+    ? (AVATAR_TAGS.find((entry) => entry.id === suggestedTag)?.[locale] ?? null)
+    : null;
+
   const startsAtLocal = `${date}T${time}`;
   const endsAtLocal = plusHours(startsAtLocal, 3);
 
@@ -330,9 +367,12 @@ export const CreateInterviewView: React.FC<CreateInterviewViewProps> = ({
     setBusy(true);
     inFlightRef.current = true;
     try {
-      const res = await api.createEvent(
-        cleanAddress ? { ...built.payload, preferredSubdomain: cleanAddress } : built.payload,
-      );
+      // NAP-U5: la elegida viaja como anfitriona que recibe a los invitados.
+      const res = await api.createEvent({
+        ...built.payload,
+        ...(cleanAddress ? { preferredSubdomain: cleanAddress } : {}),
+        ...(selectedId ? { avatarId: selectedId } : {}),
+      });
       // La clave se guarda siempre (también tras desmontar); lo visible no.
       if (res.adminKey) rememberAdminKey(res.event.slug, res.adminKey);
       if (!mountedRef.current) return;
@@ -357,7 +397,51 @@ export const CreateInterviewView: React.FC<CreateInterviewViewProps> = ({
 
   const sessionActive = sessionStatus === 'connecting' || sessionStatus === 'live' || sessionStatus === 'text';
 
+  /**
+   * Resumen breve de lo ya llenado para la nueva avatar (NAP-U5). El
+   * borrador queda en el formulario; el resumen viaja como system cuando la
+   * nueva sesión está lista, para que continúe donde iba la anterior.
+   */
+  const buildDraftSummary = (): string | null => {
+    // Solo lo que la persona o la avatar llenaron; los defaults no cuentan.
+    const touched = touchedRef.current;
+    const parts: string[] = [];
+    if (title.trim()) parts.push(`«${title.trim().slice(0, 80)}»`);
+    if (touched.has('template')) parts.push(templateLabel(template));
+    if (touched.has('date') && isRealDate(date)) parts.push(date);
+    if (touched.has('time') && DRAFT_TIME.test(time)) parts.push(time);
+    if (location.trim()) parts.push(location.trim().slice(0, 80));
+    const people = Number.parseInt(capacity, 10);
+    if (Number.isInteger(people) && people >= 1) parts.push(String(people));
+    const price = parseFloat(priceDollars);
+    if (Number.isFinite(price) && price > 0) parts.push(formatMoney(Math.round(price * 100)));
+    if (parts.length === 0) return null;
+    return `${m.resumeIntro}: ${parts.join('; ')}.`;
+  };
+
+  const buildDraftSummaryRef = useRef(buildDraftSummary);
+  buildDraftSummaryRef.current = buildDraftSummary;
+
+  /** Entrega el resumen pendiente en cuanto la (nueva) sesión puede oírlo. */
+  const flushResumeSummary = (apiState: {
+    status: NapsterSessionStatus;
+    textReady: boolean;
+    notifySystem: (message: string) => void;
+  }): void => {
+    const summary = pendingSummaryRef.current;
+    if (!summary) return;
+    const audible = apiState.status === 'live' || (apiState.status === 'text' && apiState.textReady);
+    if (!audible) return;
+    pendingSummaryRef.current = null;
+    apiState.notifySystem(summary);
+  };
+
+  const flushResumeSummaryRef = useRef(flushResumeSummary);
+  flushResumeSummaryRef.current = flushResumeSummary;
+
   const onPickAvatar = (id: string): void => {
+    // El borrador se conserva: solo se guarda el resumen para la nueva.
+    if (sessionActive) pendingSummaryRef.current = buildDraftSummaryRef.current();
     setSelectedId(id);
     // Con sesión en curso la tarjeta reinicia con la nueva elegida.
     setRestartToken((n) => n + 1);
@@ -557,6 +641,11 @@ export const CreateInterviewView: React.FC<CreateInterviewViewProps> = ({
               onChange={(event) => setAddress(event.target.value)}
             />
             <p className="interview-hint">{m.addressHint}</p>
+            {address.trim() ? (
+              <p className="interview-address-willbe" data-testid="interview-address-willbe">
+                {m.addressWillBe(address.trim().toLowerCase())}. {m.addressTakenNote}
+              </p>
+            ) : null}
             <button
               type="button"
               className="btn btn-primary interview-publish"
@@ -583,6 +672,8 @@ export const CreateInterviewView: React.FC<CreateInterviewViewProps> = ({
         <AvatarPicker
           avatars={avatars}
           selectedId={selectedId}
+          suggestedIds={suggestedIds}
+          suggestedTagLabel={suggestedTagLabel}
           sessionActive={sessionActive}
           onSelect={onPickAvatar}
         />
@@ -595,9 +686,11 @@ export const CreateInterviewView: React.FC<CreateInterviewViewProps> = ({
             guideName={selected?.firstName}
             previewUrl={selected?.previewUrl}
             restartToken={restartToken}
+            idleGreeting={m.interviewGreeting}
             onSessionApi={(apiState) => {
               sessionApiRef.current = apiState;
               setSessionStatus(apiState.status);
+              flushResumeSummaryRef.current(apiState);
             }}
           />
         </div>
@@ -692,15 +785,19 @@ export const CreateInterviewView: React.FC<CreateInterviewViewProps> = ({
  * conversando. Vista previa de la invitación, dirección propia, QR de
  * invitados, QR de administrador distinto con su aviso, correo opcional de
  * recuperación, foto propia y cómo compartirla.
+ * NAP-U5: la previa usa la tarjeta real en modo colecta y muestra quién
+ * recibe a los invitados, con opción de cambiarla.
  */
 const PublishedPanel: React.FC<{
   event: FiestaEvent;
   adminKey: string | null;
   recoveryAvailable: boolean;
   onDone: (slug: string) => void;
-}> = ({ event, adminKey, recoveryAvailable, onDone }) => {
-  const { locale, formatMoney } = useI18n();
+}> = ({ event: initialEvent, adminKey, recoveryAvailable, onDone }) => {
+  const { locale } = useI18n();
   const m = useMessages(interviewCatalog);
+  const [event, setEvent] = useState(initialEvent);
+  const [photoStatus, setPhotoStatus] = useState<string | null>(null);
   const origin = window.location.origin;
   const guestUrl = event.publicUrl ?? `${origin}/e/${encodeURIComponent(event.slug)}`;
   const adminUrl = adminKey ? `${origin}/e/${encodeURIComponent(event.slug)}/admin?k=${encodeURIComponent(adminKey)}` : null;
@@ -725,17 +822,30 @@ const PublishedPanel: React.FC<{
     <div className="interview-final" data-testid="interview-final">
       <section aria-label={m.finalPreviewTitle} data-testid="interview-final-preview">
         <h2>{m.finalPreviewTitle}</h2>
-        <article className="interview-preview">
-          <TemplateCover template={event.template} height={120} />
-          <div className="interview-preview-body">
-            <p className="interview-preview-kicker">Somos Panas</p>
-            <p className="interview-preview-title">{event.title}</p>
-            <p className="interview-preview-line">{dateLine}</p>
-            <p className="interview-preview-line">{event.location}</p>
-            <p className="interview-preview-line">{m.finalQuotaLine(formatMoney(event.priceCents))}</p>
-          </div>
-        </article>
+        <SignatureInvitationCard
+          template={event.template}
+          theme={themeKey}
+          title={event.title}
+          organizerName={event.organizerName ?? ''}
+          description={event.description}
+          location={event.location}
+          startsAt={event.startsAt}
+          endsAt={event.endsAt ?? event.startsAt}
+          priceCents={event.priceCents}
+          capacity={event.capacity ?? 0}
+          includes={event.includes}
+          meal={event.meal}
+          locale={locale}
+          compact
+          collecta
+        />
       </section>
+      <HostAvatar
+        slug={event.slug}
+        currentId={event.avatarId ?? null}
+        photoStatus={photoStatus}
+        onChanged={(avatarId) => setEvent((prev) => ({ ...prev, avatarId }))}
+      />
       <section aria-label={m.finalAddressTitle} data-testid="interview-final-address">
         <h2>{m.finalAddressTitle}</h2>
         <p className="interview-address" data-testid="interview-public-url">
@@ -750,7 +860,7 @@ const PublishedPanel: React.FC<{
       </section>
       <section aria-label={m.finalPhotoTitle} data-testid="interview-final-photo">
         <h2>{m.finalPhotoTitle}</h2>
-        <EventAvatarSection slug={event.slug} />
+        <EventAvatarSection slug={event.slug} onStatus={setPhotoStatus} />
       </section>
       <button type="button" className="btn btn-primary" data-testid="interview-go-dashboard" onClick={() => onDone(event.slug)}>
         {m.finalGoDashboard}

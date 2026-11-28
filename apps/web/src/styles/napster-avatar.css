@@ -60,6 +60,56 @@
   border: 1px solid var(--sp-color-border);
 }
 
+/* NAP-U5: botón principal dorado para empezar (solo la entrevista lo usa). */
+.napster-btn-gold {
+  background: var(--sp-color-yellow, #c9a227);
+  color: #12263a;
+}
+
+.napster-btn-gold:hover:not(:disabled) {
+  background: #eab54e;
+}
+
+/* NAP-U5: foto y globo con el saludo propio antes de empezar. */
+.napster-idle-lead {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin: 0 0 var(--sp-space-sm);
+}
+
+.napster-idle-photo {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.napster-idle-bubble {
+  position: relative;
+  background: var(--sp-color-surface-subtle);
+  border: 1px solid var(--sp-color-border);
+  border-radius: var(--sp-radius-md);
+  padding: 0.6rem 0.8rem;
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--sp-color-ink);
+}
+
+.napster-idle-bubble::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 24px;
+  width: 12px;
+  height: 12px;
+  background: var(--sp-color-surface-subtle);
+  border-left: 1px solid var(--sp-color-border);
+  border-bottom: 1px solid var(--sp-color-border);
+  transform: rotate(45deg);
+}
+
 .napster-btn:focus-visible,
 .napster-card a:focus-visible {
   outline: 2px solid var(--sp-color-blue);
@@ -104,9 +154,9 @@
   flex-basis: 100%;
 }
 
-/* NAP-U1: sello junto a la avatar, solo texto. */
+/* NAP-U1: sello junto a la avatar, solo texto. NAP-U5: mínimo 14 px. */
 .napster-powered {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   margin: var(--sp-space-sm) 0 0;
 }
 

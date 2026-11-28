@@ -25,7 +25,7 @@ const initMock = vi.mocked(NapsterCompanionApiSdk.init);
 
 const AVATARS = {
   avatars: [
-    { id: 'elena', firstName: 'Elena', gender: 'female', previewUrl: 'https://img/e.jpg', loopUrl: null, default: true },
+    { id: 'elena', firstName: 'Elena', displayName: 'Elena Navarro', gender: 'female', previewUrl: 'https://img/e.jpg', loopUrl: null, tags: ['fiesta'], default: true },
   ],
 };
 
@@ -157,6 +157,8 @@ describe('publicar desde la entrevista (NAP-U3)', () => {
     expect(posts.find((post) => post.url === '/api/events')?.body).toMatchObject({
       preferredSubdomain: 'asado-sabado',
     });
+    // NAP-U5: la elegida viaja como anfitriona del POST.
+    expect(posts.find((post) => post.url === '/api/events')?.body).toMatchObject({ avatarId: 'elena' });
     // Vista previa, dirección propia y QR de invitados.
     expect(screen.getByTestId('interview-final-preview')).toBeInTheDocument();
     expect(screen.getByTestId('interview-public-url')).toHaveTextContent('https://asado-sabado.somospanas.com');

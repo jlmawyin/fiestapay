@@ -7,7 +7,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OrganizerDashboardView } from '../views/OrganizerDashboardView';
-import { api } from '../api/client';
+import { api, type AvatarCatalogItem } from '../api/client';
 import type { Dashboard } from '../types';
 
 vi.mock('ag-grid-react', () => ({
@@ -46,10 +46,18 @@ const dashboardNone = (): Dashboard => ({
     subdomain: 'asado-sabado',
     publicUrl: 'https://asado-sabado.somospanas.com',
     paymentProvider: 'none',
+    avatarId: 'marco',
   },
   guests: [],
   audit: [],
 });
+
+const AVATARS: { avatars: AvatarCatalogItem[] } = {
+  avatars: [
+    { id: 'elena', firstName: 'Elena', displayName: 'Elena Navarro', gender: 'female', previewUrl: 'https://img/e.jpg', loopUrl: null, tags: ['fiesta'], default: true },
+    { id: 'marco', firstName: 'Marco', displayName: 'Marco Paz', gender: 'male', previewUrl: 'https://img/m.jpg', loopUrl: null, tags: ['karaoke'], default: false },
+  ],
+};
 
 describe('panel de reunión sin PayPal (NAP-U3)', () => {
   beforeEach(() => {
@@ -68,6 +76,7 @@ describe('panel de reunión sin PayPal (NAP-U3)', () => {
 
   it('sin PayPal: colecta, dirección propia, dos QR y compartir', async () => {
     vi.spyOn(api, 'getDashboard').mockResolvedValue(dashboardNone());
+    vi.spyOn(api, 'getAvatars').mockResolvedValue(AVATARS);
     render(
       <OrganizerDashboardView
         slug={SLUG}
@@ -79,6 +88,10 @@ describe('panel de reunión sin PayPal (NAP-U3)', () => {
     );
 
     expect(await screen.findByTestId('dashboard-colecta')).toHaveTextContent('Colecta entre panas');
+    // NAP-U5: quién recibe a los invitados, con opción de cambiarla.
+    expect(await screen.findByTestId('host-avatar')).toBeInTheDocument();
+    expect(screen.getByTestId('host-avatar-name')).toHaveTextContent('Marco Paz');
+    expect(screen.getByTestId('host-avatar-change')).toBeInTheDocument();
     expect(screen.getByTestId('dashboard-public-url')).toHaveTextContent('https://asado-sabado.somospanas.com');
     expect(screen.getByTestId('share-guest-qr').querySelector('svg')).toBeTruthy();
     expect(screen.getByTestId('share-admin-qr').querySelector('svg')).toBeTruthy();

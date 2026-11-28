@@ -24,9 +24,11 @@ const catalog = (count: number) => ({
   avatars: Array.from({ length: count }, (_, i) => ({
     id: i === 0 ? 'elena' : `guia-${i}`,
     firstName: i === 0 ? 'Elena' : `Guía ${i}`,
+    displayName: i === 0 ? 'Elena Navarro' : `Guía ${i} Pérez`,
     gender: 'female',
     previewUrl: `https://img/${i}.jpg`,
     loopUrl: null,
+    tags: i === 0 ? ['fiesta'] : ['karaoke'],
     default: i === 0,
   })),
 });
@@ -90,6 +92,14 @@ describe('fila de avatares (NAP-U3)', () => {
     expect(screen.getByText('Hola, soy Elena, tu guía de Somos Panas')).toBeInTheDocument();
     expect(screen.getByText(/Usar mi foto/)).toBeInTheDocument();
     expect(screen.getByText(/Se activa al publicar/)).toBeInTheDocument();
+  });
+
+  it('NAP-U5: la tarjeta pre-inicio trae foto, globo con saludo y botón dorado', async () => {
+    renderInterview();
+    await screen.findByTestId('avatar-pick-elena');
+    expect(screen.getByTestId('napster-avatar-idle-photo')).toHaveAttribute('src', 'https://img/0.jpg');
+    expect(screen.getByTestId('napster-avatar-idle-greeting')).toHaveTextContent('Cuéntame de tu reunión');
+    expect(screen.getByTestId('napster-avatar-start')).toHaveClass('napster-btn-gold');
   });
 
   it('«Ver todas» abre la rejilla completa y Escape la cierra', async () => {

@@ -22,12 +22,14 @@ import type {
   AvatarSessionErrorCode,
   AvatarSessionRequest,
   AvatarSessionResponse,
+  AvatarTag,
   DemoKind,
   EventAvatarErrorCode,
   EventAvatarStatusResponse,
   EventAvatarUpload,
 } from '@fiestapay/shared';
 import {
+  AVATAR_TAG_IDS,
   LOCALE_HEADER,
   avatarSessionErrorSchema,
   avatarSessionResponseSchema,
@@ -110,15 +112,20 @@ function parseRetryAfterHeader(res: Response): number | undefined {
 }
 
 /**
- * Entrada pública del catálogo de avatares (NAP-U3, `GET /api/avatars`).
- * Nunca trae agentIds; la `default` ya viene elegida del servidor.
+ * Entrada pública del catálogo de avatares (NAP-U3, `GET /api/avatars`;
+ * NAP-S3: 26 con displayName y tags). Nunca trae agentIds; la `default` ya
+ * viene elegida del servidor.
  */
 export interface AvatarCatalogItem {
   id: string;
   firstName: string;
+  /** NAP-U5: nombre visible en la tarjeta del selector. */
+  displayName: string;
   gender: 'female' | 'male';
   previewUrl: string;
   loopUrl: string | null;
+  /** NAP-U5: etiquetas cerradas para `suggest_avatars`. */
+  tags: string[];
   default: boolean;
 }
 
@@ -130,10 +137,14 @@ function isAvatarCatalogItem(value: unknown): value is AvatarCatalogItem {
     item.id.length > 0 &&
     typeof item.firstName === 'string' &&
     item.firstName.length > 0 &&
+    typeof item.displayName === 'string' &&
+    item.displayName.length > 0 &&
     (item.gender === 'female' || item.gender === 'male') &&
     typeof item.previewUrl === 'string' &&
     item.previewUrl.length > 0 &&
     (item.loopUrl === null || typeof item.loopUrl === 'string') &&
+    Array.isArray(item.tags) &&
+    item.tags.every((tag) => typeof tag === 'string') &&
     typeof item.default === 'boolean'
   );
 }
@@ -501,12 +512,34 @@ export const api = {
    */
   /**
    * Catálogo de avatares elegibles (NAP-U3). Filtra entradas malformadas en
-   * vez de romper la fila; una lista vacía esconde el selector.
+   * vez de romper la fila; una lista vacía esconde el selector. NAP-U5: solo
+   * etiquetas de la lista cerrada.
    */
   async getAvatars(): Promise<{ avatars: AvatarCatalogItem[] }> {
     const data = await request<{ avatars: unknown }>('/api/avatars');
     const list = Array.isArray(data?.avatars) ? data.avatars : [];
-    return { avatars: list.filter(isAvatarCatalogItem) };
+    return {
+      avatars: list.filter(isAvatarCatalogItem).map((item) => ({
+        ...item,
+        tags: item.tags.filter((tag): tag is string => AVATAR_TAG_IDS.includes(tag as AvatarTag)),
+      })),
+    };
+  },
+
+  /**
+   * Cambia la avatar que recibe a los invitados (NAP-U5, NAP-S3).
+   * `PUT /api/events/:slug/avatar-choice` con la clave de organizador;
+   * `null` vuelve a la default. Responde el evento actualizado.
+   */
+  async setAvatarChoice(slug: string, avatarId: string | null): Promise<{ event: FiestaEvent }> {
+    const headers = new Headers();
+    const organizerKey = adminKeyFor(slug);
+    if (organizerKey) headers.set('X-Fiesta-Admin-Key', organizerKey);
+    return request<{ event: FiestaEvent }>(`/api/events/${encodeURIComponent(slug)}/avatar-choice`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ avatarId }),
+    });
   },
 
   async createAvatarSession(payload: {
