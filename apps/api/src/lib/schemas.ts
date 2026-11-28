@@ -54,6 +54,15 @@ export const eventInputSchema = z
     organizerName: z.string().trim().max(ORGANIZER_NAME_MAX).nullable().optional(),
     theme: z.string().trim().pipe(z.enum(THEME_KEYS)).optional(),
     accessCode: z.string().trim().min(4).max(64).nullable().optional(),
+    // NAP-S3: avatar del catálogo elegida para recibir a los invitados.
+    avatarId: z
+      .string()
+      .trim()
+      .min(1)
+      .max(40)
+      .regex(/^[a-z0-9-]+$/, 'Avatar invalido')
+      .nullable()
+      .optional(),
     // NAP-S2: etiqueta DNS de la dirección; el servidor resuelve colisiones con sufijo.
     preferredSubdomain: z
       .string()
@@ -107,6 +116,19 @@ export const eventInputSchema = z
 export const unlockSchema = z.object({
   code: z.string().trim().min(1).max(64),
 });
+
+/** NAP-S3: `null` devuelve la reunión a la avatar default. */
+export const avatarChoiceSchema = z
+  .object({
+    avatarId: z
+      .string()
+      .trim()
+      .min(1)
+      .max(40)
+      .regex(/^[a-z0-9-]+$/, 'Avatar invalido')
+      .nullable(),
+  })
+  .strict();
 
 export const joinSchema = z.object({ name: requiredText(60) });
 

@@ -189,6 +189,8 @@ export const SERVER_ERROR_EN: Readonly<Record<string, string>> = {
     'We could not assign a unique address for the meetup.',
   'No se pudo generar una direccion unica para la reunion':
     'We could not generate a unique address for the meetup.',
+  'avatar_unknown': 'That avatar is not available.',
+  'Avatar invalido': 'Invalid avatar.',
   'Codigo invalido o vencido': 'That code is not valid or has expired.',
   'Demasiados intentos. Espera antes de volver a intentar.':
     'Too many attempts. Wait before trying again.',

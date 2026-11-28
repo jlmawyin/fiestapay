@@ -5,17 +5,22 @@
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AvatarLang } from '@fiestapay/shared';
+import type { AvatarLang, AvatarTag } from '@fiestapay/shared';
 
 export interface AvatarCatalogEntry {
   id: string;
+  /** NAP-S3: nombre corto con el que saluda la avatar. */
   firstName: string;
+  /** NAP-S3: nombre completo visible en el catálogo. */
+  displayName: string;
   gender: 'female' | 'male';
   companionId: string;
   previewUrl: string;
   /** NAP-S2: videoLoopUrl del catálogo napster-stock; null si no se conoce. */
   loopUrl: string | null;
   voice: string;
+  /** NAP-S3: hasta tres etiquetas cerradas para sugerirla. */
+  tags: AvatarTag[];
   agentIdEs: string | null;
   agentIdEn: string | null;
   default: boolean;
@@ -24,9 +29,11 @@ export interface AvatarCatalogEntry {
 export interface PublicAvatar {
   id: string;
   firstName: string;
+  displayName: string;
   gender: 'female' | 'male';
   previewUrl: string;
   loopUrl: string | null;
+  tags: AvatarTag[];
   default: boolean;
 }
 
@@ -64,9 +71,11 @@ export function publicAvatar(entrada: AvatarCatalogEntry): PublicAvatar {
   return {
     id: entrada.id,
     firstName: entrada.firstName,
+    displayName: entrada.displayName,
     gender: entrada.gender,
     previewUrl: entrada.previewUrl,
     loopUrl: entrada.loopUrl ?? null,
+    tags: [...entrada.tags],
     default: entrada.default,
   };
 }

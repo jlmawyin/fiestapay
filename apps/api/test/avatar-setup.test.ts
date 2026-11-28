@@ -163,14 +163,20 @@ async function catalogoTemporal(entradaExtra = true): Promise<string> {
   const real = JSON.parse(
     await readFile(join(import.meta.dirname, '..', '..', '..', 'contenido', 'avatares.json'), 'utf8'),
   ) as { avatars: Array<Record<string, unknown>> };
+  const defensa = real.avatars.find((entrada) => entrada.default === true);
+  if (!defensa) throw new Error('catálogo sin default');
+  real.avatars = [defensa];
   if (entradaExtra) {
     real.avatars.push({
       id: 'lucia',
       firstName: 'Lucia',
+      displayName: 'Lucia',
       gender: 'female',
       companionId: 'companion-lucia',
       previewUrl: 'https://example.test/lucia.jpg',
+      loopUrl: null,
       voice: 'voz-lucia',
+      tags: ['fiesta'],
       agentIdEs: null,
       agentIdEn: null,
       default: false,

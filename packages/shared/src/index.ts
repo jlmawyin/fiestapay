@@ -32,6 +32,7 @@ export * from './payments.js';
 export * from './server-errors.js';
 export * from './avatar-session.js';
 export * from './avatar-tools.js';
+export * from './avatar-tags.js';
 export {
   SITE_SLUG_PATTERN,
   RESERVED_SITE_SLUGS,
@@ -55,6 +56,8 @@ export interface EventInput {
   theme?: ThemeKey;
   /** Write-only. The server stores a hash and never returns the code. */
   accessCode?: string | null;
+  /** NAP-S3: avatar del catálogo elegida para recibir a los invitados. */
+  avatarId?: string | null;
   /** NAP-S2: etiqueta pedida para la dirección propia; el servidor aplica sufijo si está tomada. */
   preferredSubdomain?: string;
   /**
@@ -106,6 +109,8 @@ export interface FiestaEvent {
   subdomain?: string | null;
   /** NAP-S2: URL pública construida por el servidor, nunca desde el Host del cliente. */
   publicUrl?: string | null;
+  /** NAP-S3: avatar del catálogo que recibe a los invitados; null usa la default. */
+  avatarId?: string | null;
 }
 export interface Guest {
   id: string;

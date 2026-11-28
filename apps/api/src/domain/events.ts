@@ -87,8 +87,8 @@ export async function insertEvent(
         `INSERT INTO events (id, slug, tenant_id, organizer_session_id, generation, title, template, meal, description,
            starts_at, ends_at, location, includes, agenda, price_cents, capacity, goal_cents, minimum_cents,
            is_demo, admin_key_hash, access_code_hash, funding_deadline_at, funding_status,
-           organizer_name, theme, subdomain)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
+           organizer_name, theme, subdomain, avatar_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
          RETURNING ${EVENT_COLUMNS}`,
         [
           newId(),
@@ -117,6 +117,7 @@ export async function insertEvent(
           presentation.organizerName,
           presentation.theme,
           subdomain,
+          input.avatarId ?? null,
         ],
       );
       return rows[0]!;
@@ -561,6 +562,29 @@ export async function updateEvent(
     }
     await audit(client, event.id, 'event_updated');
     return await eventForClient(client, updated, totals);
+  });
+}
+
+/**
+ * NAP-S3: el organizador cambia la avatar que recibe a sus invitados. `null` vuelve a la default.
+ * La ruta valida el catálogo antes; aquí solo se persiste bajo la clave de organizador.
+ */
+export async function setEventAvatarChoice(
+  pool: Pool,
+  slug: string,
+  presentedKey: string | null,
+  avatarId: string | null,
+  gate?: EventPortalGate,
+): Promise<FiestaEvent> {
+  await portalGate(pool, slug, gate);
+  return withAdmin(pool, slug, presentedKey, async (client, event) => {
+    if (event.archived) throw gone('Esta invitacion fue archivada por un reinicio de demo');
+    const { rows } = await client.query<EventRow>(
+      `UPDATE events SET avatar_id = $2 WHERE id = $1 RETURNING ${EVENT_COLUMNS}`,
+      [event.id, avatarId],
+    );
+    await audit(client, event.id, 'avatar_choice_set');
+    return eventForClient(client, rows[0]!, await eventTotals(client, event.id));
   });
 }
 
