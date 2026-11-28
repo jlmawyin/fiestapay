@@ -11,11 +11,11 @@ const copy: Record<Locale, {
   details: Record<ProductTutorialTopic, string>;
 }> = {
   es: {
-    intro: 'Recorre Somos Panas desde la primera idea hasta el día del evento. Pídele a Pana, la avatar, que te guíe por video o por texto. Los pagos del demo y de tus eventos propios usan PayPal Sandbox en esta versión.',
+    intro: 'Recorre Somos Panas desde la primera idea hasta el día del evento. Pídele a tu guía, la avatar, que te acompañe por video o por texto. Los pagos del demo y de tus eventos propios usan PayPal Sandbox en esta versión.',
     start: 'Empezar recorrido',
     details: {
       tutorialDemo: 'En Demo para jueces puedes pedirle a la avatar un borrador, explorar la tabla de invitados de ejemplo, probar el pago y abrir una demo privada con panel propio. Mis demos reúne las pruebas de este navegador. Reiniciar mis demos archiva esas pruebas.',
-      tutorialCreate: 'Empieza con el formulario; la avatar Pana te ayuda a armarlo. Revisa fecha, lugar, cupo, cuota y lo que incluye. Compara las tarjetas y pulsa Publicar invitación cuando los datos estén listos.',
+      tutorialCreate: 'Empieza con el formulario; tu guía, la avatar, te ayuda a armarlo. Revisa fecha, lugar, cupo, cuota y lo que incluye. Compara las tarjetas y pulsa Publicar invitación cuando los datos estén listos.',
       tutorialShare: 'En la invitación, Código QR / Compartir abre el enlace público para tus invitados. Pueden escanearlo con la cámara o abrir el enlace desde WhatsApp. Guarda el enlace y el QR de organizador en privado porque abren el panel.',
       tutorialGuest: 'Abre la invitación y únete con tu nombre. Si es privada, pide el código al organizador. Confirma asistencia y acompañantes, revisa el importe del servidor y aprueba en PayPal. Somos Panas muestra el pago cuando verifica la captura.',
       tutorialOrganizer: 'Desde Mis invitaciones abre el panel de tu evento. Puedes editar la invitación, revisar asistencia y cobros, filtrar pendientes, exportar la tabla y confirmar o cerrar el evento. Pide a la avatar un borrador de recordatorio y envíalo tú por WhatsApp después de revisarlo.',
@@ -23,11 +23,11 @@ const copy: Record<Locale, {
     },
   },
   en: {
-    intro: 'Go through Somos Panas from the first idea to the day of the event. Ask Pana, the avatar, to guide you by video or by text. Demo payments and payments for your own events use PayPal Sandbox in this version.',
+    intro: 'Go through Somos Panas from the first idea to the day of the event. Ask your guide, the avatar, to walk you through it by video or by text. Demo payments and payments for your own events use PayPal Sandbox in this version.',
     start: 'Start walkthrough',
     details: {
       tutorialDemo: 'In Judges demo you can ask the avatar for a draft, explore the sample guest table, try a payment, and open a private demo with its own dashboard. My demos lists this browser’s examples. Reset my demos archives those examples.',
-      tutorialCreate: 'Start with the form; the Pana avatar helps you fill it in. Review the date, venue, capacity, share, and what it covers. Compare the cards and select Publish invitation when the details are ready.',
+      tutorialCreate: 'Start with the form; your guide, the avatar, helps you fill it in. Review the date, venue, capacity, share, and what it covers. Compare the cards and select Publish invitation when the details are ready.',
       tutorialShare: 'On the invitation, QR code / Share opens the public guest link. Guests can scan it with their camera or open the link from WhatsApp. Keep the organizer link and QR code private because they open the dashboard.',
       tutorialGuest: 'Open the invitation and join with your name. For a private invitation, ask the organizer for the access code. RSVP for yourself and your companions, review the server quote, and approve in PayPal. Somos Panas shows the payment once it verifies the capture.',
       tutorialOrganizer: 'Open your event dashboard from My invitations. You can edit the invitation, review RSVPs and payments, filter pending guests, export the table, and confirm or close the event. Ask the avatar for a reminder draft, then review and send it yourself in WhatsApp.',

@@ -1,6 +1,7 @@
 # CHANGELOG — Somos Panas / FiestaPay
 
 Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, pedido, archivos tocados y pruebas ejecutadas.
+- 2026-11-28 NAP-U1: chat limpio (deduplicación y filtrado), subtítulos visibles, foto mientras conecta, micrófono con estados, sello «Powered by Napster» y la asistente pasa de «Pana» a «tu guía».
 
 ## 2026-11-27 — NAP-F6w · «Tu avatar con tu foto» en el panel del organizador
 

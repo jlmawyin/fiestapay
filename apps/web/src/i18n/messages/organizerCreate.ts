@@ -221,7 +221,7 @@ export const createEventCatalog = defineCatalog({
     draftRules: 'Sugerencia automática',
     draftSuggestedBadge: 'Sugerido',
     avatarNoticeText: 'Pídele a la avatar que te ayude a armarla',
-    avatarNoticeCta: 'Hablar con Pana',
+    avatarNoticeCta: 'Hablar con tu guía',
   },
   en: {
     typeLabel: 'Invitation type',
@@ -436,6 +436,6 @@ export const createEventCatalog = defineCatalog({
     draftRules: 'Automatic suggestion',
     draftSuggestedBadge: 'Suggested',
     avatarNoticeText: 'Ask the avatar to help you put it together',
-    avatarNoticeCta: 'Talk to Pana',
+    avatarNoticeCta: 'Talk to your guide',
   },
 });

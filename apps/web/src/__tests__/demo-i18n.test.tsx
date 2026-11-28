@@ -77,7 +77,7 @@ const SPANISH_WITNESSES = [
   'Probar pago con PayPal',
   'Crear mi invitación',
   'Crea tu fiesta con ayuda de la avatar',
-  'Habla con Pana',
+  'Habla con tu guía',
   'Reiniciar mis demos',
   'Datos ficticios',
   'Volver al inicio',
@@ -135,7 +135,7 @@ describe('judges demo in English', () => {
     expect(screen.getByText(/Look at the sample dashboard/)).toBeInTheDocument();
     expect(screen.getByText(/Try a PayPal Sandbox payment/)).toBeInTheDocument();
     // El paso 4 incrusta la avatar Napster en vez de abrir el orbe muerto.
-    expect(screen.getByText(/Talk to Pana, the avatar/)).toBeInTheDocument();
+    expect(screen.getByText(/Talk to your guide, the avatar/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: labels.paymentDemo })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: labels.privateDemo })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: labels.createInvitation })).toHaveAttribute('data-guide', 'aiBuildParty');
@@ -205,7 +205,7 @@ describe('judges demo in English', () => {
   it('embeds the Napster avatar in the demo assistant step', async () => {
     renderDemo([]);
     await screen.findByRole('heading', { name: labels.judgesDemo });
-    const step = screen.getByRole('listitem', { name: /Talk to Pana, the avatar/ });
+    const step = screen.getByRole('listitem', { name: /Talk to your guide, the avatar/ });
     expect(within(step).getByTestId('napster-avatar')).toBeInTheDocument();
     expect(within(step).queryByRole('button', { name: labels.talkToAssistant })).toBeNull();
   });

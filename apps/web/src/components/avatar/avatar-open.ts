@@ -15,3 +15,18 @@ export function openAvatar(): void {
     // Sin tarjeta montada el aviso no hace nada.
   }
 }
+
+// NAP-U1: con dos tarjetas montadas a la vez (demo: ruta rápida y paso 4),
+// un solo aviso abriría dos sesiones. La primera tarjeta del mismo aviso lo
+// reclama; el reclamo se libera en un microtask para no frenar otros avisos.
+let avatarOpenClaimed = false;
+
+/** Reclama un aviso de apertura; falso si otra tarjeta ya lo reclamó. */
+export function tryClaimAvatarOpen(): boolean {
+  if (avatarOpenClaimed) return false;
+  avatarOpenClaimed = true;
+  queueMicrotask(() => {
+    avatarOpenClaimed = false;
+  });
+  return true;
+}

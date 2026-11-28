@@ -171,8 +171,8 @@ describe('neutral presentation copy', () => {
     expect(screen.getByText('Sandbox · Sin dinero real')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reiniciar mis demos' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Reiniciar Demo' })).toBeNull();
-    // NAP-F5b: la historia de la portada nombra a Pana, la avatar de Somos Panas.
-    expect(screen.getByText(/Arma la fiesta con ayuda de Pana, la avatar/)).toBeInTheDocument();
+    // NAP-U1: la historia de la portada nombra a tu guía, la avatar de Somos Panas.
+    expect(screen.getByText(/Arma la fiesta con ayuda de tu guía, la avatar/)).toBeInTheDocument();
   });
 
   it('prints the fresh demo title without a client amount', async () => {
