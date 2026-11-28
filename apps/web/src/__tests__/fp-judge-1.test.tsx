@@ -1,5 +1,5 @@
 import React from 'react';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { UI_LABELS } from '@fiestapay/shared';
 import { App } from '../App';
@@ -271,16 +271,20 @@ describe('FP-JUDGE-1 build step into /create', () => {
     );
   }
 
-  it('opens the manual form with no network call on the demo click', async () => {
+  it('opens the interview fetching only the avatar catalog on the demo click', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     renderDemoEs();
     fireEvent.click(await screen.findByRole('button', { name: 'Crear mi invitación' }));
 
     expect(window.location.pathname).toBe('/create');
-    // Wizard manual: el título empieza vacío y nada se pidió a la red.
-    const input = (await screen.findByLabelText(/Título del Evento/i)) as HTMLInputElement;
+    // NAP-U3: la entrevista pide solo el catálogo de avatares para la fila;
+    // el título empieza vacío y la sesión no arranca sola.
+    const input = (await screen.findByLabelText(/Nombre de tu reunión/i)) as HTMLInputElement;
     expect(input.value).toBe('');
-    expect(fetchSpy).not.toHaveBeenCalled();
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+    const urls = fetchSpy.mock.calls.map((call) => String(call[0]));
+    expect(urls).toEqual(['/api/avatars']);
+    expect(screen.getByTestId('napster-avatar-start')).toBeInTheDocument();
   });
 });
 
@@ -358,6 +362,21 @@ describe('FP-JUDGE-1 English sampling without fixed Spanish', () => {
     'Lista de Invitados y Pagos',
     'Sin pagos registrados',
     'pendiente de aprobación',
+    // NAP-U3: copy de la entrevista y de compartir, jamás en inglés.
+    'Arma tu reunión conversando',
+    'Elige quién te acompaña',
+    'Ver todas',
+    'Usar mi foto',
+    'Tipo de reunión',
+    'Cuántos van',
+    'Colecta entre panas',
+    'Publicar mi reunión',
+    'Tu dirección',
+    'No compartas este QR',
+    'Copiar enlace',
+    'Enviar por WhatsApp',
+    'Descargar cuadrada',
+    'Descargar vertical',
   ];
 
   function expectNoSpanish(container: HTMLElement = document.body): void {
@@ -405,8 +424,8 @@ describe('FP-JUDGE-1 English sampling without fixed Spanish', () => {
         <CreateEventView onEventCreated={vi.fn()} onCancel={vi.fn()} onShowToast={vi.fn()} />
       </I18nProvider>
     );
-    expect(screen.getByText('Create your next invitation')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Event Title/i)).toBeInTheDocument();
+    expect(screen.getByText('Build your gathering by talking')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Name of your gathering/i)).toBeInTheDocument();
     expectNoSpanish();
     cleanup();
     vi.restoreAllMocks();

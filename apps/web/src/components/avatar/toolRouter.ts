@@ -8,11 +8,13 @@
  * `{ok:false, error:'not_allowed'}` sin efectos.
  */
 import {
+  AVATAR_DRAFT_STEPS,
   AVATAR_SHOW_ON_SCREEN_TARGETS,
   AVATAR_TOOLS_BY_VISITOR,
   UI_TARGET_IDS,
   normalizeSiteSlugInput,
   validateSiteSlug,
+  type AvatarDraftStep,
   type AvatarVisitor,
 } from '@fiestapay/shared';
 import type { DraftEventProposal } from '../../lib/draft-proposal';
@@ -132,9 +134,22 @@ function validateToolArgs(
     }
     case 'fill_event_draft': {
       for (const key of Object.keys(args)) {
-        if (key !== 'title' && key !== 'startsAt' && key !== 'place' && key !== 'description') {
+        // NAP-U3: la entrevista trae step (sección en relleno).
+        if (
+          key !== 'title' &&
+          key !== 'startsAt' &&
+          key !== 'place' &&
+          key !== 'description' &&
+          key !== 'step'
+        ) {
           return { ok: false };
         }
+      }
+      if (
+        args.step !== undefined &&
+        (typeof args.step !== 'string' || !AVATAR_DRAFT_STEPS.includes(args.step as (typeof AVATAR_DRAFT_STEPS)[number]))
+      ) {
+        return { ok: false };
       }
       if (typeof args.title !== 'string' || args.title.length < 1 || args.title.length > 120) {
         return { ok: false };
@@ -411,6 +426,8 @@ export function createAvatarToolRouter(deps: AvatarToolRouterDeps) {
       includes: [],
       suggested: ['title', 'date', 'startTime', ...(place ? (['location'] as const) : [])],
       source: 'rules',
+      // NAP-U3: el paso viaja validado; la entrevista lo activa y resalta.
+      ...(typeof args.step === 'string' ? { step: args.step as AvatarDraftStep } : {}),
     };
     setGuideDraftProposal(proposal);
     const navigateTo = deps.navigateTo ?? defaultNavigateTo;

@@ -109,6 +109,35 @@ function parseRetryAfterHeader(res: Response): number | undefined {
   }
 }
 
+/**
+ * Entrada pública del catálogo de avatares (NAP-U3, `GET /api/avatars`).
+ * Nunca trae agentIds; la `default` ya viene elegida del servidor.
+ */
+export interface AvatarCatalogItem {
+  id: string;
+  firstName: string;
+  gender: 'female' | 'male';
+  previewUrl: string;
+  loopUrl: string | null;
+  default: boolean;
+}
+
+function isAvatarCatalogItem(value: unknown): value is AvatarCatalogItem {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const item = value as Record<string, unknown>;
+  return (
+    typeof item.id === 'string' &&
+    item.id.length > 0 &&
+    typeof item.firstName === 'string' &&
+    item.firstName.length > 0 &&
+    (item.gender === 'female' || item.gender === 'male') &&
+    typeof item.previewUrl === 'string' &&
+    item.previewUrl.length > 0 &&
+    (item.loopUrl === null || typeof item.loopUrl === 'string') &&
+    typeof item.default === 'boolean'
+  );
+}
+
 /** Fila pública del directorio en la raíz Somos Panas (SP-6). */
 export interface PortalListedEvent {
   slug: string;
@@ -470,10 +499,22 @@ export const api = {
    * en 429. NAP-F5: `mode`/`socketUrl` salen del contrato compartido; la web
    * endurece además el transporte a wss/https (el esquema acepta http).
    */
+  /**
+   * Catálogo de avatares elegibles (NAP-U3). Filtra entradas malformadas en
+   * vez de romper la fila; una lista vacía esconde el selector.
+   */
+  async getAvatars(): Promise<{ avatars: AvatarCatalogItem[] }> {
+    const data = await request<{ avatars: unknown }>('/api/avatars');
+    const list = Array.isArray(data?.avatars) ? data.avatars : [];
+    return { avatars: list.filter(isAvatarCatalogItem) };
+  },
+
   async createAvatarSession(payload: {
     lang: AvatarLang;
     intent?: 'create';
     eventSlug?: string;
+    /** NAP-U3: avatar elegida del catálogo; sin campo se usa la default. */
+    avatarId?: string;
     mode?: AvatarSessionRequest['mode'];
   }): Promise<AvatarSessionResponse> {
     const headers = new Headers({ 'Content-Type': 'application/json' });

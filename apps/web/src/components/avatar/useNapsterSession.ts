@@ -125,6 +125,13 @@ export interface UseNapsterSessionOptions {
    * `intent:'create'` en cada intento, sin depender de la bandera de un uso).
    */
   intent?: 'create';
+  /** NAP-U3: avatar elegida del catálogo; viaja como `avatarId` en la sesión. */
+  avatarId?: string;
+  /**
+   * NAP-U3: cambiar de avatar con sesión en curso la reinicia. La vista
+   * confirma antes y luego sube este contador; en reposo no hace nada.
+   */
+  restartToken?: number;
   /** Router compartido (video y texto preservan la última lista). */
   router?: AvatarToolRouter;
 }
@@ -161,6 +168,11 @@ export interface UseNapsterSession {
   sendText: (text: string) => void;
   /** Avisa al agente de un cambio de sección (solo con sesión lista). */
   notifyLocation: (message: string) => void;
+  /**
+   * NAP-U3: avisa a la sesión de que la reunión se publicó (sistema
+   * «published» con respuesta, video o texto; sin sesión lista no hace nada).
+   */
+  notifyPublished: () => void;
 }
 
 export function useNapsterSession(options: UseNapsterSessionOptions): UseNapsterSession {
@@ -187,6 +199,8 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
   eventSlugRef.current = options.eventSlug;
   const intentPropRef = useRef(options.intent);
   intentPropRef.current = options.intent;
+  const avatarIdRef = useRef(options.avatarId);
+  avatarIdRef.current = options.avatarId;
   const degradedRef = useRef(false);
   const requestedRef = useRef(false);
   const textRequestedRef = useRef(false);
@@ -252,19 +266,13 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
   }, [resetMic]);
 
   /**
-   * NAP-U1: otro encargo agregará `avatar.firstName` a la respuesta de la
-   * sesión; lectura defensiva para dejar el título listo sin romper el
-   * contrato actual. (Aviso: el cliente valida con zod estricto, así que ese
-   * encargo también debe aceptar el campo en `api/client.ts`.)
+   * NAP-U3: el servidor ya trae `avatar.{id, firstName, previewUrl}` y el
+   * cliente lo acepta (zod de avatar en `api/client.ts`); lectura tipada.
    */
   const applySessionIdentity = useCallback((session: AvatarSessionResponse): void => {
     setAgent(typeof session.agent === 'string' ? session.agent : null);
-    const avatar = (session as unknown as { avatar?: { firstName?: unknown } }).avatar;
-    setFirstName(
-      typeof avatar?.firstName === 'string' && avatar.firstName.trim().length > 0
-        ? avatar.firstName.trim().slice(0, 60)
-        : null,
-    );
+    const name = session.avatar?.firstName;
+    setFirstName(typeof name === 'string' && name.trim().length > 0 ? name.trim().slice(0, 60) : null);
   }, []);
 
   const sendCommand = useCallback(
@@ -306,6 +314,21 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
     [sendCommand, sendSocket],
   );
 
+  const notifyPublished = useCallback((): void => {
+    // NAP-U3: «published» con respuesta para que la avatar celebre y recuerde
+    // el QR de administrador; best-effort como el contexto de sección.
+    if (readyRef.current && instanceRef.current) {
+      sendCommand({
+        type: DataChannelMessageType.SEND_MESSAGE,
+        data: { role: 'system', text: 'published', trigger_response: true },
+      });
+      return;
+    }
+    if (textReadyRef.current && socketRef.current) {
+      sendSocket({ type: 'send_message', data: { role: 'system', text: 'published', trigger_response: true } });
+    }
+  }, [sendCommand, sendSocket]);
+
   const pushCaption = useCallback((message: unknown): void => {
     if (!message || typeof message !== 'object') return;
     const record = message as { action?: unknown; content?: unknown; role?: unknown };
@@ -344,12 +367,15 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
         // La bandera siempre se ojea/consume para no arrastrarla a otra vista.
         const flag = mode === 'text' ? consumeCreateIntent() : peekCreateIntent();
         const intent = intentPropRef.current ?? flag;
+        // NAP-U3: la avatar elegida viaja en cada intento, incluido el 429.
+        const choice = avatarIdRef.current?.trim() ? { avatarId: avatarIdRef.current.trim() } : {};
         try {
           try {
             return await api.createAvatarSession({
               lang: langRef.current,
               ...(intent ? { intent: 'create' as const } : {}),
               ...(slug ? { eventSlug: slug } : {}),
+              ...choice,
               ...(mode ? { mode } : {}),
             });
           } catch (error) {
@@ -361,6 +387,7 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
               lang: langRef.current,
               ...(intent ? { intent: 'create' as const } : {}),
               ...(slug ? { eventSlug: slug } : {}),
+              ...choice,
               ...(mode ? { mode } : {}),
             });
           }
@@ -452,6 +479,8 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
 
   useEffect(() => {
     if (!requested) return;
+    // NAP-U3: al reiniciar por cambio de avatar se vuelve a «conectando».
+    setStatus('connecting');
     const container = options.containerRef.current;
     if (!container) {
       // Sin contenedor inline no hay video; respaldo sin tocar la red.
@@ -628,10 +657,14 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
     // NAP-F3: la sesión vive por `requested`; idioma y contenedor viajan por
     // refs para que un cambio de idioma no reinicie la llamada en curso.
     // NAP-U1: `videoAttempt` reabre la sesión en el reintento del micrófono.
-  }, [requested, videoAttempt]);
+    // NAP-U3: `restartToken` la reabre con la nueva avatar elegida.
+  }, [requested, videoAttempt, options.restartToken ?? 0]);
 
   useEffect(() => {
     if (!textRequested) return;
+    // NAP-U3: al reiniciar por cambio de avatar el chat arranca limpio.
+    setTextMessages([]);
+    setTextReady(false);
     let cancelled = false;
     let opened = false;
 
@@ -767,7 +800,8 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
       if (handle) api.queueAvatarSessionEnd(handle);
     };
     // NAP-F4w: el chat vive por `textRequested`, igual que el video por `requested`.
-  }, [textRequested]);
+    // NAP-U3: `restartToken` lo reabre con la nueva avatar elegida.
+  }, [textRequested, options.restartToken ?? 0]);
 
   // NAP-U1: el SDK no expone un evento «escuchando»; solo trae banderas para
   // sondear (`isUserTalking`/`isAvatarSpeaking` de la instancia). Se aproximan
@@ -840,5 +874,6 @@ export function useNapsterSession(options: UseNapsterSessionOptions): UseNapster
     startTextMode,
     sendText,
     notifyLocation,
+    notifyPublished,
   };
 }

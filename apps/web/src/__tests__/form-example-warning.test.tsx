@@ -2,8 +2,8 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../api/client';
 import { CreateEventForm } from '../components/events/CreateEventForm';
+import { CreateWizard } from '../components/events/CreateWizard';
 import type { CreatedEvent, EventInput, FiestaEvent } from '../types';
-import { CreateEventView } from '../views/CreateEventView';
 
 afterEach(() => {
   cleanup();
@@ -260,11 +260,14 @@ describe('example placeholder warning', () => {
   });
 
   it('lets the existing create view publish an acknowledged example only once', async () => {
+    // NAP-U3: /create es la entrevista; el flujo de ejemplos con acuse vive
+    // en el asistente original, que conserva su contrato.
     const pending = deferred<CreatedEvent>();
     const createEvent = vi.spyOn(api, 'createEvent').mockReturnValue(pending.promise);
-    render(
-      <CreateEventView onEventCreated={vi.fn()} onCancel={vi.fn()} onShowToast={vi.fn()} recoveryAvailable={false} />,
-    );
+    const submit = async (input: EventInput) => {
+      await api.createEvent(input);
+    };
+    const view = render(<CreateWizard onSubmit={submit} onCancel={vi.fn()} isLoading={false} />);
     const save = () => fireEvent.click(screen.getByRole('button', { name: 'Guardar y seguir' }));
     fireEvent.change(screen.getByLabelText(/Título del Evento/i), { target: { value: 'Nombre de la fiesta' } });
     save();
@@ -290,6 +293,8 @@ describe('example placeholder warning', () => {
     expect(payload.location).toBe('Lugar o direccion');
     expect(payload.description).toBe('Que van a hacer');
     expect(payload.includes).toEqual(['Separa con comas']);
+    // La vista deshabilita el asistente mientras publica.
+    view.rerender(<CreateWizard onSubmit={submit} onCancel={vi.fn()} isLoading />);
     expect(screen.getByRole('button', { name: 'Publicar estos valores' })).toBeDisabled();
 
     const created: CreatedEvent = {

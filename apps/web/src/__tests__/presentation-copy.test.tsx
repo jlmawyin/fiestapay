@@ -116,22 +116,21 @@ describe('neutral presentation copy', () => {
       <CreateEventView onEventCreated={onEventCreated} onCancel={vi.fn()} onShowToast={onShowToast} />,
     );
 
-    expect(screen.getByText('Nueva invitación')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Crea tu próxima invitación' })).toBeInTheDocument();
+    // NAP-U3: la creación es la entrevista; los encabezados neutros no
+    // nombran ningún tipo antes de publicar.
+    expect(screen.getByRole('heading', { name: 'Arma tu reunión conversando' })).toBeInTheDocument();
     expect(screen.queryByText(/fiesta/i)).toBeNull();
 
-    fireEvent.click(screen.getByRole('radio', { name: /Viaje/i }));
-    fireEvent.change(screen.getByLabelText(/Título del Evento/i), { target: { value: 'Ruta a Baños' } });
-    const save = () => fireEvent.click(screen.getByRole('button', { name: 'Guardar y seguir' }));
-    save();
-    save();
-    fireEvent.change(screen.getByLabelText(/Lugar o Dirección/i), { target: { value: 'Baños' } });
-    save();
-    fireEvent.change(screen.getByLabelText(/Cuota por persona/i), { target: { value: '25.00' } });
-    fireEvent.change(screen.getByLabelText(/Capacidad máxima/i), { target: { value: '8' } });
-    save();
-    save();
-    fireEvent.click(screen.getByRole('button', { name: 'Publicar invitación' }));
+    fireEvent.click(screen.getByTestId('interview-template-viaje'));
+    fireEvent.change(screen.getByTestId('interview-title'), { target: { value: 'Ruta a Baños' } });
+    fireEvent.click(screen.getByTestId('interview-step-4'));
+    fireEvent.change(screen.getByTestId('interview-location'), { target: { value: 'Baños' } });
+    fireEvent.click(screen.getByTestId('interview-step-5'));
+    fireEvent.change(screen.getByTestId('interview-capacity'), { target: { value: '8' } });
+    fireEvent.click(screen.getByTestId('interview-step-6'));
+    fireEvent.change(screen.getByTestId('interview-price'), { target: { value: '25.00' } });
+    fireEvent.click(screen.getByTestId('interview-step-7'));
+    fireEvent.click(screen.getByTestId('interview-publish'));
 
     expect(await screen.findByRole('status')).toHaveTextContent('Creando la invitación…');
     await act(async () => {
