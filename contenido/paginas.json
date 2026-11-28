@@ -1,14 +1,11 @@
 {
   "portadaRaiz": {
     "secciones": [
-      { "id": "barra", "bloque": "BarraNavegacion" },
+      { "id": "barra", "bloque": "BarraMinima" },
       { "id": "hero", "bloque": "HeroPortada" },
-      { "id": "foto-ambiente", "bloque": "FotoAmbiente" },
-      { "id": "compositor", "bloque": "CompositorSubdominio" },
-      { "id": "como-funciona", "bloque": "ComoFunciona" },
+      { "id": "pasos", "bloque": "PasosPortada" },
+      { "id": "ejemplo", "bloque": "MuestraInvitacion" },
       { "id": "eventos-publicos", "bloque": "EventosPublicos" },
-      { "id": "donaciones", "bloque": "DonacionesRecaudaciones" },
-      { "id": "preguntas", "bloque": "PreguntasFrecuentes" },
       { "id": "pie", "bloque": "PiePortada" }
     ]
   }

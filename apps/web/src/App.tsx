@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { TriangleAlert } from 'lucide-react';
 import { DEMO_GUEST_NAME, type UiPage } from '@fiestapay/shared';
+// NAP-U2: tokens día/noche para todo el sitio (el atributo data-tema los elige).
+import '../../../estilos/tokens.css';
 import { GuideOverlay } from './guide/GuideOverlay';
 import { registerGuideNavigator } from './guide/showOnScreen';
 import type { Capabilities, FiestaEvent, ToastMessage } from './types';
@@ -29,6 +31,8 @@ import { readAppHostContext } from './lib/app-host';
 import { siteThemeStyle } from './lib/site-theme';
 import type { TenantSiteSettings } from './lib/site-types';
 import { DemoBuyerAccountCard } from './components/demo/DemoBuyerAccountCard';
+import { NotFoundView } from './components/notfound/NotFoundView';
+import { openAvatar } from './components/avatar/avatar-open';
 // NAP-F5b: lib/create-interview eliminado con los caminos de IA.
 
 const DEMO_PAYMENT_SLUG_KEY = 'fp_demo_payment_slug';
@@ -63,7 +67,8 @@ type ViewMode =
   | { mode: 'login' }
   | { mode: 'verify' }
   | { mode: 'site-home' }
-  | { mode: 'site-settings' };
+  | { mode: 'site-settings' }
+  | { mode: 'not-found' };
 
 /** Guide pages are the public routes; invite/dashboard are not guide pages. */
 function viewToGuidePage(view: ViewMode): UiPage | null {
@@ -148,6 +153,7 @@ export const App: React.FC = () => {
     else if (view.mode === 'site-settings') path = '/settings';
     else if (view.mode === 'invite') path = `/e/${view.slug}`;
     else if (view.mode === 'dashboard') path = `/e/${view.slug}/admin`;
+    else if (view.mode === 'not-found') path = window.location.pathname;
 
     const params = new URLSearchParams(window.location.search);
     params.delete('path');
@@ -160,6 +166,13 @@ export const App: React.FC = () => {
       window.history.pushState(view, '', url);
     }
   }, []);
+
+  // NAP-U2: el botón dorado de la raíz pide crear con la avatar arrancada.
+  const pendingAvatarStartRef = useRef(false);
+  const goToCreateWithAvatar = useCallback(() => {
+    pendingAvatarStartRef.current = true;
+    navigate({ mode: 'create' });
+  }, [navigate]);
 
   /** Header entry: landing plus a scroll to the visitor's own invitations. */
   const goToOwnInvitations = useCallback(() => {
@@ -222,11 +235,12 @@ export const App: React.FC = () => {
       setCurrentView({ mode: 'create' });
       return;
     }
-    if (APP_HOST.isSiteHost) {
-      setCurrentView({ mode: 'site-home' });
+    if (path === '/' || path === '') {
+      setCurrentView(APP_HOST.isSiteHost ? { mode: 'site-home' } : { mode: 'home' });
       return;
     }
-    setCurrentView({ mode: 'home' });
+    // NAP-U2: las rutas desconocidas muestran la página de no encontrado.
+    setCurrentView({ mode: 'not-found' });
   }, []);
 
   /** Carga la marca del subdominio (SP-5); no llama rutas del legado. */
@@ -295,6 +309,16 @@ export const App: React.FC = () => {
   useEffect(() => {
     document.title = m.docTitle;
   }, [m]);
+
+  // NAP-U2: al llegar a /create desde el botón dorado se arranca la avatar con
+  // el mismo clic (el gesto sigue vigente para el audio). Los efectos de la
+  // vista hija corren antes, así que la tarjeta ya escucha el aviso.
+  useEffect(() => {
+    if (currentView.mode === 'create' && pendingAvatarStartRef.current) {
+      pendingAvatarStartRef.current = false;
+      openAvatar();
+    }
+  }, [currentView]);
 
   // FP-GUIDE-1: the guide service navigates through the app router (no reload).
   useEffect(() => {
@@ -498,6 +522,7 @@ export const App: React.FC = () => {
           <PortalLandingView
             onNavigateRegister={() => navigate({ mode: 'register' })}
             onNavigateLogin={() => navigate({ mode: 'login' })}
+            onNavigateCreate={goToCreateWithAvatar}
           />
         ) : null}
 
@@ -604,6 +629,12 @@ export const App: React.FC = () => {
             onNavigateHome={() => navigate({ mode: 'home' })}
             onNavigateRecover={() => navigate({ mode: 'recover' })}
             onShowToast={showToast}
+          />
+        )}
+
+        {currentView.mode === 'not-found' && (
+          <NotFoundView
+            onNavigateHome={() => navigate(APP_HOST.isSiteHost ? { mode: 'site-home' } : { mode: 'home' })}
           />
         )}
 
