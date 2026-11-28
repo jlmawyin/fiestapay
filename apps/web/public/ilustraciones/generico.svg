@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 200" role="img" aria-label="Reunión">
+  <rect width="500" height="200" rx="18" style="fill:var(--color-cloudwhite,#FFF8F1)"/>
+  <circle cx="404" cy="144" r="76" style="fill:var(--color-teal,#0B8075)" opacity=".14"/>
+  <rect x="118" y="66" width="184" height="94" rx="46" style="fill:none;stroke:var(--color-ink,#2A2118);stroke-width:4"/>
+  <circle cx="174" cy="112" r="12" style="fill:var(--color-blue,#125FE6)"/>
+  <circle cx="250" cy="112" r="12" style="fill:var(--color-coral,#E85D4A)"/>
+  <path d="M148 168c8-30 44-30 52 0M224 168c8-30 44-30 52 0" style="fill:none;stroke:var(--color-ink,#2A2118);stroke-width:4"/>
+  <path d="M348 58l6 14 16 2-12 11 3 16-13-8-15 8 3-16-11-11 16-2Z" style="fill:var(--color-yellow,#FFC85A)"/>
+</svg>
