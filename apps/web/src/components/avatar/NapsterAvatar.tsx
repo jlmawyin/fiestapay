@@ -13,7 +13,7 @@ import '../../styles/napster-avatar.css';
 import tutorial from '../../../../../contenido/tutorial.json';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { avatarCatalog } from '../../i18n/messages/avatar';
-import { useNapsterSession } from './useNapsterSession';
+import { useNapsterSession, type NapsterSessionStatus } from './useNapsterSession';
 import { createAvatarToolRouter, type AvatarToolRouter } from './toolRouter';
 import { markCreateIntent } from './sessionIntent';
 import { AVATAR_OPEN_EVENT, tryClaimAvatarOpen } from './avatar-open';
@@ -46,6 +46,23 @@ export interface NapsterAvatarProps {
    * evento tiene avatar con la foto del organizador).
    */
   onAgent?: (agent: string | null) => void;
+  /** NAP-U3: avatar elegida del catálogo; viaja como `avatarId` en la sesión. */
+  avatarId?: string;
+  /**
+   * NAP-U3: nombre de la avatar elegida para el título en reposo («Hola, soy
+   * Elena») antes de que la sesión confirme el suyo.
+   */
+  guideName?: string;
+  /**
+   * NAP-U3: la entrevista recibe el estado y el aviso de publicación; con
+   * cada cambio de estado vuelve a llegar.
+   */
+  onSessionApi?: (api: { status: NapsterSessionStatus; notifyPublished: () => void }) => void;
+  /**
+   * NAP-U3: cambiar de avatar con sesión en curso la reinicia. La vista
+   * confirma antes y luego sube este contador.
+   */
+  restartToken?: number;
 }
 
 /** Sección del DOM → etiqueta de contexto en el idioma de la página. */
@@ -68,7 +85,18 @@ function sectionLabel(sectionId: string, texts: (typeof avatarCatalog)['es']): s
   }
 }
 
-export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTitle, previewUrl, intent, avatarEnabled = true, onAgent }) => {
+export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({
+  eventSlug,
+  eventTitle,
+  previewUrl,
+  intent,
+  avatarEnabled = true,
+  onAgent,
+  avatarId,
+  guideName,
+  onSessionApi,
+  restartToken = 0,
+}) => {
   const { locale } = useI18n();
   const texts = useMessages(avatarCatalog);
   const lang: AvatarLang = locale === 'en' ? 'en' : 'es';
@@ -85,6 +113,8 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
     containerRef,
     eventSlug,
     intent,
+    avatarId,
+    restartToken,
     router: routerRef.current,
   });
   const { status, reason, captions, textMessages, textReady, degradedToPublic, agent, firstName, mic, muted, notifyLocation } = session;
@@ -110,6 +140,16 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
   useEffect(() => {
     onAgent?.(agent);
   }, [agent, onAgent]);
+
+  // NAP-U3: la entrevista guarda el estado y el aviso de publicación.
+  const sessionApiRef = useRef(onSessionApi);
+  sessionApiRef.current = onSessionApi;
+  const notifyPublishedRef = useRef(session.notifyPublished);
+  notifyPublishedRef.current = session.notifyPublished;
+  useEffect(() => {
+    sessionApiRef.current?.({ status, notifyPublished: () => notifyPublishedRef.current() });
+  }, [status]);
+
 
   // NAP-F3: con la sesión viva, cada cambio de sección visible avisa al agente
   // con send_message sistema y trigger_response:false (doc client-commands).
@@ -161,6 +201,8 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
   statusRef.current = status;
   const startRef = useRef(session.start);
   startRef.current = session.start;
+  // NAP-U3: el reinicio por cambio de avatar lo hace el hook (restartToken
+  // reabre la sesión en curso con la nueva elegida; en reposo no hace nada).
   useEffect(() => {
     const onOpen = (): void => {
       if (statusRef.current !== 'idle' && statusRef.current !== 'fallback') return;
@@ -200,7 +242,7 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
   if (status === 'idle') {
     return (
       <section className="napster-card" data-testid="napster-avatar" aria-labelledby="napster-welcome">
-        <h2 id="napster-welcome">{guestGreeting ? texts.invitedTitle(guestGreeting) : texts.welcomeTitle(firstName ?? undefined)}</h2>
+        <h2 id="napster-welcome">{guestGreeting ? texts.invitedTitle(guestGreeting) : texts.welcomeTitle(firstName ?? guideName ?? undefined)}</h2>
         <p>{guestGreeting ? texts.invitedText : texts.welcomeText}</p>
         <p className="napster-consent">{texts.consent}</p>
         <div className="napster-actions">

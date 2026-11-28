@@ -48,24 +48,23 @@ const createdEvent: CreatedEvent = {
   adminKey: 'admin-key-1',
 };
 
-function saveWizardStep() {
-  fireEvent.click(screen.getByRole('button', { name: 'Guardar y seguir' }));
-}
-
+/**
+ * NAP-U3: la creación es la entrevista. Rellena los pasos obligatorios
+ * (fecha y hora ya traen valores futuros) y deja Revisar abierto.
+ */
 function fillCreateForm() {
-  fireEvent.change(screen.getByLabelText(/Título del Evento/i), { target: { value: 'Fiesta de prueba' } });
-  saveWizardStep();
-  saveWizardStep();
-  fireEvent.change(screen.getByLabelText(/Lugar o Dirección/i), { target: { value: 'Parque' } });
-  saveWizardStep();
-  fireEvent.change(screen.getByLabelText(/Cuota por persona/i), { target: { value: '25.00' } });
-  fireEvent.change(screen.getByLabelText(/Capacidad máxima/i), { target: { value: '10' } });
-  saveWizardStep();
-  saveWizardStep();
+  fireEvent.change(screen.getByTestId('interview-title'), { target: { value: 'Fiesta de prueba' } });
+  fireEvent.click(screen.getByTestId('interview-step-4'));
+  fireEvent.change(screen.getByTestId('interview-location'), { target: { value: 'Parque' } });
+  fireEvent.click(screen.getByTestId('interview-step-5'));
+  fireEvent.change(screen.getByTestId('interview-capacity'), { target: { value: '10' } });
+  fireEvent.click(screen.getByTestId('interview-step-6'));
+  fireEvent.change(screen.getByTestId('interview-price'), { target: { value: '25.00' } });
+  fireEvent.click(screen.getByTestId('interview-step-7'));
 }
 
 function submitCreate() {
-  const publish = screen.queryByRole('button', { name: 'Publicar invitación' });
+  const publish = screen.queryByTestId('interview-publish');
   if (publish) fireEvent.click(publish);
 }
 
@@ -150,7 +149,7 @@ describe('create event pending progress and duplicate protection', () => {
     );
 
     fillCreateForm();
-    const publish = screen.getByRole('button', { name: 'Publicar invitación' });
+    const publish = screen.getByTestId('interview-publish');
     fireEvent.click(publish);
     fireEvent.click(publish);
 
@@ -160,13 +159,13 @@ describe('create event pending progress and duplicate protection', () => {
     expect(screen.queryByText(/paso\s+\d/i)).toBeNull();
     expect(createEvent).toHaveBeenCalledTimes(1);
     expect(onEventCreated).not.toHaveBeenCalled();
-    expect(screen.queryByLabelText('Enlaces de la invitación')).toBeNull();
+    expect(screen.queryByTestId('interview-public-url')).toBeNull();
 
     await act(async () => {
       pending.resolve(createdEvent);
     });
 
-    expect(await screen.findByLabelText('Enlaces de la invitación')).toBeInTheDocument();
+    expect(await screen.findByTestId('interview-public-url')).toBeInTheDocument();
     expect(localStorage.getItem('fp_admin_fiesta-nueva')).toBe('admin-key-1');
     expect(onShowToast).toHaveBeenCalledWith(
       'success',
@@ -174,7 +173,7 @@ describe('create event pending progress and duplicate protection', () => {
       'Invitación creada',
     );
     expect(createEvent).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.queryByTestId('interview-creating')).toBeNull();
   });
 
   it('clears creating status on error without fake success, and ignores a late result after unmount', async () => {
@@ -192,7 +191,7 @@ describe('create event pending progress and duplicate protection', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Servidor ocupado');
     expect(onShowToast).toHaveBeenCalledWith('error', 'Servidor ocupado', 'Error al crear');
     expect(screen.queryByRole('status')).toBeNull();
-    expect(screen.queryByLabelText('Enlaces de la invitación')).toBeNull();
+    expect(screen.queryByTestId('interview-public-url')).toBeNull();
     expect(onEventCreated).not.toHaveBeenCalled();
     expect(localStorage.getItem('fp_admin_fiesta-nueva')).toBeNull();
     expect(createEvent).toHaveBeenCalledTimes(1);
@@ -226,7 +225,7 @@ describe('create event pending progress and duplicate protection', () => {
 
     expect(onEventCreatedLate).not.toHaveBeenCalled();
     expect(onShowToastLate).not.toHaveBeenCalled();
-    expect(screen.queryByLabelText('Enlaces de la invitación')).toBeNull();
+    expect(screen.queryByTestId('interview-public-url')).toBeNull();
     expect(localStorage.getItem('fp_admin_fiesta-nueva')).toBe('admin-key-1');
   });
 });

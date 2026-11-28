@@ -357,32 +357,29 @@ describe('create/edit form in English', () => {
     vi.spyOn(api, 'createEvent').mockResolvedValue(created);
     const onShowToast = vi.fn();
     renderEn(<CreateEventView onEventCreated={vi.fn()} onCancel={vi.fn()} onShowToast={onShowToast} recoveryAvailable={false} />);
-    expect(screen.getByText('Create your next invitation')).toBeInTheDocument();
-    const save = () => fireEvent.click(screen.getByRole('button', { name: 'Save and continue' }));
-    fireEvent.change(screen.getByLabelText('Event Title *'), { target: { value: 'Sunday dinner' } });
-    save();
-    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-12-10' } });
-    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '14:00' } });
-    save();
-    fireEvent.change(screen.getByLabelText('Place or Address *'), { target: { value: 'Main hall' } });
-    fireEvent.change(screen.getByLabelText('Description for guests'), { target: { value: 'Real description here' } });
-    fireEvent.change(screen.getByLabelText('What does the share include? (Comma separated)'), {
-      target: { value: 'Snack, juice' },
-    });
-    save();
-    fireEvent.change(screen.getByLabelText('Share per person *'), { target: { value: '25.00' } });
-    fireEvent.change(screen.getByLabelText('Maximum capacity *'), { target: { value: '8' } });
-    save();
-    save();
-    fireEvent.click(screen.getByRole('button', { name: 'Publish invitation' }));
+    // NAP-U3: la creación es la entrevista.
+    expect(screen.getByText('Build your gathering by talking')).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId('interview-title'), { target: { value: 'Sunday dinner' } });
+    fireEvent.click(screen.getByTestId('interview-step-2'));
+    fireEvent.change(screen.getByTestId('interview-date'), { target: { value: '2026-12-10' } });
+    fireEvent.click(screen.getByTestId('interview-step-3'));
+    fireEvent.change(screen.getByTestId('interview-time'), { target: { value: '14:00' } });
+    fireEvent.click(screen.getByTestId('interview-step-4'));
+    fireEvent.change(screen.getByTestId('interview-location'), { target: { value: 'Main hall' } });
+    fireEvent.click(screen.getByTestId('interview-step-5'));
+    fireEvent.change(screen.getByTestId('interview-capacity'), { target: { value: '8' } });
+    fireEvent.click(screen.getByTestId('interview-step-6'));
+    fireEvent.change(screen.getByTestId('interview-price'), { target: { value: '25.00' } });
+    fireEvent.click(screen.getByTestId('interview-step-7'));
+    fireEvent.click(screen.getByTestId('interview-publish'));
     await waitFor(() => expect(api.createEvent).toHaveBeenCalledTimes(1));
     expect(onShowToast).toHaveBeenCalledWith(
       'success',
       'Invitation "Sunday dinner" created successfully!',
       'Invitation created',
     );
-    expect(await screen.findByRole('button', { name: 'Go to the dashboard' })).toBeInTheDocument();
-    expect(screen.getByText('Save the organizer link')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Go to my panel' })).toBeInTheDocument();
+    expect(screen.getByText('Do not share this QR: it opens your organizer panel')).toBeInTheDocument();
     expectNoSpanishWitnesses();
   });
 });

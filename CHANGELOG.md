@@ -9,6 +9,8 @@ Registro de cambios de contenido y mapa para agentes. Cada entrada anota fecha, 
 - 2026-11-30 — NAP-S3: catálogo de 26 avatares con `displayName`/`tags`, `suggest_avatars` solo para creador, `events.avatar_id` (0018), elección de avatar con clave, prioridad foto > elección > default, `GET /api/avatars` ampliado y límite de fotos propias a 15 (lint y typecheck; vitest lo corre el director).
 - 2026-11-30 — NAP-U4: enrutado SPA por `GET /api/host-info` (reunión, dirección libre, reservada), invitación sin PayPal con «Confirmar asistencia», avatar del host por `eventSlug`, ilustraciones SVG por plantilla y `og-image.png` 1200×630 reproducible (lint y typecheck; vitest lo corre el director).
 
+- 2026-11-28 NAP-U3: entrevista en /create (avatar a la izquierda, pasos a la derecha con dorado activo), fila de avatares con avatarId, `fill_event_draft` con step, pantalla final con QRs/correo/compartir y panel `none` sin PayPal.
+
 ## 2026-11-27 — NAP-F6w · «Tu avatar con tu foto» en el panel del organizador
 
 **Pedido:** NAP-F6w — sección opcional en el panel del legado donde el organizador sube SU foto (consentimiento obligatorio, JPG/PNG ≤5 MB validados en el navegador) para que Napster genere un avatar con su cara; nunca bloquea (sin avatar listo todos ven a la general). GET cada 10 s hasta ready, DELETE con confirmación para volver a la general, 409/502 amables con reintento; `open_avatar_settings` lleva y resalta la sección; la invitación dice «Te recibe {organizador}» cuando la sesión trae `agent:'custom'`.

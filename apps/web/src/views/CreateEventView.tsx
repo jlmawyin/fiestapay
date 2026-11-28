@@ -1,12 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import type { EventInput } from '../types';
-import { api } from '../api/client';
-import { rememberAdminKey } from '../api/admin-key';
-import { useMessages } from '../i18n/I18nContext';
-import { createEventCatalog } from '../i18n/messages/organizerCreate';
-import { OrganizerLinkCard } from '../components/dashboard/OrganizerLinkCard';
-import { RecoveryEmailCard } from '../components/dashboard/RecoveryEmailCard';
-import { CreateWizard } from '../components/events/CreateWizard';
+import React from 'react';
+import { CreateInterviewView } from './CreateInterviewView';
 
 interface CreateEventViewProps {
   onEventCreated: (slug: string) => void;
@@ -15,96 +8,20 @@ interface CreateEventViewProps {
   recoveryAvailable?: boolean;
 }
 
+/**
+ * NAP-U3: /create es la entrevista con la avatar (la persona arma su reunión
+ * conversando). El contrato de props no cambia para App.
+ */
 export const CreateEventView: React.FC<CreateEventViewProps> = ({
   onEventCreated,
   onCancel,
   onShowToast,
   recoveryAvailable = false,
-}) => {
-  const m = useMessages(createEventCatalog);
-  const [isLoading, setIsLoading] = useState(false);
-  const [created, setCreated] = useState<{ slug: string; adminKey: string } | null>(null);
-  const mountedRef = useRef(true);
-  const inFlightRef = useRef<Promise<void> | null>(null);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  const handleSubmit = async (input: EventInput) => {
-    if (inFlightRef.current) {
-      return inFlightRef.current;
-    }
-
-    const run = (async () => {
-      if (mountedRef.current) setIsLoading(true);
-      try {
-        const res = await api.createEvent(input);
-        if (res.adminKey) rememberAdminKey(res.event.slug, res.adminKey);
-        if (!mountedRef.current) return;
-        onShowToast('success', m.toastCreated(res.event.title), m.toastCreatedTitle);
-        if (res.adminKey) setCreated({ slug: res.event.slug, adminKey: res.adminKey });
-        else onEventCreated(res.event.slug);
-      } catch (err: any) {
-        if (!mountedRef.current) return;
-        onShowToast('error', err.message || m.toastCreateFail, m.toastCreateFailTitle);
-        throw err;
-      } finally {
-        if (mountedRef.current) setIsLoading(false);
-      }
-    })();
-
-    inFlightRef.current = run;
-    try {
-      await run;
-    } finally {
-      inFlightRef.current = null;
-    }
-  };
-
-  return (
-    <div style={{ maxWidth: '640px', margin: '0 auto' }}>
-      <div className="panel" style={{ padding: '1.75rem' }}>
-        <div style={{ marginBottom: '1.25rem' }}>
-          <span className="badge badge-blue" style={{ marginBottom: '0.35rem' }}>
-            {m.viewBadge}
-          </span>
-          <h1 style={{ fontSize: '1.75rem', color: 'var(--color-ink)' }}>{m.viewHeading}</h1>
-          <p style={{ fontSize: '0.875rem', color: 'var(--color-ink-muted)' }}>
-            {m.viewSub}
-          </p>
-        </div>
-
-        {created ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <OrganizerLinkCard slug={created.slug} adminKey={created.adminKey} recoveryAvailable={recoveryAvailable} />
-            <RecoveryEmailCard slug={created.slug} available={recoveryAvailable} />
-            <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-ink-muted)' }}>
-              {m.viewCreatedNote}
-            </p>
-            <button type="button" className="btn btn-primary" onClick={() => onEventCreated(created.slug)}>
-              {m.viewGoDashboard}
-            </button>
-          </div>
-        ) : (
-          <>
-            {isLoading ? (
-              <div className="create-event-progress" role="status" aria-live="polite" aria-busy="true">
-                <p>{m.viewCreating}</p>
-                <div className="create-event-progress-bar" aria-hidden="true" />
-              </div>
-            ) : null}
-            <CreateWizard
-              onSubmit={handleSubmit}
-              onCancel={onCancel}
-              isLoading={isLoading}
-            />
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
+}) => (
+  <CreateInterviewView
+    onDone={onEventCreated}
+    onCancel={onCancel}
+    onShowToast={onShowToast}
+    recoveryAvailable={recoveryAvailable}
+  />
+);

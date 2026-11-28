@@ -1,4 +1,4 @@
-import type { TemplateKind } from '@fiestapay/shared';
+import type { AvatarDraftStep, TemplateKind } from '@fiestapay/shared';
 
 /**
  * NAP-F5: borrador de evento como forma de datos de la avatar (antes en
@@ -26,6 +26,11 @@ export interface DraftEventProposal {
   /** Campos que rellenó la avatar, para marcarlos como sugeridos. */
   suggested: Array<'template' | 'title' | 'meal' | 'date' | 'startTime' | 'durationMinutes' | 'location' | 'includes' | 'headcount' | 'budgetCents'>;
   source: 'ai' | 'rules';
+  /**
+   * NAP-U3: sección que la avatar está rellenando (`fill_event_draft` con
+   * step); la entrevista la activa y la resalta en dorado.
+   */
+  step?: AvatarDraftStep;
 }
 
 const TEMPLATES = ['comida', 'casa', 'viaje', 'evento'] as const;
@@ -55,6 +60,15 @@ export function isDraftEventProposal(value: unknown): value is DraftEventProposa
   for (const key of optionalNumbers) {
     const current = proposal[key];
     if (current !== undefined && (typeof current !== 'number' || !Number.isFinite(current))) return false;
+  }
+  // NAP-U3: el paso es opcional pero, si viaja, debe ser uno cerrado.
+  const step = proposal.step;
+  if (
+    step !== undefined &&
+    (typeof step !== 'string' ||
+      !['template', 'date', 'startTime', 'location', 'headcount', 'perPersonCents'].includes(step))
+  ) {
+    return false;
   }
   return true;
 }

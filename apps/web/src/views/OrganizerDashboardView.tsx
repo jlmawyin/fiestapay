@@ -8,8 +8,12 @@ import { NapsterAvatar } from '../components/avatar/NapsterAvatar';
 import { EventAvatarSection } from '../components/avatar/EventAvatarSection';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { dashboardCatalog } from '../i18n/messages/organizerDashboard';
+import { shareCatalog } from '../i18n/messages/share';
 import { GuestGrid } from '../components/dashboard/GuestGrid';
 import { PaymentActivityPanel } from '../components/dashboard/PaymentActivityPanel';
+import { EventQrCards } from '../components/share/EventQrCards';
+import { ShareButtons } from '../components/share/ShareButtons';
+import '../styles/create-interview.css';
 import { ModerationPanel } from '../components/dashboard/ModerationPanel';
 import { ReminderDrafts } from '../components/dashboard/ReminderDrafts';
 import { OrganizerLinkCard } from '../components/dashboard/OrganizerLinkCard';
@@ -98,6 +102,7 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
 }) => {
   const { locale, formatMoney } = useI18n();
   const m = useMessages(dashboardCatalog);
+  const s = useMessages(shareCatalog);
   const labels = UI_LABELS[locale];
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -321,6 +326,17 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
   };
 
   const { event, guests, guestTotals, audit, payments, paymentActivity, paypalNotifications } = dashboard;
+  // NAP-U3: las reuniones sin PayPal (colecta entre panas) no muestran
+  // ningún texto ni botón de PayPal; llevan dirección propia, QRs y share.
+  const isNone = event.paymentProvider === 'none';
+  const ownAddress = (() => {
+    if (event.publicUrl) return event.publicUrl;
+    try {
+      return publicInviteUrl(window.location.origin, event.slug);
+    } catch {
+      return shareableInviteUrl(inviteUrl);
+    }
+  })();
   const copy = gatheringCopy(event.template, locale);
   const canConfirm = !event.minimumCents || event.minimumReached;
   const theme = resolveTheme(event.template, event.theme);
@@ -419,7 +435,39 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
 
       {storedKey ? (
         <>
-          <OrganizerLinkCard slug={slug} adminKey={storedKey} recoveryAvailable={capabilities?.email === true} />
+          {isNone ? (
+            <section className="panel" aria-label={s.shareTitle} data-testid="dashboard-share">
+              <h2 style={{ fontSize: '1.15rem', marginBottom: '0.35rem' }}>{s.shareTitle}</h2>
+              <p className="interview-address" data-testid="dashboard-public-url" style={{ marginBottom: '0.85rem' }}>
+                {ownAddress}
+              </p>
+              <EventQrCards
+                guestUrl={ownAddress}
+                adminUrl={`${window.location.origin}/e/${encodeURIComponent(slug)}/admin?k=${encodeURIComponent(storedKey)}`}
+              />
+              <div style={{ marginTop: '0.85rem' }}>
+                <ShareButtons
+                  title={event.title}
+                  dateLine={whenLabel}
+                  place={event.location}
+                  url={ownAddress}
+                  shareText={buildInviteShareText({
+                    template: event.template,
+                    theme: theme.key,
+                    title: event.title,
+                    location: event.location,
+                    startsAt: event.startsAt,
+                    endsAt: event.endsAt,
+                    priceCents: event.priceCents,
+                    inviteUrl: ownAddress,
+                    organizerName: event.organizerName,
+                  }, locale)}
+                />
+              </div>
+            </section>
+          ) : (
+            <OrganizerLinkCard slug={slug} adminKey={storedKey} recoveryAvailable={capabilities?.email === true} />
+          )}
           <RecoveryEmailCard slug={slug} available={capabilities?.email === true} />
         </>
       ) : null}
@@ -451,10 +499,17 @@ export const OrganizerDashboardView: React.FC<OrganizerDashboardViewProps> = ({
         )}
       </section>
 
-      <PaymentActivityPanel
-        activity={paymentActivity ?? []}
-        notifications={paypalNotifications ?? []}
-      />
+      {isNone ? (
+        <section className="panel" aria-label={m.colectaTitle} data-testid="dashboard-colecta">
+          <h2 style={{ fontSize: '1.15rem', marginBottom: '0.35rem' }}>{m.colectaTitle}</h2>
+          <p style={{ fontSize: '0.875rem', color: 'var(--color-ink-muted)', margin: 0 }}>{m.colectaBody}</p>
+        </section>
+      ) : (
+        <PaymentActivityPanel
+          activity={paymentActivity ?? []}
+          notifications={paypalNotifications ?? []}
+        />
+      )}
 
       <FundingStatusPanel event={event} audience="admin" parties={parties} />
 

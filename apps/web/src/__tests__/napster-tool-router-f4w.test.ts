@@ -38,6 +38,33 @@ describe('createAvatarToolRouter (NAP-F4w, invitado y creador)', () => {
     consumeGuideDraftProposal();
   });
 
+  it('fill_event_draft con step lo entrega a la entrevista (NAP-U3)', async () => {
+    const tool = createAvatarToolRouter({ visitor: 'creator', navigateTo });
+    const output = await tool.route({
+      call_id: 'c-step',
+      name: 'fill_event_draft',
+      arguments: {
+        title: 'Asado',
+        startsAt: '2026-12-12T18:00',
+        place: 'Mi casa',
+        step: 'location',
+      },
+    });
+    expect(output).toEqual({ ok: true });
+    expect(consumeGuideDraftProposal()).toMatchObject({ step: 'location', location: 'Mi casa' });
+  });
+
+  it('fill_event_draft rechaza un step fuera de la lista cerrada (NAP-U3)', async () => {
+    const tool = createAvatarToolRouter({ visitor: 'creator', navigateTo });
+    const output = await tool.route({
+      call_id: 'c-bad',
+      name: 'fill_event_draft',
+      arguments: { title: 'Asado', startsAt: '2026-12-12T18:00', step: 'precio' },
+    });
+    expect(output).toEqual({ ok: false, error: 'not_allowed' });
+    expect(consumeGuideDraftProposal()).toBeNull();
+  });
+
   it('un invitado no puede ejecutar fill_event_draft', async () => {
     const tool = createAvatarToolRouter({ visitor: 'guest', navigateTo });
     const output = await tool.route({
