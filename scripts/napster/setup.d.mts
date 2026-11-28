@@ -9,6 +9,8 @@ export interface RunSetupOptions {
   salida?: (linea: string) => void;
   /** NAP-S1: ruta alternativa del catálogo para no escribir el contenido real en pruebas. */
   catalogPath?: string;
+  /** NAP-S5: ruta alternativa de ids.json para no escribir el archivo real en pruebas. */
+  idsPath?: string;
 }
 
 export interface RunSetupResult {
