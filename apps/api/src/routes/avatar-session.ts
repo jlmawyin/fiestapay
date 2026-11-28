@@ -8,10 +8,18 @@ import type { FastifyInstance, FastifyReply } from 'fastify';
 import {
   avatarSessionEndSchema,
   avatarSessionRequestSchema,
+  type AvatarSessionAvatar,
   type AvatarSessionResponse,
   type AvatarVisitor,
 } from '@fiestapay/shared';
 import { buildExternalClientProfile, buildInitialSpeech } from '../napster/profile.js';
+import {
+  avatarAgentId,
+  avatarIsReady,
+  avatarPresentation,
+  defaultAvatarEntry,
+  findAvatarById,
+} from '../napster/catalog.js';
 import { createNapsterClient, NapsterError } from '../napster/client.js';
 import { readyEventAvatarAgents } from '../domain/event-avatars.js';
 import { AvatarEventNotFoundError, decideAvatarVisitor, type VisitorDecision } from '../napster/visitor.js';
@@ -49,6 +57,18 @@ function responderError(
 ) {
   if (retryAfterSec !== undefined) reply.header('Retry-After', String(retryAfterSec));
   return reply.code(status).send(retryAfterSec === undefined ? { error } : { error, retryAfterSec });
+}
+
+/** NAP-S1: nombre del organizador del avatar custom listo, para presentarlo en la sesión. */
+async function readyEventAvatarFirstName(pool: RouteDeps['pool'], eventSlug: string): Promise<string | null> {
+  const { rows } = await pool.query<{ first_name: string }>(
+    `SELECT a.first_name
+       FROM event_avatars a
+       JOIN events e ON e.id = a.event_id
+      WHERE e.slug = $1 AND a.status = 'ready' LIMIT 1`,
+    [eventSlug],
+  );
+  return rows[0]?.first_name ?? null;
 }
 
 export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: RouteDeps): Promise<void> {
@@ -94,10 +114,20 @@ export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: Ro
     if (!parsed.success) return reply.code(400).send({ error: 'Datos invalidos' });
     const body = parsed.data;
 
+    // NAP-S1: el id elegido debe existir en el catálogo y tener sus dos agentes listos.
+    let seleccionada = defaultAvatarEntry();
+    if (body.avatarId) {
+      const encontrada = findAvatarById(body.avatarId);
+      if (!encontrada || !avatarIsReady(encontrada)) {
+        return responderError(reply, 400, 'avatar_unknown');
+      }
+      seleccionada = encontrada;
+    }
+
     if (!cliente || !napster) {
       return responderError(reply, 503, 'avatar_disabled');
     }
-    const baseAgentId = body.lang === 'es' ? napster.agentIdEs : napster.agentIdEn;
+    const baseAgents = { es: napster.agentIdEs, en: napster.agentIdEn };
 
     let decision: VisitorDecision;
     try {
@@ -107,15 +137,18 @@ export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: Ro
       return responderError(reply, 502, 'avatar_upstream');
     }
 
-    // NAP-F6s: si el evento tiene su avatar listo, se usa el agente custom de ese idioma.
-    let agentId = baseAgentId;
+    // NAP-S1: prioridad (a) avatar del evento listo, (b) avatarId elegido, (c) default.
+    let agentId = avatarAgentId(seleccionada, body.lang, baseAgents);
     let agentKind: 'default' | 'custom' = 'default';
+    let avatar: AvatarSessionAvatar = avatarPresentation(seleccionada);
     if (body.eventSlug) {
       const custom = await readyEventAvatarAgents(pool, body.eventSlug);
       const customId = body.lang === 'es' ? custom?.es : custom?.en;
       if (customId) {
+        const firstName = (await readyEventAvatarFirstName(pool, body.eventSlug)) ?? seleccionada.firstName;
         agentId = customId;
         agentKind = 'custom';
+        avatar = { id: 'event', firstName, previewUrl: null };
       }
     }
     if (!agentId) return responderError(reply, 503, 'avatar_disabled');
@@ -124,6 +157,7 @@ export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: Ro
     const contexto = {
       visitor,
       lang: body.lang,
+      avatarFirstName: avatar.firstName,
       eventTitle: decision.eventTitle,
       siteName: decision.siteName,
     };
@@ -145,6 +179,7 @@ export async function registerAvatarSessionRoutes(app: FastifyInstance, deps: Ro
         visitor,
         lang: body.lang,
         agent: agentKind,
+        avatar,
       };
       // NAP-F4s: solo el modo texto necesita abrir el socket; la URL sale del token del servidor.
       if (esTexto) respuesta.socketUrl = socketUrlDesdeToken(conexion.token);

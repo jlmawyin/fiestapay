@@ -43,6 +43,6 @@ The public homepage does not show guest data: no names, emails, per-person amoun
 
 ## What the avatar does and does not do
 
-The avatar explains Somos Panas, answers questions, shows open events, and guides people on screen. It can list public events, open one from the last list, prepare a new space, highlight an allowed element, fill an event draft, write a reminder, show event details, and open the avatar settings.
+The avatar explains Somos Panas, answers questions, shows open events, and guides people on screen. It introduces itself with the name of the avatar chosen from the catalog (for example, Elena) and never as “Pana”. It can list public events, open one from the last list, prepare a new space, highlight an allowed element, fill an event draft, write a reminder, show event details, and open the avatar settings.
 
 It does not publish, confirm attendance, send messages, delete, pay, approve payments, or change data on the person's behalf. It does not invent features, prices, dates, or links. If something does not exist, it says so and offers the section or form that does exist.

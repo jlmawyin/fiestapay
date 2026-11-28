@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AvatarLang, AvatarVisitor } from '@fiestapay/shared';
+import { defaultAvatarEntry } from './catalog.js';
 
 interface AvatarContent {
   es: AvatarLanguageContent;
@@ -19,6 +20,8 @@ interface AvatarLanguageContent {
 export interface AvatarProfileContext {
   visitor: AvatarVisitor;
   lang: AvatarLang;
+  /** NAP-S1: nombre de la avatar elegida; nunca «Pana». */
+  avatarFirstName: string;
   eventTitle?: string;
   siteName?: string;
 }
@@ -35,15 +38,16 @@ const CONTENIDO = JSON.parse(readFileSync(RUTA_CONTENIDO, 'utf8')) as AvatarCont
 
 function reemplazar(texto: string, contexto: AvatarProfileContext): string {
   return texto
+    .replaceAll('{avatar}', contexto.avatarFirstName)
     .replaceAll('{evento}', contexto.eventTitle ?? '')
     .replaceAll('{sitio}', contexto.siteName ?? 'Somos Panas')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-/** Texto base del agente para el idioma pedido. */
-export function avatarInstructions(lang: AvatarLang): string {
-  return CONTENIDO[lang].instructions;
+/** Texto base del agente para el idioma pedido, con el nombre de la avatar en uso. */
+export function avatarInstructions(lang: AvatarLang, firstName = defaultAvatarEntry().firstName): string {
+  return CONTENIDO[lang].instructions.replaceAll('{avatar}', firstName);
 }
 
 /** Perfil público sin PII: solo tipo de visitante, idioma, evento y sitio. */

@@ -7,7 +7,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import Ajv from 'ajv';
+import Ajv2020 from 'ajv/dist/2020.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const RAIZ_REPO = join(__dirname, '..', '..');
@@ -22,6 +22,8 @@ const MAPA_CONTENIDO_ESQUEMA = {
   'paginas.json': 'paginas.schema.json',
   'preguntas.json': 'preguntas.schema.json',
   'sitio.json': 'sitio-ui.schema.json',
+  // NAP-S1: catálogo cerrado de avatares Napster.
+  'avatares.json': 'avatares.schema.json',
 };
 
 /**
@@ -29,7 +31,9 @@ const MAPA_CONTENIDO_ESQUEMA = {
  * @returns {import('ajv').default} Instancia lista para compilar.
  */
 function crearValidador() {
-  const ajv = new Ajv({
+  // NAP-S1: todos los esquemas declaran draft 2020-12; Ajv2020 aplica minContains/maxContains
+  // (exactamente una avatar default) y evita que esos límites se ignoren en silencio.
+  const ajv = new Ajv2020({
     allErrors: true,
     strict: false,
     validateSchema: false,
