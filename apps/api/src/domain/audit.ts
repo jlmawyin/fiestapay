@@ -32,6 +32,7 @@ export type AuditAction =
   | 'funding_met'
   | 'funding_failed'
   | 'event_updated'
+  | 'avatar_choice_set'
   | 'event_closed'
   | 'event_deleted'
   | 'retention_purged'

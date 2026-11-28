@@ -21,6 +21,7 @@ Fastify serves JSON under `/api`. The root host is `somospanas.com`, group sites
 ## Public directory and events
 
 - `GET /api/portal/events` (root): public events only.
+- `POST /api/events` (root) accepts optional `avatarId` from the ready catalog; unknown or unready ids return `400 avatar_unknown`. `PUT /api/events/:slug/avatar-choice` body `{avatarId|null}` with `X-Fiesta-Admin-Key` changes the avatar that receives guests; `null` restores the default.
 - `POST /api/events` (root) also accepts optional `preferredSubdomain`; the server assigns `subdomain` (with suffix 2, 3… when reserved or taken) and returns `subdomain`/`publicUrl` in the event and dashboard. New root meetups use provider `none`: quote/order/capture answer 409 and attendance still works. The legacy host keeps `paypal_sandbox`.
 - `GET /api/events/:slug`, `POST /api/events/:slug/join`, `POST /api/events/:slug/rsvp`, `POST /api/events/:slug/unlock`.
 - `POST /api/events/:slug/quote`, `POST /api/events/:slug/orders`, `POST /api/orders/:orderId/capture`, `GET /api/orders/:orderId`.
@@ -32,15 +33,17 @@ Fastify serves JSON under `/api`. The root host is `somospanas.com`, group sites
 
 - `POST /api/avatar-session` body `{lang, intent?, eventSlug?, avatarId?, mode?}` -> `{token, handle, visitor, lang, agent, avatar?, socketUrl?}`.
   - `avatarId` must be a ready catalog id; unknown ids return `400 avatar_unknown`. On an event host the event comes from the Host and any other `eventSlug` is 404.
+  - Guest priority: ready organizer photo, then `events.avatar_id`, then the default. A client `avatarId` never changes a guest's avatar.
   - The response `avatar` is `{id, firstName, previewUrl}`; for an event photo it is `{id:'event', firstName, previewUrl:null}`.
   - `mode:'video'` (default) creates a WebRTC connection; `mode:'text'` creates a WebSocket text session and returns the server-decoded socket URL.
   - The server decides `visitor` from the host, account and event access rules. It returns only the short-lived token and an opaque handle.
   - When the event has a ready custom avatar, `agent` is `"custom"`; otherwise `"default"`.
 - `POST /api/avatar-session/end` body `{handle}` -> 204, idempotent.
-- `GET /api/avatars` returns ready catalog entries `{id, firstName, gender, previewUrl, loopUrl, default}` without agent ids; it is public on root, legacy, site and event hosts.
+- `GET /api/avatars` returns ready catalog entries `{id, firstName, displayName, gender, previewUrl, loopUrl, tags, default}` without agent ids; it is public on root, legacy, site and event hosts.
+- `suggest_avatars` is creator-only and takes `{tag}` from the closed `AVATAR_TAGS` list; the web highlights matches and the person chooses. It is one of nine implicit tools with closed schemas.
 - `GET /api/capabilities` reports `paypal`, `paymentProvider`, `avatar` and `email`; it never announces an unconfigured provider.
 
-## Organizer photo avatar (legacy host only)
+## Organizer photo avatar
 
 These routes require `X-Fiesta-Admin-Key` for the event.
 
@@ -48,7 +51,7 @@ These routes require `X-Fiesta-Admin-Key` for the event.
 - `GET /api/events/:slug/avatar` returns `{status, firstName, ready}`. While `generating`, it checks Napster at most once every 10 seconds; when ready it creates the event's two agents, clears the photo and returns `ready`.
 - `DELETE /api/events/:slug/avatar` deletes the event agents and the row, returning to the general avatar.
 - `GET /media/avatar/:token` serves the JPEG/PNG only while it exists, with `Cache-Control: no-store`; afterwards it returns 404.
-- The custom-avatar cap is 35 events; exceeding it returns `409 avatar_limit`.
+- The custom-avatar cap is 15 events; exceeding it returns `409 avatar_limit`.
 
 ## Shared shapes and limits
 

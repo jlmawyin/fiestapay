@@ -44,6 +44,8 @@ interface PaymentWizardProps {
   onDismissOrder: () => void;
   onCaptureSuccess: (orderId: string) => Promise<boolean>;
   onCancelOrError: (msg: string) => void;
+  /** NAP-U4: reunión sin PayPal; el último paso es confirmar asistencia. */
+  collectaMode?: boolean;
 }
 
 function stepTitles(locale: 'es' | 'en'): Record<WizardStep, string> {
@@ -84,11 +86,13 @@ export const PaymentWizard: React.FC<PaymentWizardProps> = ({
   onDismissOrder,
   onCaptureSuccess,
   onCancelOrError,
+  collectaMode = false,
 }) => {
   const { locale, formatMoney } = useI18n();
   const m = useMessages(inviteCatalog);
   const labels = UI_LABELS[locale];
   const titles = stepTitles(locale);
+  const stepOrder: WizardStep[] = collectaMode ? [1, 2] : [1, 2, 3, 4];
   const [rsvpEditing, setRsvpEditing] = useState(false);
   // The choice this wizard just saved. RsvpForm persists an explicit "maybe"
   // to sessionStorage only after the save resolves, which lands after React
@@ -111,6 +115,7 @@ export const PaymentWizard: React.FC<PaymentWizardProps> = ({
   let openStep: WizardStep | null = null;
   if (!joined) openStep = 1;
   else if (!rsvpAnswered) openStep = 2;
+  else if (collectaMode) openStep = null;
   else if (!rsvpYes) openStep = null;
   else if (!quoteDone) openStep = 3;
   else if (!payDone) openStep = 4;
@@ -158,6 +163,13 @@ export const PaymentWizard: React.FC<PaymentWizardProps> = ({
 
   const renderHeaderSummary = () => {
     if (!guest) return null;
+    if (collectaMode) {
+      return (
+        <span className="payment-wizard__summary" role="status">
+          {rsvpYes ? m.attendanceConfirmed : rsvpAnswered ? m.stepRsvpNo : `${m.stepJoinedLead} ${guest.name}`}
+        </span>
+      );
+    }
     if (guest.paidCents > 0 && guest.dueCents === 0) {
       return (
         <span className="payment-wizard__summary" role="status">
@@ -239,6 +251,7 @@ export const PaymentWizard: React.FC<PaymentWizardProps> = ({
                 setRsvpEditing(false);
               }}
               isLoading={isSavingRsvp}
+              submitLabel={collectaMode ? m.confirmAttendance : undefined}
             />
             {askLink(2)}
           </>
@@ -365,18 +378,18 @@ export const PaymentWizard: React.FC<PaymentWizardProps> = ({
     return done ? 'done' : 'locked';
   };
 
-  const steps: WizardStep[] = [1, 2, 3, 4];
+  const steps: WizardStep[] = stepOrder;
 
   return (
     <section
-      aria-label={m.stepperAria}
+      aria-label={collectaMode ? m.collectaStepperAria : m.stepperAria}
       data-testid="paypal-stepper"
       className="payment-wizard"
     >
       <div className="payment-wizard__header">
         <div className="payment-wizard__title-block">
-          <h3 className="payment-wizard__title">{labels.paymentPathTitle}</h3>
-          <p className="payment-wizard__sub">{m.stepperSub}</p>
+          <h3 className="payment-wizard__title">{collectaMode ? m.collectaTitle : labels.paymentPathTitle}</h3>
+          <p className="payment-wizard__sub">{collectaMode ? m.collectaSub : m.stepperSub}</p>
         </div>
         {renderHeaderSummary()}
       </div>

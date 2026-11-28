@@ -7,7 +7,7 @@ import { api, ApiError } from '../api/client';
 import { useI18n, useMessages } from '../i18n/I18nContext';
 import { inviteCatalog } from '../i18n/messages/invite';
 import { avatarCatalog } from '../i18n/messages/avatar';
-import { TemplateCover } from '../components/illustrations/TemplateCover';
+import { InviteHeroIllustration } from '../components/invite/InviteHeroIllustration';
 import { ThemeScope } from '../components/events/ThemeScope';
 import { TicketCutout } from '../components/common/TicketCutout';
 import { PaymentWizard } from '../components/invite/PaymentWizard';
@@ -89,6 +89,8 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
       paypalClientId: paypalOn ? capabilities.paypalClientId : null,
     };
   }, [capabilities, event?.paymentProvider]);
+  // NAP-U4: en una reunión sin procesador la cuota es una colecta y no hay PayPal.
+  const collectaMode = (event?.paymentProvider ?? capabilities?.paymentProvider) === 'none';
   useLayoutEffect(() => {
     scopeVersion.current += 1;
     return () => { scopeVersion.current += 1; };
@@ -189,6 +191,8 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
   // Load quote when guest is attending and owes money
   const fetchQuote = useCallback(async () => {
     if (!guest || guest.status !== 'yes') return;
+    // NAP-U4: sin cobro en línea no se pide una cotización que el servidor rechaza.
+    if (collectaMode) return;
     if (guest.blockedAt || guest.removedAt) return;
     if (event && newGuestActivityBlocked(event)) return;
     const scope = scopeVersion.current;
@@ -203,7 +207,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
     } finally {
       if (scope === scopeVersion.current) setIsLoadingQuote(false);
     }
-  }, [slug, guest, event, onShowToast]);
+  }, [slug, guest, event, onShowToast, collectaMode]);
 
   useEffect(() => {
     if (guest?.blockedAt || guest?.removedAt) return;
@@ -490,13 +494,15 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
       <NapsterAvatar eventSlug={slug} eventTitle={event.title} avatarEnabled={capabilities?.avatar !== false} onAgent={setAvatarAgent} />
       {/* Main Signature Invitation Ticket */}
       <article className={`ticket-card ticket-card--sig-${resolvedCardStyle}`} aria-label={m.inviteAria(event.title)}>
-        {/* Cover illustration */}
-        <TemplateCover template={event.template} accent={theme.accent} height="200px" />
+        {/* NAP-U4: ilustración propia según la plantilla, sin fotos de relleno. */}
+        <InviteHeroIllustration template={event.template} locale={locale} />
 
         {/* Header Section */}
         <div style={{ padding: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <span className="badge badge-blue">{m.quotaBadge(formatMoney(event.priceCents))}</span>
+            <span className="badge badge-blue">
+              {collectaMode ? m.collectaQuotaBadge(formatMoney(event.priceCents)) : m.quotaBadge(formatMoney(event.priceCents))}
+            </span>
             {event.fundingStatus === 'failed' ? (
               <span className="badge badge-coral">{m.badgeFailed}</span>
             ) : event.confirmed ? (
@@ -539,6 +545,9 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
           <p style={{ fontSize: '0.95rem', color: 'var(--color-ink-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
             {event.description}
           </p>
+          {collectaMode ? (
+            <p className="invite-collecta-note">{m.collectaNote}</p>
+          ) : null}
 
           {/* Practical Logistics Details */}
           <div className="invite-facts">
@@ -633,6 +642,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
                 agenda={event.agenda}
                 deadlineLocal={event.fundingDeadlineAt ?? undefined}
                 locale={locale}
+                collecta={collectaMode}
               />
             </div>
           ) : null}
@@ -744,6 +754,7 @@ export const PublicInviteView: React.FC<PublicInviteViewProps> = ({
             onDismissOrder={handleDismissOrder}
             onCaptureSuccess={handleCaptureSuccess}
             onCancelOrError={handlePaymentCancelOrError}
+            collectaMode={collectaMode}
           />
         </div>
       </article>

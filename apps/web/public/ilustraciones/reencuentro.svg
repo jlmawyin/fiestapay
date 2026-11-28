@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 200" role="img" aria-label="Reencuentro">
+  <rect width="500" height="200" rx="18" style="fill:var(--color-cloudwhite,#FFF8F1)"/>
+  <circle cx="250" cy="98" r="82" style="fill:var(--color-blue,#125FE6)" opacity=".12"/>
+  <circle cx="210" cy="100" r="26" style="fill:none;stroke:var(--color-ink,#2A2118);stroke-width:4"/>
+  <circle cx="290" cy="100" r="26" style="fill:none;stroke:var(--color-ink,#2A2118);stroke-width:4"/>
+  <path d="M176 166a40 40 0 0 1 68-28" style="fill:none;stroke:var(--color-coral,#E85D4A);stroke-width:6;stroke-linecap:round"/>
+  <path d="M324 166a40 40 0 0 0-68-28" style="fill:none;stroke:var(--color-teal,#0B8075);stroke-width:6;stroke-linecap:round"/>
+  <path d="M250 68v64M218 100h64" style="stroke:var(--color-yellow,#FFC85A);stroke-width:5;stroke-linecap:round"/>
+  <circle cx="370" cy="58" r="5" style="fill:var(--color-blue,#125FE6)"/>
+  <circle cx="130" cy="146" r="5" style="fill:var(--color-coral,#E85D4A)"/>
+</svg>

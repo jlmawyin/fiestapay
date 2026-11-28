@@ -13,7 +13,7 @@ import '../../styles/napster-avatar.css';
 import tutorial from '../../../../../contenido/tutorial.json';
 import { useI18n, useMessages } from '../../i18n/I18nContext';
 import { avatarCatalog } from '../../i18n/messages/avatar';
-import { useNapsterSession } from './useNapsterSession';
+import { useNapsterSession, type NapsterSessionStatus } from './useNapsterSession';
 import { createAvatarToolRouter, type AvatarToolRouter } from './toolRouter';
 import { markCreateIntent } from './sessionIntent';
 import { AVATAR_OPEN_EVENT, tryClaimAvatarOpen } from './avatar-open';
@@ -46,6 +46,34 @@ export interface NapsterAvatarProps {
    * evento tiene avatar con la foto del organizador).
    */
   onAgent?: (agent: string | null) => void;
+  /** NAP-U3: avatar elegida del catálogo; viaja como `avatarId` en la sesión. */
+  avatarId?: string;
+  /**
+   * NAP-U3: nombre de la avatar elegida para el título en reposo («Hola, soy
+   * Elena») antes de que la sesión confirme el suyo.
+   */
+  guideName?: string;
+  /**
+   * NAP-U3: la entrevista recibe el estado y el aviso de publicación; con
+   * cada cambio de estado vuelve a llegar. NAP-U5: suma el aviso de sistema
+   * y si el chat ya abrió, para el resumen al reiniciar.
+   */
+  onSessionApi?: (api: {
+    status: NapsterSessionStatus;
+    textReady: boolean;
+    notifyPublished: () => void;
+    notifySystem: (message: string) => void;
+  }) => void;
+  /**
+   * NAP-U3: cambiar de avatar con sesión en curso la reinicia. La vista
+   * confirma antes y luego sube este contador.
+   */
+  restartToken?: number;
+  /**
+   * NAP-U5: saludo propio antes de empezar («Cuéntame de tu reunión…»); con
+   * foto y globo. Sin saludo, la tarjeta conserva sus textos de portada.
+   */
+  idleGreeting?: string;
 }
 
 /** Sección del DOM → etiqueta de contexto en el idioma de la página. */
@@ -68,7 +96,19 @@ function sectionLabel(sectionId: string, texts: (typeof avatarCatalog)['es']): s
   }
 }
 
-export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTitle, previewUrl, intent, avatarEnabled = true, onAgent }) => {
+export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({
+  eventSlug,
+  eventTitle,
+  previewUrl,
+  intent,
+  avatarEnabled = true,
+  onAgent,
+  avatarId,
+  guideName,
+  onSessionApi,
+  restartToken = 0,
+  idleGreeting,
+}) => {
   const { locale } = useI18n();
   const texts = useMessages(avatarCatalog);
   const lang: AvatarLang = locale === 'en' ? 'en' : 'es';
@@ -85,6 +125,8 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
     containerRef,
     eventSlug,
     intent,
+    avatarId,
+    restartToken,
     router: routerRef.current,
   });
   const { status, reason, captions, textMessages, textReady, degradedToPublic, agent, firstName, mic, muted, notifyLocation } = session;
@@ -110,6 +152,24 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
   useEffect(() => {
     onAgent?.(agent);
   }, [agent, onAgent]);
+
+  // NAP-U3: la entrevista guarda el estado y el aviso de publicación.
+  const sessionApiRef = useRef(onSessionApi);
+  sessionApiRef.current = onSessionApi;
+  const notifyPublishedRef = useRef(session.notifyPublished);
+  notifyPublishedRef.current = session.notifyPublished;
+  // NAP-U5: el aviso de sistema sirve el resumen al reiniciar.
+  const notifySystemRef = useRef(session.notifyLocation);
+  notifySystemRef.current = session.notifyLocation;
+  useEffect(() => {
+    sessionApiRef.current?.({
+      status,
+      textReady,
+      notifyPublished: () => notifyPublishedRef.current(),
+      notifySystem: (message: string) => notifySystemRef.current(message),
+    });
+  }, [status, textReady]);
+
 
   // NAP-F3: con la sesión viva, cada cambio de sección visible avisa al agente
   // con send_message sistema y trigger_response:false (doc client-commands).
@@ -161,6 +221,8 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
   statusRef.current = status;
   const startRef = useRef(session.start);
   startRef.current = session.start;
+  // NAP-U3: el reinicio por cambio de avatar lo hace el hook (restartToken
+  // reabre la sesión en curso con la nueva elegida; en reposo no hace nada).
   useEffect(() => {
     const onOpen = (): void => {
       if (statusRef.current !== 'idle' && statusRef.current !== 'fallback') return;
@@ -198,13 +260,43 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
   }
 
   if (status === 'idle') {
+    // NAP-U5: la entrevista trae su saludo propio con foto y globo; el resto
+    // conserva el título y los textos de portada.
+    const interviewLead = !guestGreeting && idleGreeting ? idleGreeting : null;
     return (
       <section className="napster-card" data-testid="napster-avatar" aria-labelledby="napster-welcome">
-        <h2 id="napster-welcome">{guestGreeting ? texts.invitedTitle(guestGreeting) : texts.welcomeTitle(firstName ?? undefined)}</h2>
-        <p>{guestGreeting ? texts.invitedText : texts.welcomeText}</p>
+        <h2 id="napster-welcome">{guestGreeting ? texts.invitedTitle(guestGreeting) : texts.welcomeTitle(firstName ?? guideName ?? undefined)}</h2>
+        {interviewLead ? (
+          <div className="napster-idle-lead">
+            {previewUrl ? (
+              <img
+                src={previewUrl}
+                alt=""
+                width={72}
+                height={72}
+                loading="lazy"
+                data-testid="napster-avatar-idle-photo"
+                className="napster-idle-photo"
+                onError={(event) => {
+                  event.currentTarget.style.display = 'none';
+                }}
+              />
+            ) : null}
+            <p className="napster-idle-bubble" data-testid="napster-avatar-idle-greeting">
+              {interviewLead}
+            </p>
+          </div>
+        ) : (
+          <p>{guestGreeting ? texts.invitedText : texts.welcomeText}</p>
+        )}
         <p className="napster-consent">{texts.consent}</p>
         <div className="napster-actions">
-          <button type="button" className="napster-btn" data-testid="napster-avatar-start" onClick={session.start}>
+          <button
+            type="button"
+            className={`napster-btn${interviewLead ? ' napster-btn-gold' : ''}`}
+            data-testid="napster-avatar-start"
+            onClick={session.start}
+          >
             {texts.startVideo}
           </button>
           <button

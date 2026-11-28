@@ -70,15 +70,17 @@ function fakePool(
   event = eventRow(),
   tenant: { tenant_id: string | null; visibility: string } = { tenant_id: null, visibility: 'public' },
   customAvatar: { es: string; en: string; firstName: string } | null = null,
+  eventAvatarId: string | null = null,
 ) {
   return {
     query: vi.fn(async (sql: string) => {
+      if (sql.includes('SELECT avatar_id FROM events')) return { rows: [{ avatar_id: eventAvatarId }] };
       if (customAvatar && sql.includes('FROM event_avatars a')) {
         if (sql.includes('a.first_name')) return { rows: [{ first_name: customAvatar.firstName }] };
         return { rows: [{ agent_id_es: customAvatar.es, agent_id_en: customAvatar.en }] };
       }
       if (sql.includes('FROM events WHERE slug')) return { rows: [event] };
-      if (sql.includes('SELECT tenant_id, visibility FROM events')) return { rows: [tenant] };
+      if (sql.includes('SELECT tenant_id, visibility FROM events')) return { rows: [{ tenant_id: tenant.tenant_id, visibility: tenant.visibility }] };
       return { rows: [] };
     }),
   } as unknown as Pool;
@@ -247,6 +249,27 @@ describe('POST /api/avatar-session (NAP-F2)', () => {
     await app.close();
   });
 
+  it('NAP-S3: el invitado usa la avatar elegida por el organizador', async () => {
+    const fake = successfulFetch('conn-evento-avatar');
+    vi.stubGlobal('fetch', fake);
+    const event = eventRow({ slug: 'fiesta-elegida', access_code_hash: null });
+    const app = await appWith(fakePool(event, { tenant_id: null, visibility: 'public' }, null, 'elena'));
+    const response = await post(
+      app,
+      '/api/avatar-session',
+      { lang: 'es', eventSlug: 'fiesta-elegida' },
+      LEGACY_HOST,
+      LEGACY_ORIGIN,
+    );
+    expect(response.statusCode).toBe(200);
+    expect(response.json<{ avatar: { id: string; firstName: string } }>().avatar).toMatchObject({
+      id: 'elena',
+      firstName: 'Elena',
+    });
+    expect(String(fake.mock.calls[0]![0])).toContain('/agents/agent-es/connections');
+    await app.close();
+  });
+
   it('NAP-S1: el avatar propio listo del evento gana a la elección y usa el nombre del organizador', async () => {
     const fake = successfulFetch('conn-event');
     vi.stubGlobal('fetch', fake);
@@ -255,7 +278,7 @@ describe('POST /api/avatar-session (NAP-F2)', () => {
       es: 'agent-event-es',
       en: 'agent-event-en',
       firstName: 'Ana',
-    });
+    }, 'elena');
     const app = await appWith(pool);
     const response = await post(
       app,

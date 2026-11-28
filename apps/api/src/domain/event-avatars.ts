@@ -8,10 +8,9 @@ import type { Pool } from '../db/pool.js';
 import type { EventRow } from './read.js';
 import { NapsterError, type NapsterClient } from '../napster/client.js';
 
-// NAP-S1: el límite baja a 35 para respetar los 100 agentes de la organización:
-// 35 eventos × 2 agentes = 70, + 2 agentes base = 72, + 7 avatares no default × 2 = 14,
-// total 86 < 100 (el avatar default usa los dos agentes base).
-export const MAX_EVENT_AVATARS = 35;
+// NAP-S3: límite de 15 fotos propias para respetar 100 agentes:
+// 2 agentes base + 25 avatares no default × 2 = 50, + 15 fotos × 2 = 30; total 82 < 100.
+export const MAX_EVENT_AVATARS = 15;
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const POLL_MIN_MS = 10_000;
 

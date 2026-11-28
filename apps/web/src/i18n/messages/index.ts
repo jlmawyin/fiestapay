@@ -53,3 +53,6 @@ export {
 
 /** Catálogo suelto de la avatar Napster (NAP-F3); fuera de los mapas con claves fijas. */
 export { avatarCatalog };
+/** Catálogos sueltos de la entrevista y de compartir (NAP-U3). */
+export { interviewCatalog } from './interview';
+export { shareCatalog } from './share';

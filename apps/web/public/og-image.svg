@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="fondo" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8F1"/>
+      <stop offset="1" stop-color="#E7F2EF"/>
+    </linearGradient>
+    <linearGradient id="sol" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#FFC85A"/>
+      <stop offset="1" stop-color="#E85D4A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#fondo)"/>
+  <circle cx="1010" cy="128" r="190" fill="#FFC85A" opacity="0.34"/>
+  <circle cx="104" cy="548" r="150" fill="#0B8075" opacity="0.16"/>
+  <circle cx="1078" cy="552" r="86" fill="url(#sol)" opacity="0.8"/>
+  <path d="M0 596c190-92 360-92 540 0s350 92 660 0v34H0Z" fill="#0B8075" opacity="0.2"/>
+  <g stroke="#2A2118" stroke-width="10" stroke-linecap="round" fill="none">
+    <path d="M156 208v76M196 208v76M176 284v92"/>
+    <path d="M246 208c-14 16-14 42 0 58v110M246 208c14 16 14 42 0 58"/>
+  </g>
+  <circle cx="216" cy="112" r="54" fill="#E85D4A" opacity="0.9"/>
+  <circle cx="216" cy="112" r="76" fill="none" stroke="#E85D4A" stroke-width="6" opacity="0.45"/>
+  <text x="330" y="250" font-family="Manrope, Nunito Sans, Segoe UI, sans-serif" font-size="104" font-weight="800" fill="#2A2118">Somos Panas</text>
+  <text x="334" y="326" font-family="Manrope, Nunito Sans, Segoe UI, sans-serif" font-size="40" font-weight="600" fill="#4A5D73">Cada reunión tiene su dirección.</text>
+  <text x="334" y="382" font-family="Manrope, Nunito Sans, Segoe UI, sans-serif" font-size="40" font-weight="600" fill="#4A5D73">Cada grupo, su espacio.</text>
+  <rect x="334" y="438" width="330" height="70" rx="35" fill="#125FE6"/>
+  <text x="374" y="484" font-family="Manrope, Nunito Sans, Segoe UI, sans-serif" font-size="30" font-weight="800" fill="#FFFFFF">somospanas.com</text>
+  <text x="334" y="558" font-family="Manrope, Nunito Sans, Segoe UI, sans-serif" font-size="26" font-weight="600" fill="#0B8075">Una colecta entre panas, sin cobro en línea.</text>
+</svg>

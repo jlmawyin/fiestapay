@@ -22,6 +22,8 @@ import type { RouteDeps } from './deps.js';
 function assertEventAvatarHost(req: FastifyRequest, slug: string): void {
   const host = req.hostClassification;
   if (host?.kind === 'legacy') return;
+  // NAP-S4: la pantalla final de la creación vive en la raíz; la clave sigue siendo obligatoria.
+  if (host?.kind === 'root') return;
   // NAP-S2: el host de una reunión solo puede gestionar la foto de esa misma reunión.
   if (host?.kind === 'event' && host.slug === slug) return;
   throw notFound('Ruta no encontrada');

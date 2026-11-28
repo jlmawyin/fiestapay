@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 200" role="img" aria-label="Cumpleaños">
+  <rect width="500" height="200" rx="18" style="fill:var(--color-cloudwhite,#FFF8F1)"/>
+  <circle cx="392" cy="54" r="70" style="fill:var(--color-coral,#E85D4A)" opacity=".18"/>
+  <path d="M126 158h150v-46a30 30 0 0 0-30-30h-90a30 30 0 0 0-30 30Z" style="fill:var(--color-yellow,#FFC85A)"/>
+  <path d="M148 158v-44a20 20 0 0 1 20-20h8v64Z" style="fill:var(--color-coral,#E85D4A)" opacity=".8"/>
+  <path d="M202 158v-64h8a20 20 0 0 1 20 20v44Z" style="fill:var(--color-teal,#0B8075)" opacity=".8"/>
+  <rect x="196" y="52" width="8" height="30" rx="4" style="fill:var(--color-blue,#125FE6)"/>
+  <path d="M200 46c8-12 8-18 0-26-8 8-8 14 0 26Z" style="fill:var(--color-yellow,#FFC85A)"/>
+  <circle cx="366" cy="112" r="9" style="fill:var(--color-blue,#125FE6)"/>
+  <circle cx="344" cy="78" r="5" style="fill:var(--color-teal,#0B8075)"/>
+  <circle cx="398" cy="146" r="6" style="fill:var(--color-coral,#E85D4A)"/>
+</svg>

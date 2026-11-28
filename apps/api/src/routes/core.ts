@@ -13,6 +13,7 @@ import {
   deleteEvent,
   listOwnedEvents,
   resetDemo,
+  setEventAvatarChoice,
   startDemo,
   unlockEvent,
   updateEvent,
@@ -23,6 +24,7 @@ import { concealExpired } from '../domain/retention.js';
 import { joinEvent, setRsvp } from '../domain/rsvp.js';
 import {
   assertNoClientMoneyState,
+  avatarChoiceSchema,
   demoBodySchema,
   eventInputSchema,
   joinSchema,
@@ -33,6 +35,7 @@ import {
 } from '../lib/schemas.js';
 import { requestLocale } from '../lib/locale.js';
 import { ensureSession, readSession, requireSession } from '../lib/session.js';
+import { avatarIsReady, findAvatarById } from '../napster/catalog.js';
 import type { RouteDeps } from './deps.js';
 
 const DEMO_BUYER_SANDBOX_HOSTS = new Set(['api-m.sandbox.paypal.com', 'api.sandbox.paypal.com']);
@@ -132,9 +135,35 @@ export async function registerCoreRoutes(app: FastifyInstance, deps: RouteDeps):
       const session = await ensureSession(pool, config, req, reply);
       assertNoClientMoneyState(req.body);
       const input = parseOr400(eventInputSchema, req.body);
+      // NAP-S3: el avatarId debe existir en el catálogo y tener sus dos agentes listos.
+      if (input.avatarId !== undefined && input.avatarId !== null) {
+        const avatar = findAvatarById(input.avatarId);
+        if (!avatar || !avatarIsReady(avatar)) {
+          return reply.code(400).send({ error: 'avatar_unknown' }) as unknown as CreatedEvent;
+        }
+      }
       // NAP-S2: solo el legado conserva PayPal; raíz y host de evento nacen con `none`.
       const tenantMode = req.hostClassification?.kind === 'legacy' ? 'legacy' : 'none';
       return createEvent(pool, session.id, input, tenantMode);
+    },
+  );
+
+  /** NAP-S3: el organizador elige quién recibe a sus invitados; `null` vuelve a la default. */
+  app.put(
+    '/events/:slug/avatar-choice',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (req, reply): Promise<{ event: FiestaEvent }> => {
+      const { slug } = parseOr400(slugParamSchema, req.params);
+      const { avatarId } = parseOr400(avatarChoiceSchema, req.body);
+      if (avatarId !== null) {
+        const avatar = findAvatarById(avatarId);
+        if (!avatar || !avatarIsReady(avatar)) {
+          return reply.code(400).send({ error: 'avatar_unknown' }) as unknown as { event: FiestaEvent };
+        }
+      }
+      const session = await readSession(pool, config, req);
+      const gate = await resolveEventPortalGate(pool, req, session?.id ?? null);
+      return { event: await setEventAvatarChoice(pool, slug, presentedAdminKey(req), avatarId, gate) };
     },
   );
 
