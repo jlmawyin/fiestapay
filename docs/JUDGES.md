@@ -17,7 +17,7 @@ You need a browser with a microphone for the avatar. If the microphone is unavai
 4. As you answer, `fill_event_draft` highlights the section it is filling and asks *“Does that look right? Shall I continue?”*. Correct anything you want.
 5. On the review step, press the final **Publish** button yourself. The avatar never publishes.
 6. After publish, the avatar receives the system message `published`. It reminds you to save the **administrator QR** and offers an optional recovery email. The final screen shows the meetup address, QR codes and sharing options.
-7. Optional legacy wow moment: on **https://fiestapay.somospanas.com** open an organizer panel, upload your photo with consent and wait for the v1 companion. When ready, guests are received by that face; the photo is deleted from our database.
+7. Optional wow moment: after publishing, on the final screen at **https://somospanas.com** (or later from the organizer panel), open **Your avatar with your photo**, upload your own photo with consent and enter your first name. Napster generates a v1 companion. When it is ready, guests are received by that face; the photo is deleted from our database. If generation is still pending, the selected catalog avatar remains available and the demo is not blocked.
 
 ## 3. Guest — 1.5 minutes
 

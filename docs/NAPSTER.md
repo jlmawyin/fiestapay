@@ -60,7 +60,7 @@ Every parameter object is closed with `additionalProperties: false`. `fill_event
 
 ## Organizer photo avatar
 
-The organizer authenticates with the event key (`X-Fiesta-Admin-Key`). The route accepts the legacy host and the meetup's own event host.
+The organizer authenticates with the event key (`X-Fiesta-Admin-Key`). The route accepts the root host, the legacy host and the meetup's own event host.
 
 1. `POST /api/events/:slug/avatar` requires `consent: true`, a first name and a JPEG/PNG data URL. The route validates magic bytes, a 5 MB decoded limit and a 7 MB body limit.
 2. The photo is stored temporarily in `event_avatars.photo_bytes` (migration `0016_event_avatars.sql`) and served at `GET /media/avatar/{token}` with `Cache-Control: no-store`.
