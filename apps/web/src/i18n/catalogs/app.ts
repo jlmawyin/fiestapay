@@ -32,6 +32,13 @@ export const appCatalog = defineCatalog({
     resetDoneTitle: 'Reinicio completado',
     resetFail: 'Error al reiniciar la demostración',
     resetFailTitle: 'Error',
+    // NAP-U2: interruptor de tema día/noche (acción a la que cambia).
+    themeToDay: 'Cambiar a modo día',
+    themeToNight: 'Cambiar a modo noche',
+    // NAP-U2: página de no encontrado.
+    notFoundTitle: 'Aquí no hay nada, pana',
+    notFoundBody: 'La dirección no existe o se movió. Vuelve a la portada y sigue desde ahí.',
+    notFoundHome: 'Volver a la portada',
   },
   en: {
     docTitle: 'Somos Panas — Gatherings organized, payments settled',
@@ -63,5 +70,12 @@ export const appCatalog = defineCatalog({
     resetDoneTitle: 'Reset complete',
     resetFail: 'Could not reset the demo',
     resetFailTitle: 'Error',
+    // NAP-U2: igual que en español, interruptor de tema.
+    themeToDay: 'Switch to light mode',
+    themeToNight: 'Switch to dark mode',
+    // NAP-U2: igual que en español, página de no encontrado.
+    notFoundTitle: 'Nothing here, friend',
+    notFoundBody: 'This address does not exist or moved. Head back home and carry on from there.',
+    notFoundHome: 'Back to home',
   },
 });

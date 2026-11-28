@@ -5,6 +5,25 @@
     <link rel="icon" type="image/svg+xml" href="/ticket-icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
     <meta name="referrer" content="no-referrer" />
+    <!-- NAP-U2: el navegador pinta el lienzo y la IU nativa con el esquema que toque. -->
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAF7F1" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0A1930" />
+    <script>
+      // NAP-U2: tema sin parpadeo. Solo fija data-tema antes del primer pintado,
+      // desde lo guardado (fp_tema) o el sistema; el resto vive en React.
+      try {
+        var guardado = localStorage.getItem('fp_tema');
+        var noche =
+          guardado === 'noche' ||
+          (guardado !== 'dia' &&
+            window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.setAttribute('data-tema', noche ? 'noche' : 'dia');
+      } catch (e) {
+        document.documentElement.setAttribute('data-tema', 'dia');
+      }
+    </script>
     <title>Somos Panas — Fiestas organizadas, pagos resueltos</title>
     <meta name="description" content="Organiza fiestas, comidas y viajes con tus amigos. Confirmación de asistencia, cuotas transparentes y pagos seguros con PayPal Sandbox." />
   </head>
