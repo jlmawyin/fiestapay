@@ -147,7 +147,7 @@ describe('NapsterAvatar invitado y creador (NAP-F4w)', () => {
     // Al terminar, la bienvenida ya es la pública, sin el nombre del evento.
     fireEvent.click(screen.getByTestId('napster-avatar-end'));
     await screen.findByTestId('napster-avatar-start');
-    expect(screen.getByText('Hola, soy Pana, tu guía de Somos Panas')).toBeTruthy();
+    expect(screen.getByText('Hola, soy tu guía de Somos Panas')).toBeTruthy();
     expect(screen.queryByText(/Evento viejo/)).toBeNull();
   });
 

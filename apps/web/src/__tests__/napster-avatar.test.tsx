@@ -255,7 +255,7 @@ describe('NapsterAvatar (NAP-F3)', () => {
     expect(captions.getAttribute('aria-live')).toBe('polite');
     expect(screen.getByText('Bienvenido a Somos Panas')).toBeTruthy();
     expect(screen.getByText('Quiero ver eventos')).toBeTruthy();
-    expect(screen.getByText(/Pana:/)).toBeTruthy();
+    expect(screen.getByText(/Tu guía:/)).toBeTruthy();
     expect(screen.getByText(/Tú:/)).toBeTruthy();
   });
 

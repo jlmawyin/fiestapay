@@ -16,15 +16,24 @@ import { avatarCatalog } from '../../i18n/messages/avatar';
 import { useNapsterSession } from './useNapsterSession';
 import { createAvatarToolRouter, type AvatarToolRouter } from './toolRouter';
 import { markCreateIntent } from './sessionIntent';
-import { AVATAR_OPEN_EVENT } from './avatar-open';
+import { AVATAR_OPEN_EVENT, tryClaimAvatarOpen } from './avatar-open';
 
 type LocaleKey = 'es' | 'en';
+
+/**
+ * NAP-U1: foto de la avatar general, en un solo lugar. Se ve mientras se
+ * conecta el video cuando la vista no trae `previewUrl` del catálogo.
+ */
+export const DEFAULT_AVATAR_PREVIEW_URL =
+  'https://syntheticdatastorageprod-cdn-hpgkdta8a7eehggt.z02.azurefd.net/data/89c53581-368e-461f-8517-53d54179c638/df58628e-cdc0-4e64-b8c2-b1b0410c2587/0e943b3c-81a4-4a81-9005-08a7c51f2d72/9pBBKYn2wXaMCVuySi6hdKLwelPEfFiSaXuTUIHFaD3HIEjUA.jpg';
 
 export interface NapsterAvatarProps {
   /** Slug del evento abierto; el servidor valida y decide `guest`. */
   eventSlug?: string;
   /** Título visible del evento, para el saludo «Te invitaron a …». */
   eventTitle?: string;
+  /** NAP-U1: foto fija mientras se conecta el video (del catálogo). */
+  previewUrl?: string;
   /** Intención fija de la vista (NAP-F4: el legado pide `intent:'create'`). */
   intent?: 'create';
   /**
@@ -59,12 +68,13 @@ function sectionLabel(sectionId: string, texts: (typeof avatarCatalog)['es']): s
   }
 }
 
-export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTitle, intent, avatarEnabled = true, onAgent }) => {
+export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTitle, previewUrl, intent, avatarEnabled = true, onAgent }) => {
   const { locale } = useI18n();
   const texts = useMessages(avatarCatalog);
   const lang: AvatarLang = locale === 'en' ? 'en' : 'es';
   const page = lang as LocaleKey;
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const captionsRef = useRef<HTMLOListElement | null>(null);
   const [draft, setDraft] = useState('');
   const routerRef = useRef<AvatarToolRouter | null>(null);
   if (!routerRef.current) {
@@ -77,8 +87,24 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
     intent,
     router: routerRef.current,
   });
-  const { status, reason, captions, textMessages, textReady, degradedToPublic, agent, notifyLocation } = session;
+  const { status, reason, captions, textMessages, textReady, degradedToPublic, agent, firstName, mic, muted, notifyLocation } = session;
   const guestGreeting = eventTitle && !degradedToPublic ? eventTitle : null;
+  const micLabel =
+    mic === 'listening'
+      ? texts.micListening
+      : mic === 'processing'
+        ? texts.micProcessing
+        : mic === 'denied'
+          ? texts.micDenied
+          : mic === 'error'
+            ? texts.micError
+            : texts.micReady;
+
+  // NAP-U1: el subtítulo en curso siempre queda visible (baja hasta el final).
+  useEffect(() => {
+    const list = captionsRef.current;
+    if (list) list.scrollTop = list.scrollHeight;
+  }, [captions]);
 
   // NAP-F6w: informa del agente ('custom') para el saludo de la invitación.
   useEffect(() => {
@@ -138,6 +164,8 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
   useEffect(() => {
     const onOpen = (): void => {
       if (statusRef.current !== 'idle' && statusRef.current !== 'fallback') return;
+      // NAP-U1: con dos tarjetas montadas, solo la primera abre sesión.
+      if (!tryClaimAvatarOpen()) return;
       startRef.current();
       try {
         document
@@ -172,7 +200,7 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
   if (status === 'idle') {
     return (
       <section className="napster-card" data-testid="napster-avatar" aria-labelledby="napster-welcome">
-        <h2 id="napster-welcome">{guestGreeting ? texts.invitedTitle(guestGreeting) : texts.welcomeTitle}</h2>
+        <h2 id="napster-welcome">{guestGreeting ? texts.invitedTitle(guestGreeting) : texts.welcomeTitle(firstName ?? undefined)}</h2>
         <p>{guestGreeting ? texts.invitedText : texts.welcomeText}</p>
         <p className="napster-consent">{texts.consent}</p>
         <div className="napster-actions">
@@ -270,6 +298,9 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
             {texts.endSession}
           </button>
         </div>
+        <p className="napster-powered" data-testid="napster-powered">
+          {texts.poweredBy}
+        </p>
       </section>
     );
   }
@@ -279,7 +310,47 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
       <h2 id="napster-session" className="napster-status">
         {status === 'live' ? texts.liveLabel : texts.connecting}
       </h2>
-      <div ref={containerRef} className="napster-video" data-testid="napster-avatar-video" />
+      <div className="napster-video-wrap">
+        <div ref={containerRef} className="napster-video" data-testid="napster-avatar-video" />
+        {status === 'connecting' ? (
+          <img
+            src={previewUrl ?? DEFAULT_AVATAR_PREVIEW_URL}
+            alt={texts.previewAlt}
+            data-testid="napster-avatar-preview"
+            className="napster-preview"
+          />
+        ) : null}
+      </div>
+      <div className="napster-mic" aria-live="polite">
+        <button
+          type="button"
+          className="napster-btn napster-btn-secondary"
+          data-testid="napster-mic"
+          disabled={status !== 'live'}
+          aria-pressed={muted}
+          onClick={session.toggleMute}
+        >
+          {micLabel}
+        </button>
+        {mic === 'denied' ? <p className="napster-mic-help">{texts.micDeniedHelp}</p> : null}
+        {mic === 'denied' || mic === 'error' ? (
+          <div className="napster-actions">
+            <button type="button" className="napster-btn" data-testid="napster-mic-retry" onClick={session.micRetry}>
+              {texts.micRetry}
+            </button>
+            {mic === 'denied' ? (
+              <button
+                type="button"
+                className="napster-btn napster-btn-secondary"
+                data-testid="napster-avatar-read-instead"
+                onClick={session.readInstead}
+              >
+                {texts.preferReading}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
       <div className="napster-actions">
         <button type="button" className="napster-btn" data-testid="napster-avatar-end" onClick={session.stop}>
           {texts.endSession}
@@ -287,7 +358,7 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
       </div>
       <div className="napster-captions">
         <h3>{texts.captionsTitle}</h3>
-        <ol aria-live="polite" data-testid="napster-avatar-captions">
+        <ol ref={captionsRef} aria-live="polite" data-testid="napster-avatar-captions">
           {captions.map((caption) => (
             <li key={caption.id} data-testid={`napster-avatar-caption-${caption.id}`}>
               <span className="napster-caption-role">
@@ -298,6 +369,9 @@ export const NapsterAvatar: React.FC<NapsterAvatarProps> = ({ eventSlug, eventTi
           ))}
         </ol>
       </div>
+      <p className="napster-powered" data-testid="napster-powered">
+        {texts.poweredBy}
+      </p>
     </section>
   );
 };

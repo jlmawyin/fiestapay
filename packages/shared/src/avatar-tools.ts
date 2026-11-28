@@ -46,6 +46,26 @@ const sinParametros: AvatarToolParameters = {
   additionalProperties: false,
 };
 
+/**
+ * NAP-S1: secciones cerradas del borrador de evento que la web puede resaltar.
+ * Mapeo a los campos reales de `apps/web/src/lib/draft-proposal.ts` y del CreateWizard:
+ * - template        → tipo de reunión (`template`; chips del paso 1).
+ * - date            → fecha (`date`; `#wizard-date` o `#wizard-depart-date`).
+ * - startTime       → hora (`startTime`; `#wizard-time`).
+ * - location        → lugar (`location`; `#event-location`).
+ * - headcount       → cuántos van (`headcount`; `#event-capacity`).
+ * - perPersonCents  → cuota por persona (`perPersonCents`; `#event-price`, priceDollars).
+ */
+export const AVATAR_DRAFT_STEPS = [
+  'template',
+  'date',
+  'startTime',
+  'location',
+  'headcount',
+  'perPersonCents',
+] as const;
+export type AvatarDraftStep = (typeof AVATAR_DRAFT_STEPS)[number];
+
 export const AVATAR_TOOLS = {
   list_open_events: {
     name: 'list_open_events',
@@ -130,6 +150,12 @@ export const AVATAR_TOOLS = {
         },
         place: { type: 'string', maxLength: 160, description: 'Lugar o enlace de encuentro.' },
         description: { type: 'string', maxLength: 500, description: 'Descripción breve del plan.' },
+        /** NAP-S1: la web resalta esta sección del borrador mientras la avatar la rellena. */
+        step: {
+          type: 'string',
+          enum: [...AVATAR_DRAFT_STEPS],
+          description: 'Sección del borrador que se está rellenando; la web la resalta.',
+        },
       },
       required: ['title', 'startsAt'],
       additionalProperties: false,

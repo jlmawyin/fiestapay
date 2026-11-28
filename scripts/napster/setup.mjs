@@ -12,9 +12,13 @@ import { AVATAR_TOOLS, AVATAR_TOOL_NAMES } from '../../packages/shared/dist/avat
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const RUTA_IDS = join(RAIZ, '.local', 'napster', 'ids.json');
+const RUTA_AVATARES = join(RAIZ, 'contenido', 'avatares.json');
 const NOMBRE_FAQ_BASE = 'somospanas-faq';
 const NOMBRE_CONOCIMIENTO = 'somospanas-conocimiento';
 const ARCHIVOS_CONOCIMIENTO = ['somospanas.es.md', 'somospanas.en.md'];
+const NOMBRE_AGENTE_BASE = { es: 'somospanas-es', en: 'somospanas-en' };
+const LIMITE_AGENTES = 100;
+const MARGEN_AGENTES = 95;
 
 function parseArgs(argv) {
   const args = {};
@@ -33,7 +37,7 @@ function parseArgs(argv) {
 
 function lista(json) {
   if (Array.isArray(json)) return json;
-  for (const clave of ['items', 'data', 'results', 'functions', 'faqs', 'agents', 'knowledgeBases']) {
+  for (const clave of ['items', 'data', 'results', 'functions', 'faqs', 'agents', 'knowledgeBases', 'voices']) {
     if (Array.isArray(json?.[clave])) return json[clave];
   }
   if (Array.isArray(json?.data?.items)) return json.data.items;
@@ -46,6 +50,29 @@ function idDe(item) {
 
 function nombreDe(item) {
   return typeof item?.name === 'string' ? item.name : typeof item?.data?.name === 'string' ? item.data.name : '';
+}
+
+/** NAP-S1: la API puede envolver el agente en `data`; se lee igual en GET y en la lista. */
+function datosDe(item) {
+  return item && typeof item.data === 'object' && item.data !== null ? { ...item, ...item.data } : item ?? {};
+}
+
+function escaparRegex(texto) {
+  return texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** NAP-S1: sustituye el nombre base de la asistente, sin tocar la marca Somos Panas. */
+function sustituirNombre(texto, nombreAnterior, nombreNuevo) {
+  if (typeof texto !== 'string' || !nombreNuevo) return texto;
+  let salida = texto.replaceAll('{avatar}', nombreNuevo);
+  if (nombreAnterior && nombreAnterior !== nombreNuevo) {
+    salida = salida.replace(new RegExp(`\\b${escaparRegex(nombreAnterior)}\\b`, 'gi'), nombreNuevo);
+  }
+  return salida;
+}
+
+function nombreDeAgenteAvatar(id, lang) {
+  return `somospanas-avatar-${id}-${lang}`;
 }
 
 async function crearCliente({ apiKey, baseUrl, fetchImpl }) {
@@ -168,10 +195,155 @@ async function sincronizarAgente(cliente, decir, existentes, datos) {
 }
 
 /**
+ * NAP-S1: cuerpo de un agente de catálogo copiando el base del mismo idioma.
+ * Copia companion/voz/idioma/instrucciones/funciones/FAQ/conocimiento y cambia el nombre
+ * de la asistente en las instrucciones. No crea ni escribe nada.
+ */
+function cuerpoAgenteDesdeBase(base, entrada, lang, nombreBase) {
+  const info = datosDe(base);
+  const providerSettings = { ...(info.providerSettings ?? {}) };
+  if (typeof providerSettings.instructions === 'string') {
+    providerSettings.instructions = sustituirNombre(providerSettings.instructions, nombreBase, entrada.firstName);
+  }
+  const body = {
+    companionId: entrada.companionId,
+    name: nombreDeAgenteAvatar(entrada.id, lang),
+    voiceId: entrada.voice,
+    language: lang,
+    providerSettings,
+    functions: info.functions ?? [],
+    faqCollections: info.faqCollections ?? [],
+  };
+  for (const key of ['knowledgeBaseId', 'disableIdleTimeout', 'useWebSearch', 'mode', 'tags']) {
+    if (info[key] !== undefined && info[key] !== null) body[key] = info[key];
+  }
+  return body;
+}
+
+/** NAP-S1: solo actualiza si cambiaron la companion, la voz, el idioma o el nombre asistente. */
+function agenteDesactualizado(actual, body) {
+  const info = datosDe(actual);
+  if (info.companionId !== body.companionId) return true;
+  if (info.voiceId !== body.voiceId) return true;
+  if (info.language !== body.language) return true;
+  if (typeof info.name === 'string' && info.name !== body.name) return true;
+  return info.providerSettings?.instructions !== body.providerSettings?.instructions;
+}
+
+/**
+ * NAP-S1: sincroniza los agentes de las entradas no default del catálogo.
+ * Entrada: cliente HTTP, catálogo parseado, ruta para escribirlo, entorno y `dryRun`.
+ * Salida: catálogo actualizado (en memoria si `--dry-run`) y contadores.
+ */
+async function sincronizarCatalogo(cliente, catalogo, { catalogPath, env, decir, dryRun }) {
+  const defensa = catalogo.avatars.find((entrada) => entrada.default);
+  if (!defensa) throw new Error('contenido/avatares.json no tiene avatar default');
+  const nombreBase = defensa.firstName;
+  const entradas = catalogo.avatars.filter((entrada) => !entrada.default);
+  const existentes = lista(await cliente.get('/public/agents'));
+
+  // NAP-S1: contar antes de crear. 35 eventos×2 + 2 base + 7 catálogo×2 = 86 < 100.
+  const nuevas = entradas.reduce((total, entrada) => {
+    const faltan = ['es', 'en'].filter(
+      (lang) => !existentes.some((item) => nombreDe(item) === nombreDeAgenteAvatar(entrada.id, lang)),
+    ).length;
+    return total + faltan;
+  }, 0);
+  if (existentes.length + nuevas > MARGEN_AGENTES) {
+    throw new Error(
+      `Napster tendría ${existentes.length + nuevas} agentes y superaría el margen de ${MARGEN_AGENTES} (límite ${LIMITE_AGENTES})`,
+    );
+  }
+
+  const baseIds = {};
+  for (const lang of ['es', 'en']) {
+    const clave = lang === 'es' ? 'NAPSTER_AGENT_ID_ES' : 'NAPSTER_AGENT_ID_EN';
+    const delEntorno = typeof env[clave] === 'string' ? env[clave].trim() : '';
+    const delCatalogo = idDe(existentes.find((item) => nombreDe(item) === NOMBRE_AGENTE_BASE[lang]));
+    const id = delEntorno || delCatalogo;
+    if (!id) throw new Error(`falta el agente base ${NOMBRE_AGENTE_BASE[lang]} (env ${clave} o nombre en Napster)`);
+    baseIds[lang] = id;
+  }
+
+  const bases = {};
+  for (const lang of ['es', 'en']) bases[lang] = await cliente.get(`/public/agents/${baseIds[lang]}`);
+
+  let creados = 0;
+  let actualizados = 0;
+  let cambio = false;
+  for (const entrada of entradas) {
+    for (const lang of ['es', 'en']) {
+      const body = cuerpoAgenteDesdeBase(bases[lang], entrada, lang, nombreBase);
+      const existente = existentes.find((item) => nombreDe(item) === body.name);
+      let id;
+      if (existente && idDe(existente)) {
+        id = idDe(existente);
+        const actual = await cliente.get(`/public/agents/${id}`);
+        if (agenteDesactualizado(actual, body)) {
+          if (!dryRun) {
+            await cliente.patch(`/public/agents/${id}`, body);
+            await cliente.put(`/public/agents/${id}/channels/webrtc`, { videoPolicy: 'deferred' });
+          }
+          actualizados += 1;
+          decir(`agente ${dryRun ? 'a actualizar' : 'actualizado'}: ${body.name} (${id})`);
+        } else {
+          decir(`agente reutilizado: ${body.name} (${id})`);
+        }
+      } else {
+        if (dryRun) {
+          id = '<pendiente>';
+        } else {
+          const creado = await cliente.post('/public/agents', body);
+          id = idDe(creado);
+          if (!id) throw new Error(`Napster no devolvió id para el agente ${body.name}`);
+          await cliente.put(`/public/agents/${id}/channels/webrtc`, { videoPolicy: 'deferred' });
+          existentes.push(creado);
+        }
+        creados += 1;
+        decir(`agente ${dryRun ? 'a crear' : 'creado'}: ${body.name}${id === '<pendiente>' ? '' : ` (${id})`}`);
+      }
+      const campo = lang === 'es' ? 'agentIdEs' : 'agentIdEn';
+      if (entrada[campo] !== id) {
+        entrada[campo] = id;
+        cambio = true;
+      }
+    }
+  }
+
+  if (cambio && !dryRun) await writeFile(catalogPath, `${JSON.stringify(catalogo, null, 2)}\n`, 'utf8');
+  return { creados, actualizados, cambio };
+}
+
+/** NAP-S1: `--list-voices` solo informa; si la API no expone voces, lo dice y no falla. */
+async function listarVoces(cliente, decir) {
+  try {
+    const json = await cliente.get('/public/voices');
+    const voces = lista(json);
+    if (voces.length === 0) {
+      decir('Napster no expone un catálogo de voces en /public/voices.');
+      return [];
+    }
+    for (const voz of voces) {
+      decir(`${idDe(voz) ?? '?'} — ${nombreDe(voz) || JSON.stringify(voz)}`);
+    }
+    return voces;
+  } catch (error) {
+    decir(`Napster no expone /public/voices: ${error instanceof Error ? error.message : 'sin detalle'}`);
+    return [];
+  }
+}
+
+/**
  * Ejecuta la configuración. `fetchImpl` y `salida` son inyectables para la prueba sin red.
  * Devuelve { dryRun, ids } y no imprime la clave en ningún camino.
  */
-export async function runSetup({ argv = [], env = process.env, fetchImpl = fetch, salida = console.log } = {}) {
+export async function runSetup({
+  argv = [],
+  env = process.env,
+  fetchImpl = fetch,
+  salida = console.log,
+  catalogPath = RUTA_AVATARES,
+} = {}) {
   const args = parseArgs(argv);
   const dryRun = Boolean(args['dry-run']);
   const companionId = typeof args.companion === 'string' ? args.companion : '';
@@ -179,6 +351,43 @@ export async function runSetup({ argv = [], env = process.env, fetchImpl = fetch
   const knowledgeBaseUrl = typeof args['knowledge-base-url'] === 'string' ? args['knowledge-base-url'] : '';
   const apiKey = (env.NAPSTER_API_KEY ?? '').trim();
   const baseUrl = (env.NAPSTER_API_BASE ?? 'https://napster-api.napster.com').trim();
+
+  if (args['list-voices']) {
+    if (dryRun) {
+      salida('napster:setup --list-voices --dry-run (sin red)');
+      salida('consulta prevista: GET /public/voices');
+      return { dryRun: true, ids: null, voces: null };
+    }
+    if (!apiKey) throw new Error('napster:setup requiere NAPSTER_API_KEY en el entorno (no se imprime)');
+    const cliente = await crearCliente({ apiKey, baseUrl, fetchImpl });
+    const voces = await listarVoces(cliente, salida);
+    return { dryRun: false, ids: null, voces };
+  }
+
+  if (args.catalog) {
+    const catalogo = JSON.parse(await readFile(catalogPath, 'utf8'));
+    const entradas = catalogo.avatars.filter((entrada) => !entrada.default);
+    if (dryRun) {
+      salida('napster:setup --catalog --dry-run (sin red, sin escribir ids)');
+      salida(`entradas no default: ${entradas.length}`);
+      for (const entrada of entradas) {
+        salida(`${nombreDeAgenteAvatar(entrada.id, 'es')}, ${nombreDeAgenteAvatar(entrada.id, 'en')}`);
+      }
+      salida('base: NAPSTER_AGENT_ID_ES/EN o somospanas-es/en');
+      salida('canal: PUT /public/agents/{id}/channels/webrtc { videoPolicy: "deferred" }');
+      return { dryRun: true, ids: null, catalogo: null };
+    }
+    if (!apiKey) throw new Error('napster:setup requiere NAPSTER_API_KEY en el entorno (no se imprime)');
+    const cliente = await crearCliente({ apiKey, baseUrl, fetchImpl });
+    const resultado = await sincronizarCatalogo(cliente, catalogo, {
+      catalogPath,
+      env,
+      decir: salida,
+      dryRun: false,
+    });
+    salida(`catálogo: ${resultado.creados} creados, ${resultado.actualizados} actualizados`);
+    return { dryRun: false, ids: null, catalogo: resultado };
+  }
 
   if (dryRun) {
     salida('napster:setup --dry-run (sin red, sin escribir ids)');
@@ -204,6 +413,9 @@ export async function runSetup({ argv = [], env = process.env, fetchImpl = fetch
   if (!apiKey) throw new Error('napster:setup requiere NAPSTER_API_KEY en el entorno (no se imprime)');
 
   const avatar = JSON.parse(await readFile(join(RAIZ, 'contenido', 'avatar.json'), 'utf8'));
+  const avatares = JSON.parse(await readFile(catalogPath, 'utf8'));
+  const defensa = avatares.avatars.find((entrada) => entrada.default);
+  if (!defensa) throw new Error('contenido/avatares.json no tiene avatar default');
   const preguntas = JSON.parse(await readFile(join(RAIZ, 'contenido', 'preguntas.json'), 'utf8')).preguntas ?? [];
   const cliente = await crearCliente({ apiKey, baseUrl, fetchImpl });
 
@@ -232,7 +444,10 @@ export async function runSetup({ argv = [], env = process.env, fetchImpl = fetch
       name: nombre,
       voiceId,
       language: lang,
-      providerSettings: { instructions: avatar[lang].instructions, temperature: 0.3 },
+      providerSettings: {
+        instructions: sustituirNombre(avatar[lang].instructions, '', defensa.firstName),
+        temperature: 0.3,
+      },
       functions: funciones,
       faqCollections: [faqs[lang]],
       ...(conocimiento ? { knowledgeBaseId: conocimiento } : {}),

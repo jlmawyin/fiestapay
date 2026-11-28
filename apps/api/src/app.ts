@@ -27,6 +27,7 @@ import { registerSiteRoutes } from './routes/sites.js';
 import { registerRecoveryRoutes } from './routes/recovery.js';
 import { registerModerationRoutes } from './routes/moderation.js';
 import { registerAvatarSessionRoutes } from './routes/avatar-session.js';
+import { registerAvatarsRoutes } from './routes/avatars.js';
 import { registerEventAvatarMediaRoute, registerEventAvatarRoutes } from './routes/event-avatar.js';
 import { registerPortalRoutes } from './routes/portal.js';
 import { registerCoreRoutes } from './routes/core.js';
@@ -76,6 +77,8 @@ async function isRequestRoutable(
     if (!tenantId) return false;
     // NAP-F2: la sesión de avatar también se pide desde el subdominio del sitio (creador).
     if (pathOnly === '/api/avatar-session' || pathOnly === '/api/avatar-session/end') return true;
+    // NAP-S1: el catálogo de avatares es público también en el subdominio del sitio.
+    if (pathOnly === '/api/avatars') return true;
     if (pathOnly === '/api/sites/handoff') return true;
     return pathOnly === '/api/site' || pathOnly.startsWith('/api/site/');
   }
@@ -243,6 +246,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       await registerPaymentRoutes(api, deps);
       await registerModerationRoutes(api, deps);
       await registerAvatarSessionRoutes(api, deps);
+      await registerAvatarsRoutes(api, deps);
       await registerEventAvatarRoutes(api, deps);
       await registerPortalRoutes(api, deps);
     },

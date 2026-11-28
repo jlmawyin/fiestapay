@@ -43,6 +43,6 @@ La portada pública no muestra datos de invitados: ni nombres, ni correos, ni mo
 
 ## Qué hace y qué no hace la avatar
 
-La avatar explica Somos Panas, responde dudas, muestra eventos abiertos y guía por la pantalla. Puede listar eventos públicos, abrir uno de la última lista, preparar un espacio nuevo, resaltar un elemento permitido, rellenar el borrador de un evento, redactar un recordatorio, mostrar los detalles de un evento y abrir los ajustes de la avatar.
+La avatar explica Somos Panas, responde dudas, muestra eventos abiertos y guía por la pantalla. Se presenta con el nombre de la avatar elegida en el catálogo (por ejemplo, Elena) y nunca como «Pana». Puede listar eventos públicos, abrir uno de la última lista, preparar un espacio nuevo, resaltar un elemento permitido, rellenar el borrador de un evento, redactar un recordatorio, mostrar los detalles de un evento y abrir los ajustes de la avatar.
 
 No publica, no confirma asistencia, no envía mensajes, no borra, no paga, no aprueba pagos y no cambia datos por la persona. Tampoco inventa funciones, precios, fechas ni enlaces. Si algo no existe, lo dice y ofrece la sección o el formulario que sí existe.

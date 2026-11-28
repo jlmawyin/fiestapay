@@ -172,8 +172,8 @@
         "en": "What can the avatar do?"
       },
       "respuesta": {
-        "es": "Explica Somos Panas, responde dudas, lista eventos públicos, abre uno de la última lista, prepara un espacio, resalta elementos, rellena el borrador de un evento, redacta recordatorios y muestra detalles o ajustes.",
-        "en": "It explains Somos Panas, answers questions, lists public events, opens one from the last list, prepares a space, highlights elements, fills an event draft, writes reminders, and shows details or settings."
+        "es": "Explica Somos Panas, responde dudas, lista eventos públicos, abre uno de la última lista, prepara un espacio, resalta elementos, rellena el borrador de un evento, redacta recordatorios y muestra detalles o ajustes. Se presenta con el nombre de la avatar elegida, nunca como «Pana».",
+        "en": "It explains Somos Panas, answers questions, lists public events, opens one from the last list, prepares a space, highlights elements, fills an event draft, writes reminders, and shows details or settings. It introduces itself with the name of the chosen avatar, never as “Pana”."
       }
     },
     {

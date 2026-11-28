@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "avatares.schema.json",
+  "title": "CatalogoAvatares",
+  "type": "object",
+  "required": ["avatars"],
+  "additionalProperties": false,
+  "properties": {
+    "avatars": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "firstName",
+          "gender",
+          "companionId",
+          "previewUrl",
+          "voice",
+          "agentIdEs",
+          "agentIdEn",
+          "default"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$", "maxLength": 40 },
+          "firstName": { "type": "string", "minLength": 1, "maxLength": 60 },
+          "gender": { "type": "string", "enum": ["female", "male"] },
+          "companionId": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "previewUrl": { "type": "string", "pattern": "^https://" },
+          "voice": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "agentIdEs": { "type": ["string", "null"] },
+          "agentIdEn": { "type": ["string", "null"] },
+          "default": { "type": "boolean" }
+        }
+      },
+      "contains": {
+        "type": "object",
+        "required": ["default"],
+        "properties": { "default": { "const": true } }
+      },
+      "minContains": 1,
+      "maxContains": 1
+    }
+  }
+}
